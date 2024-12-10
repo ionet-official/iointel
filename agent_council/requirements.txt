@@ -3,3 +3,4 @@ controlflow
 fastapi
 python-dotenv
 uvicorn
+httpx

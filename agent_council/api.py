@@ -1,10 +1,8 @@
 from fastapi import FastAPI
 import uvicorn
-from dotenv import load_dotenv
-from models import ScheduleRequest
-from agents import council_task, schedule_reminder_flow
+from datamodels import ScheduleRequest
+from agent_flows import council_task, schedule_reminder_flow
 
-load_dotenv("creds.env")
 
 app = FastAPI()
 
