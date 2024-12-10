@@ -12,13 +12,15 @@ app = FastAPI()
 @app.post("/schedule")
 async def schedule_task(req: ScheduleRequest):
     # Directly invoke the schedule_reminder_flow defined in agents.py
-    result = schedule_reminder_flow(req.command, req.delay)
+    result = schedule_reminder_flow(req.task)
     return {"message": result}
 
+
+
 @app.post("/council")
-async def run_council_task(task: str):
+async def run_council_task(req: ScheduleRequest):
     # Directly invoke the council_task flow
-    result = council_flow(task)
+    result = council_flow(req.task)
     return {"result": result}
 
 if __name__ == "__main__":

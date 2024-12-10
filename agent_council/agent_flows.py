@@ -1,7 +1,7 @@
 import controlflow as cf
 
 from agents import (leader, council_member1, council_member2, 
-                    council_member3, coder, tools,agent_maker, reminder_agent)
+                    council_member3, coder, agent_maker, reminder_agent)
 
 from datamodels import AgentParams
 from tools import create_agent
@@ -17,10 +17,10 @@ def schedule_reminder_flow(command: str, delay: int = 0) -> str:
     reminder = run_agents(
         objective = "Schedule a reminder",
         instructions="""
-            Schedule a reminder
+            Schedule a reminder and use the tool to track the time for the reminder.
         """,
         agents=[reminder_agent],
-        context={"command": command, "delay": delay},
+        context={"command": command},
         result_type=str,
     )
     return reminder
@@ -33,7 +33,7 @@ def council_flow(task: str):
         "Deliberate and vote on the best way to complete the task.",
         agents=[leader, council_member1, council_member2, council_member3],
         completion_agents=[leader],
-        turn_strategy=cf.orchestration.turn_strategies.Moderated(moderator=leader),
+        #turn_strategy=cf.orchestration.turn_strategies.Moderated(moderator=leader),
         instructions="""
             Deliberate with other council members on the best way to complete the task.
             Allow each council member to provide input before voting.

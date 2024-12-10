@@ -1,15 +1,7 @@
 from datetime import datetime
 from datamodels import AgentParams
-import time
 from models import Agent
 
-def remind_after_delay(command: str, delay: int = 0) -> str:
-    """
-    A simple task that waits for `delay` seconds and then returns a reminder message.
-    """
-    if delay > 0:
-        time.sleep(delay)
-    return f"Reminder: {command}"
 
 def create_agent(params: AgentParams) -> Agent:
     """

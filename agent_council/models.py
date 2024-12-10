@@ -4,7 +4,7 @@ import os
 from typing import List, Dict, Any
 
 
-class Agent:
+class Agent(cf.Agent):
 
     """
     A configurable wrapper around cf.Agent that allows you to plug in different chat models, 
@@ -14,66 +14,57 @@ class Agent:
     adding conditionals or separate model classes.
     """
 
+
     def __init__(
         self,
         name: str,
         instructions: str,
         tools: list = None,
-        model_name: str = "gpt-4o-mini",
-        api_key: str = None,
+        model_provider: callable = None,
         **model_kwargs
     ):
         """
         :param name: The name of the agent.
         :param instructions: The instruction prompt for the agent.
-        :param tools: A list of tool instances.
-        :param model_name: The name of the model (e.g. "gpt-4", "gpt-3.5-turbo").
-        :param api_key: The API key for the chosen model. Defaults to OPENAI_API_KEY from environment.
-        :param model_kwargs: Additional keyword arguments passed to the model constructor.
+        :param tools: A list of cf.Tool instances or @cf.tool decorated functions.
+        :param model_provider: A callable that returns a configured model instance. 
+                              If provided, it should handle all model-related configuration.
+        :param model_kwargs: Additional keyword arguments passed to the model factory or ChatOpenAI if no factory is provided.
+        
+        If model_provider is given, you rely entirely on it for the model and ignore other model-related kwargs.
+        If not, you fall back to ChatOpenAI with model_kwargs such as model="gpt-4o-mini", api_key="..."
         """
 
-        self.name = name
-        self.instructions = instructions
-        self.tools = tools or []
-        self.model_name = model_name
-        self.api_key = api_key or os.getenv("OPENAI_API_KEY")
+        if model_provider is not None:
+            model = model_provider(**model_kwargs)
+        else:
+            model = ChatOpenAI(**model_kwargs)
 
-        # Since we are using the openAI api chat by default, we initialize it here.
-        
-        self.model = ChatOpenAI(
-                model=self.model_name,
-                api_key=self.api_key,
-                **model_kwargs
-            )
-
-
-        # Create the cf.Agent using the configured model, instructions, and tools
-        self.agent = cf.Agent(
-            name=self.name,
-            instructions=self.instructions,
-            tools=self.tools,
-            model=self.model
+        # Call super with all required fields
+        super().__init__(
+            name=name,
+            instructions=instructions,
+            tools=tools or [],
+            model=model,
         )
 
+
     def run(self, prompt: str):
-        """
-        Runs the agent on a given prompt. This uses cf.Agent's run method to produce a response.
-        """
-        return self.agent.run(prompt)
+        # Since you're subclassing cf.Agent, you can call super().run directly.
+        return super().run(prompt)
 
     def set_instructions(self, new_instructions: str):
-        """
-        Update the agent's instructions at runtime if needed.
-        """
+        # Update the instructions field on the pydantic model using assignment
+        # This should be done through a mechanism that cf.Agent supports, or 
+        # ensure that cf.Agent fields are defined as mutable. If it causes errors, 
+        # you may need to recreate the agent or rely on internal CF methods.
         self.instructions = new_instructions
-        self.agent.instructions = new_instructions
 
     def add_tool(self, tool):
-        """
-        Add a new tool to the agent's toolkit dynamically.
-        """
-        self.tools.append(tool)
-        self.agent.tools = self.tools
+        # Append to tools the same way. If it's a field managed by pydantic, 
+        # ensure it is allowed. Otherwise, consider recreating the agent.
+        updated_tools = self.tools + [tool]
+        self.tools = updated_tools
 
 
 class AgentRunner:

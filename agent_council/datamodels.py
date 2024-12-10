@@ -3,8 +3,7 @@ from pydantic import BaseModel
 
 # Request models
 class ScheduleRequest(BaseModel):
-    command: str
-    delay: int = 0 # Delay in seconds
+    task: str
 
 
 ##agent params###
