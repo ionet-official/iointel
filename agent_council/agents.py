@@ -1,6 +1,8 @@
-import controlflow as cf
 from tools import get_current_datetime, remind_after_delay
 from models import Agent
+
+
+
 
 tools = [get_current_datetime, remind_after_delay]
 
@@ -12,7 +14,7 @@ reminder_agent = Agent(
 )
 
 # Define agents with access to the get_current_datetime tool
-leader = cf.Agent(
+leader = Agent(
     name="Leader",
     instructions="""
     You are the council leader, 
@@ -23,35 +25,35 @@ leader = cf.Agent(
 
 )
 
-council_member1 = cf.Agent(
+council_member1 = Agent(
     name="Council Member 1",
     instructions="You are a council member who provides input and votes on decisions.",
     tools=tools,
 
 )
 
-council_member2 = cf.Agent(
+council_member2 = Agent(
     name="Council Member 2",
     instructions="You are a council member who provides input and votes on decisions.",
     tools=tools,
 
 )
 
-council_member3 = cf.Agent(
+council_member3 = Agent(
     name="Council Member 3",
     instructions="You are a council member who provides input and votes on decisions.",
     tools=tools,
 
 )
 
-coder = cf.Agent(
+coder = Agent(
     name="Coder",
     instructions="You are an expert python coder who provides code for the task.",
     tools=tools,
 
 )
 
-agent_maker = cf.Agent(
+agent_maker = Agent(
     name="Agent",
     instructions="You create agents that can perform tasks from the provided code.",
     tools=tools,

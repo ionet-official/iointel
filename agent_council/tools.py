@@ -1,8 +1,7 @@
 from datetime import datetime
 from datamodels import AgentParams
 import time
-import controlflow as cf
-
+from models import Agent
 
 def remind_after_delay(command: str, delay: int = 0) -> str:
     """
@@ -12,11 +11,11 @@ def remind_after_delay(command: str, delay: int = 0) -> str:
         time.sleep(delay)
     return f"Reminder: {command}"
 
-def create_agent(params: AgentParams) -> cf.Agent:
+def create_agent(params: AgentParams) -> Agent:
     """
-    Create a controlflow.Agent instance from the given AgentParams.
+    Create a Agent instance from the given AgentParams.
     """
-    return cf.Agent(name=params.name, instructions=params.instructions)
+    return Agent(name=params.name, instructions=params.instructions)
 
 
 def get_current_datetime() -> str:

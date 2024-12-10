@@ -5,7 +5,7 @@ from agents import (leader, council_member1, council_member2,
 
 from datamodels import AgentParams
 from tools import create_agent
-from dotenv import load_dotenv
+from models import run_agents
 
 @cf.flow
 def schedule_reminder_flow(command: str, delay: int = 0) -> str:
@@ -13,24 +13,23 @@ def schedule_reminder_flow(command: str, delay: int = 0) -> str:
     A flow that schedules a reminder after a given delay.
     Instead of a persistent task manager, we just call this flow whenever we need.
     """
-    load_dotenv()
-    reminder = cf.run(
-        "Schedule a reminder",
-        agents=[reminder_agent],
+    
+    reminder = run_agents(
+        objective = "Schedule a reminder",
         instructions="""
-            Schedule a reminder"
+            Schedule a reminder
         """,
+        agents=[reminder_agent],
         context={"command": command, "delay": delay},
         result_type=str,
-        tools=tools
     )
     return reminder
 
 
 @cf.flow
-def council_task(task: str):
+def council_flow(task: str):
     # step 1: deliberation and voting process
-    deliberate = cf.run(
+    deliberate = run_agents(
         "Deliberate and vote on the best way to complete the task.",
         agents=[leader, council_member1, council_member2, council_member3],
         completion_agents=[leader],
@@ -47,7 +46,7 @@ def council_task(task: str):
     print(deliberate)
 
     # Step 2: write code for the task
-    codes = cf.run(
+    codes = run_agents(
         "Write code for the task",
         agents=[coder],
         instructions="""
@@ -59,20 +58,18 @@ def council_task(task: str):
     )
 
     # Step 3: generate an agent to run the code
-    custom_agent_params = cf.run(
+    custom_agent_params = run_agents(
         "Create a ControlFlow agent using the provided code.",
         agents=[agent_maker],
         context={"code": codes},
         result_type=AgentParams,
-        tools=tools
     )
 
-    custom_agent = create_agent(custom_agent_params)
 
     # step 4: run the agent
-    result = cf.run(
+    result = run_agents(
         "Execute the agent to complete the task",
-        agents=[custom_agent],
+        agents=[create_agent(custom_agent_params)],
         result_type=str
     )
     return result

@@ -1,7 +1,10 @@
+from dotenv import load_dotenv
+load_dotenv() 
+
 from fastapi import FastAPI
 import uvicorn
 from datamodels import ScheduleRequest
-from agent_flows import council_task, schedule_reminder_flow
+from agent_flows import council_flow, schedule_reminder_flow
 
 
 app = FastAPI()
@@ -12,10 +15,10 @@ async def schedule_task(req: ScheduleRequest):
     result = schedule_reminder_flow(req.command, req.delay)
     return {"message": result}
 
-@app.post("/council_task")
+@app.post("/council")
 async def run_council_task(task: str):
     # Directly invoke the council_task flow
-    result = council_task(task)
+    result = council_flow(task)
     return {"result": result}
 
 if __name__ == "__main__":
