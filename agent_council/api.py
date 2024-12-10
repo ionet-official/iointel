@@ -16,7 +16,6 @@ async def schedule_task(req: ScheduleRequest):
     return {"message": result}
 
 
-
 @app.post("/council")
 async def run_council_task(req: ScheduleRequest):
     # Directly invoke the council_task flow
