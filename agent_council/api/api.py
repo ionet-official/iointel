@@ -3,8 +3,8 @@ load_dotenv()
 
 from fastapi import FastAPI
 import uvicorn
-from datamodels import ScheduleRequest
-from agent_flows import council_flow, schedule_reminder_flow
+from agent_council.models.datamodels import ScheduleRequest
+from agent_council.flows.agent_flows import council_flow, schedule_reminder_flow
 
 
 app = FastAPI()

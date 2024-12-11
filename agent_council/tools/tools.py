@@ -1,6 +1,6 @@
 from datetime import datetime
-from datamodels import AgentParams
-from models import Agent
+from agent_council.models.datamodels import AgentParams
+from framework.agents import Agent
 
 
 def create_agent(params: AgentParams) -> Agent:
