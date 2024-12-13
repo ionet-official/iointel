@@ -1,5 +1,7 @@
 from pydantic import BaseModel
 from typing import List, Optional
+import sys
+
 
 class ImportStatement(BaseModel):
     module: str
@@ -106,3 +108,14 @@ def generate_code_from_module(module: PythonModule) -> str:
         code_lines.append("")
 
     return "\n".join(line for line in code_lines if line.strip() != "" or line == "")
+
+def extract_imported_modules(module: PythonModule) -> List[str]:
+    # Use a set to avoid duplicates
+    return list({imp.module for imp in module.imports})
+
+def filter_packages(modules: List[str]) -> List[str]:
+    """
+    Given a list of module names, return only those that are NOT in the standard library.
+    """
+    STDLIB_MODULES = set(sys.stdlib_module_names)
+    return [m for m in modules if m not in STDLIB_MODULES]

@@ -39,29 +39,23 @@ class Agent(cf.Agent):
         else:
             model = ChatOpenAI(**model_kwargs)
 
-        # Call super with all required fields
+
         super().__init__(
             name=name,
             instructions=instructions,
             tools=tools or [],
             model=model,
+            **model_kwargs
         )
 
 
     def run(self, prompt: str):
-        # Since you're subclassing cf.Agent, you can call super().run directly.
         return super().run(prompt)
 
     def set_instructions(self, new_instructions: str):
-        # Update the instructions field on the pydantic model using assignment
-        # This should be done through a mechanism that cf.Agent supports, or 
-        # ensure that cf.Agent fields are defined as mutable. If it causes errors, 
-        # you may need to recreate the agent or rely on internal CF methods.
         self.instructions = new_instructions
 
     def add_tool(self, tool):
-        # Append to tools the same way. If it's a field managed by pydantic, 
-        # ensure it is allowed. Otherwise, consider recreating the agent.
         updated_tools = self.tools + [tool]
         self.tools = updated_tools
 
@@ -87,8 +81,8 @@ class AgentRunner:
     def run(
         self,
         objective: str,
-        agents: List[cf.Agent] = None,
-        completion_agents: List[cf.Agent] = None,
+        agents: List[Agent] = None,
+        completion_agents: List[Agent] = None,
         instructions: str = "",
         context: Dict[str, Any] = None,
         result_type: Any = str,
