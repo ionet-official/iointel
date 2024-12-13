@@ -70,6 +70,22 @@ def generate_code_from_class(cls: ClassDefinition) -> str:
         code_lines.append(f'    """{cls.docstring}"""')
     if cls.methods:
         for method in cls.methods:
+            # Determine if method is staticmethod or classmethod
+            is_static = any(d == "staticmethod" for d in method.decorators)
+            is_class = any(d == "classmethod" for d in method.decorators)
+
+            if is_static:
+                # No 'self' or 'cls' needed
+                pass
+            elif is_class:
+                # Ensure first argument is 'cls'
+                if not method.args or method.args[0].name != "cls":
+                    method.args.insert(0, Argument(name="cls"))
+            else:
+                # Regular instance method, ensure first argument is 'self'
+                if not method.args or method.args[0].name != "self":
+                    method.args.insert(0, Argument(name="self"))
+
             method_code = generate_code_from_function(method)
             for line in method_code.split("\n"):
                 code_lines.append("    " + line)

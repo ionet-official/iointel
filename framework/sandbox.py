@@ -2,14 +2,23 @@ import tempfile
 import os
 import docker
 from typing import Tuple, List
+import logging
 from code_parser import (PythonModule, extract_imported_modules,
                          generate_code_from_module, filter_packages)
+
+# Configure logging for this module. In a larger application, configure logging in a main entry point.
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)  # Set this to INFO or WARNING in production if needed.
+handler = logging.StreamHandler()
+formatter = logging.Formatter("%(asctime)s [%(levelname)s] %(name)s: %(message)s")
+handler.setFormatter(formatter)
+logger.addHandler(handler)
 
 class DockerSandbox:
     def __init__(
         self, 
         image: str = "python:3.11-slim", 
-        memory_limit="100m", 
+        memory_limit="500m", 
         cpu_period=100000, 
         cpu_quota=50000,
         read_only=True,
@@ -88,51 +97,87 @@ class DockerSandbox:
         """
 
         # Generate code from the PythonModule
+        logger.debug("Generating code from PythonModule...")
         code = generate_code_from_module(module)
+        logger.debug("Code generation complete, length=%d characters", len(code))
+
         # Extract imported modules
+        logger.debug("Extracting imported modules...")
         modules_to_install = extract_imported_modules(module)
+        logger.debug("Imported modules: %s", modules_to_install)
+
+        # Determine packages to install
         packages = filter_packages(modules_to_install)
+        logger.debug("Packages to install (after filtering stdlib): %s", packages)
 
         with tempfile.TemporaryDirectory() as tmpdir:
             script_path = os.path.join(tmpdir, "script.py")
             with open(script_path, "w") as f:
                 f.write(code)
+            os.chmod(script_path, 0o644)
+            os.chmod(tmpdir, 0o755)
+            logger.info("Wrote generated code to temporary file: %s", script_path)
 
-            self.client.images.pull(self.image)
+            logger.debug("Pulling Docker image %s...", self.image)
+            try:
+                self.client.images.pull(self.image)
+                logger.info("Image %s pulled successfully", self.image)
+            except docker.errors.APIError as e:
+                logger.error("Failed to pull image %s: %s", self.image, str(e))
+                raise
 
             # Construct the command to run inside the container
             cmd_parts = []
             if packages:
-                cmd_parts.append("pip install " + " ".join(packages))
+                cmd_parts.append("pip install --no-cache-dir --user " + " ".join(packages))
             cmd_parts.append("python script.py")
             full_cmd = " && ".join(cmd_parts)
+            logger.debug("Full command to run in container: %s", full_cmd)
 
-            container = self.client.containers.run(
-                self.image,
-                command=["/bin/sh", "-c", full_cmd],
-                working_dir="/app",
-                volumes={tmpdir: {'bind': '/app', 'mode': 'ro'}},
-                stdin_open=False,
-                tty=False,
-                detach=True,
-                mem_limit=self.memory_limit,
-                cpu_period=self.cpu_period,
-                cpu_quota=self.cpu_quota,
-                security_opt=self.security_opt,
-                user=self.user,
-                network_disabled=self.network_disabled,
-                read_only=self.read_only,
-                cap_drop=self.cap_drop,
-                runtime=self.runtime,
-            )
+            logger.debug("Creating and starting container...")
+            try:
+                container = self.client.containers.run(
+                    self.image,
+                    command=["/bin/sh", "-c", full_cmd],
+                    working_dir="/app",
+                    volumes={tmpdir: {'bind': '/app', 'mode': 'ro'}},
+                    tmpfs={"/home/nobody": "size=128m"},  # Provide a writable home directory
+                    environment={"HOME": "/home/nobody"},  # Set HOME to the writable directory
+                    stdin_open=False,
+                    tty=False,
+                    detach=True,
+                    mem_limit=self.memory_limit,
+                    cpu_period=self.cpu_period,
+                    cpu_quota=self.cpu_quota,
+                    security_opt=self.security_opt,
+                    user=self.user,
+                    network_disabled=self.network_disabled,
+                    read_only=self.read_only,
+                    cap_drop=self.cap_drop,
+                    runtime=self.runtime,
+                )
+                logger.info("Container started successfully. ID: %s", container.id)
+            except docker.errors.APIError as e:
+                logger.error("Failed to start container: %s", str(e))
+                raise
 
+            logger.debug("Waiting for container to finish execution...")
             exit_code = container.wait()
+            logger.debug("Container finished with raw exit code data: %s", exit_code)
+
             logs = container.logs()
+            logger.debug("Collected logs from container (length=%d)", len(logs))
+
+            # Clean up container
             container.remove(force=True)
+            logger.info("Container removed.")
 
             stdout = logs.decode("utf-8")
             stderr = ""
             if isinstance(exit_code, dict):
                 exit_code = exit_code.get('StatusCode', 1)
+
+            logger.info("Execution completed. Exit code: %d", exit_code)
+            logger.debug("STDOUT: %s", stdout)
 
             return stdout, stderr, exit_code
