@@ -141,8 +141,8 @@ class DockerSandbox:
                     command=["/bin/sh", "-c", full_cmd],
                     working_dir="/app",
                     volumes={tmpdir: {'bind': '/app', 'mode': 'ro'}},
-                    tmpfs={"/home/nobody": "size=128m"},  # Provide a writable home directory
-                    environment={"HOME": "/home/nobody"},  # Set HOME to the writable directory
+                    tmpfs={"/home/nobody": "size=128m"},  
+                    environment={"HOME": "/home/nobody"},
                     stdin_open=False,
                     tty=False,
                     detach=True,
