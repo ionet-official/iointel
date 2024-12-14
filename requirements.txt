@@ -1,6 +1,8 @@
 pydantic
 controlflow
+docker
 fastapi
-python-dotenv
+sqlalchemy
 uvicorn
+python-dotenv
 httpx

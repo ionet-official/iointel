@@ -1,5 +1,5 @@
-from agent_council.tools.tools import get_current_datetime
-from framework.agents import Agent
+from agent_methods.tools.tools import get_current_datetime
+from framework.src.agents import Agent
 
 
 

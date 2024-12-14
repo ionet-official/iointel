@@ -1,11 +1,11 @@
 import controlflow as cf
 
-from agent_council.agents.agents import (leader, council_member1, council_member2, 
+from agent_methods.agents.agents import (leader, council_member1, council_member2, 
                     council_member3, coder, agent_maker, reminder_agent)
 
-from agent_council.models.datamodels import AgentParams
-from agent_council.tools.tools import create_agent
-from framework.agents import run_agents
+from agent_methods.models.datamodels import AgentParams
+from agent_methods.tools.tools import create_agent
+from framework.src.agents import run_agents
 
 @cf.flow
 def schedule_reminder_flow(command: str, delay: int = 0) -> str:
