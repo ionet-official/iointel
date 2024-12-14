@@ -5,7 +5,7 @@ from typing import Tuple, List, Union
 import logging
 from framework.code_parsers.pycode_parser import (PythonModule, PythonCodeGenerator)
 from framework.code_parsers.jscode_parser import (JavaScriptModule,JavaScriptCodeGenerator)
-
+from pydantic import ValidationError
 
 # Configure logging for this module. In a larger application, configure logging in a main entry point.
 logger = logging.getLogger(__name__)
@@ -55,6 +55,28 @@ class DockerSandbox:
         self.runtime = runtime
         self.client = docker.from_env()
 
+    def validate_module(self, module: str) -> Union[PythonModule, JavaScriptModule]:
+        """
+        Validate the input module string as Python or JavaScript code.
+
+        :param module: The code string to validate.
+        :return: A Pydantic model instance representing the module.
+        :raises ValidationError: If the module is invalid or unsupported.
+        """
+        try:
+            logger.debug("Validating module as PythonModule...")
+            py_module = PythonModule.model_validate_json(module)
+            logger.info("Module validated as PythonModule.")
+            return py_module
+        except ValidationError as e:
+            logger.debug("Validation as PythonModule failed: %s", str(e))
+            try:
+                logger.debug("Validating module as JavaScriptModule...")
+                js_module = JavaScriptModule.model_validate_json(module)
+                logger.info("Module validated as JavaScriptModule.")
+                return js_module
+            except ValidationError as e:
+                logger.error("Validation failed for both PythonModule and JavaScriptModule.")
 
     def run_code_in_sandbox(self, module: Union[PythonModule, JavaScriptModule]) -> Tuple[str, str, int]:
         """
@@ -96,7 +118,8 @@ class DockerSandbox:
         docker.errors.APIError
             If there is an error pulling the image, creating, or running the container.
         """
-
+        module = self.validate_module(module)
+        
         if isinstance(module, PythonModule):
             logger.debug("Module detected as Python.")
             # Generate Python code
