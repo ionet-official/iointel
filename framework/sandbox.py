@@ -1,10 +1,11 @@
 import tempfile
 import os
 import docker
-from typing import Tuple, List
+from typing import Tuple, List, Union
 import logging
-from code_parser import (PythonModule, extract_imported_modules,
-                         generate_code_from_module, filter_packages)
+from framework.code_parsers.pycode_parser import (PythonModule, PythonCodeGenerator)
+from framework.code_parsers.jscode_parser import (JavaScriptModule,JavaScriptCodeGenerator)
+
 
 # Configure logging for this module. In a larger application, configure logging in a main entry point.
 logger = logging.getLogger(__name__)
@@ -55,7 +56,7 @@ class DockerSandbox:
         self.client = docker.from_env()
 
 
-    def run_code_in_sandbox(self, module: PythonModule) -> Tuple[str, str, int]:
+    def run_code_in_sandbox(self, module: Union[PythonModule, JavaScriptModule]) -> Tuple[str, str, int]:
         """
         Run the given PythonModule code object in a sandboxed Docker container.
 
@@ -96,53 +97,99 @@ class DockerSandbox:
             If there is an error pulling the image, creating, or running the container.
         """
 
-        # Generate code from the PythonModule
-        logger.debug("Generating code from PythonModule...")
-        code = generate_code_from_module(module)
-        logger.debug("Code generation complete, length=%d characters", len(code))
+        if isinstance(module, PythonModule):
+            logger.debug("Module detected as Python.")
+            # Generate Python code
+            py_gen = PythonCodeGenerator()
+            logger.debug("Generating Python code from PythonModule...")
+            code = py_gen.generate_pycode_from_module(module)
+            logger.debug("Code generation complete, length=%d characters", len(code))
 
-        # Extract imported modules
-        logger.debug("Extracting imported modules...")
-        modules_to_install = extract_imported_modules(module)
-        logger.debug("Imported modules: %s", modules_to_install)
+            # Extract imported modules and install packages if needed
+            logger.debug("Extracting imported modules...")
+            modules_to_install = py_gen.extract_imported_modules(module)
+            logger.debug("Imported modules: %s", modules_to_install)
 
-        # Determine packages to install
-        packages = filter_packages(modules_to_install)
-        logger.debug("Packages to install (after filtering stdlib): %s", packages)
+            packages = py_gen.filter_packages(modules_to_install)
+            logger.debug("Packages to install (for Python): %s", packages)
+
+            runtime_cmd = "python script.py"
+            install_cmd = f"pip install --no-cache-dir --user {' '.join(packages)}" if packages else ""
+            container_image = self.image
+            script_name = "script.py"
+            extra_env = {"HOME": "/home/nobody"}
+            extra_tmpfs = {"/home/nobody": "size=128m"}
+
+        elif isinstance(module, JavaScriptModule):
+            logger.debug("Module detected as JavaScript.")
+            logger.debug("Generating JavaScript code from JavaScriptModule...")
+            js_gen = JavaScriptCodeGenerator()
+            code = js_gen.generate_code_from_js_module(module)
+            logger.debug("Code generation complete, length=%d characters", len(code))
+
+            # Extract imported modules and install packages if needed
+            logger.debug("Extracting imported modules...")
+            js_packages = js_gen.extract_imported_modules(module)
+            logger.debug("Imported modules: %s", js_packages)
+
+            logger.debug("Packages to install (for JavaScript): %s", js_packages)
+
+            runtime_cmd = "node script.js"
+            # Install JS packages into /app/vendor
+            # Use npm with --prefix to install packages into /app/vendor
+            install_cmd = f"npm install --prefix /app/vendor {' '.join(js_packages)}" if js_packages else ""
+
+            # Use Node.js image
+            container_image = "node:18-slim"
+            script_name = "script.js"
+
+            # For JS, we provide writable vendor directory and set NODE_PATH
+            extra_env = {"HOME": "/home/nobody", "NODE_PATH": "/app/vendor/node_modules"}
+            # tmpfs for writable vendor directory and home
+            extra_tmpfs = {
+                "/home/nobody": "size=128m",
+                "/app/vendor": "size=128m"
+            }
+
+        else:
+            raise ValueError("Unsupported module type. Must be PythonModule or JavaScriptModule.")
+
 
         with tempfile.TemporaryDirectory() as tmpdir:
-            script_path = os.path.join(tmpdir, "script.py")
+            script_path = os.path.join(tmpdir, script_name)
             with open(script_path, "w") as f:
                 f.write(code)
+
+            # Ensure world-readable permissions
             os.chmod(script_path, 0o644)
             os.chmod(tmpdir, 0o755)
             logger.info("Wrote generated code to temporary file: %s", script_path)
 
-            logger.debug("Pulling Docker image %s...", self.image)
+            logger.debug("Pulling Docker image %s...", container_image)
             try:
-                self.client.images.pull(self.image)
-                logger.info("Image %s pulled successfully", self.image)
+                self.client.images.pull(container_image)
+                logger.info("Image %s pulled successfully", container_image)
             except docker.errors.APIError as e:
-                logger.error("Failed to pull image %s: %s", self.image, str(e))
+                logger.error("Failed to pull image %s: %s", container_image, str(e))
                 raise
 
-            # Construct the command to run inside the container
+            # Construct the full command
             cmd_parts = []
-            if packages:
-                cmd_parts.append("pip install --no-cache-dir --user " + " ".join(packages))
-            cmd_parts.append("python script.py")
-            full_cmd = " && ".join(cmd_parts)
+            if install_cmd:
+                cmd_parts.append(install_cmd)
+            cmd_parts.append(runtime_cmd)
+            full_cmd = " && ".join(cmd_parts) if cmd_parts else runtime_cmd
             logger.debug("Full command to run in container: %s", full_cmd)
 
             logger.debug("Creating and starting container...")
             try:
                 container = self.client.containers.run(
-                    self.image,
+                    container_image,
                     command=["/bin/sh", "-c", full_cmd],
                     working_dir="/app",
                     volumes={tmpdir: {'bind': '/app', 'mode': 'ro'}},
-                    tmpfs={"/home/nobody": "size=128m"},  
-                    environment={"HOME": "/home/nobody"},
+                    tmpfs=extra_tmpfs,
+                    environment=extra_env,
                     stdin_open=False,
                     tty=False,
                     detach=True,
