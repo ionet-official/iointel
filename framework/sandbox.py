@@ -78,7 +78,7 @@ class DockerSandbox:
             except ValidationError as e:
                 logger.error("Validation failed for both PythonModule and JavaScriptModule.")
 
-    def run_code_in_sandbox(self, module: Union[PythonModule, JavaScriptModule]) -> Tuple[str, str, int]:
+    def run_code_in_sandbox(self, module_json: str) -> Tuple[str, str, int]:
         """
         Run the given PythonModule code object in a sandboxed Docker container.
 
@@ -94,8 +94,8 @@ class DockerSandbox:
 
         Parameters
         ----------
-        module : PythonModule
-            The Pydantic model representing the Python module's structure.
+        module : str
+            The json dump of the Pydantic model representing the Python module's structure.
 
         Returns
         -------
@@ -118,7 +118,7 @@ class DockerSandbox:
         docker.errors.APIError
             If there is an error pulling the image, creating, or running the container.
         """
-        module = self.validate_module(module)
+        module = self.validate_module(module_json)
         
         if isinstance(module, PythonModule):
             logger.debug("Module detected as Python.")
