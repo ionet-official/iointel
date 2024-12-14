@@ -9,6 +9,7 @@ from datetime import datetime
 # "postgresql://user:pass@localhost/dbname" or "sqlite:///./test.db"
 DATABASE_URL = os.getenv("DATABASE_URL") 
 
+
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
