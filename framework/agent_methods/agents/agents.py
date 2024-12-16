@@ -54,8 +54,37 @@ coder = Agent(
 )
 
 agent_maker = Agent(
-    name="Agent",
+    name="Agent Maker",
     instructions="You create agents that can perform tasks from the provided code.",
     #tools=tools,
 
+)
+
+reasoning_agent = Agent(
+    name="Default Agent",
+    instructions="You are an agent that performs reasoning steps.",
+    #tools=tools,
+
+)
+
+docker_sandbox_agent = Agent( #WIP - need to add docker sandbox tool
+    name="Docker Sandbox Agent",
+    instructions="You are an agent that runs code in a docker sandbox.",
+    #tools=[],
+
+)
+
+sentiment_analysis_agent = Agent(
+    name= "Sentiment Analysis Agent",
+    instructions="You are an agent that performs unbiased sentiment analysis on text.",
+    )
+
+extractor = Agent(
+    name="Named Entity Recognizer",
+    instructions="You are an agent that extracts named entities from text.",
+)
+
+default_agent = Agent(
+    name="Default Agent",
+    instructions="You are an agent that does alot of different things, you are dynamic.",
 )
