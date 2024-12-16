@@ -158,3 +158,11 @@ def translate_text(text: str, target_language: str) -> TranslationResult:
         agents=[default_agent],
     )
 
+@cf.flow
+def classify(classify_by: List[str], to_be_classified: str) -> str:
+    return cf.run(
+        "Classify the news headline into the most appropriate category",
+        agents=[default_agent],
+        result_type=classify_by,
+        context={"headline": to_be_classified},
+    )
