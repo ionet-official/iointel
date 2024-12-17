@@ -88,3 +88,8 @@ default_agent = Agent(
     name="Default Agent",
     instructions="You are an agent that does alot of different things, you are dynamic.",
 )
+
+moderation_agent = Agent(
+    name="Moderation Agent",
+    instructions="You are an agent that moderates content.",
+)

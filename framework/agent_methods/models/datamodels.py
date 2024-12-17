@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-
+from typing import List, TypedDict, Annotated
 
 ##agent params###
 class AgentParams(BaseModel):
@@ -29,3 +29,23 @@ class SummaryResult(BaseModel):
 class TranslationResult(BaseModel):
     translated: str
     target_language: str
+
+
+Activation = Annotated[float, Field(ge=0, le=1)]
+
+
+class ModerationException(Exception):
+    """Exception raised when a message is not allowed."""
+
+    ...
+
+
+class ViolationActivation(TypedDict):
+    """Violation activation."""
+
+    extreme_profanity: Annotated[Activation, Field(description="hell / damn are fine")]
+    sexually_explicit: Activation
+    hate_speech: Activation
+    harassment: Activation
+    self_harm: Activation
+    dangerous_content: Activation
