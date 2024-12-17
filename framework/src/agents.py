@@ -1,7 +1,7 @@
 from langchain_openai import ChatOpenAI
 import controlflow as cf
 from typing import List, Dict, Any
-
+from framework.src.tasks import CHAINABLE_METHODS
 
 class Agent(cf.Agent):
 
@@ -48,7 +48,6 @@ class Agent(cf.Agent):
             **model_kwargs
         )
 
-
     def run(self, prompt: str):
         return super().run(prompt)
 
@@ -58,6 +57,7 @@ class Agent(cf.Agent):
     def add_tool(self, tool):
         updated_tools = self.tools + [tool]
         self.tools = updated_tools
+
 
 
 class AgentRunner:
@@ -161,6 +161,217 @@ class AgentRunner:
             results.append(result)
         return results
 
+@cf.flow
 def run_agents(objective: str, **kwargs):
     runner = AgentRunner()
     return runner.run(objective, **kwargs)
+
+
+
+class Tasks:
+    """
+    A class to manage a list of tasks and run them sequentially.
+    Each task is a dictionary with a "type" key that determines the type of task to run.
+    
+    # Usage example:
+    my_agent = Agent(name="my_agent", instructions="Some instructions")
+    reasoning_agent = Agent(name="my_agent", instructions="Some instructions")
+    # Build a chain of tasks using the Tasks class
+
+    tasks = Tasks()
+    (tasks
+        .classify(["politics", "sports"], "Breaking news: team wins the championship!", agents=[my_agent])
+        .summarize_text("A very long text to summarize...", max_words=50, agents=[reasoning_agent]))
+
+    # Run all tasks and get results
+    results = tasks.run_tasks()
+    print(results)
+    """
+
+    def __init__(self):
+        self.tasks = []
+
+    def run_tasks(self):
+        results = []
+        from framework.src.agents import run_agents
+        from agent_methods.agents.agents import (leader, council_member1, council_member2, 
+                                        council_member3, coder, agent_maker, 
+                                        sentiment_analysis_agent, reminder_agent, reasoning_agent,
+                                        extractor, default_agent, moderation_agent)
+        from controlflow.tasks.validators import between
+        from agent_methods.models.datamodels import (AgentParams, ReasoningStep, SummaryResult, 
+                                                     TranslationResult, ViolationActivation,
+                                                     ModerationException)
+        from agent_methods.prompts.instructions import REASONING_INSTRUCTIONS
+        from agent_methods.tools.tools import create_agent
+        from framework.src.code_parsers.pycode_parser import PythonModule
+        from framework.src.code_parsers.jscode_parser import JavaScriptModule
+
+        # Implement logic to call the appropriate underlying flow based on the task type.
+        # For each task in self.tasks, you call run_agents() similarly to how your flows do:
+        for t in self.tasks:
+
+            task_type = t["type"]
+            agents_for_task = t.get("agents", [])
+            if task_type == "schedule_reminder":
+                # matches schedule_reminder_flow(command: str, delay: int)
+                result = run_agents(
+                    objective="Schedule a reminder",
+                    instructions="""
+                        Schedule a reminder and use the tool to track the time for the reminder.
+                    """,
+                    agents=agents_for_task,
+                    context={"command": t["command"]},
+                    result_type=str,
+                )
+                results.append(result)
+
+            elif task_type == "council":
+                deliberate = run_agents(
+                    "Deliberate and vote on the best way to complete the task.",
+                    agents=[leader, council_member1, council_member2, council_member3],
+                    completion_agents=[leader],
+                    instructions="""
+                        Deliberate with other council members on the best way to complete the task.
+                        Allow each council member to provide input before voting.
+                        Vote on the best answer.
+                        Show the entire deliberation, voting process, final decision, and reasoning.
+                    """,
+                    context={"task": t["task"]},
+                    result_type=str
+                )
+                codes = run_agents(
+                    "Write code for the task",
+                    agents=[coder],
+                    instructions="""
+                        Provide Python or javascript code to accomplish the task depending on the user's choice.
+                        Returns code as a pydantic model.
+                    """,
+                    context={"deliberation": deliberate},
+                    result_type=PythonModule | JavaScriptModule
+                )
+
+                custom_agent_params = run_agents(
+                    "Create a ControlFlow agent using the provided code.",
+                    agents=[agent_maker],
+                    context={"code": codes},
+                    result_type=AgentParams,
+                )
+
+                final_result = run_agents(
+                    "Execute the agent to complete the task",
+                    agents=[create_agent(custom_agent_params)],
+                    result_type=str
+                )
+                results.append(final_result)
+
+            elif task_type == "solve_with_reasoning":
+                # logic from solve_with_reasoning flow
+                while True:
+                    response: ReasoningStep = run_agents(
+                        objective="""
+                        Carefully read the `goal` and analyze the problem.
+                        Produce a single step of reasoning that advances you closer to a solution.
+                        """,
+                        instructions=REASONING_INSTRUCTIONS,
+                        result_type=ReasoningStep,
+                        agents=agents_for_task,
+                        context=dict(goal=t["goal"]),
+                        model_kwargs=dict(tool_choice="required"),
+                    )
+                    if response.found_validated_solution:
+                        if run_agents(
+                            """
+                            Check your solution to be absolutely sure that it is correct and meets all requirements of the goal. Return True if it does.
+                            """,
+                            result_type=bool,
+                            context=dict(goal=t["goal"]),
+                        ):
+                            break
+                final = run_agents(objective=t["goal"], agents=agents_for_task)
+                results.append(final)
+
+            elif task_type == "summarize_text":
+                summary = run_agents(
+                    f"Summarize the given text in no more than {t['max_words']} words and list key points",
+                    result_type=SummaryResult,
+                    context={"text": t["text"]},
+                    agents=agents_for_task,
+                )
+                results.append(summary)
+
+            elif task_type == "sentiment":
+                sentiment_val = run_agents(
+                    "Classify the sentiment of the text as a value between 0 and 1",
+                    agents=agents_for_task,
+                    result_type=float,
+                    result_validator=between(0, 1),
+                    context={"text": t["text"]},
+                )
+                results.append(sentiment_val)
+
+            elif task_type == "extract_categorized_entities":
+                extracted = run_agents(
+                    "Extract named entities from the text and categorize them",
+                    instructions="""
+                    Return a dictionary with the following keys:
+                    - 'persons': List of person names
+                    - 'organizations': List of organization names
+                    - 'locations': List of location names
+                    - 'dates': List of date references
+                    - 'events': List of event names
+                    Only include keys if entities of that type are found in the text.
+                    """,
+                    agents=agents_for_task,
+                    result_type=Dict[str, List[str]],
+                    context={"text": t["text"]},
+                )
+                results.append(extracted)
+
+            elif task_type == "translate_text":
+                translated = run_agents(
+                    f"Translate the given text to {t['target_language']}",
+                    result_type=TranslationResult,
+                    context={"text": t["text"], "target_language": t["target_language"]},
+                    agents=agents_for_task,
+                )
+                results.append(translated)
+
+            elif task_type == "classify":
+                classification = run_agents(
+                    "Classify the news headline into the most appropriate category",
+                    agents=agents_for_task,
+                    result_type=t["classify_by"],
+                    context={"headline": t["to_be_classified"]},
+                )
+                results.append(classification)
+
+            elif task_type == "moderation":
+                result: ViolationActivation = run_agents(
+                    "Check the text for violations and return the activation levels",
+                    agents=agents_for_task,
+                    result_type=ViolationActivation,
+                    context={"text": t["text"]},
+                )
+                threshold = t["threshold"]
+                if result["extreme_profanity"] > threshold:
+                    raise ModerationException("Extreme profanity detected")
+                elif result["sexually_explicit"] > threshold:
+                    raise ModerationException("Sexually explicit content detected")
+                elif result["hate_speech"] > threshold:
+                    raise ModerationException("Hate speech detected")
+                elif result["harassment"] > threshold:
+                    raise ModerationException("Harassment detected")
+                elif result["self_harm"] > threshold:
+                    raise ModerationException("Self harm detected")
+                elif result["dangerous_content"] > threshold:
+                    raise ModerationException("Dangerous content detected")
+                results.append(result)
+
+        # Clear tasks after running
+        self.tasks.clear()
+        return results
+
+# Add chainable methods to Tasks class
+for method_name, func in CHAINABLE_METHODS.items():
+    setattr(Tasks, method_name, func)

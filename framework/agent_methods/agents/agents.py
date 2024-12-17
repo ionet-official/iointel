@@ -61,7 +61,7 @@ agent_maker = Agent(
 )
 
 reasoning_agent = Agent(
-    name="Default Agent",
+    name="Reasoning Agent",
     instructions="You are an agent that performs reasoning steps.",
     #tools=tools,
 

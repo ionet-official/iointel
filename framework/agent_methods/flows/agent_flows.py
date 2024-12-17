@@ -1,10 +1,9 @@
 import controlflow as cf
-from controlflow.tasks.validators import between
 from agent_methods.agents.agents import (leader, council_member1, council_member2, 
                                         council_member3, coder, agent_maker, 
                                         sentiment_analysis_agent, reminder_agent, reasoning_agent,
                                         extractor, default_agent, moderation_agent)
-
+from controlflow.tasks.validators import between
 from agent_methods.models.datamodels import (AgentParams, ReasoningStep, SummaryResult, TranslationResult,
                                              ViolationActivation, ModerationException)
 from agent_methods.prompts.instructions import REASONING_INSTRUCTIONS
@@ -57,8 +56,8 @@ def council_flow(task: str) -> str: #generalized council flow
         "Write code for the task",
         agents=[coder],
         instructions="""
-            Provide Python code to accomplish the task.
-            Return code in a format that can be parsed by python (as a string).
+            Provide Python or javascript code to accomplish the task. depending on the users choice.
+            Returns code as a pydantic model.
         """,
         context={"deliberation": deliberate},
         result_type=PythonModule | JavaScriptModule
