@@ -188,9 +188,10 @@ class Tasks:
     print(results)
     """
 
-    def __init__(self):
+    def __init__(self, text: str = "", local: bool = False):
         self.tasks = []
-        self.text = ""
+        self.text = text
+        self.local=local
 
     def run_tasks(self):
         results = []
