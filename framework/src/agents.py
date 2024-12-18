@@ -193,6 +193,10 @@ class Tasks:
         self.text = text
         self.local=local
 
+    def __call__(self, text: str):
+        self.text = text
+        return self
+
     def run_tasks(self):
         results = []
         from framework.src.agents import run_agents
