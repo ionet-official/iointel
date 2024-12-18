@@ -2,5 +2,6 @@
 
 COMPOSE_DOCKER_CLI_BUILD=1 \
 DOCKER_BUILDKIT=1 \
-docker compose -f framework/infra/compose/docker-compose.yaml $@
+OPENAI_API_KEY=`cat creds.env | grep "OPENAI_API_KEY" | cut -d '=' -f2` \
+docker compose -f framework/infra/compose/docker-compose.yml $@
 
