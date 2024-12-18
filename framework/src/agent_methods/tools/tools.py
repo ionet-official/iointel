@@ -1,5 +1,5 @@
 from datetime import datetime
-from agent_methods.models.datamodels import AgentParams
+from framework.src.agent_methods.models.datamodels import AgentParams
 from framework.src.agents import Agent
 
 

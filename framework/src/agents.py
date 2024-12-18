@@ -179,9 +179,9 @@ class Tasks:
     # Build a chain of tasks using the Tasks class
 
     tasks = Tasks()
-    (tasks
-        .classify(["politics", "sports"], "Breaking news: team wins the championship!", agents=[my_agent])
-        .summarize_text("A very long text to summarize...", max_words=50, agents=[reasoning_agent]))
+    (tasks(text="Breaking news: team wins the championship!")
+        .classify(["politics", "sports"], agents=[my_agent])
+        .summarize_text( max_words=50, agents=[reasoning_agent]))
 
     # Run all tasks and get results
     results = tasks.run_tasks()
@@ -190,6 +190,7 @@ class Tasks:
 
     def __init__(self):
         self.tasks = []
+        self.text = ""
 
     def run_tasks(self):
         results = []
@@ -202,8 +203,8 @@ class Tasks:
         from agent_methods.models.datamodels import (AgentParams, ReasoningStep, SummaryResult, 
                                                      TranslationResult, ViolationActivation,
                                                      ModerationException)
-        from agent_methods.prompts.instructions import REASONING_INSTRUCTIONS
-        from agent_methods.tools.tools import create_agent
+        from framework.src.agent_methods.prompts.instructions import REASONING_INSTRUCTIONS
+        from framework.src.agent_methods.tools.tools import create_agent
         from framework.src.code_parsers.pycode_parser import PythonModule
         from framework.src.code_parsers.jscode_parser import JavaScriptModule
 
@@ -221,7 +222,7 @@ class Tasks:
                         Schedule a reminder and use the tool to track the time for the reminder.
                     """,
                     agents=agents_for_task,
-                    context={"command": t["command"]},
+                    context={"command": self.text},
                     result_type=str,
                 )
                 results.append(result)
@@ -237,7 +238,7 @@ class Tasks:
                         Vote on the best answer.
                         Show the entire deliberation, voting process, final decision, and reasoning.
                     """,
-                    context={"task": t["task"]},
+                    context={"task": self.text},
                     result_type=str
                 )
                 codes = run_agents(
@@ -276,7 +277,7 @@ class Tasks:
                         instructions=REASONING_INSTRUCTIONS,
                         result_type=ReasoningStep,
                         agents=agents_for_task,
-                        context=dict(goal=t["goal"]),
+                        context=dict(goal=self.text),
                         model_kwargs=dict(tool_choice="required"),
                     )
                     if response.found_validated_solution:
@@ -285,17 +286,17 @@ class Tasks:
                             Check your solution to be absolutely sure that it is correct and meets all requirements of the goal. Return True if it does.
                             """,
                             result_type=bool,
-                            context=dict(goal=t["goal"]),
+                            context=dict(goal=self.text),
                         ):
                             break
-                final = run_agents(objective=t["goal"], agents=agents_for_task)
+                final = run_agents(objective=self.text, agents=agents_for_task)
                 results.append(final)
 
             elif task_type == "summarize_text":
                 summary = run_agents(
                     f"Summarize the given text in no more than {t['max_words']} words and list key points",
                     result_type=SummaryResult,
-                    context={"text": t["text"]},
+                    context={"text": self.text},
                     agents=agents_for_task,
                 )
                 results.append(summary)
@@ -306,7 +307,7 @@ class Tasks:
                     agents=agents_for_task,
                     result_type=float,
                     result_validator=between(0, 1),
-                    context={"text": t["text"]},
+                    context={"text": self.text},
                 )
                 results.append(sentiment_val)
 
@@ -324,7 +325,7 @@ class Tasks:
                     """,
                     agents=agents_for_task,
                     result_type=Dict[str, List[str]],
-                    context={"text": t["text"]},
+                    context={"text": self.text},
                 )
                 results.append(extracted)
 
@@ -332,7 +333,7 @@ class Tasks:
                 translated = run_agents(
                     f"Translate the given text to {t['target_language']}",
                     result_type=TranslationResult,
-                    context={"text": t["text"], "target_language": t["target_language"]},
+                    context={"text": self.text, "target_language": t["target_language"]},
                     agents=agents_for_task,
                 )
                 results.append(translated)
@@ -342,7 +343,7 @@ class Tasks:
                     "Classify the news headline into the most appropriate category",
                     agents=agents_for_task,
                     result_type=t["classify_by"],
-                    context={"headline": t["to_be_classified"]},
+                    context={"headline": self.text},
                 )
                 results.append(classification)
 
@@ -351,7 +352,7 @@ class Tasks:
                     "Check the text for violations and return the activation levels",
                     agents=agents_for_task,
                     result_type=ViolationActivation,
-                    context={"text": t["text"]},
+                    context={"text": self.text},
                 )
                 threshold = t["threshold"]
                 if result["extreme_profanity"] > threshold:

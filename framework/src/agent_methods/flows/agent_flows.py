@@ -1,13 +1,13 @@
 import controlflow as cf
-from agent_methods.agents.agents import (leader, council_member1, council_member2, 
+from framework.src.agent_methods.agents.agents import (leader, council_member1, council_member2, 
                                         council_member3, coder, agent_maker, 
                                         sentiment_analysis_agent, reminder_agent, reasoning_agent,
                                         extractor, default_agent, moderation_agent)
 from controlflow.tasks.validators import between
-from agent_methods.models.datamodels import (AgentParams, ReasoningStep, SummaryResult, TranslationResult,
+from framework.src.agent_methods.models.datamodels import (AgentParams, ReasoningStep, SummaryResult, TranslationResult,
                                              ViolationActivation, ModerationException)
-from agent_methods.prompts.instructions import REASONING_INSTRUCTIONS
-from agent_methods.tools.tools import create_agent
+from framework.src.agent_methods.prompts.instructions import REASONING_INSTRUCTIONS
+from framework.src.agent_methods.tools.tools import create_agent
 from framework.src.agents import run_agents
 from framework.src.code_parsers.pycode_parser import PythonModule
 from framework.src.code_parsers.jscode_parser import JavaScriptModule
