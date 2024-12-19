@@ -2,6 +2,8 @@
 
 COMPOSE_DOCKER_CLI_BUILD=1 \
 DOCKER_BUILDKIT=1 \
-OPENAI_API_KEY=`cat creds.env | grep "OPENAI_API_KEY" | cut -d '=' -f2` \
-docker compose -f framework/infra/compose/docker-compose.yml $@
+TUNNEL_PASS=`cat creds.env | grep "TUNNEL_PASS" | cut -d "=" -f2` \
+docker compose -f framework/infra/compose/docker-compose.yml -f framework/infra/compose/owui-compose.yml $@
 
+#OPENAI_API_KEY=`cat creds.env | grep "OPENAI_API_KEY" | cut -d "=" -f2` \
+#OPENAI_API_BASE_URL=`cat creds.env | grep "OPENAI_API_BASE_URL" | cut -d "=" -f2` \
