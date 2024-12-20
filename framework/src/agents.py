@@ -182,6 +182,7 @@ class Tasks:
     (tasks(text="Breaking news: team wins the championship!")
         .classify(["politics", "sports"], agents=[my_agent])
         .summarize_text( max_words=50, agents=[reasoning_agent]))
+        .sentiment() ...
 
     # Run all tasks and get results
     results = tasks.run_tasks()

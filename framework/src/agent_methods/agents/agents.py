@@ -93,3 +93,20 @@ moderation_agent = Agent(
     name="Moderation Agent",
     instructions="You are an agent that moderates content.",
 )
+
+
+AGENTS = {
+    "leader": leader,
+    "council_member1": council_member1,
+    "council_member2": council_member2,
+    "council_member3": council_member3,
+    "coder": coder,
+    "agent_maker": agent_maker,
+    "reasoning_agent": reasoning_agent,
+    "docker_sandbox_agent": docker_sandbox_agent,
+    "sentiment_analysis_agent": sentiment_analysis_agent,
+    "extractor": extractor,
+    "default_agent": default_agent,
+    "moderation_agent": moderation_agent,
+    "reminder_agent": reminder_agent,
+}
