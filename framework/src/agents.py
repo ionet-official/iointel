@@ -206,7 +206,7 @@ class Tasks:
                                         sentiment_analysis_agent, reminder_agent, reasoning_agent,
                                         extractor, default_agent, moderation_agent)
         from controlflow.tasks.validators import between
-        from agent_methods.models.datamodels import (AgentParams, ReasoningStep, SummaryResult, 
+        from agent_methods.data_models.datamodels import (AgentParams, ReasoningStep, SummaryResult, 
                                                      TranslationResult, ViolationActivation,
                                                      ModerationException)
         from framework.src.agent_methods.prompts.instructions import REASONING_INSTRUCTIONS
