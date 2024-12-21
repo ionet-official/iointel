@@ -5,5 +5,6 @@ DOCKER_BUILDKIT=1 \
 TUNNEL_PASS=`cat creds.env | grep "TUNNEL_PASS" | cut -d "=" -f2` \
 docker compose -f framework/infra/compose/docker-compose.yml \
                -f framework/infra/compose/owui-compose.yml \
-               -f framework/infra/compose/agent-ui-compose.yml $@
+               -f framework/infra/compose/agent-ui-compose.yml \
+               -f framework/infra/compose/searxng-compose.yml $@
 
