@@ -2,7 +2,7 @@ from langchain_openai import ChatOpenAI
 import controlflow as cf
 from typing import List, Dict, Any
 from framework.src.tasks import CHAINABLE_METHODS
-
+import os
 class Agent(cf.Agent):
 
     """
@@ -36,6 +36,13 @@ class Agent(cf.Agent):
 
         if model_provider is not None:
             model = model_provider(**model_kwargs)
+
+        elif model_provider == "default" or model_provider is None:
+            model = ChatOpenAI(
+                api_key=os.environ["OPENAI_API_KEY"], 
+                base_url=os.environ["OPENAI_API_BASE_URL"]
+                )
+
         else:
             model = ChatOpenAI(**model_kwargs)
 
