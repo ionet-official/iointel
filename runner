@@ -25,3 +25,6 @@ docker compose -f framework/infra/compose/agent-api-compose.yml \
 
 #agent api
 # ./runner --profile agent-api up
+
+#nomatim
+# ./runner --profile nominatim up
