@@ -3,10 +3,11 @@
 COMPOSE_DOCKER_CLI_BUILD=1 \
 DOCKER_BUILDKIT=1 \
 TUNNEL_PASS=`cat creds.env | grep "TUNNEL_PASS" | cut -d "=" -f2` \
-docker compose -f framework/infra/compose/docker-compose.yml \
+docker compose -f framework/infra/compose/agent-api-compose.yml \
                -f framework/infra/compose/owui-compose.yml \
                -f framework/infra/compose/agent-ui-compose.yml \
-               -f framework/infra/compose/searxng-compose.yml $@
+               -f framework/infra/compose/searxng-compose.yml \
+               -f framework/infra/compose/prefect.yml $@
 
 
 ## deploy by profiles or indivual services
