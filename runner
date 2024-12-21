@@ -8,3 +8,17 @@ docker compose -f framework/infra/compose/docker-compose.yml \
                -f framework/infra/compose/agent-ui-compose.yml \
                -f framework/infra/compose/searxng-compose.yml $@
 
+
+## deploy by profiles or indivual services
+
+# searxng
+# ./runner --profile searxng up
+
+# agent ui
+# ./runner --profile agent-ui up
+
+# llm app
+# ./runner --profile llm-app up
+
+#agent api
+# ./runner --profile agent-api up
