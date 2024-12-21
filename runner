@@ -9,7 +9,8 @@ docker compose -f framework/infra/compose/agent-api-compose.yml \
                -f framework/infra/compose/agent-ui-compose.yml \
                -f framework/infra/compose/searxng-compose.yml \
                -f framework/infra/compose/prefect-compose.yml \
-               -f framework/infra/compose/proxy-compose.yml $@
+               -f framework/infra/compose/proxy-compose.yml \
+               -f framework/infra/compose/nominatim-compose.yml $@
 
 
 ## deploy by profiles or indivual services
