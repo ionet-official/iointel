@@ -10,7 +10,7 @@ tools = []
 reminder_agent = Agent(
     name="Reminder Agent",
     instructions="A simple agent that sends reminders.",
-    tools=[get_current_datetime],
+    #tools=[get_current_datetime],
 )
 
 # Define agents with access to the get_current_datetime tool
