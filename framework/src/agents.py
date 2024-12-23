@@ -226,7 +226,7 @@ class Tasks:
     def __init__(self, text: str = "", client_mode: bool = True):
         self.tasks = []
         self.text = text
-        self.client=client_mode
+        self.client_mode=client_mode
 
     def __call__(self, text: str):
         self.text = text

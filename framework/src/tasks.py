@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 
 def schedule_reminder(self, delay: int = 0, agents: List[str]=None):
     #WIP
@@ -17,7 +17,7 @@ def council(self):
     })
     return self
 
-def solve_with_reasoning(self, agents: List[str]=None):
+def solve_with_reasoning(self, agents: Optional[List[str]]=None):
     self.tasks.append({
         "type": "solve_with_reasoning",
         "goal": self.text,
@@ -25,7 +25,7 @@ def solve_with_reasoning(self, agents: List[str]=None):
     })
     return self
 
-def summarize_text(self, max_words: int = 100, agents: List[str]=None):
+def summarize_text(self, max_words: int = 100, agents: Optional[List[str]]=None):
     self.tasks.append({
         "type": "summarize_text",
         "text": self.text,
@@ -34,7 +34,7 @@ def summarize_text(self, max_words: int = 100, agents: List[str]=None):
     })
     return self
 
-def sentiment(self, agents: List[str]=None):
+def sentiment(self, agents: Optional[List[str]]=None):
     self.tasks.append({
         "type": "sentiment",
         "text": self.text,
@@ -42,7 +42,7 @@ def sentiment(self, agents: List[str]=None):
     })
     return self
 
-def extract_categorized_entities(self, agents: List[str]=None):
+def extract_categorized_entities(self, agents: Optional[List[str]]=None):
     self.tasks.append({
         "type": "extract_categorized_entities",
         "text": self.text,
@@ -50,7 +50,7 @@ def extract_categorized_entities(self, agents: List[str]=None):
     })
     return self
 
-def translate_text(self, target_language: str, agents: List[str]=None):
+def translate_text(self, target_language: str, agents: Optional[List[str]]=None):
     self.tasks.append({
         "type": "translate_text",
         "text": self.text,
@@ -59,7 +59,7 @@ def translate_text(self, target_language: str, agents: List[str]=None):
     })
     return self
 
-def classify(self, classify_by: list, agents: List[str]=None):
+def classify(self, classify_by: list, agents: Optional[List[str]]=None):
     self.tasks.append({
         "type": "classify",
         "classify_by": classify_by,
@@ -68,7 +68,7 @@ def classify(self, classify_by: list, agents: List[str]=None):
     })
     return self
 
-def moderation(self, threshold: float, agents: List[str]=None):
+def moderation(self, threshold: float, agents: Optional[List[str]]=None):
     self.tasks.append({
         "type": "moderation",
         "text": self.text,
@@ -77,7 +77,7 @@ def moderation(self, threshold: float, agents: List[str]=None):
     })
     return self
 
-def custom(self, name: str, objective: str, agents: list = None, instructions: str = "", **kwargs):
+def custom(self, name: str, objective: str, agents: Optional[List[str]] = None, instructions: str = "", **kwargs):
     """
     Allows users to define a custom workflow (or step) that can be chained
     like the built-in tasks. 'name' can help identify the custom workflow
