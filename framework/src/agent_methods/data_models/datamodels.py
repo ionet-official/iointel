@@ -1,10 +1,11 @@
 from pydantic import BaseModel, Field
-from typing import List, TypedDict, Annotated
+from typing import List, TypedDict, Annotated, Optional
 
 ##agent params###
 class AgentParams(BaseModel):
     name: str
     instructions: str
+    tools: Optional[List[str]] = Field(default_factory=list)
 
 #reasoning agent
 class ReasoningStep(BaseModel):
@@ -23,7 +24,7 @@ class ReasoningStep(BaseModel):
 ##summary
 class SummaryResult(BaseModel):
     summary: str
-    key_points: list[str]
+    key_points: List[str]
 
 #translation
 class TranslationResult(BaseModel):
@@ -49,3 +50,23 @@ class ViolationActivation(TypedDict):
     harassment: Activation
     self_harm: Activation
     dangerous_content: Activation
+
+
+class WorkflowStep(BaseModel):
+    type: str
+    name: Optional[str] = None
+    objective: Optional[str] = None
+    instructions: Optional[str] = None
+    text: Optional[str] = None  # for this step’s prompt
+
+class WorkflowDefinition(BaseModel):
+    """
+    The top-level structure of the YAML.
+    name: A human-readable name for the workflow
+    agents: The agent definitions
+    workflow: The list of steps
+    """
+    name: str
+    text: Optional[str] = None  # This holds the main text/prompt
+    agents: List[AgentParams] = Field(default_factory=list)
+    workflow: List[WorkflowStep] = Field(default_factory=list)
