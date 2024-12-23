@@ -9,7 +9,12 @@ from pydantic import ValidationError
 
 # Configure logging for this module. In a larger application, configure logging in a main entry point.
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)  # Set this to INFO or WARNING in production if needed.
+# Fallback to "DEBUG" if not set
+level_name = os.environ.get("LOGGING_LEVEL", "DEBUG")
+level_name = level_name.upper()
+# Safely get the numeric logging level, default to DEBUG if invalid
+numeric_level = getattr(logging, level_name, logging.DEBUG)
+logger.setLevel(numeric_level)
 handler = logging.StreamHandler()
 formatter = logging.Formatter("%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 handler.setFormatter(formatter)
