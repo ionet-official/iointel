@@ -77,6 +77,29 @@ def moderation(self, threshold: float, agents: List[str]=None):
     })
     return self
 
+def custom(self, name: str, objective: str, agents: list = None, instructions: str = "", **kwargs):
+    """
+    Allows users to define a custom workflow (or step) that can be chained
+    like the built-in tasks. 'name' can help identify the custom workflow
+    in run_tasks().
+    
+    :param name: Unique identifier for this custom workflow step.
+    :param objective: The main objective or prompt for run_agents.
+    :param agents: List of agents used (if None, a default can be used).
+    :param instructions: Additional instructions for run_agents.
+    :param kwargs: Additional data needed for this custom workflow.
+    """
+    self.tasks.append({
+        "type": "custom",
+        "name": name,
+        "objective": objective,
+        "agents": agents or [],
+        "instructions": instructions,
+        
+        "kwargs": kwargs,  # store other data
+    })
+    return self
+
 
 # Dictionary mapping method names to functions
 CHAINABLE_METHODS = {
@@ -89,4 +112,5 @@ CHAINABLE_METHODS = {
     "translate_text": translate_text,
     "classify": classify,
     "moderation": moderation,
+    "custom": custom
 }
