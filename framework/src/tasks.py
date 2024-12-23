@@ -91,11 +91,12 @@ def custom(self, name: str, objective: str, agents: list = None, instructions: s
     """
     self.tasks.append({
         "type": "custom",
+        "text": self.text,
         "name": name,
         "objective": objective,
         "agents": agents or [],
         "instructions": instructions,
-        
+
         "kwargs": kwargs,  # store other data
     })
     return self
