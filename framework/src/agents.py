@@ -69,7 +69,7 @@ class Agent(cf.Agent):
 
 
 
-class AgentRunner:
+class Workflow:
     """
     A class to manage and orchestrate runs using ControlFlow's cf.run().
     It can store a set of agents and provide methods to run them with given instructions and context.
@@ -172,7 +172,7 @@ class AgentRunner:
 
 @cf.flow
 def run_agents(objective: str, **kwargs):
-    runner = AgentRunner()
+    runner = Workflow()
     return runner.run(objective, **kwargs)
 
 
