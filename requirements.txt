@@ -6,3 +6,5 @@ sqlalchemy
 uvicorn
 python-dotenv
 httpx
+pytest
+python-multipart

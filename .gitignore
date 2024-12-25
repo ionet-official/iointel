@@ -6,3 +6,4 @@ agent_council/.DS_Store
 moa/*
 moa
 __pycache__
+*.egg-info
