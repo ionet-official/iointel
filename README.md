@@ -75,7 +75,6 @@ Users can define tasks (like `council`, `sentiment`, `translate_text`, etc.) in 
 
 ### Agents
 
-- Defined in `agents.py`, each agent is either a direct `cf.Agent` or a subclass (`class Agent(cf.Agent): ...`).
 - They can have a custom model provider (e.g., `ChatOpenAI`, a Llama-based model, etc.).
 - Agents can have tools attached, which are specialized functions accessible during execution.
 
