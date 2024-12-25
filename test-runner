@@ -1,5 +1,5 @@
 #!/bin/bash
-
+TUNNEL_PASS=`cat creds.env | grep "TUNNEL_PASS" | cut -d "=" -f2` \
 OPENAI_API_KEY=`cat creds.env | grep "OPENAI_API_KEY" | cut -d "=" -f2` \
 OPENAI_API_BASE_URL=`cat creds.env | grep "OPENAI_API_BASE_URL" | cut -d "=" -f2` \
-pytest tests/
+pytest --verbose tests/

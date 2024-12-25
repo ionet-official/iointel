@@ -58,6 +58,8 @@ class WorkflowStep(BaseModel):
     objective: Optional[str] = None
     instructions: Optional[str] = None
     text: Optional[str] = None  # for this step’s prompt
+    context: Optional[dict] = None
+    target_language: Optional[str] = None
 
 class WorkflowDefinition(BaseModel):
     """

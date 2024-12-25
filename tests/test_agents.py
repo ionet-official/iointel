@@ -3,7 +3,6 @@ import os
 import pytest
 from framework.src.agents import Agent
 from langchain_openai import ChatOpenAI
-import controlflow as cf
 
 def test_agent_default_model(monkeypatch):
     """
@@ -31,14 +30,14 @@ def test_agent_custom_provider():
         name="CustomModelAgent",
         instructions="Instructions for custom model",
         model_provider=mock_provider,
-        some_param="value"
+        #some_param="value"
     )
     assert a.model == "MockModel", "Expected the custom provider to be used."
     assert a.tools == [], "By default, tools should be an empty list."
 
 def test_agent_run():
     """
-    Basic check that the agent's run method calls cf.Agent.run under the hood.
+    Basic check that the agent's run method calls Agent.run under the hood.
     We'll mock it or just ensure it doesn't crash.
     """
     a = Agent(name="RunAgent", instructions="Test run method.")

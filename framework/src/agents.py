@@ -228,19 +228,18 @@ class Tasks:
         self.text = text
         self.client_mode=client_mode
 
-    def __call__(self, text: str):
+    def __call__(self, text: str, client_mode: bool = True):
         self.text = text
+        self.client_mode = client_mode
         return self
 
     def run_tasks(self):
         results = []
         from framework.src.agents import run_agents
-        from agent_methods.agents.agents import (leader, council_member1, council_member2, 
-                                        council_member3, coder, agent_maker, 
-                                        sentiment_analysis_agent, reminder_agent, reasoning_agent,
-                                        extractor, default_agent, moderation_agent)
+        from framework.src.agent_methods.agents.agents import (leader, council_member1, council_member2, 
+                                        council_member3, coder, agent_maker)
         from controlflow.tasks.validators import between
-        from agent_methods.data_models.datamodels import (AgentParams, ReasoningStep, SummaryResult, 
+        from framework.src.agent_methods.data_models.datamodels import (AgentParams, ReasoningStep, SummaryResult, 
                                                      TranslationResult, ViolationActivation,
                                                      ModerationException)
         from framework.src.agent_methods.prompts.instructions import REASONING_INSTRUCTIONS
