@@ -24,7 +24,7 @@ def test_agent_custom_provider():
     Test passing a custom model provider callable.
     """
     def mock_provider(**kwargs):
-        return "MockModel"
+        return "openai/gpt-4o-mini"
 
     a = Agent(
         name="CustomModelAgent",
@@ -32,7 +32,7 @@ def test_agent_custom_provider():
         model_provider=mock_provider,
         #some_param="value"
     )
-    assert a.model == "MockModel", "Expected the custom provider to be used."
+    assert a.model == "openai/gpt-4o-mini", "Expected the custom provider to be used."
     assert a.tools == [], "By default, tools should be an empty list."
 
 def test_agent_run():
