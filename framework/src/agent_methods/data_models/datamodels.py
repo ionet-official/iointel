@@ -70,5 +70,5 @@ class WorkflowDefinition(BaseModel):
     """
     name: str
     text: Optional[str] = None  # This holds the main text/prompt
-    agents: List[AgentParams] = Field(default_factory=list)
+    agents: Optional[List[AgentParams]] = None
     workflow: List[WorkflowStep] = Field(default_factory=list)

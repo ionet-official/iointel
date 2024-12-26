@@ -39,12 +39,6 @@ class Agent(cf.Agent):
         if model_provider is not None:
             model = model_provider(**model_kwargs)
 
-        elif model_provider == "default" or model_provider is None:
-            model = ChatOpenAI(
-                api_key=os.environ["OPENAI_API_KEY"], 
-                base_url=os.environ["OPENAI_API_BASE_URL"]
-                )
-
         else:
             model = ChatOpenAI(**model_kwargs)
 
@@ -79,7 +73,7 @@ class Workflow:
         """
         :param agents: Optional list of cf.Agent instances that this runner can orchestrate.
         """
-        self.agents = agents or []
+        self.agents = agents
 
     def add_agent(self, agent: cf.Agent):
         """
@@ -255,7 +249,7 @@ class Tasks:
         for t in self.tasks:
 
             task_type = t["type"]
-            agents_for_task = t.get("agents", [])
+            agents_for_task = t.get("agents", None)
             if task_type == "schedule_reminder":
                 if self.client_mode:
                     # Use client function
@@ -295,21 +289,21 @@ class Tasks:
                         context={"task": self.text},
                         result_type=str
                     )
-                    codes = run_agents(
-                        "Write code for the task",
-                        agents=[coder],
-                        instructions="""
-                            Provide Python or javascript code to accomplish the task depending on the user's choice.
-                            Returns code as a pydantic model.
-                        """,
-                        context={"deliberation": deliberate},
-                        result_type=PythonModule | JavaScriptModule
-                    )
+                    #codes = run_agents(   #WIP
+                    #    "Write code for the task",
+                    #    agents=[coder],
+                    #    instructions="""
+                    #        Provide Python or javascript code to accomplish the task depending on the user's choice.
+                    #        Returns code as a pydantic model.
+                    #    """,
+                    #    context={"deliberation": deliberate},
+                    #    result_type=PythonModule | JavaScriptModule
+                    #)
 
                     custom_agent_params = run_agents(
-                        "Create a ControlFlow agent using the provided code.",
+                        "Create a agent to complete the task",
                         agents=[agent_maker],
-                        context={"code": codes},
+                        context={"deliberation": deliberate},
                         result_type=AgentParams,
                     )
 
@@ -491,7 +485,7 @@ class Tasks:
                             name=t["name"],
                             objective=t["objective"],
                             instructions=t.get("instructions", ""),
-                            agents=[a.name for a in t.get("agents", [])],  # or however you map them
+                            agents=agents_for_task,
                             context={**t.get("kwargs", {}), "text": self.text}
                         )
                     else:
@@ -499,7 +493,7 @@ class Tasks:
                         result = run_agents(
                             objective=t["objective"],
                             instructions=t.get("instructions", ""),
-                            agents=t.get("agents", []),
+                            agents=agents_for_task,
                             context={"text": self.text, **t.get("kwargs", {})},
                             result_type=str
                         )

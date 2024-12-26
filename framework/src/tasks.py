@@ -94,7 +94,7 @@ def custom(self, name: str, objective: str, agents: Optional[List[str]] = None, 
         "text": self.text,
         "name": name,
         "objective": objective,
-        "agents": agents or [],
+        "agents": agents,
         "instructions": instructions,
 
         "kwargs": kwargs,  # store other data

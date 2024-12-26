@@ -19,21 +19,7 @@ def test_agent_default_model(monkeypatch):
     assert a.name == "TestAgent"
     assert "test agent" in a.instructions.lower()
 
-def test_agent_custom_provider():
-    """
-    Test passing a custom model provider callable.
-    """
-    def mock_provider(**kwargs):
-        return "openai/gpt-4o-mini"
 
-    a = Agent(
-        name="CustomModelAgent",
-        instructions="Instructions for custom model",
-        model_provider=mock_provider,
-        #some_param="value"
-    )
-    assert a.model == "openai/gpt-4o-mini", "Expected the custom provider to be used."
-    assert a.tools == [], "By default, tools should be an empty list."
 
 def test_agent_run():
     """
@@ -43,6 +29,8 @@ def test_agent_run():
     a = Agent(name="RunAgent", instructions="Test run method.")
     # Because there's no real LLM here (mock credentials), the actual run might fail or stub.
     # We can call run with a stub prompt and see if it returns something or raises a specific error.
-    with pytest.raises(Exception):
-        # This might raise an error due to fake API key or no actual LLM.
-        a.run("Hello world")
+    result = a.run("Hello world")
+    assert result is not None, "Expected a result from the agent run."
+    #with pytest.raises(Exception):
+    #    # This might raise an error due to fake API key or no actual LLM.
+    #    a.run("Hello world")

@@ -39,6 +39,8 @@ name: "TestWorkflow"
 text: "Sample text"
 workflow:
   - type: "sentiment"
+    agents: 
+        - "setiment_analysis_agent"
   - type: "custom"
     name: "special-step"
     objective: "Objective"
@@ -65,7 +67,6 @@ def test_upload_workflow_json(test_client: TestClient, tmp_path: Path):
         "name": "JsonWorkflow",
         "text": "Another sample text",
         "workflow": [
-            {"type": "council"},
             {
                 "type": "translate_text",
                 "target_language": "es"

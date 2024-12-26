@@ -14,7 +14,7 @@ def test_tasks_chain_basic():
     assert t.tasks[0]["delay"] == 10
     assert t.tasks[1]["type"] == "council"
     assert t.tasks[2]["type"] == "sentiment"
-    # We won't actually run tasks.run_tasks() because it depends on CF logic & LLM calls.
+    # We won't actually run tasks.run_tasks().
     # Instead, we just confirm the tasks are appended.
 
 def test_tasks_custom():

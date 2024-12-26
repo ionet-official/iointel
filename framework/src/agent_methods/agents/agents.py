@@ -73,7 +73,12 @@ docker_sandbox_agent = Agent( #WIP - need to add docker sandbox tool
     #tools=[],
 
 )
+summary_agent = Agent(
+    name="Summary Agent",
+    instructions="You are an agent that summarizes text.",
+    #tools=[],
 
+)
 sentiment_analysis_agent = Agent(
     name= "Sentiment Analysis Agent",
     instructions="You are an agent that performs unbiased sentiment analysis on text.",
@@ -94,6 +99,15 @@ moderation_agent = Agent(
     instructions="You are an agent that moderates content.",
 )
 
+classification_agent = Agent(
+    name="Classification Agent",
+    instructions="You are an agent that is an expert in classifying things.",
+)
+
+translation_agent = Agent(
+    name="Translation Agent",
+    instructions="You are an agent that is a polyglot of multiple languages and is an expert in translating text to another language.",
+)
 
 AGENTS = {
     "leader": leader,
@@ -109,4 +123,7 @@ AGENTS = {
     "default_agent": default_agent,
     "moderation_agent": moderation_agent,
     "reminder_agent": reminder_agent,
+    "classification_agent": classification_agent,
+    "translation_agent": translation_agent,
+    "summary_agent": summary_agent,
 }
