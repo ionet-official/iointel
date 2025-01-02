@@ -14,6 +14,7 @@ dependencies = [
     { name = "docker" },
     { name = "fastapi" },
     { name = "httpx" },
+    { name = "korvus" },
     { name = "pgvector" },
     { name = "pydantic" },
     { name = "pytest" },
@@ -30,6 +31,7 @@ requires-dist = [
     { name = "docker", specifier = ">=7.1.0" },
     { name = "fastapi", specifier = ">=0.115.6" },
     { name = "httpx", specifier = ">=0.28.1" },
+    { name = "korvus", specifier = ">=1.1.2" },
     { name = "pgvector", specifier = ">=0.3.6" },
     { name = "pydantic", specifier = ">=2.10.3" },
     { name = "pytest", specifier = ">=8.3.4" },
@@ -979,6 +981,34 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/10/db/58f950c996c793472e336ff3655b13fbcf1e3b359dcf52dcf3ed3b52c352/jsonschema_specifications-2024.10.1.tar.gz", hash = "sha256:0f38b83639958ce1152d02a7f062902c41c8fd20d558b0c34344292d417ae272", size = 15561 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/d1/0f/8910b19ac0670a0f80ce1008e5e751c4a57e14d2c4c13a482aa6079fa9d6/jsonschema_specifications-2024.10.1-py3-none-any.whl", hash = "sha256:a09a0680616357d9a0ecf05c12ad234479f549239d0f5b55f3deea67475da9bf", size = 18459 },
+]
+
+[[package]]
+name = "korvus"
+version = "1.1.2"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/11/50/06a9a3cca03ad42610766406f25010a69f85a46cf36639aee93961b47930/korvus-1.1.2.tar.gz", hash = "sha256:465817d7bd85c2c2b6e98243b3e0ccbaf91b71bb8f60f9bcf3574c332ed15cb4", size = 242358 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/14/f1/2c2dada05a0e601c95317bfe669a315468a79ab0aba9bbdc48cf252d8f83/korvus-1.1.2-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:e2543cc64caa6ff45440f68d804b8c1ebe5cd1d38904f356d161931c508a93a7", size = 5032190 },
+    { url = "https://files.pythonhosted.org/packages/93/0f/96cc05d2e48a8cf4d21afc6e823dde9edbfbcbd643c71153cbe6e654076c/korvus-1.1.2-cp310-cp310-manylinux_2_31_x86_64.whl", hash = "sha256:b89eb2a5f5f16fcbb8db3b51ce85d69af9beb0ad4a5edd5296dabc6b41c24b08", size = 8790058 },
+    { url = "https://files.pythonhosted.org/packages/72/38/6bb63d9b126b0c7f9221def0b86383b4f492ed69ccd24acfb5e49038e1ca/korvus-1.1.2-cp310-cp310-manylinux_2_34_aarch64.whl", hash = "sha256:012df038d4d43fadab650286120c63aeb1f2d010f43c0fa699efbfdf914ab080", size = 9122198 },
+    { url = "https://files.pythonhosted.org/packages/8d/55/cc8158e70f7a4d11f304726a515ef9d034fb6688d7acdb47844ef9404675/korvus-1.1.2-cp310-cp310-manylinux_2_34_x86_64.whl", hash = "sha256:d0861f6a4cecc5d9e8b7ae997f893bd08c07970b7d3b0fa6a9756c61b3c06567", size = 8788213 },
+    { url = "https://files.pythonhosted.org/packages/91/6b/5b0bd0ad38a84eb16891fd998b6ad296915802b509a4d83af3865d510142/korvus-1.1.2-cp310-none-win_amd64.whl", hash = "sha256:a845fde264c24ee47a96fbb52fe63941ee686d8895f96b5f1230c4f2b5b1e7b3", size = 5731841 },
+    { url = "https://files.pythonhosted.org/packages/2f/76/c76e3a5b1c53a554bd529bf64c532043f7e44a069faec4f00479d9b04c57/korvus-1.1.2-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:e68f7e548a845c8275b577d2a013683649a4b82f3da34d1e7e0abd57f7cca060", size = 5032189 },
+    { url = "https://files.pythonhosted.org/packages/b5/40/3dc09a8e87fbd0795a8cd76c02d53305317a641ed470066dd6bb3329b20b/korvus-1.1.2-cp311-cp311-manylinux_2_31_x86_64.whl", hash = "sha256:50e7056b8176898b2631ce335cbec59328608068b8bef321021fb182b1653d9e", size = 8790056 },
+    { url = "https://files.pythonhosted.org/packages/e6/61/1ba97008ff5e379734d0fda60f375755166e22035bfb9b957894b6efe68b/korvus-1.1.2-cp311-cp311-manylinux_2_34_aarch64.whl", hash = "sha256:0b101876b21825345ceb07aef7d93c0bf45030af5733c467f94b92b23f35357a", size = 9122197 },
+    { url = "https://files.pythonhosted.org/packages/49/ca/06aa9abee11180be02de6c2e8b90ba5a35ebfab64a789b54f931ba377e3b/korvus-1.1.2-cp311-cp311-manylinux_2_34_x86_64.whl", hash = "sha256:cbe5d653569e91cc9cad8e78e117bedeba9a84fa7f64c397484d3eebcb0906a8", size = 8788212 },
+    { url = "https://files.pythonhosted.org/packages/5e/1b/384ccd78d845d1a173fea9f91a8d1a34ebb07989b3d90ffb812a56d36a80/korvus-1.1.2-cp311-none-win_amd64.whl", hash = "sha256:54bd3d20fd759ab8668f3fcc64dba156350bf8497e4c64f664c1c6b70437f7b7", size = 5731840 },
+    { url = "https://files.pythonhosted.org/packages/8c/20/54021f0ad66bdc4ff2cf4bf77147e5cf045688f058c0ccea19bba58e63ed/korvus-1.1.2-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:fbcd6e79dec1faae3584c1dbca4001075d4e02ef31f7c85180cd63fb08730e49", size = 5031705 },
+    { url = "https://files.pythonhosted.org/packages/10/30/7392f3908c31f15eff8c1e407650bf38822e451f9993c4fc19861042bcf8/korvus-1.1.2-cp312-cp312-manylinux_2_31_x86_64.whl", hash = "sha256:704559aee72860e45c145f3e2c2589d6d34f0c746a1d4e190bc84c80f8daf627", size = 8789719 },
+    { url = "https://files.pythonhosted.org/packages/70/54/af869dde97b5413d4772e7dba23fcde9f9b5f2e714bd1be5c98ade539785/korvus-1.1.2-cp312-cp312-manylinux_2_34_aarch64.whl", hash = "sha256:e7c67b048d60bc5272440c10663a15da1bb1c6673ca4b9fde3c860ed87d4f1ea", size = 9128861 },
+    { url = "https://files.pythonhosted.org/packages/18/1a/6689c7df122769a148f7f4342e4860e1058979ef51dd374bfaedc0c0f04d/korvus-1.1.2-cp312-cp312-manylinux_2_34_x86_64.whl", hash = "sha256:95bc4207d51078acb1e41a63044b7f4dc68316a26da933d3acd4c248788f822f", size = 8787632 },
+    { url = "https://files.pythonhosted.org/packages/89/c2/a2a37d45d84067ee7c7bf134252bd99d9bb4272c5048a9b717aead6882dd/korvus-1.1.2-cp312-none-win_amd64.whl", hash = "sha256:f33b2f900c0a0cf3960982eb556d35223b07cfd05f5245f75b097a6c3c49fff2", size = 5731872 },
+    { url = "https://files.pythonhosted.org/packages/d3/81/c9f5587144e56fb5b11a2982c22bdbcf99718e6345fed9c59e5620193070/korvus-1.1.2-cp39-cp39-macosx_11_0_arm64.whl", hash = "sha256:ad08df05d91342173b5de2224a21ac67f4f9df535f4d5b22fbda2b3b5638afe8", size = 5032392 },
+    { url = "https://files.pythonhosted.org/packages/d8/32/4dbd0216cc1ed42fdcdcb6e268f3ab63b99e1693092b817dc60397e09a56/korvus-1.1.2-cp39-cp39-manylinux_2_31_x86_64.whl", hash = "sha256:109338a105b08e2fe1e9f2166c83fb7294efed5d5bb4e2a01b9f491bd7a862af", size = 8789158 },
+    { url = "https://files.pythonhosted.org/packages/35/44/000af0655706458c0cca6c42c9aafa94b3f1a9099ab9693cd2a1d8cb12b9/korvus-1.1.2-cp39-cp39-manylinux_2_34_aarch64.whl", hash = "sha256:4cfff1669cb44837ffd73262926baceace91b0e0d5a1311cb5e8a3dbb5d5c303", size = 9127910 },
+    { url = "https://files.pythonhosted.org/packages/9f/16/5f4e5aa95d2ebefb269f45a3f8940fb74dfc890941aed0a1a9bf351a203b/korvus-1.1.2-cp39-cp39-manylinux_2_34_x86_64.whl", hash = "sha256:1670f4407aca385a257381ae45ccd27607996c2fd2ff51a89c5c937375671804", size = 8787633 },
+    { url = "https://files.pythonhosted.org/packages/24/f8/392adc9d6de23f94b0babb162a463288e3041a51c9ad40fc4c2bd4a583ed/korvus-1.1.2-cp39-none-win_amd64.whl", hash = "sha256:211f454a7fb7524d5977dccd2bb7a9f64ff2d96ee3327cf1ad015acc87299193", size = 5732212 },
 ]
 
 [[package]]
