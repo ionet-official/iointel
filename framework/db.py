@@ -22,6 +22,6 @@ class JobModel(Base):
     stdout = Column(Text, nullable=True)
     stderr = Column(Text, nullable=True)
     exit_code = Column(Integer, nullable=True)
-    created_at = Column(DateTime, default=datetime.now(datetime.timezone.utc))
+    created_at = Column(DateTime, default=datetime.now)
 
 Base.metadata.create_all(bind=engine)
