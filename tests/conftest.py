@@ -1,6 +1,6 @@
 import pytest
 from fastapi.testclient import TestClient
-from framework.apis.main import app  # or wherever your FastAPI app is defined
+from framework.apis.agent_main import app  # or wherever your FastAPI app is defined
 
 @pytest.fixture(scope="session")
 def test_client():
