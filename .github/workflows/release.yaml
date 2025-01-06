@@ -1,0 +1,130 @@
+name: Publish Python 🐍 distribution 📦 to PyPI
+
+on:
+    #push:
+    #    branches:
+    #    - main
+    workflow_dispatch:
+      inputs:
+        version_bump:
+          type: choice
+          description: 'Choose the type of version bump (major, minor, patch)'
+          required: true
+          default: 'minor'
+          options:
+            - major
+            - minor
+            - patch
+            - alpha
+            - beta
+            - rc
+            - rev
+            - post
+
+jobs:
+
+  build:
+    name: Build distribution 📦
+    runs-on: ubuntu-latest
+    outputs:
+      new_tag: ${{ steps.set_var.outputs.new_tag }}
+    permissions:
+      contents: write  # IMPORTANT: mandatory for making GitHub Releases
+      id-token: write  # IMPORTANT: mandatory for trusted publishing
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.x"
+    - name: Install pypa/build
+      run: >-
+        python3 -m
+        pip install
+        hatchling uv
+        --user
+    - name: update version tag in pyproject.toml
+      id: set_var
+      run: | 
+          hatchling version ${{ github.event.inputs.version_bump }}
+          echo "new_tag=$(hatchling version)" >> $GITHUB_OUTPUT
+            git config --global user.email "gha@github.com"
+            git config --global user.name "github robot"
+            git commit -am "update package build version gha"
+            git push origin main
+
+    - name: Build a binary wheel and a source tarball
+      run: uv build && uv publish
+    - name: Store the distribution packages
+      uses: actions/upload-artifact@v3
+      with:
+        name: python-package-distributions
+        path: dist/
+
+
+  github-release:
+    name: >-
+      Sign the Python 🐍 distribution 📦 with Sigstore
+      and upload them to GitHub Release
+    needs:
+    - build
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write  # IMPORTANT: mandatory for making GitHub Releases
+      id-token: write  # IMPORTANT: mandatory for sigstore
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Download all the dists
+      uses: actions/download-artifact@v3
+      with:
+        name: python-package-distributions
+        path: .
+    - name: Sign the dists with Sigstore
+      uses: sigstore/gh-action-sigstore-python@v3.0.0
+      with:
+        inputs: >-
+          ./*.tar.gz
+          ./*.whl      
+    - name: Create GitHub Release
+      env:
+        GITHUB_TOKEN: ${{ github.token }}
+      run: >-
+        
+        gh release create
+        '${{ needs.build.outputs.new_tag }}'
+        --repo '${{ github.repository }}'
+        --generate-notes
+    - name: Upload artifact signatures to GitHub Release
+      env:
+        GITHUB_TOKEN: ${{ github.token }}
+      # Upload to GitHub Release using the `gh` CLI.
+      # `dist/` contains the built packages, and the
+      # sigstore-produced signatures and certificates.
+      run: >-
+        gh release upload
+        '${{ needs.build.outputs.new_tag }}' ./*.tar.gz ./*.whl ./*.tar.gz.sigstore.json ./*.whl.sigstore.json
+        --repo '${{ github.repository }}'
+
+  push-store-image:
+    permissions: write-all
+    name: Push the Docker image to GitHub Container Registry 🚀
+    runs-on: ubuntu-latest
+    needs:
+    - build
+    steps:
+    - name: Login to GitHub Container Registry
+      uses: docker/login-action@v2
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    - name: Checkout code
+      uses: actions/checkout@v4
+    - name: 'Build images'
+      run: |
+        RELEASE=${{ needs.build.outputs.new_tag }} \
+        docker buildx bake -f docker-bake.hcl --push
+
+

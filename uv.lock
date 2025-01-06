@@ -7,8 +7,8 @@ resolution-markers = [
 
 [[package]]
 name = "agents-framework"
-version = "0.1.0"
-source = { virtual = "." }
+version = "0.0.0"
+source = { editable = "." }
 dependencies = [
     { name = "controlflow" },
     { name = "docker" },
@@ -21,6 +21,8 @@ dependencies = [
     { name = "pytest" },
     { name = "python-dotenv" },
     { name = "python-multipart" },
+    { name = "solana" },
+    { name = "solders" },
     { name = "sqlalchemy" },
     { name = "sqlalchemy-utils" },
     { name = "uvicorn" },
@@ -39,6 +41,8 @@ requires-dist = [
     { name = "pytest", specifier = ">=8.3.4" },
     { name = "python-dotenv", specifier = ">=1.0.1" },
     { name = "python-multipart", specifier = ">=0.0.20" },
+    { name = "solana", specifier = ">=0.36.2" },
+    { name = "solders", specifier = ">=0.23.0" },
     { name = "sqlalchemy", specifier = ">=2.0.36" },
     { name = "sqlalchemy-utils", specifier = ">=0.41.2" },
     { name = "uvicorn", specifier = ">=0.32.1" },
@@ -420,6 +424,24 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/d8/53/6f443c9a4a8358a93a6792e2acffb9d9d5cb0a5cfd8802644b7b1c9a02e4/colorama-0.4.6.tar.gz", hash = "sha256:08695f5cb7ed6e0531a20572697297273c47b8cae5a63ffc6d6ed5c201be6e44", size = 27697 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/d1/d6/3965ed04c63042e047cb6a3e6ed1a63a35087b6a609aa3a15ed8ac56c221/colorama-0.4.6-py2.py3-none-any.whl", hash = "sha256:4f1d9991f5acc0ca119f9d443620b77f9d6b33703e51011c16baf57afb285fc6", size = 25335 },
+]
+
+[[package]]
+name = "construct"
+version = "2.10.68"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/e0/b7/a4a032e94bcfdff481f2e6fecd472794d9da09f474a2185ed33b2c7cad64/construct-2.10.68.tar.gz", hash = "sha256:7b2a3fd8e5f597a5aa1d614c3bd516fa065db01704c72a1efaaeec6ef23d8b45", size = 57856 }
+
+[[package]]
+name = "construct-typing"
+version = "0.5.6"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "construct" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/42/5f/89f8e4fc17ea96ef9af66aa4818e00c4fb84c289c4c6879df411d11f15a4/construct-typing-0.5.6.tar.gz", hash = "sha256:0dc501351cd6b308f15ec54e5fe7c0fbc07cc1530a1b77b4303062a0a93c1297", size = 22716 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/3e/c5/d68c7b7e5e2875d199b49f86f9fda2b18a58ff0a835f608cb664bbc3a53e/construct_typing-0.5.6-py3-none-any.whl", hash = "sha256:39c948329e880564e33521cba497b21b07967c465b9c9037d6334e2cffa1ced9", size = 24098 },
 ]
 
 [[package]]
@@ -935,6 +957,15 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/46/4e/c695c803aa2b668c057b2dea1cdd7a884d1a819ce610cec0be9666210bfd/jiter-0.8.2-cp39-cp39-musllinux_1_1_x86_64.whl", hash = "sha256:8bd2a824d08d8977bb2794ea2682f898ad3d8837932e3a74937e93d62ecbb637", size = 505141 },
     { url = "https://files.pythonhosted.org/packages/8e/51/e805b837db056f872db0b7a7a3610b7d764392be696dbe47afa0bea05bf2/jiter-0.8.2-cp39-cp39-win32.whl", hash = "sha256:ca29b6371ebc40e496995c94b988a101b9fbbed48a51190a4461fcb0a68b4a36", size = 203529 },
     { url = "https://files.pythonhosted.org/packages/32/b7/a3cde72c644fd1caf9da07fb38cf2c130f43484d8f91011940b7c4f42c8f/jiter-0.8.2-cp39-cp39-win_amd64.whl", hash = "sha256:1c0dfbd1be3cbefc7510102370d86e35d1d53e5a93d48519688b1bf0f761160a", size = 207527 },
+]
+
+[[package]]
+name = "jsonalias"
+version = "0.1.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/ec/45/ee7e17002cb7f3264f755ff6a1a72c55d1830e07808d643167d2a2277c4f/jsonalias-0.1.1.tar.gz", hash = "sha256:64f04d935397d579fc94509e1fcb6212f2d081235d9d6395bd10baedf760a769", size = 1095 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/41/ed/05aebce69f78c104feff2ffcdd5a6f9d668a208aba3a8bf56e3750809fd8/jsonalias-0.1.1-py3-none-any.whl", hash = "sha256:a56d2888e6397812c606156504e861e8ec00e188005af149f003c787db3d3f18", size = 1312 },
 ]
 
 [[package]]
@@ -2396,6 +2427,42 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/a2/87/a6771e1546d97e7e041b6ae58d80074f81b7d5121207425c964ddf5cfdbd/sniffio-1.3.1.tar.gz", hash = "sha256:f4324edc670a0f49750a81b895f35c3adb843cca46f0530f79fc1babb23789dc", size = 20372 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/e9/44/75a9c9421471a6c4805dbf2356f7c181a29c1879239abab1ea2cc8f38b40/sniffio-1.3.1-py3-none-any.whl", hash = "sha256:2f6da418d1f1e0fddd844478f41680e794e6051915791a034ff65e5f100525a2", size = 10235 },
+]
+
+[[package]]
+name = "solana"
+version = "0.36.2"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "construct-typing" },
+    { name = "httpx" },
+    { name = "solders" },
+    { name = "typing-extensions" },
+    { name = "websockets" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/a6/f4/9417ad46938c3ea350d93c71cc4d45cbb68b2e2adae3b69d643b7ef11b39/solana-0.36.2.tar.gz", hash = "sha256:d279f144b856bd2920c78f9e4143cb13f2f8fc64244f768868378aa64f78b675", size = 51999 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/23/bf/8878b464a489c46e40f2303887030c62d409b744cd621a501b746ff6a59a/solana-0.36.2-py3-none-any.whl", hash = "sha256:6cb2b458791a768ab277a8f63ccb2d3afe1a97e4169f0218b6ba522afaeffc04", size = 62180 },
+]
+
+[[package]]
+name = "solders"
+version = "0.23.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "jsonalias" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/fc/ab/9942f251097ea262bea3a2d0b6c45040442c10c5787b71240c2820eaccda/solders-0.23.0.tar.gz", hash = "sha256:f25e8908cca40a766a99dee1aa983fb7816949201b40ec927d0802debd3ec0e4", size = 182285 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/06/d6/c1eb92ea5549cfee8f62a3488de29923008c10e87898bba39d6201f845ed/solders-0.23.0-cp37-abi3-macosx_10_12_x86_64.macosx_11_0_arm64.macosx_10_12_universal2.whl", hash = "sha256:87c2865f4f634abf56cc3fe9cfea985ddd0a09097d01b7716ed83ff6ef2ad1c6", size = 27236077 },
+    { url = "https://files.pythonhosted.org/packages/4b/6c/f63ef9925a053a013d45c1ec4a67ae485ea221d911d124454bef0368a85d/solders-0.23.0-cp37-abi3-manylinux_2_17_armv7l.manylinux2014_armv7l.whl", hash = "sha256:183fdc05ed0d6004d24bef17c01794a17be4a90f71c31429207bf33ec2e7738d", size = 6926426 },
+    { url = "https://files.pythonhosted.org/packages/32/5d/867a0769783046051fa745df21a3b0ef00ea8b6d9671657f490d20e9dda1/solders-0.23.0-cp37-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:b1ba84ec23fc7af821dc7e5b48a6d247ae36b86457f930cbc64afa79587e4caf", size = 15470544 },
+    { url = "https://files.pythonhosted.org/packages/c6/69/a33543e8ffa399e34aae46272d41a810d9ea5e1285f66e3547da7c70e359/solders-0.23.0-cp37-abi3-manylinux_2_28_aarch64.whl", hash = "sha256:37d097f4a3e55e8870b9a81e7675834aa9b516e956c8b0c18adcac742573378c", size = 7133781 },
+    { url = "https://files.pythonhosted.org/packages/e1/21/44ec75b4c6ffa56f5a1bb09046156f41b5e05a397bbaf7289027de1bc551/solders-0.23.0-cp37-abi3-manylinux_2_5_i686.manylinux1_i686.whl", hash = "sha256:6319929399fdd04d10c5cebbd76993e58d92ade05febec5a488eed7810aae270", size = 7457170 },
+    { url = "https://files.pythonhosted.org/packages/ea/e6/ffee411c48ca3ffeedf1bf9a633eac5d26240092a7e551a206a51495a992/solders-0.23.0-cp37-abi3-musllinux_1_2_i686.whl", hash = "sha256:67514b6dc2ecec9e15198e70eac329eac7b191f0f063c6ab80748b9ff921c3d5", size = 7259632 },
+    { url = "https://files.pythonhosted.org/packages/f9/14/902c802f44e09989feee5f750f5d5621041a681c222153cddb21c2dbe3f8/solders-0.23.0-cp37-abi3-musllinux_1_2_x86_64.whl", hash = "sha256:9cb2360a47f3f4772903dfb3314ec57b637f7fc8ac30690fec28d48e16edacf4", size = 7205242 },
+    { url = "https://files.pythonhosted.org/packages/0d/6b/fd205612876b489f9c70bad04d8d7a98d462fb338a142e02991822f4f359/solders-0.23.0-cp37-abi3-win_amd64.whl", hash = "sha256:2976f6589a5a0a45600aee83b34312ad0d96ea03f8d358493143fc01223997c3", size = 5530329 },
 ]
 
 [[package]]
