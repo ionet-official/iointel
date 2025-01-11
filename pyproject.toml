@@ -20,6 +20,7 @@ dependencies = [
     "solders>=0.23.0",
     "solana>=0.36.2",
     "korvus>=1.1.2",
+    "langchain-openai>=0.2.14",
 ]
 keywords = ["Agents", "LLM", "framework", "AI", "tools"]
 classifiers = [

@@ -1,10 +1,15 @@
-from langchain_openai import ChatOpenAI
+from langchain_openai import ChatOpenAI,OpenAIEmbeddings
 import controlflow as cf
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from framework.src.tasks import CHAINABLE_METHODS
 from framework.src.workflows import CUSTOM_WORKFLOW_REGISTRY
-
+from controlflow.memory.providers.postgres import PostgresMemory, AsyncPostgresMemory
+from controlflow.memory.memory import Memory, MemoryProvider
+from controlflow.memory.async_memory import AsyncMemory
+from controlflow.memory.memory.async_memory import AsyncMemoryProvider
 import os
+import asyncio
+
 class Agent(cf.Agent):
 
     """
@@ -22,6 +27,7 @@ class Agent(cf.Agent):
         instructions: str,
         tools: list = None,
         model_provider: callable = None,
+        memory: list[Memory] | list[AsyncMemory]  = None,
         **model_kwargs
     ):
         """
@@ -39,6 +45,12 @@ class Agent(cf.Agent):
         if model_provider is not None:
             model = model_provider(**model_kwargs)
 
+        elif model_provider == "default" or model_provider is None:
+            model = ChatOpenAI(
+                api_key=os.environ["OPENAI_API_KEY"], 
+                base_url=os.environ["OPENAI_API_BASE_URL"]
+                )
+
         else:
             model = ChatOpenAI(**model_kwargs)
 
@@ -48,11 +60,15 @@ class Agent(cf.Agent):
             instructions=instructions,
             tools=tools or [],
             model=model,
+            memory=memory,
             **model_kwargs
         )
 
     def run(self, prompt: str):
         return super().run(prompt)
+    
+    async def a_run(self, prompt: str):
+        return await super().run_async(prompt)
 
     def set_instructions(self, new_instructions: str):
         self.instructions = new_instructions
@@ -114,7 +130,40 @@ class Workflow:
             **kwargs
         )
 
-    def chain_runs(self, run_specs: List[Dict[str, Any]]) -> List[Any]:
+    async def a_run(
+        self,
+        objective: str,
+        agents: List[Agent] = None,
+        completion_agents: List[Agent] = None,
+        instructions: str = "",
+        context: Dict[str, Any] = None,
+        result_type: Any = str,
+        **kwargs
+    ) -> Any:
+        """
+        Wrap cf.run_async() to execute a given objective with optional instructions, context, and agents.
+
+        :param objective: The primary task or objective to run.
+        :param agents: A list of agents to use for this run. If None, uses self.agents.
+        :param completion_agents: Agents that finalize the run (e.g., selecting a final answer).
+        :param instructions: Additional instructions or prompt details for the run.
+        :param context: A dictionary of context data passed to the run.
+        :param result_type: The expected return type (e.g. str, dict).
+        :param kwargs: Additional keyword arguments passed directly to cf.run().
+        :return: The result of the cf.run_async() call.
+        """
+        chosen_agents = agents if agents is not None else self.agents
+        return await cf.run_async(
+            objective,
+            agents=chosen_agents,
+            completion_agents=completion_agents,
+            instructions=instructions,
+            context=context or {},
+            result_type=result_type,
+            **kwargs
+        )
+
+    def chain_runs(self, run_specs: List[Dict[str, Any]], run_async: Optional[bool] = False) -> List[Any]:
         """
         Execute multiple runs in sequence. Each element in run_specs is a dict containing parameters for `self.run`.
         The output of one run can be fed into the context of the next run if desired.
@@ -151,23 +200,39 @@ class Workflow:
                         resolved_context[k] = v
                 spec["context"] = resolved_context
 
-            # Execute the run
-            result = self.run(
-                objective=spec["objective"],
-                agents=spec.get("agents"),
-                completion_agents=spec.get("completion_agents"),
-                instructions=spec.get("instructions", ""),
-                context=spec.get("context"),
-                result_type=spec.get("result_type", str),
-                **{k: v for k, v in spec.items() if k not in ["objective", "agents", "completion_agents", "instructions", "context", "result_type"]}
-            )
-            results.append(result)
+            if not run_async:
+                # Execute the run
+                result = self.run(
+                    objective=spec["objective"],
+                    agents=spec.get("agents"),
+                    completion_agents=spec.get("completion_agents"),
+                    instructions=spec.get("instructions", ""),
+                    context=spec.get("context"),
+                    result_type=spec.get("result_type", str),
+                    **{k: v for k, v in spec.items() if k not in ["objective", "agents", "completion_agents", "instructions", "context", "result_type"]}
+                )
+                results.append(result)
+            else:
+                result = asyncio.run(self.a_run(
+                    objective=spec["objective"],
+                    agents=spec.get("agents"),
+                    completion_agents=spec.get("completion_agents"),
+                    instructions=spec.get("instructions", ""),
+                    context=spec.get("context"),
+                    result_type=spec.get("result_type", str),
+                    **{k: v for k, v in spec.items() if k not in ["objective", "agents", "completion_agents", "instructions", "context", "result_type"]}
+                ))
+                results.append(result)
         return results
 
 @cf.flow
-def run_agents(objective: str, **kwargs):
+def run_agents(objective: str, run_async: Optional[bool] = False, **kwargs):
     runner = Workflow()
-    return runner.run(objective, **kwargs)
+    if run_async:
+        return asyncio.run(runner.a_run(objective, **kwargs))
+    else:
+        return runner.run(objective, **kwargs)
+    
 
 
 
@@ -217,14 +282,16 @@ class Tasks:
     print(results)
     """
 
-    def __init__(self, text: str = "", client_mode: bool = True):
+    def __init__(self, text: str = "", client_mode: bool = True, run_async: Optional[bool] = False):
         self.tasks = []
         self.text = text
         self.client_mode=client_mode
+        self.run_async = run_async
 
-    def __call__(self, text: str, client_mode: bool = True):
+    def __call__(self, text: str, client_mode: bool = True, run_async: Optional[bool] = False):
         self.text = text
         self.client_mode = client_mode
+        self.run_async = run_async
         return self
 
     def run_tasks(self):
@@ -258,17 +325,31 @@ class Tasks:
                     result = schedule_task(command=self.text)
                     results.append(result)
                 else:
-                    # matches schedule_reminder_flow(command: str, delay: int)
-                    result = run_agents(
-                        objective="Schedule a reminder",
-                        instructions="""
-                            Schedule a reminder and use the tool to track the time for the reminder.
-                        """,
-                        agents=agents_for_task,
-                        context={"command": self.text},
-                        result_type=str,
-                    )
-                    results.append(result)
+                    if self.run_async:
+                        # matches schedule_reminder_flow(command: str, delay: int)
+                        result = asyncio.run(run_agents(
+                            objective="Schedule a reminder",
+                            instructions="""
+                                Schedule a reminder and use the tool to track the time for the reminder.
+                            """,
+                            agents=agents_for_task,
+                            context={"command": self.text},
+                            result_type=str,
+                            run_async=True,
+                        ))
+                        results.append(result)
+                    else:
+                        # matches schedule_reminder_flow(command: str, delay: int)
+                        result = asyncio.run(run_agents(
+                            objective="Schedule a reminder",
+                            instructions="""
+                                Schedule a reminder and use the tool to track the time for the reminder.
+                            """,
+                            agents=agents_for_task,
+                            context={"command": self.text},
+                            result_type=str,
+                        ))
+                        results.append(result)
 
             elif task_type == "council":
                 if self.client_mode:
@@ -276,43 +357,87 @@ class Tasks:
                     result = run_council_task(task=self.text)
                     results.append(result)
                 else:
-                    deliberate = run_agents(
-                        "Deliberate and vote on the best way to complete the task.",
-                        agents=[leader, council_member1, council_member2, council_member3],
-                        completion_agents=[leader],
-                        instructions="""
-                            Deliberate with other council members on the best way to complete the task.
-                            Allow each council member to provide input before voting.
-                            Vote on the best answer.
-                            Show the entire deliberation, voting process, final decision, and reasoning.
-                        """,
-                        context={"task": self.text},
-                        result_type=str
-                    )
-                    #codes = run_agents(   #WIP
-                    #    "Write code for the task",
-                    #    agents=[coder],
-                    #    instructions="""
-                    #        Provide Python or javascript code to accomplish the task depending on the user's choice.
-                    #        Returns code as a pydantic model.
-                    #    """,
-                    #    context={"deliberation": deliberate},
-                    #    result_type=PythonModule | JavaScriptModule
-                    #)
+                    if self.run_async:
+                        deliberate = asyncio.run(run_agents(
+                            "Deliberate and vote on the best way to complete the task.",
+                            agents=[leader, council_member1, council_member2, council_member3],
+                            completion_agents=[leader],
+                            instructions="""
+                                Deliberate with other council members on the best way to complete the task.
+                                Allow each council member to provide input before voting.
+                                Vote on the best answer.
+                                Show the entire deliberation, voting process, final decision, and reasoning.
+                            """,
+                            context={"task": self.text},
+                            result_type=str,
+                            run_async=True
+                        ))
+                        #codes = run_agents(   #WIP
+                        #    "Write code for the task",
+                        #    agents=[coder],
+                        #    instructions="""
+                        #        Provide Python or javascript code to accomplish the task depending on the user's choice.
+                        #        Returns code as a pydantic model.
+                        #    """,
+                        #    context={"deliberation": deliberate},
+                        #    result_type=PythonModule | JavaScriptModule,
+                        #    run_async=True
+                        #)
 
-                    custom_agent_params = run_agents(
-                        "Create a agent to complete the task",
-                        agents=[agent_maker],
-                        context={"deliberation": deliberate},
-                        result_type=AgentParams,
-                    )
+                        custom_agent_params = asyncio.run(run_agents(
+                            "Create a agent to complete the task",
+                            agents=[agent_maker],
+                            context={"deliberation": deliberate},
+                            result_type=AgentParams,
+                            run_async=True
+                        ))
 
-                    final_result = run_agents(
+                        final_result = asyncio.run(run_agents(
                         "Execute the agent to complete the task",
                         agents=[create_agent(custom_agent_params)],
-                        result_type=str
-                    )
-                    results.append(final_result)
+                        result_type=str,
+                        run_async=True
+                        ))
+                    
+                        results.append(final_result)
+                    else:
+                        deliberate = run_agents(
+                            "Deliberate and vote on the best way to complete the task.",
+                            agents=[leader, council_member1, council_member2, council_member3],
+                            completion_agents=[leader],
+                            instructions="""
+                                Deliberate with other council members on the best way to complete the task.
+                                Allow each council member to provide input before voting.
+                                Vote on the best answer.
+                                Show the entire deliberation, voting process, final decision, and reasoning.
+                            """,
+                            context={"task": self.text},
+                            result_type=str
+                        )
+                        #codes = run_agents(   #WIP
+                        #    "Write code for the task",
+                        #    agents=[coder],
+                        #    instructions="""
+                        #        Provide Python or javascript code to accomplish the task depending on the user's choice.
+                        #        Returns code as a pydantic model.
+                        #    """,
+                        #    context={"deliberation": deliberate},
+                        #    result_type=PythonModule | JavaScriptModule
+                        #)
+
+                        custom_agent_params = run_agents(
+                            "Create a agent to complete the task",
+                            agents=[agent_maker],
+                            context={"deliberation": deliberate},
+                            result_type=AgentParams,
+                        )
+
+                        final_result = run_agents(
+                            "Execute the agent to complete the task",
+                            agents=[create_agent(custom_agent_params)],
+                            result_type=str
+                        )
+                        results.append(final_result)
 
             elif task_type == "solve_with_reasoning":
                 if self.client_mode:
@@ -322,29 +447,56 @@ class Tasks:
                     results.append(result)
                 else:
                 # logic from solve_with_reasoning flow
-                    while True:
-                        response: ReasoningStep = run_agents(
-                            objective="""
-                            Carefully read the `goal` and analyze the problem.
-                            Produce a single step of reasoning that advances you closer to a solution.
-                            """,
-                            instructions=REASONING_INSTRUCTIONS,
-                            result_type=ReasoningStep,
-                            agents=agents_for_task,
-                            context=dict(goal=self.text),
-                            model_kwargs=dict(tool_choice="required"),
-                        )
-                        if response.found_validated_solution:
-                            if run_agents(
-                                """
-                                Check your solution to be absolutely sure that it is correct and meets all requirements of the goal. Return True if it does.
+                    if self.run_async:
+                        while True:
+                            response: ReasoningStep = asyncio.run(run_agents(
+                                objective="""
+                                Carefully read the `goal` and analyze the problem.
+                                Produce a single step of reasoning that advances you closer to a solution.
                                 """,
-                                result_type=bool,
+                                instructions=REASONING_INSTRUCTIONS,
+                                result_type=ReasoningStep,
+                                agents=agents_for_task,
                                 context=dict(goal=self.text),
-                            ):
-                                break
-                    final = run_agents(objective=self.text, agents=agents_for_task)
-                    results.append(final)
+                                model_kwargs=dict(tool_choice="required"),
+                                run_async=True
+                            ))
+                            if response.found_validated_solution:
+                                if asyncio.run(run_agents(
+                                    """
+                                    Check your solution to be absolutely sure that it is correct and meets all requirements of the goal. Return True if it does.
+                                    """,
+                                    result_type=bool,
+                                    context=dict(goal=self.text),
+                                    run_async=True
+                                )):
+                                    break
+                        final = asyncio.run(run_agents(objective=self.text, agents=agents_for_task, run_async=True))
+                        results.append(final)
+                    else:
+                        while True:
+                            response: ReasoningStep = run_agents(
+                                objective="""
+                                Carefully read the `goal` and analyze the problem.
+                                Produce a single step of reasoning that advances you closer to a solution.
+                                """,
+                                instructions=REASONING_INSTRUCTIONS,
+                                result_type=ReasoningStep,
+                                agents=agents_for_task,
+                                context=dict(goal=self.text),
+                                model_kwargs=dict(tool_choice="required"),
+                            )
+                            if response.found_validated_solution:
+                                if run_agents(
+                                    """
+                                    Check your solution to be absolutely sure that it is correct and meets all requirements of the goal. Return True if it does.
+                                    """,
+                                    result_type=bool,
+                                    context=dict(goal=self.text),
+                                ):
+                                    break
+                        final = run_agents(objective=self.text, agents=agents_for_task)
+                        results.append(final)
 
             elif task_type == "summarize_text":
                 if self.client_mode:
@@ -354,13 +506,23 @@ class Tasks:
                     result = summarize_task(text=self.text, max_words=max_words)
                     results.append(result)
                 else:
-                    summary = run_agents(
-                        f"Summarize the given text in no more than {t['max_words']} words and list key points",
-                        result_type=SummaryResult,
-                        context={"text": self.text},
-                        agents=agents_for_task,
-                    )
-                    results.append(summary)
+                    if self.run_async:
+                        summary = asyncio.run(run_agents(
+                            f"Summarize the given text in no more than {t['max_words']} words and list key points",
+                            result_type=SummaryResult,
+                            context={"text": self.text},
+                            agents=agents_for_task,
+                            run_async=True
+                        ))
+                        results.append(summary)
+                    else:
+                        summary = run_agents(
+                            f"Summarize the given text in no more than {t['max_words']} words and list key points",
+                            result_type=SummaryResult,
+                            context={"text": self.text},
+                            agents=agents_for_task,
+                        )
+                        results.append(summary)
 
             elif task_type == "sentiment":
                 if self.client_mode:
@@ -368,14 +530,25 @@ class Tasks:
                     sentiment_val = sentiment_analysis(text=self.text)
                     results.append(sentiment_val)
                 else:
-                    sentiment_val = run_agents(
-                        "Classify the sentiment of the text as a value between 0 and 1",
-                        agents=agents_for_task,
-                        result_type=float,
-                        result_validator=between(0, 1),
-                        context={"text": self.text},
-                    )
-                    results.append(sentiment_val)
+                    if self.run_async:
+                        sentiment_val = asyncio.run(run_agents(
+                            "Classify the sentiment of the text as a value between 0 and 1",
+                            agents=agents_for_task,
+                            result_type=float,
+                            result_validator=between(0, 1),
+                            context={"text": self.text},
+                            run_async=True
+                        ))
+                        results.append(sentiment_val)
+                    else:
+                        sentiment_val = run_agents(
+                            "Classify the sentiment of the text as a value between 0 and 1",
+                            agents=agents_for_task,
+                            result_type=float,
+                            result_validator=between(0, 1),
+                            context={"text": self.text},
+                        )
+                        results.append(sentiment_val)
 
             elif task_type == "extract_categorized_entities":
                 if self.client_mode:
@@ -384,21 +557,40 @@ class Tasks:
                     extracted = extract_entities(text=self.text)
                     results.append(extracted)
                 else:
-                    extracted = run_agents(
-                        "Extract named entities from the text and categorize them",
-                        instructions="""
-                        Return a dictionary with the following keys:
-                        - 'persons': List of person names
-                        - 'organizations': List of organization names
-                        - 'locations': List of location names
-                        - 'dates': List of date references
-                        - 'events': List of event names
-                        Only include keys if entities of that type are found in the text.
-                        """,
-                        agents=agents_for_task,
-                        result_type=Dict[str, List[str]],
-                        context={"text": self.text},
-                    )
+                    if self.run_async:
+                        extracted = asyncio.run(run_agents(
+                            "Extract named entities from the text and categorize them",
+                            instructions="""
+                            Return a dictionary with the following keys:
+                            - 'persons': List of person names
+                            - 'organizations': List of organization names
+                            - 'locations': List of location names
+                            - 'dates': List of date references
+                            - 'events': List of event names
+                            Only include keys if entities of that type are found in the text.
+                            """,
+                            agents=agents_for_task,
+                            result_type=Dict[str, List[str]],
+                            context={"text": self.text},
+                            run_async=True
+                        ))
+                        results.append(extracted)
+                    else:
+                        extracted = run_agents(
+                            "Extract named entities from the text and categorize them",
+                            instructions="""
+                            Return a dictionary with the following keys:
+                            - 'persons': List of person names
+                            - 'organizations': List of organization names
+                            - 'locations': List of location names
+                            - 'dates': List of date references
+                            - 'events': List of event names
+                            Only include keys if entities of that type are found in the text.
+                            """,
+                            agents=agents_for_task,
+                            result_type=Dict[str, List[str]],
+                            context={"text": self.text},
+                        )
                     results.append(extracted)
 
             elif task_type == "translate_text":
@@ -408,13 +600,23 @@ class Tasks:
                     translated = translate_text_task(text=self.text, target_language=target_lang)
                     results.append(translated)
                 else:
-                    translated = run_agents(
-                        f"Translate the given text to {target_lang}",
-                        result_type=TranslationResult,
-                        context={"text": self.text, "target_language": target_lang},
-                        agents=agents_for_task,
-                    )
-                    results.append(translated)
+                    if self.run_async:
+                        translated = asyncio.run(run_agents(
+                            f"Translate the given text to {target_lang}",
+                            result_type=TranslationResult,
+                            context={"text": self.text, "target_language": target_lang},
+                            agents=agents_for_task,
+                            run_async=True
+                        ))
+                        results.append(translated)
+                    else:
+                        translated = run_agents(
+                            f"Translate the given text to {target_lang}",
+                            result_type=TranslationResult,
+                            context={"text": self.text, "target_language": target_lang},
+                            agents=agents_for_task,
+                        )
+                        results.append(translated)
 
             elif task_type == "classify":
                 if self.client_mode:
@@ -422,13 +624,23 @@ class Tasks:
                     classification = classify_text(text=self.text, classify_by=t["classify_by"])
                     results.append(classification)
                 else:
-                    classification = run_agents(
-                        "Classify the news headline into the most appropriate category",
-                        agents=agents_for_task,
-                        result_type=t["classify_by"],
-                        context={"headline": self.text},
-                    )
-                    results.append(classification)
+                    if self.run_async:
+                        classification = asyncio.run(run_agents(
+                            "Classify the news headline into the most appropriate category",
+                            agents=agents_for_task,
+                            result_type=t["classify_by"],
+                            context={"headline": self.text},
+                            run_async=True
+                        ))
+                        results.append(classification)
+                    else:
+                        classification = run_agents(
+                            "Classify the news headline into the most appropriate category",
+                            agents=agents_for_task,
+                            result_type=t["classify_by"],
+                            context={"headline": self.text},
+                        )
+                        results.append(classification)
 
             elif task_type == "moderation":
                 if self.client_mode:
@@ -449,12 +661,21 @@ class Tasks:
                         raise ModerationException("Dangerous content detected")
                     results.append(result)
                 else:
-                    result: ViolationActivation = run_agents(
-                        "Check the text for violations and return the activation levels",
-                        agents=agents_for_task,
-                        result_type=ViolationActivation,
-                        context={"text": self.text},
-                    )
+                    if self.run_async:
+                        result: ViolationActivation = asyncio.run(run_agents(
+                            "Check the text for violations and return the activation levels",
+                            agents=agents_for_task,
+                            result_type=ViolationActivation,
+                            context={"text": self.text},
+                            run_async=True
+                        ))
+                    else:
+                        result: ViolationActivation = run_agents(
+                            "Check the text for violations and return the activation levels",
+                            agents=agents_for_task,
+                            result_type=ViolationActivation,
+                            context={"text": self.text},
+                        )
                     threshold = t["threshold"]
                     if result["extreme_profanity"] > threshold:
                         raise ModerationException("Extreme profanity detected")
@@ -489,14 +710,24 @@ class Tasks:
                             context={**t.get("kwargs", {}), "text": self.text}
                         )
                     else:
-                        # fallback logic if no specific function is found
-                        result = run_agents(
-                            objective=t["objective"],
-                            instructions=t.get("instructions", ""),
-                            agents=agents_for_task,
-                            context={"text": self.text, **t.get("kwargs", {})},
-                            result_type=str
-                        )
+                        if self.run_async:
+                            result = asyncio.run(run_agents(
+                                objective=t["objective"],
+                                instructions=t.get("instructions", ""),
+                                agents=agents_for_task,
+                                context={"text": self.text, **t.get("kwargs", {})},
+                                result_type=str,
+                                run_async=True
+                            ))
+                        else:
+                            # fallback logic if no specific function is found
+                            result = run_agents(
+                                objective=t["objective"],
+                                instructions=t.get("instructions", ""),
+                                agents=agents_for_task,
+                                context={"text": self.text, **t.get("kwargs", {})},
+                                result_type=str
+                            )
                     results.append(result)
 
         # Clear tasks after running
@@ -506,3 +737,121 @@ class Tasks:
 # Add chainable methods to Tasks class
 for method_name, func in CHAINABLE_METHODS.items():
     setattr(Tasks, method_name, func)
+
+class Memory(Memory):
+    """
+    Simple wrapper class of cf.Memory to store and retrieve data from memory via a MemoryModule.
+    A class to store and retrieve data from memory via a MemoryModule.
+
+    provider = PostgresMemory(
+        database_url="<database str>",
+        embedding_dimension=1536,
+        embedding_fn=OpenAIEmbeddings(),
+        table_name="vector_db",
+    )
+    # Create a memory module for user preferences
+    user_preferences = Memory(
+        key="user_preferences",
+        instructions="Store and retrieve user preferences.",
+        provider=provider,
+    )
+
+    # Create an agent with access to the memory
+    agent = Agent(memories=[user_preferences])
+    (tasks("My text to process")
+        .custom(
+            name="do-fancy-thing",
+            objective="Perform a fancy custom step on the text",
+            agents=[agent],
+            instructions="Analyze the text in a fancy custom way",
+            custom_key="some_extra_value",
+        )
+        ...
+       )
+
+    results = tasks.run_tasks()
+    print(results)
+    """
+
+    def __init__(        
+        self,
+        key: str,
+        instructions: str,
+        provider: MemoryProvider = None,
+    ):
+        super().__init__(key, instructions, provider)
+
+
+class AsyncMemory(AsyncMemory):
+    """
+    Simple wrapper class of cf.AsyncMemory to store and retrieve data from memory via a MemoryModule.
+    A class to store and retrieve data from memory via a MemoryModule.
+
+     provider = AsyncPostgresMemory(
+        database_url="<database str>",
+        embedding_dimension=1536,
+        embedding_fn=OpenAIEmbeddings(),
+        table_name="vector_db",
+    )
+    # Create a memory module for user preferences
+    user_preferences = AsyncMemory(
+        key="user_preferences",
+        instructions="Store and retrieve user preferences.",
+        provider=provider,
+    )
+
+    # Create an agent with access to the memory
+    agent = Agent(memories=[user_preferences])
+    (tasks("My text to process")
+        .custom(
+            name="do-fancy-thing",
+            objective="Perform a fancy custom step on the text",
+            agents=[agent],
+            instructions="Analyze the text in a fancy custom way",
+            custom_key="some_extra_value",
+        )
+        ...
+       )
+
+    results = tasks.run_tasks(client_mode = False, run_async=True)
+    print(results)   
+    """
+
+    def __init__(        
+        self,
+        key: str,
+        instructions: str,
+        provider: AsyncMemoryProvider = None,
+    ):
+        super().__init__(key, instructions, provider)
+
+
+class PostgresMemory(PostgresMemory):
+    """
+    A class to store and retrieve data from a PostgreSQL database.
+    """
+
+    def __init__(
+        self,
+        database_url: str = None,
+        embedding_dimension: float = 1536,
+        embedding_fn: callable = OpenAIEmbeddings(),
+        table_name:str = None,
+        **kwargs
+    ):
+        super().__init__(database_url, embedding_dimension, embedding_fn, table_name, **kwargs)
+
+class AsyncPostgresMemory(AsyncPostgresMemory):
+    """
+    A class to store and retrieve data from a PostgreSQL database.
+    """
+
+    def __init__(
+        self,
+        database_url: str = None,
+        embedding_dimension: float = 1536,
+        embedding_fn: callable = OpenAIEmbeddings(),
+        table_name:str = None,
+        **kwargs
+    ):
+        super().__init__(database_url, embedding_dimension, embedding_fn, table_name, **kwargs)
