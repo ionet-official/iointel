@@ -227,9 +227,13 @@ class Workflow:
 
 @cf.flow
 def run_agents(objective: str, run_async: Optional[bool] = False, **kwargs):
+    """
+    
+    A wrapper to either run agent workflows synchronously or asynchronously.
+    """
     runner = Workflow()
     if run_async:
-        return asyncio.run(runner.a_run(objective, **kwargs))
+        return runner.a_run(objective, **kwargs) #returns a coroutine
     else:
         return runner.run(objective, **kwargs)
     
@@ -327,7 +331,7 @@ class Tasks:
                 else:
                     if self.run_async:
                         # matches schedule_reminder_flow(command: str, delay: int)
-                        result = asyncio.run(run_agents(
+                        result = run_agents(
                             objective="Schedule a reminder",
                             instructions="""
                                 Schedule a reminder and use the tool to track the time for the reminder.
@@ -336,11 +340,11 @@ class Tasks:
                             context={"command": self.text},
                             result_type=str,
                             run_async=True,
-                        ))
-                        results.append(result)
+                        )
+                        results.append(asyncio.run(result))
                     else:
                         # matches schedule_reminder_flow(command: str, delay: int)
-                        result = asyncio.run(run_agents(
+                        result = run_agents(
                             objective="Schedule a reminder",
                             instructions="""
                                 Schedule a reminder and use the tool to track the time for the reminder.
@@ -348,7 +352,7 @@ class Tasks:
                             agents=agents_for_task,
                             context={"command": self.text},
                             result_type=str,
-                        ))
+                        )
                         results.append(result)
 
             elif task_type == "council":
@@ -358,7 +362,7 @@ class Tasks:
                     results.append(result)
                 else:
                     if self.run_async:
-                        deliberate = asyncio.run(run_agents(
+                        deliberate = run_agents(
                             "Deliberate and vote on the best way to complete the task.",
                             agents=[leader, council_member1, council_member2, council_member3],
                             completion_agents=[leader],
@@ -371,7 +375,7 @@ class Tasks:
                             context={"task": self.text},
                             result_type=str,
                             run_async=True
-                        ))
+                        )
                         #codes = run_agents(   #WIP
                         #    "Write code for the task",
                         #    agents=[coder],
@@ -384,22 +388,22 @@ class Tasks:
                         #    run_async=True
                         #)
 
-                        custom_agent_params = asyncio.run(run_agents(
+                        custom_agent_params = run_agents(
                             "Create a agent to complete the task",
                             agents=[agent_maker],
-                            context={"deliberation": deliberate},
+                            context={"deliberation": asyncio.run(deliberate)},
                             result_type=AgentParams,
                             run_async=True
-                        ))
+                        )
 
-                        final_result = asyncio.run(run_agents(
+                        final_result = run_agents(
                         "Execute the agent to complete the task",
-                        agents=[create_agent(custom_agent_params)],
+                        agents=[asyncio.run(create_agent(custom_agent_params))],
                         result_type=str,
                         run_async=True
-                        ))
+                        )
                     
-                        results.append(final_result)
+                        results.append(asyncio.run(final_result))
                     else:
                         deliberate = run_agents(
                             "Deliberate and vote on the best way to complete the task.",
@@ -449,7 +453,7 @@ class Tasks:
                 # logic from solve_with_reasoning flow
                     if self.run_async:
                         while True:
-                            response: ReasoningStep = asyncio.run(run_agents(
+                            response: ReasoningStep = run_agents(
                                 objective="""
                                 Carefully read the `goal` and analyze the problem.
                                 Produce a single step of reasoning that advances you closer to a solution.
@@ -460,8 +464,9 @@ class Tasks:
                                 context=dict(goal=self.text),
                                 model_kwargs=dict(tool_choice="required"),
                                 run_async=True
-                            ))
-                            if response.found_validated_solution:
+                            )
+                            res = asyncio.run(response)
+                            if res.found_validated_solution:
                                 if asyncio.run(run_agents(
                                     """
                                     Check your solution to be absolutely sure that it is correct and meets all requirements of the goal. Return True if it does.
@@ -471,8 +476,8 @@ class Tasks:
                                     run_async=True
                                 )):
                                     break
-                        final = asyncio.run(run_agents(objective=self.text, agents=agents_for_task, run_async=True))
-                        results.append(final)
+                        final = run_agents(objective=self.text, agents=agents_for_task, run_async=True)
+                        results.append(asyncio.run(final))
                     else:
                         while True:
                             response: ReasoningStep = run_agents(
@@ -507,14 +512,14 @@ class Tasks:
                     results.append(result)
                 else:
                     if self.run_async:
-                        summary = asyncio.run(run_agents(
+                        summary = run_agents(
                             f"Summarize the given text in no more than {t['max_words']} words and list key points",
                             result_type=SummaryResult,
                             context={"text": self.text},
                             agents=agents_for_task,
                             run_async=True
-                        ))
-                        results.append(summary)
+                        )
+                        results.append(asyncio.run(summary))
                     else:
                         summary = run_agents(
                             f"Summarize the given text in no more than {t['max_words']} words and list key points",
@@ -531,15 +536,15 @@ class Tasks:
                     results.append(sentiment_val)
                 else:
                     if self.run_async:
-                        sentiment_val = asyncio.run(run_agents(
+                        sentiment_val = run_agents(
                             "Classify the sentiment of the text as a value between 0 and 1",
                             agents=agents_for_task,
                             result_type=float,
                             result_validator=between(0, 1),
                             context={"text": self.text},
                             run_async=True
-                        ))
-                        results.append(sentiment_val)
+                        )
+                        results.append(asyncio.run(sentiment_val))
                     else:
                         sentiment_val = run_agents(
                             "Classify the sentiment of the text as a value between 0 and 1",
@@ -558,7 +563,7 @@ class Tasks:
                     results.append(extracted)
                 else:
                     if self.run_async:
-                        extracted = asyncio.run(run_agents(
+                        extracted = run_agents(
                             "Extract named entities from the text and categorize them",
                             instructions="""
                             Return a dictionary with the following keys:
@@ -573,8 +578,8 @@ class Tasks:
                             result_type=Dict[str, List[str]],
                             context={"text": self.text},
                             run_async=True
-                        ))
-                        results.append(extracted)
+                        )
+                        results.append(asyncio.run(extracted))
                     else:
                         extracted = run_agents(
                             "Extract named entities from the text and categorize them",
@@ -601,14 +606,14 @@ class Tasks:
                     results.append(translated)
                 else:
                     if self.run_async:
-                        translated = asyncio.run(run_agents(
+                        translated = run_agents(
                             f"Translate the given text to {target_lang}",
                             result_type=TranslationResult,
                             context={"text": self.text, "target_language": target_lang},
                             agents=agents_for_task,
                             run_async=True
-                        ))
-                        results.append(translated)
+                        )
+                        results.append(asyncio.run(translated))
                     else:
                         translated = run_agents(
                             f"Translate the given text to {target_lang}",
@@ -625,14 +630,14 @@ class Tasks:
                     results.append(classification)
                 else:
                     if self.run_async:
-                        classification = asyncio.run(run_agents(
+                        classification = run_agents(
                             "Classify the news headline into the most appropriate category",
                             agents=agents_for_task,
                             result_type=t["classify_by"],
                             context={"headline": self.text},
                             run_async=True
-                        ))
-                        results.append(classification)
+                        )
+                        results.append(asyncio.run(classification))
                     else:
                         classification = run_agents(
                             "Classify the news headline into the most appropriate category",
@@ -711,14 +716,15 @@ class Tasks:
                         )
                     else:
                         if self.run_async:
-                            result = asyncio.run(run_agents(
+                            result = run_agents(
                                 objective=t["objective"],
                                 instructions=t.get("instructions", ""),
                                 agents=agents_for_task,
                                 context={"text": self.text, **t.get("kwargs", {})},
                                 result_type=str,
                                 run_async=True
-                            ))
+                            )
+                            results.append(asyncio.run(result))
                         else:
                             # fallback logic if no specific function is found
                             result = run_agents(
@@ -728,7 +734,7 @@ class Tasks:
                                 context={"text": self.text, **t.get("kwargs", {})},
                                 result_type=str
                             )
-                    results.append(result)
+                            results.append(result)
 
         # Clear tasks after running
         self.tasks.clear()
