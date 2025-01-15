@@ -26,7 +26,7 @@ class Agent(cf.Agent):
         name: str,
         instructions: str,
         tools: list = None,
-        model_provider: callable = None,
+        model_provider: callable = "default",
         memory: list[Memory] | list[AsyncMemory]  = None,
         **model_kwargs
     ):
