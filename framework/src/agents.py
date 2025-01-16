@@ -9,6 +9,8 @@ from controlflow.memory.async_memory import AsyncMemory
 from controlflow.memory.memory.async_memory import AsyncMemoryProvider
 import os
 import asyncio
+from framework.src.agent_methods.data_models.datamodels import PersonaConfig
+
 
 class Agent(cf.Agent):
 
@@ -25,6 +27,7 @@ class Agent(cf.Agent):
         self,
         name: str,
         instructions: str,
+        persona: Optional[PersonaConfig] = None,
         tools: list = None,
         model_provider: callable = "default",
         memory: list[Memory] | list[AsyncMemory]  = None,
@@ -54,10 +57,19 @@ class Agent(cf.Agent):
         else:
             model = ChatOpenAI(**model_kwargs)
 
+        # Build a persona snippet if provided
+        persona_instructions = ""
+        if persona:
+            persona_instructions = persona.to_system_instructions()
+
+        # Combine user instructions with persona content
+        combined_instructions = instructions
+        if persona_instructions.strip():
+            combined_instructions += "\n\n" + persona_instructions
 
         super().__init__(
             name=name,
-            instructions=instructions,
+            instructions=combined_instructions,
             tools=tools or [],
             model=model,
             memory=memory,

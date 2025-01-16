@@ -20,6 +20,7 @@ It also supports loading **YAML or JSON** workflows to define multi-step tasks.
    - [Workflows (YAML/JSON)](#workflows-yamljson)  
 4. [Usage](#usage)  
    - [Creating Agents](#creating-agents)  
+   - [Creating an Agent with custom Persona](#creating-an-agent-with-a-persona)  
    - [Building Tasks](#building-tasks)  
    - [Running a Local Workflow](#running-a-local-workflow)  
    - [Running a Remote Workflow (Client Mode)](#running-a-remote-workflow-client-mode)  
@@ -77,6 +78,7 @@ Users can define tasks (like `council`, `sentiment`, `translate_text`, etc.) in 
 
 - They can have a custom model provider (e.g., `ChatOpenAI`, a Llama-based model, etc.).
 - Agents can have tools attached, which are specialized functions accessible during execution.
+- Agents can have a custom Persona Profile configured.
 
 ### Tasks
 
@@ -115,6 +117,42 @@ my_agent = Agent(
     instructions="You are a helpful agent.",
     model_provider="default"   # or use a callable for custom model
 )
+```
+
+### Creating an Agent with a Persona
+
+```python
+from framework.src.agent_methods.data_models.datamodels import PersonaConfig
+from framework.src.agents import Agent
+
+my_persona = PersonaConfig(
+    name="Elandria the Arcane Scholar",
+    age=164,
+    role="an ancient elven mage",
+    style="formal and slightly archaic",
+    domain_knowledge=["arcane magic", "elven history", "ancient runes"],
+    quirks="often references centuries-old events casually",
+    bio="Once studied at the Grand Academy of Runic Arts",
+    lore="Elves in this world can live up to 300 years",
+    personality="calm, wise, but sometimes condescending",
+    conversation_style="uses 'thee' and 'thou' occasionally",
+    description="Tall, silver-haired, wearing intricate robes with arcane symbols"
+    emotional_stability: 0.85,
+    friendliness: 0.45,
+    creativity: 0.68,
+    curiosity: 0.95,
+    formality: 0.1,
+    empathy: 0.57,
+    humor: 0.99,
+)
+
+agent = Agent(
+    name="ArcaneScholarAgent",
+    instructions="You are an assistant specialized in arcane knowledge.",
+    persona=my_persona
+)
+
+print(agent.instructions)
 ```
 
 ### Building Tasks

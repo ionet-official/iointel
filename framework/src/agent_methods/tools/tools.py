@@ -7,7 +7,7 @@ def create_agent(params: AgentParams) -> Agent:
     """
     Create a Agent instance from the given AgentParams.
     """
-    return Agent(name=params.name, instructions=params.instructions, tools=params.tools)
+    return Agent(name=params.name, instructions=params.instructions, persona=params.persona, tools=params.tools)
 
 
 def get_current_datetime() -> str:
