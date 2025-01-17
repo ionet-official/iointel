@@ -65,8 +65,8 @@ class LoggingHandler(Handler):
     def on_tool_result(self, event: ToolResult):
         self.log.events.append(
             ToolResultEvent(
-                tool_name=event.tool_name
-                # add result field if you want: result=...
+                tool_name=event.tool_name,
+                result=event.result
             )
         )
 
@@ -153,7 +153,7 @@ class AsyncLoggingHandler(AsyncHandler):
         self.log.events.append(
             ToolResultEvent(
                 tool_name=event.tool_name
-                # add result field if you want: result=...
+                result = event.result
             )
         )
 

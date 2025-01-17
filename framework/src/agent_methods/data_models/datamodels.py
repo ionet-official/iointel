@@ -278,7 +278,7 @@ class ToolCallEvent(BaseEventModel):
 class ToolResultEvent(BaseEventModel):
     event_type: str = "tool_result"
     tool_name: str
-    # you might also want to store the actual result payload
+    result: str
 
 class OrchestratorStartEvent(BaseEventModel):
     event_type: str = "orchestrator_start"
