@@ -152,7 +152,7 @@ class AsyncLoggingHandler(AsyncHandler):
     async def on_tool_result(self, event: ToolResult):
         self.log.events.append(
             ToolResultEvent(
-                tool_name=event.tool_name
+                tool_name=event.tool_name,
                 result = event.result
             )
         )
