@@ -1,5 +1,8 @@
 from pydantic import BaseModel, Field
-from typing import List, TypedDict, Annotated, Optional
+from typing import List, TypedDict, Annotated, Optional,Union
+from datetime import datetime
+
+
 
 
 class PersonaConfig(BaseModel):
@@ -244,3 +247,72 @@ class WorkflowDefinition(BaseModel):
     text: Optional[str] = None  # This holds the main text/prompt
     agents: Optional[List[AgentParams]] = None
     workflow: List[WorkflowStep] = Field(default_factory=list)
+
+
+
+### logging handlers
+
+class BaseEventModel(BaseModel):
+    """
+    A base model to capture common fields or structure for all events.
+    """
+    timestamp: datetime = Field(default_factory=datetime.utcnow)
+
+class AgentMessageEvent(BaseEventModel):
+    event_type: str = "agent_message"
+    agent_name: str
+    content: str
+
+class UserMessageEvent(BaseEventModel):
+    event_type: str = "user_message"
+    content: str
+
+class OrchestratorMessageEvent(BaseEventModel):
+    event_type: str = "orchestrator_message"
+    content: str
+
+class ToolCallEvent(BaseEventModel):
+    event_type: str = "tool_call"
+    tool_name: str
+
+class ToolResultEvent(BaseEventModel):
+    event_type: str = "tool_result"
+    tool_name: str
+    # you might also want to store the actual result payload
+
+class OrchestratorStartEvent(BaseEventModel):
+    event_type: str = "orchestrator_start"
+
+class OrchestratorEndEvent(BaseEventModel):
+    event_type: str = "orchestrator_end"
+
+class AgentMessageDeltaEvent(BaseEventModel):
+    event_type: str = "agent_message_delta"
+    delta: str
+
+class OrchestratorErrorEvent(BaseEventModel):
+    event_type: str = "orchestrator_error"
+    error: str
+
+class EndTurnEvent(BaseEventModel):
+    event_type: str = "end_turn"
+
+# Union of all event models
+EventModelUnion = Union[
+    AgentMessageEvent,
+    UserMessageEvent,
+    OrchestratorMessageEvent,
+    ToolCallEvent,
+    ToolResultEvent,
+    OrchestratorStartEvent,
+    OrchestratorEndEvent,
+    AgentMessageDeltaEvent,
+    OrchestratorErrorEvent,
+    EndTurnEvent,
+]
+
+class EventsLog(BaseModel):
+    """
+    Main aggregator for all events.
+    """
+    events: List[EventModelUnion] = []
