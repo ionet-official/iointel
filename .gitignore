@@ -8,3 +8,4 @@ moa
 __pycache__
 *.egg-info
 dist
+.idea

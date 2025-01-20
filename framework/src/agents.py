@@ -1,4 +1,6 @@
-from langchain_openai import ChatOpenAI,OpenAIEmbeddings
+import os
+
+from langchain_openai import ChatOpenAI
 import controlflow as cf
 from typing import List, Dict, Any, Optional
 from framework.src.tasks import CHAINABLE_METHODS
@@ -7,7 +9,6 @@ from controlflow.memory.providers.postgres import PostgresMemory, AsyncPostgresM
 from controlflow.memory.memory import Memory, MemoryProvider
 from controlflow.memory.async_memory import AsyncMemory
 from controlflow.memory.memory.async_memory import AsyncMemoryProvider
-import os
 import asyncio
 from framework.src.agent_methods.data_models.datamodels import PersonaConfig
 
@@ -47,15 +48,17 @@ class Agent(cf.Agent):
 
         if model_provider is not None:
             model = model_provider(**model_kwargs)
-
-        elif model_provider == "default" or model_provider is None:
-            model = ChatOpenAI(
-                api_key=os.environ["OPENAI_API_KEY"], 
-                base_url=os.environ["OPENAI_API_BASE_URL"]
-                )
-
         else:
-            model = ChatOpenAI(**model_kwargs)
+            if os.environ.get("OPENAI_API_BASE_URL"):
+                model = ChatOpenAI(
+                    model=os.environ.get("OPENAI_API_MODEL"),
+                    api_key=os.environ["OPENAI_API_KEY"],
+                    base_url=os.environ["OPENAI_API_BASE_URL"]
+                )
+            else:
+                model = ChatOpenAI(
+                    api_key=os.environ["OPENAI_API_KEY"],
+                )
 
         # Build a persona snippet if provided
         persona_instructions = ""
