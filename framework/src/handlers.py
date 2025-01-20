@@ -24,7 +24,8 @@ from framework.src.agent_methods.data_models.datamodels import (
     AgentMessageDeltaEvent,
     OrchestratorErrorEvent, 
     EndTurnEvent,
-    EventsLog 
+    EventsLog,
+    CatchallEvent
     )
 
 
@@ -192,7 +193,14 @@ class AsyncLoggingHandler(AsyncHandler):
         or do something generic. The default Handler base class calls
         this method for all events. We can ignore or store it.
         """
-        # self.log.events.append( ...some default model... )
+        generic_event = CatchallEvent(
+            event_type=event.__class__.__name__.lower(),
+            details={
+                "repr": repr(event),
+                
+            }
+        )
+        self.log.events.append(generic_event)
         pass
 
     def get_log(self) -> EventsLog:

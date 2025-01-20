@@ -297,6 +297,10 @@ class OrchestratorErrorEvent(BaseEventModel):
 class EndTurnEvent(BaseEventModel):
     event_type: str = "end_turn"
 
+class CatchallEvent(BaseEventModel):
+    event_type: str = "catch-all"
+    details: dict = {}
+
 # Union of all event models
 EventModelUnion = Union[
     AgentMessageEvent,
@@ -309,6 +313,7 @@ EventModelUnion = Union[
     AgentMessageDeltaEvent,
     OrchestratorErrorEvent,
     EndTurnEvent,
+    CatchallEvent
 ]
 
 class EventsLog(BaseModel):
