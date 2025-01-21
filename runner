@@ -29,3 +29,6 @@ docker compose -f framework/infra/compose/agent-api-compose.yml \
 
 #nomatim
 # ./runner --profile nominatim up
+
+# mcp-dev
+# ./runner --profile mcp-dev up
