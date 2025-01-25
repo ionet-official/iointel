@@ -3,10 +3,12 @@ name = "agents-framework"
 dynamic = ["version"]
 description = "A framework to create agents, tasks, and workflows."
 readme = "README.md"
-requires-python = ">= 3.9"
+requires-python = ">= 3.10"
 dependencies = [
     "pydantic>=2.10.3",
-    "controlflow>=0.11.4",
+    # controlflow-0.12.0 is not yet released to pypi, use github instead
+    # v0.12.0 has broken pyproject.toml, so take from our fork :/
+    "controlflow@git+https://github.com/webcoderz/ControlFlow#egg=a6fd0fd7009199167128e458a17d391625a8b410",
     "docker>=7.1.0",
     "sqlalchemy>=2.0.36",
     "uvicorn>=0.32.1",
@@ -41,8 +43,8 @@ norecursedirs = [
     "node_modules",
 ]
 env = [
-    "OPENAI_API_KEY",
-    "TUNNEL_PASS"
+    "D:OPENAI_API_KEY",
+    "D:TUNNEL_PASS"
 ]
 
 [project.optional-dependencies]
@@ -65,3 +67,6 @@ packages = ["framework"]
 
 [tool.hatch.version]
 path = "framework/__init__.py"
+
+[tool.hatch.metadata]
+allow-direct-references = true

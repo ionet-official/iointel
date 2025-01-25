@@ -51,7 +51,11 @@ cloudpickle==3.1.0
     # via prefect
 colorama==0.4.6
     # via griffe
-controlflow==0.11.4
+construct==2.10.68
+    # via construct-typing
+construct-typing==0.5.6
+    # via solana
+controlflow @ git+https://github.com/webcoderz/ControlFlow@a6fd0fd7009199167128e458a17d391625a8b410#egg=a6fd0fd7009199167128e458a17d391625a8b410
     # via agents-framework (pyproject.toml)
 coolname==2.2.0
     # via prefect
@@ -110,6 +114,7 @@ httpx==0.28.1
     #   langsmith
     #   openai
     #   prefect
+    #   solana
 humanize==4.11.0
     # via
     #   jinja2-humanize-extension
@@ -140,6 +145,8 @@ jiter==0.8.2
     # via
     #   anthropic
     #   openai
+jsonalias==0.1.1
+    # via solders
 jsonpatch==1.33
     # via
     #   langchain-core
@@ -150,15 +157,20 @@ jsonschema==4.23.0
     # via prefect
 jsonschema-specifications==2024.10.1
     # via jsonschema
+korvus==1.1.2
+    # via agents-framework (pyproject.toml)
 langchain-anthropic==0.3.1
     # via controlflow
 langchain-core==0.3.28
     # via
+    #   agents-framework (pyproject.toml)
     #   controlflow
     #   langchain-anthropic
     #   langchain-openai
 langchain-openai==0.2.14
-    # via controlflow
+    # via
+    #   agents-framework (pyproject.toml)
+    #   controlflow
 langsmith==0.2.6
     # via langchain-core
 linkify-it-py==2.0.3
@@ -184,6 +196,8 @@ mdit-py-plugins==0.4.2
     # via markdown-it-py
 mdurl==0.1.2
     # via markdown-it-py
+numpy==2.2.2
+    # via pgvector
 oauthlib==3.2.2
     # via requests-oauthlib
 openai==1.58.1
@@ -209,6 +223,8 @@ pendulum==3.0.0
     # via prefect
 pexpect==4.9.0
     # via ipython
+pgvector==0.3.6
+    # via agents-framework (pyproject.toml)
 platformdirs==4.3.6
     # via textual
 pluggy==1.5.0
@@ -331,6 +347,12 @@ sniffio==1.3.1
     #   asgi-lifespan
     #   openai
     #   prefect
+solana==0.36.2
+    # via agents-framework (pyproject.toml)
+solders==0.23.0
+    # via
+    #   agents-framework (pyproject.toml)
+    #   solana
 soupsieve==2.6
     # via beautifulsoup4
 sqlalchemy==2.0.36
@@ -338,6 +360,9 @@ sqlalchemy==2.0.36
     #   agents-framework (pyproject.toml)
     #   alembic
     #   prefect
+    #   sqlalchemy-utils
+sqlalchemy-utils==0.41.2
+    # via agents-framework (pyproject.toml)
 stack-data==0.6.3
     # via ipython
 starlette==0.41.3
@@ -373,12 +398,15 @@ typing-extensions==4.12.2
     #   anthropic
     #   anyio
     #   fastapi
+    #   ipython
     #   langchain-core
     #   openai
     #   prefect
     #   pydantic
     #   pydantic-core
     #   pydantic-extra-types
+    #   solana
+    #   solders
     #   sqlalchemy
     #   textual
     #   typer
@@ -401,7 +429,9 @@ uvicorn==0.34.0
 wcwidth==0.2.13
     # via prompt-toolkit
 websockets==13.1
-    # via prefect
+    # via
+    #   prefect
+    #   solana
 wrapt==1.17.0
     # via deprecated
 zipp==3.21.0
