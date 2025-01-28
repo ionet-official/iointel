@@ -1,9 +1,9 @@
 from pydantic import BaseModel, Field
-from typing import List, TypedDict, Annotated, Optional,Union
+from typing import List, TypedDict, Annotated, Optional,Union, Callable
 from datetime import datetime
-
-
-
+import controlflow
+from controlflow.memory.memory import Memory
+from controlflow.memory.async_memory import AsyncMemory
 
 class PersonaConfig(BaseModel):
     """
@@ -179,8 +179,13 @@ class PersonaConfig(BaseModel):
 class AgentParams(BaseModel):
     name: str
     instructions: str
+    description: Optional[str] = None
     persona: Optional[PersonaConfig] = None
-    tools: Optional[List[str]] = Field(default_factory=list)
+    model: Optional[Callable] = None
+    tools: Optional[List[str]] | Optional[List[Callable]] = Field(default_factory=list)
+    llm_rules: Optional[controlflow.llm.rules.LLMRules] = None
+    interactive: Optional[bool] = False
+    memories: Optional[list[Memory]] | Optional[list[AsyncMemory]] = Field(default_factory=list)
 
 #reasoning agent
 class ReasoningStep(BaseModel):

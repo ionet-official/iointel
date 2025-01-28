@@ -2,7 +2,7 @@ import os
 
 from langchain_openai import ChatOpenAI
 import controlflow as cf
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Optional, Callable
 from framework.src.tasks import CHAINABLE_METHODS
 from framework.src.workflows import CUSTOM_WORKFLOW_REGISTRY
 from controlflow.memory.providers.postgres import PostgresMemory, AsyncPostgresMemory
@@ -28,15 +28,20 @@ class Agent(cf.Agent):
         self,
         name: str,
         instructions: str,
+        description: Optional[str] = None,
         persona: Optional[PersonaConfig] = None,
         tools: Optional[list] = None,
-        model_provider: Optional[callable] = None,
+        model_provider: Optional[Callable] = None,
         memories: Optional[list[Memory]] | Optional[list[AsyncMemory]]= None,
+        interactive: Optional[bool] = False,
+        llm_rules: Optional[cf.llm.rules.LLMRules] = None,
         **model_kwargs
     ):
         """
         :param name: The name of the agent.
         :param instructions: The instruction prompt for the agent.
+        :param description: A description of the agent. Visible to other agents.
+        :param persona: A PersonaConfig instance to use for the agent. Used to set persona instructions.
         :param tools: A list of cf.Tool instances or @cf.tool decorated functions.
         :param model_provider: A callable that returns a configured model instance. 
                               If provided, it should handle all model-related configuration.
@@ -44,10 +49,15 @@ class Agent(cf.Agent):
         
         If model_provider is given, you rely entirely on it for the model and ignore other model-related kwargs.
         If not, you fall back to ChatOpenAI with model_kwargs such as model="gpt-4o-mini", api_key="..."
+
+        :param memories: A list of Memory instances to use for the agent. Each memory module can store and retrieve data, and share context between agents.
+        :param interactive: A boolean flag to indicate if the agent is interactive. If True, the agent can run in interactive mode.
+        :param llm_rules: An LLMRules instance to use for the agent. If provided, the agent uses the LLMRules for logic-based reasoning.
+
         """
 
         if model_provider is not None:
-            model = model_provider(**model_kwargs)
+            model_instance = model_provider(**model_kwargs)
         else:
             kwargs = dict(model_kwargs)
             for key, env_name in {
@@ -57,7 +67,7 @@ class Agent(cf.Agent):
             }.items():
                 if value := os.environ.get(env_name):
                     kwargs[key] = value
-            model = ChatOpenAI(**kwargs)
+            model_instance = ChatOpenAI(**kwargs)
 
         # Build a persona snippet if provided
         persona_instructions = ""
@@ -72,11 +82,15 @@ class Agent(cf.Agent):
         super().__init__(
             name=name,
             instructions=combined_instructions,
+            description=description,
             tools=tools or [],
-            model=model,
+            model=model_instance,
             memories=memories or [],
-            **model_kwargs
+            interactive=interactive,
+            llm_rules=llm_rules,
+
         )
+
 
     def run(self, prompt: str):
         return super().run(prompt)
