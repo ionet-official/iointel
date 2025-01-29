@@ -47,7 +47,11 @@ class Memory(Memory):
         instructions: str,
         provider: MemoryProvider = None,
     ):
-        super().__init__(key, instructions, provider)
+        super().__init__(
+            key=key, 
+            instructions=instructions, 
+            provider=provider
+            )
 
 
 class AsyncMemory(AsyncMemory):
@@ -91,7 +95,11 @@ class AsyncMemory(AsyncMemory):
         instructions: str,
         provider: AsyncMemoryProvider = None,
     ):
-        super().__init__(key, instructions, provider)
+        super().__init__(
+            key=key, 
+            instructions=instructions, 
+            provider=provider
+            )
 
 
 class PostgresMemoryProvider(PostgresMemory):
@@ -114,13 +122,19 @@ class PostgresMemoryProvider(PostgresMemory):
             embed_kwargs = {}
             for key, env_name in {
                 "api_key": "OPENAI_API_KEY",
-                "model": "OPENAI_API_MODEL",
+                "model": "OPENAI_API_EMBEDDING_MODEL",
                 "base_url": "OPENAI_API_BASE_URL",
             }.items():
                 if value := os.environ.get(env_name):
                     embed_kwargs[key] = value
                 embedding_fn = OpenAIEmbeddings(dimensions=embedding_dimension, **embed_kwargs)
-        super().__init__(database_url, embedding_dimension, embedding_fn, table_name, **kwargs)
+        super().__init__(
+            database_url=database_url,
+            embedding_dimension=embedding_dimension,
+            embedding_fn=embedding_fn,
+            table_name=table_name,
+            **kwargs
+        )
 
 class AsyncPostgresMemoryProvider(AsyncPostgresMemory):
     """
@@ -142,11 +156,17 @@ class AsyncPostgresMemoryProvider(AsyncPostgresMemory):
             embed_kwargs = {}
             for key, env_name in {
                 "api_key": "OPENAI_API_KEY",
-                "model": "OPENAI_API_MODEL",
+                "model": "OPENAI_API_EMBEDDING_MODEL",
                 "base_url": "OPENAI_API_BASE_URL",
             }.items():
                 if value := os.environ.get(env_name):
                     embed_kwargs[key] = value
                 embedding_fn = OpenAIEmbeddings(dimensions=embedding_dimension, **embed_kwargs)
 
-        super().__init__(database_url, embedding_dimension, embedding_fn, table_name, **kwargs)
+        super().__init__(
+            database_url=database_url,
+            embedding_dimension=embedding_dimension,
+            embedding_fn=embedding_fn,
+            table_name=table_name,
+            **kwargs
+        )
