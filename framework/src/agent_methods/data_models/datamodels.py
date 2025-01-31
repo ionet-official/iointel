@@ -1,9 +1,14 @@
+import sys
 from pydantic import BaseModel, Field
-from typing import List, TypedDict, Annotated, Optional,Union, Callable
+from typing import List, Annotated, Optional,Union, Callable
 from datetime import datetime
 import controlflow
 from controlflow.memory.memory import Memory
 from controlflow.memory.async_memory import AsyncMemory
+if sys.version_info < (3, 12):
+    from typing_extensions import TypedDict
+else:
+    from typing import TypedDict
 
 class PersonaConfig(BaseModel):
     """

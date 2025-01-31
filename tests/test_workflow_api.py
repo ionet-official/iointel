@@ -20,13 +20,16 @@ def test_custom_workflow(test_client: TestClient):
     """
     payload = {
         "text": "Test text",
-        "name": "my-workflow",
-        "objective": "Do something custom",
-        "instructions": "No special instructions",
-        "agents": [],
-        "context": {}
+        "agent_names": ["custom_agent"],
+        "args": {
+            "type": "custom",
+            "name": "my-workflow",
+            "objective": "Do something custom",
+            "instructions": "No special instructions",
+            "context": {},
+        }
     }
-    response = test_client.post("/api/v1/agents/custom-workflow", json=payload)
+    response = test_client.post("/api/v1/workflows/run", json=payload)
     assert response.status_code in [200, 500]
 
 def test_upload_workflow_yaml(test_client: TestClient, tmp_path: Path):
@@ -53,7 +56,7 @@ workflow:
 
     with file_path.open("rb") as f:
         response = test_client.post(
-            "/api/v1/agents/upload-workflow",
+            "/api/v1/workflows/run-file",
             files={"yaml_file": ("workflow.yaml", f, "application/octet-stream")}
         )
     assert response.status_code in [200, 500]
@@ -78,7 +81,7 @@ def test_upload_workflow_json(test_client: TestClient, tmp_path: Path):
 
     with file_path.open("rb") as f:
         response = test_client.post(
-            "/api/v1/agents/upload-workflow",
+            "/api/v1/workflows/run-file",
             files={"yaml_file": ("workflow.json", f, "application/octet-stream")}
         )
     assert response.status_code in [200, 500]

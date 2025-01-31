@@ -101,7 +101,7 @@ AGENTS = create_agents() if os.environ.get('LIBRARY_MODE', '').lower() != 'true'
 
 def get_agent(agent_name: str, agent_params: Optional[AgentParams] = None) -> Agent:
     if agent_params is None:
-        agent_params = AgentParams()
+        agent_params = AgentParams(name="", instructions="")
 
     # Merge or set the default name/instructions
     spec = AGENT_SPECS.get(agent_name, AGENT_SPECS["default_agent"])
