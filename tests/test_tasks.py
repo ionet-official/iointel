@@ -1,6 +1,6 @@
 # tests/test_tasks.py
 import pytest
-from framework.src.agents import Tasks
+from framework.src.task import Tasks
 
 def test_tasks_chain_basic():
     """
