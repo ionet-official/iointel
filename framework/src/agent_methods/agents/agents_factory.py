@@ -1,3 +1,4 @@
+import os
 
 from framework import Agent
 from ..data_models.datamodels import AgentParams
@@ -95,7 +96,7 @@ def create_agents():
     }
 
 
-AGENTS = create_agents()
+AGENTS = create_agents() if not os.environ['LIBRARY_MODE'] == 'True' else {}
 
 
 def get_agent(agent_name: str, agent_params: Optional[AgentParams] = None) -> Agent:
