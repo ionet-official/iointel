@@ -96,7 +96,7 @@ def create_agents():
     }
 
 
-AGENTS = create_agents() if not os.environ['LIBRARY_MODE'] == 'True' else {}
+AGENTS = create_agents() if os.environ.get('LIBRARY_MODE', '').lower() != 'true' else {}
 
 
 def get_agent(agent_name: str, agent_params: Optional[AgentParams] = None) -> Agent:
