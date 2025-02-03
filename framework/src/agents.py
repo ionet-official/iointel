@@ -6,7 +6,6 @@ from .agent_methods.data_models.datamodels import PersonaConfig
 from langchain_openai import ChatOpenAI
 import controlflow as cf
 from typing import List, Dict, Any, Optional, Optional, Callable
-import logging
 
 class Agent(cf.Agent):
 
