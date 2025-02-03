@@ -52,7 +52,7 @@ class Agent(cf.Agent):
         if isinstance(model, str):
             model_instance = ChatOpenAI(model = model, **model_kwargs)
 
-        elif isinstance(model, Callable):
+        elif model is not None:
             model_instance = model
 
         else:

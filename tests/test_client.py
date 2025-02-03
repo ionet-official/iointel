@@ -13,14 +13,13 @@ def test_council_task(mock_requests):
         client.run_council_task("random junk")
 
 
-@pytest.mark.xfail(reason="need to fix prompt", strict=True)
 def test_reasoning_task(mock_requests):
-    result = client.run_reasoning_task("random junk")
+    result = client.run_reasoning_task("I need to add 2 and 2")
     assert result
 
 
 def test_summarize_task(mock_requests):
-    result = client.summarize_task("random junk")
+    result = client.summarize_task("This is a long text talking about nothing, emptiness and things like that. Nobody knows what it is about. The void gazes into you.")
     assert result
 
 
@@ -29,7 +28,6 @@ def test_sentiment(mock_requests):
     assert result
 
 
-@pytest.mark.xfail(reason="need to debug backend", strict=True)
 def test_extract_entities(mock_requests):
     result = client.extract_entities("random junk")
     assert result
