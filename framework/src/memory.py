@@ -26,7 +26,7 @@ class Memory(Memory):
 
     # Create an agent with access to the memory
     agent = Agent(memories=[user_preferences])
-    (tasks("My text to process")
+    (workflows("My text to process")
         .custom(
             name="do-fancy-thing",
             objective="Perform a fancy custom step on the text",
@@ -37,7 +37,7 @@ class Memory(Memory):
         ...
        )
 
-    results = tasks.run_tasks()
+    results = workflows.run_tasks()
     print(results)
     """
 
@@ -74,7 +74,7 @@ class AsyncMemory(AsyncMemory):
 
     # Create an agent with access to the memory
     agent = Agent(memories=[user_preferences])
-    (tasks("My text to process")
+    (workflows("My text to process")
         .custom(
             name="do-fancy-thing",
             objective="Perform a fancy custom step on the text",
@@ -85,7 +85,7 @@ class AsyncMemory(AsyncMemory):
         ...
        )
 
-    results = tasks.run_tasks(client_mode = False, run_async=True)
+    results = workflows.run_tasks(client_mode = False, run_async=True)
     print(results)   
     """
 
