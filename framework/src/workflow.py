@@ -1,4 +1,4 @@
-from .task import Workflow
+from .task import Task
 
 from typing import Dict, List, Optional, Any
 import uuid
