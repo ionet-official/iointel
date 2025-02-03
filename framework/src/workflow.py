@@ -430,7 +430,7 @@ class Workflow:
             for t in self.tasks:
 
                 task_type = t["type"]
-                agents_for_task = t.get("agents", None)
+                agents_for_task = t.get("agents") or self.agents
                 result_key = t.get("name", task_type)
 
                 if task_type == "schedule_reminder":
@@ -531,7 +531,7 @@ class Workflow:
                                 result_type=ReasoningStep,
                                 agents=agents_for_task,
                                 context=dict(goal=self.text),
-                                model_kwargs=dict(tool_choice="required"),
+                                model_kwargs=dict(tool_choice="auto"),
     
                             )
                             if response.found_validated_solution:
