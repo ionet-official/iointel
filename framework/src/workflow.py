@@ -538,8 +538,8 @@ class Workflow:
                                         Check your solution to be absolutely sure that it is correct and meets all requirements of the goal. Return True if it does.
                                         """,
                                         result_type=bool,
+                                        agents=agents_for_task,
                                         context=dict(goal=self.text),
-            
                                 ):
                                     break
                         final = await run_agents_async(objective=self.text, agents=agents_for_task,  )

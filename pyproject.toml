@@ -44,6 +44,8 @@ norecursedirs = [
 ]
 env = [
     "D:OPENAI_API_KEY",
+    "D:OPENAI_API_MODEL",
+    "D:OPENAI_API_BASE_URL",
     "D:TUNNEL_PASS"
 ]
 
