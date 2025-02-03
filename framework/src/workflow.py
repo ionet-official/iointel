@@ -1,6 +1,6 @@
 from .task import Workflow
 
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any
 import uuid
 
 import controlflow as cf
@@ -78,14 +78,16 @@ class Workflow:
     print(results)
     """
 
-    def __init__(self, text: str = "", client_mode: bool = True):
-        self.tasks = []
-        self.text = text
-        self.client_mode=client_mode
-
-    def __call__(self, text: str, client_mode: bool = True):
+    def __init__(self, text: str = "", client_mode: bool = True, agents: Optional[List[Any]] = None):
+        self.tasks: List[dict] = []
         self.text = text
         self.client_mode = client_mode
+        self.agents = agents
+
+    def __call__(self, text: str, client_mode: bool = True, agents: Optional[List[Any]] = None):
+        self.text = text
+        self.client_mode = client_mode
+        self.agents = agents
         return self
 
     def run_tasks(self, conversation_id: Optional[str] = None, **kwargs):
@@ -114,7 +116,7 @@ class Workflow:
             for t in self.tasks:
 
                 task_type = t["type"]
-                agents_for_task = t.get("agents", None)
+                agents_for_task = t.get("agents") or self.agents
                 result_key = t.get("name", task_type)
 
                 if task_type == "schedule_reminder":
@@ -215,7 +217,7 @@ class Workflow:
                                 result_type=ReasoningStep,
                                 agents=agents_for_task,
                                 context=dict(goal=self.text),
-                                model_kwargs=dict(tool_choice="required"),
+                                model_kwargs=dict(tool_choice="auto"),
      
                             )
                             if response.found_validated_solution:
