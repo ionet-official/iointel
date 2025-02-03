@@ -1,5 +1,3 @@
-from .task import Task
-
 from typing import Dict, List, Optional, Any
 import uuid
 
