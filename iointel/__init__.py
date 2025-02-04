@@ -4,6 +4,7 @@ from .src.memory import AsyncMemory, AsyncPostgresMemoryProvider, Memory, Postgr
 from .src.workflow import Workflow, run_agents
 from .src.agent_methods.data_models.datamodels import PersonaConfig
 from .src.handlers import AsyncLoggingHandler, LoggingHandler
+from .client import client
 
 
 __all__ = [
@@ -16,7 +17,8 @@ __all__ = [
     "run_agents",
     "PersonaConfig",
     "AsyncLoggingHandler",
-    "LoggingHandler"
+    "LoggingHandler",
+    "client"
 ]
 
 
