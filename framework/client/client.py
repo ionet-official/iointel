@@ -1,23 +1,32 @@
 import requests
 import os
 from typing import Optional, List
+from functools import partial
 
-BASE_URL=os.getenv("BASE_URL")
-BASE_MCP_URL=os.getenv("BASE_MCP_URL")
+BASE_URL = os.getenv("OPENAI_API_BASE_URL", "").rstrip("/")
+API_KEY = os.getenv("OPENAI_API_KEY")
+BASE_MCP_URL = os.getenv("BASE_MCP_URL")
+
+def __make_api_call(method, **kwargs) -> dict:
+    url = kwargs.pop("url", f"{BASE_URL}/workflows/run")
+    headers = kwargs.pop("headers", {})
+    if "Authorization" not in headers:
+        headers["Authorization"] = f"Bearer {API_KEY}"
+    response = requests.request(method, url, headers=headers, **kwargs)
+    response.raise_for_status()
+    return response.json()
+__make_post_call = partial(__make_api_call, method="POST")
+__make_get_call = partial(__make_api_call, method="GET")
 
 
 def schedule_task(task: str) -> dict:
     raise NotImplementedError()
     # payload = {"task": task}
-    # response = requests.post(f"{BASE_URL}/api/v1/agents/schedule", json=payload)
-    # response.raise_for_status()
-    # return response.json()
+    # return __make_post_call(json=payload)
 
 def run_council_task(task: str) -> dict:
     raise NotImplementedError()
-    # response = requests.post(f"{BASE_URL}/api/v1/workflows/run", json=payload)
-    # response.raise_for_status()
-    # return response.json()
+    # return __make_post_call(json=payload)
 
 def run_reasoning_task(text: str) -> dict:
     payload = {
@@ -27,9 +36,7 @@ def run_reasoning_task(text: str) -> dict:
             "type": "solve_with_reasoning"
         }
     }
-    response = requests.post(f"{BASE_URL}/api/v1/workflows/run", json=payload)
-    response.raise_for_status()
-    return response.json()
+    return __make_post_call(json=payload)
 
 def summarize_task(text: str) -> dict:
     payload = {
@@ -39,9 +46,7 @@ def summarize_task(text: str) -> dict:
             "type": "summarize_text"
         }
     }
-    response = requests.post(f"{BASE_URL}/api/v1/workflows/run", json=payload)
-    response.raise_for_status()
-    return response.json()
+    return __make_post_call(json=payload)
 
 def sentiment_analysis(text: str) -> dict:
     payload = {
@@ -51,9 +56,7 @@ def sentiment_analysis(text: str) -> dict:
             "type": "sentiment"
         }
     }
-    response = requests.post(f"{BASE_URL}/api/v1/workflows/run", json=payload)
-    response.raise_for_status()
-    return response.json()
+    return __make_post_call(json=payload)
 
 def extract_entities(text: str) -> dict:
     payload = {
@@ -63,9 +66,7 @@ def extract_entities(text: str) -> dict:
             "type": "extract_categorized_entities"
         }
     }
-    response = requests.post(f"{BASE_URL}/api/v1/workflows/run", json=payload)
-    response.raise_for_status()
-    return response.json()
+    return __make_post_call(json=payload)
 
 def translate_text_task(text: str, target_language: str) -> dict:
     payload = {
@@ -76,12 +77,9 @@ def translate_text_task(text: str, target_language: str) -> dict:
             "target_language": target_language
         }
     }
-    response = requests.post(f"{BASE_URL}/api/v1/workflows/run", json=payload)
-    response.raise_for_status()
-    return response.json()
+    return __make_post_call(json=payload)
 
 def classify_text(text: str, classify_by: list[str]) -> dict:
-    # Note: The endpoint just uses req.text right now, if classify_by is needed, update payload accordingly.
     payload = {
         "text": text,
         "agent_names": ["classification_agent"],
@@ -90,9 +88,7 @@ def classify_text(text: str, classify_by: list[str]) -> dict:
             "classify_by": classify_by
         }
     }
-    response = requests.post(f"{BASE_URL}/api/v1/workflows/run", json=payload)
-    response.raise_for_status()
-    return response.json()
+    return __make_post_call(json=payload)
 
 def moderation_task(text: str, threshold: float = 0.5) -> dict:
     payload = {
@@ -103,9 +99,7 @@ def moderation_task(text: str, threshold: float = 0.5) -> dict:
             "threshold": threshold
         }
     }
-    response = requests.post(f"{BASE_URL}/api/v1/workflows/run", json=payload)
-    response.raise_for_status()
-    return response.json()
+    return __make_post_call(json=payload)
 
 def custom_workflow(
         text: str,
@@ -127,9 +121,7 @@ def custom_workflow(
             "context": context or {},
         }
     }
-    response = requests.post(f"{BASE_URL}/api/v1/workflows/run", json=payload)
-    response.raise_for_status()
-    return response.json()
+    return __make_post_call(json=payload)
 
 def get_tools() -> dict:
     response = requests.get(f"{BASE_MCP_URL}/mcp/tools")
@@ -142,9 +134,7 @@ def get_servers() -> dict:
     return response.json()
 
 def get_agents() -> dict:
-    response = requests.get(f"{BASE_URL}/api/v1/agents/get-available-agents")
-    response.raise_for_status()
-    return response.json()
+    return __make_get_call(url=f"{BASE_URL}/agents")
 
 def upload_workflow_file(file_path: str) -> dict:
     """
@@ -157,13 +147,11 @@ def upload_workflow_file(file_path: str) -> dict:
     :raises: HTTPError if the request fails.
     """
 
-    with open(file_path, "rb") as f:
-        response = requests.post(
-            f"{BASE_URL}/api/v1/workflows/run-file",
-            files={"yaml_file": 
-                   (os.path.basename(file_path), 
-                    f, 
-                    "application/octet-stream")}
-        )
-    response.raise_for_status()
-    return response.json()
+    raise NotImplementedError()
+    # with open(file_path, "rb") as f:
+    #     return __make_post_call(
+    #         url=f"{BASE_URL}/workflows/run-file",
+    #         files={"yaml_file": 
+    #                (os.path.basename(file_path), 
+    #                 f, 
+    #                 "application/octet-stream")})

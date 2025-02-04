@@ -1,54 +1,54 @@
 import pytest
 
-from framework.apis.client import client
+from framework.client import client
 
 
-def test_schedule_task(mock_requests):
+def test_schedule_task():
     with pytest.raises(NotImplementedError):
         client.schedule_task("random junk")
 
 
-def test_council_task(mock_requests):
+def test_council_task():
     with pytest.raises(NotImplementedError):
         client.run_council_task("random junk")
 
 
-def test_reasoning_task(mock_requests):
+def test_reasoning_task():
     result = client.run_reasoning_task("I need to add 2 and 2")
     assert result
 
 
-def test_summarize_task(mock_requests):
+def test_summarize_task():
     result = client.summarize_task("This is a long text talking about nothing, emptiness and things like that. Nobody knows what it is about. The void gazes into you.")
     assert result
 
 
-def test_sentiment(mock_requests):
+def test_sentiment():
     result = client.sentiment_analysis("random junk")
     assert result
 
 
-def test_extract_entities(mock_requests):
+def test_extract_entities():
     result = client.extract_entities("random junk")
     assert result
 
 
-def test_translate_task(mock_requests):
+def test_translate_task():
     result = client.translate_text_task("random junk", target_language="spanish")
     assert result
 
 
-def test_classify(mock_requests):
+def test_classify():
     result = client.classify_text("random junk", classify_by=["whatever"])
     assert result
 
 
-def test_moderation_task(mock_requests):
+def test_moderation_task():
     result = client.moderation_task("random junk")
     assert result
 
 
-def test_custom_flow(mock_requests):
+def test_custom_flow():
     result = client.custom_workflow(
         text="random junk",
         name="test flow",
@@ -59,26 +59,27 @@ def test_custom_flow(mock_requests):
 
 
 @pytest.mark.skip
-def test_get_tools(mock_requests):
+def test_get_tools():
     result = client.get_tools()
     assert result
 
 
 @pytest.mark.skip
-def test_get_servers(mock_requests):
+def test_get_servers():
     result = client.get_servers()
     assert result
 
 
-def test_get_agents(mock_requests):
+def test_get_agents():
     result = client.get_agents()
     assert result
 
 
-def test_upload_workflow(mock_requests, tmp_path):
+def test_upload_workflow(tmp_path):
     tmpfile = tmp_path / "workflow.yml"
     tmpfile.write_text("""
 name: whatever
 """)
-    result = client.upload_workflow_file(str(tmpfile))
-    assert result
+    with pytest.raises(NotImplementedError):
+        client.upload_workflow_file(str(tmpfile))
+

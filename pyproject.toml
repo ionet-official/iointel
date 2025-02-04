@@ -43,22 +43,16 @@ norecursedirs = [
     ".vscode",
     "node_modules",
 ]
-env = [
-    "D:OPENAI_API_KEY",
-    "D:OPENAI_API_MODEL",
-    "D:OPENAI_API_BASE_URL",
-    "D:TUNNEL_PASS"
-]
 
 [project.optional-dependencies]
 tests = [
     "pytest-asyncio>=0.18.2,!=0.22.0,<0.23.0",
-    "pytest-env>=0.8,<2.0",
     "pytest-rerunfailures>=10,<14",
     "pytest-sugar>=0.9,<2.0",
     "pytest>=7.0",
     "pytest-timeout",
     "pytest-xdist",
+    "pytest-dotenv",
 ]
 
 [build-system]
