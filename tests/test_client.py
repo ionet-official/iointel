@@ -1,6 +1,6 @@
 import pytest
 
-from framework.client import client
+from iointel.client import client
 
 
 def test_schedule_task():

@@ -1,7 +1,7 @@
 # tests/test_agents.py
 import os
 import pytest
-from framework.src.agents import Agent
+from iointel.src.agents import Agent
 from langchain_openai import ChatOpenAI
 
 def test_agent_default_model(monkeypatch):

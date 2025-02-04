@@ -1,6 +1,6 @@
 import os
 
-from framework import Agent
+from iointel import Agent
 from ..data_models.datamodels import AgentParams
 from typing import Optional
 

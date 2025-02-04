@@ -134,7 +134,7 @@ def get_servers() -> dict:
     return response.json()
 
 def get_agents() -> dict:
-    return __make_get_call(url=f"{BASE_URL}/agents")
+    return __make_get_call(url=f"{BASE_URL}/agents/")
 
 def upload_workflow_file(file_path: str) -> dict:
     """

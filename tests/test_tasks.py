@@ -1,6 +1,6 @@
 # tests/test_tasks.py
 import pytest
-from framework.src.workflow import Workflow
+from iointel.src.workflow import Workflow
 
 def test_tasks_chain_basic():
     """

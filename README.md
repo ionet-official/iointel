@@ -110,7 +110,7 @@ This allows you to **switch** between running tasks locally or delegating them t
 ### Creating Agents
 
 ```python
-from framework.src.agents import Agent
+from iointel.src.agents import Agent
 
 my_agent = Agent(
     name="MyAgent",
@@ -122,8 +122,8 @@ my_agent = Agent(
 ### Creating an Agent with a Persona
 
 ```python
-from framework.src.agent_methods.data_models.datamodels import PersonaConfig
-from framework.src.agents import Agent
+from iointel.src.agent_methods.data_models.datamodels import PersonaConfig
+from iointel.src.agents import Agent
 
 my_persona = PersonaConfig(
     name="Elandria the Arcane Scholar",
@@ -161,7 +161,7 @@ In Python code, you can create tasks by instantiating the Tasks class and chaini
 
 
 ```python
-from framework.src.tasks import Tasks
+from iointel.src.tasks import Tasks
 
 tasks = Tasks(text="This is the text to analyze", client_mode=False)
 (

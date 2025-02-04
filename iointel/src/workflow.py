@@ -98,7 +98,7 @@ class Workflow:
         from .agent_methods.prompts.instructions import REASONING_INSTRUCTIONS
         from .code_parsers.pycode_parser import PythonModule
         from .code_parsers.jscode_parser import JavaScriptModule
-        from framework.apis.client.client import (moderation_task, run_council_task, run_reasoning_task, 
+        from iointel.apis.client.client import (moderation_task, run_council_task, run_reasoning_task,
                                           sentiment_analysis, extract_entities, translate_text_task, 
                                           summarize_task, schedule_task, classify_text, custom_workflow)
 
@@ -413,7 +413,7 @@ class Workflow:
         from .agent_methods.prompts.instructions import REASONING_INSTRUCTIONS
         from .code_parsers.pycode_parser import PythonModule
         from .code_parsers.jscode_parser import JavaScriptModule
-        from framework.apis.client.client import (moderation_task, run_council_task, run_reasoning_task,
+        from iointel.apis.client.client import (moderation_task, run_council_task, run_reasoning_task,
                                                   sentiment_analysis, extract_entities, translate_text_task,
                                                   summarize_task, schedule_task, classify_text, custom_workflow)
 

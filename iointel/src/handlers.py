@@ -16,7 +16,7 @@ from controlflow.events.orchestrator_events import (
 
 )
 
-from framework.src.agent_methods.data_models.datamodels import ( 
+from iointel.src.agent_methods.data_models.datamodels import (
     AgentMessageEvent,
     UserMessageEvent,
     OrchestratorMessageEvent, 
