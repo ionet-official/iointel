@@ -29,7 +29,7 @@ jobs:
     environment: ${{ github.base_ref == 'main' && 'prod' || github.base_ref == 'staging' && 'staging' || github.base_ref == 'dev' && 'dev' }}
 
     env:
-      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      #OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       TUNNEL_PASS: ${{ secrets.TUNNEL_PASS }}
 
     steps:
