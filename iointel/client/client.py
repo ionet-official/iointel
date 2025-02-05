@@ -22,7 +22,8 @@ def __make_api_call(method, **kwargs) -> dict:
     response.raise_for_status()
     result = response.json()
     if (remain := SLOW_MODE_SLEEP - (time.time() - start)) > 0:
-        # HACK avoid triggering rate limit protection if told
+        # HACK avoid triggering rate limit protection if told so
+        # by making sure each `__make_api_call()` takes at least `SLOW_MODE_SLEEP` seconds
         time.sleep(remain)
     return result
 __make_post_call = partial(__make_api_call, method="POST")

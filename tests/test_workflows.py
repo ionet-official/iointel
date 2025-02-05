@@ -26,5 +26,6 @@ def test_composite_workflow(poet):
     workflow = Workflow(text=text, agents=[poet], client_mode=False)
     workflow.translate_text(target_language="spanish").sentiment()
 
-    results = workflow.run_tasks()
-    assert results, results
+    results = workflow.run_tasks()["results"]
+    assert "translate_text" in results, results
+    assert "sentiment" in results, results
