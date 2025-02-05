@@ -26,6 +26,7 @@ jobs:
         python-version: ["3.10", "3.12"]
 
     runs-on: ${{ matrix.os }}
+    environment: ${{ github.base_ref == 'main' && 'prod' || github.base_ref == 'staging' && 'staging' || github.base_ref == 'dev' && 'dev' }}
 
     env:
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
