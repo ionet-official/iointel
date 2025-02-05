@@ -13,16 +13,18 @@ except (ValueError, TypeError):
     SLOW_MODE_SLEEP = -1
 
 def __make_api_call(method, **kwargs) -> dict:
+    start = time.time()
     url = kwargs.pop("url", f"{BASE_URL}/workflows/run")
     headers = kwargs.pop("headers", {})
     if "Authorization" not in headers:
         headers["Authorization"] = f"Bearer {API_KEY}"
     response = requests.request(method, url, headers=headers, **kwargs)
     response.raise_for_status()
-    if SLOW_MODE_SLEEP > 0:
+    result = response.json()
+    if (remain := SLOW_MODE_SLEEP - (time.time() - start)) > 0:
         # HACK avoid triggering rate limit protection if told
-        time.sleep(SLOW_MODE_SLEEP)
-    return response.json()
+        time.sleep(remain)
+    return result
 __make_post_call = partial(__make_api_call, method="POST")
 __make_get_call = partial(__make_api_call, method="GET")
 
