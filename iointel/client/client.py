@@ -1,11 +1,16 @@
 import requests
 import os
+import time
 from typing import Optional, List
 from functools import partial
 
 BASE_URL = os.getenv("OPENAI_API_BASE_URL", "").rstrip("/")
 API_KEY = os.getenv("OPENAI_API_KEY")
 BASE_MCP_URL = os.getenv("BASE_MCP_URL")
+try:
+    SLOW_MODE_SLEEP = int(os.getenv("SLOW_MODE_SLEEP"))
+except ValueError:
+    SLOW_MODE_SLEEP = -1
 
 def __make_api_call(method, **kwargs) -> dict:
     url = kwargs.pop("url", f"{BASE_URL}/workflows/run")
@@ -14,6 +19,9 @@ def __make_api_call(method, **kwargs) -> dict:
         headers["Authorization"] = f"Bearer {API_KEY}"
     response = requests.request(method, url, headers=headers, **kwargs)
     response.raise_for_status()
+    if SLOW_MODE_SLEEP > 0:
+        # HACK avoid triggering rate limit protection if told
+        time.sleep(SLOW_MODE_SLEEP)
     return response.json()
 __make_post_call = partial(__make_api_call, method="POST")
 __make_get_call = partial(__make_api_call, method="GET")
