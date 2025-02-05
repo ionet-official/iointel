@@ -7,12 +7,18 @@ env:
 
 on:
   push:
-    branches: ["main"]
+    branches: ["main", "dev"]
   pull_request:
+    branches: ["main", "dev"]
   workflow_dispatch:
 
 permissions:
   contents: read
+
+defaults:
+  run:
+    # use `bash` as shell, as in default mode GH Actions don't use -o pipefail leading to missing errors
+    shell: bash
 
 jobs:
   run_tests:
@@ -26,11 +32,13 @@ jobs:
         python-version: ["3.10", "3.12"]
 
     runs-on: ${{ matrix.os }}
-    environment: ${{ github.ref == 'refs/heads/main' && 'prod' || github.ref == 'refs/heads/staging' && 'staging' || github.ref == 'refs/heads/dev' && 'dev' }}
+    environment: ${{ github.ref == 'refs/heads/main' || github.base_ref == 'main' && 'prod' || github.ref == 'refs/heads/staging' || github.base_ref == 'staging' && 'staging' || github.ref == 'refs/heads/dev' || github.base_ref == 'dev' && 'dev' }}
 
     env:
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-      TUNNEL_PASS: ${{ secrets.TUNNEL_PASS }}
+      OPENAI_API_BASE_URL: ${{ secrets.OPENAI_API_BASE_URL }}
+      OPENAI_API_MODEL: meta-llama/Llama-3.3-70B-Instruct
+      SLOW_MODE_SLEEP: 30
 
     steps:
       - uses: actions/checkout@v4
@@ -47,5 +55,5 @@ jobs:
         run: uv pip install --system -e . && uv pip install --system ".[tests]" && uv pip install -U httpcore --system 
 
       - name: Run tests
-        run: OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }} pytest -vv tests/
+        run: pytest -vv tests/
         if: ${{ !(github.event.pull_request.head.repo.fork) }}
