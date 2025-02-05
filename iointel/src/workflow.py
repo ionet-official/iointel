@@ -98,9 +98,9 @@ class Workflow:
         from .agent_methods.prompts.instructions import REASONING_INSTRUCTIONS
         # from .code_parsers.pycode_parser import PythonModule
         # from .code_parsers.jscode_parser import JavaScriptModule
-        from iointel.apis.client.client import (moderation_task, run_council_task, run_reasoning_task,
-                                          sentiment_analysis, extract_entities, translate_text_task, 
-                                          summarize_task, schedule_task, classify_text, custom_workflow)
+        from iointel.client.client import (moderation_task, run_council_task, run_reasoning_task,
+                                           sentiment_analysis, extract_entities, translate_text_task,
+                                           summarize_task, schedule_task, classify_text, custom_workflow)
 
         if not conversation_id:
             conversation_id = str(uuid.uuid4())
@@ -413,9 +413,9 @@ class Workflow:
         from .agent_methods.prompts.instructions import REASONING_INSTRUCTIONS
         # from .code_parsers.pycode_parser import PythonModule
         # from .code_parsers.jscode_parser import JavaScriptModule
-        from iointel.apis.client.client import (moderation_task, run_council_task, run_reasoning_task,
-                                                  sentiment_analysis, extract_entities, translate_text_task,
-                                                  summarize_task, schedule_task, classify_text, custom_workflow)
+        from iointel.client.client import (moderation_task, run_council_task, run_reasoning_task,
+                                           sentiment_analysis, extract_entities, translate_text_task,
+                                           summarize_task, schedule_task, classify_text, custom_workflow)
 
         if not conversation_id:
             conversation_id = str(uuid.uuid4())

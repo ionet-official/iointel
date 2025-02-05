@@ -9,7 +9,7 @@ API_KEY = os.getenv("OPENAI_API_KEY")
 BASE_MCP_URL = os.getenv("BASE_MCP_URL")
 try:
     SLOW_MODE_SLEEP = int(os.getenv("SLOW_MODE_SLEEP"))
-except ValueError:
+except (ValueError, TypeError):
     SLOW_MODE_SLEEP = -1
 
 def __make_api_call(method, **kwargs) -> dict:
