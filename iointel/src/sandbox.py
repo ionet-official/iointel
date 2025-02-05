@@ -1,7 +1,7 @@
 import tempfile
 import os
 import docker
-from typing import Tuple, List, Union
+from typing import Tuple, Union
 import logging
 from iointel.src.code_parsers.pycode_parser import (PythonModule, PythonCodeGenerator)
 from iointel.src.code_parsers.jscode_parser import (JavaScriptModule,JavaScriptCodeGenerator)

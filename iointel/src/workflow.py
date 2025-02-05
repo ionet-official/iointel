@@ -96,8 +96,8 @@ class Workflow:
                                                      TranslationResult, ViolationActivation,
                                                      ModerationException)
         from .agent_methods.prompts.instructions import REASONING_INSTRUCTIONS
-        from .code_parsers.pycode_parser import PythonModule
-        from .code_parsers.jscode_parser import JavaScriptModule
+        # from .code_parsers.pycode_parser import PythonModule
+        # from .code_parsers.jscode_parser import JavaScriptModule
         from iointel.apis.client.client import (moderation_task, run_council_task, run_reasoning_task,
                                           sentiment_analysis, extract_entities, translate_text_task, 
                                           summarize_task, schedule_task, classify_text, custom_workflow)
@@ -411,8 +411,8 @@ class Workflow:
                                                            TranslationResult, ViolationActivation,
                                                            ModerationException)
         from .agent_methods.prompts.instructions import REASONING_INSTRUCTIONS
-        from .code_parsers.pycode_parser import PythonModule
-        from .code_parsers.jscode_parser import JavaScriptModule
+        # from .code_parsers.pycode_parser import PythonModule
+        # from .code_parsers.jscode_parser import JavaScriptModule
         from iointel.apis.client.client import (moderation_task, run_council_task, run_reasoning_task,
                                                   sentiment_analysis, extract_entities, translate_text_task,
                                                   summarize_task, schedule_task, classify_text, custom_workflow)

@@ -1,6 +1,4 @@
 # tests/test_agents.py
-import os
-import pytest
 from iointel.src.agents import Agent
 from langchain_openai import ChatOpenAI
 

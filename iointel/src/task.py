@@ -1,4 +1,4 @@
-from typing import List, Dict, Any, Optional, Optional
+from typing import List, Dict, Any, Optional
 from .agents import Agent
 import controlflow as cf
 import asyncio
