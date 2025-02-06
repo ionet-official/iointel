@@ -1,6 +1,6 @@
 import os
 
-from .memory import Memory, AsyncMemory
+from .memory import Memory  #, AsyncMemory
 from .agent_methods.data_models.datamodels import PersonaConfig
 
 from langchain_openai import ChatOpenAI
@@ -26,7 +26,8 @@ class Agent(cf.Agent):
         persona: Optional[PersonaConfig] = None,
         tools: Optional[list] = None,
         model: Optional[Callable] | Optional[str]= None,
-        memories: Optional[list[Memory]] | Optional[list[AsyncMemory]]= None,
+        memories: Optional[list[Memory]] = None,
+        # memories: Optional[list[Memory]] | Optional[list[AsyncMemory]]= None,
         interactive: Optional[bool] = False,
         llm_rules: Optional[cf.llm.rules.LLMRules] = None,
         **model_kwargs

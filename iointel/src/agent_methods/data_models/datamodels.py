@@ -4,7 +4,7 @@ from typing import List, Annotated, Optional,Union, Callable
 from datetime import datetime
 import controlflow
 from controlflow.memory.memory import Memory
-from controlflow.memory.async_memory import AsyncMemory
+# from controlflow.memory.async_memory import AsyncMemory
 if sys.version_info < (3, 12):
     from typing_extensions import TypedDict
 else:
@@ -190,7 +190,8 @@ class AgentParams(BaseModel):
     tools: Optional[List[str]] | Optional[List[Callable]] = Field(default_factory=list)
     llm_rules: Optional[controlflow.llm.rules.LLMRules] = None
     interactive: Optional[bool] = False
-    memories: Optional[list[Memory]] | Optional[list[AsyncMemory]] = Field(default_factory=list)
+    memories: Optional[list[Memory]] = Field(default_factory=list)
+    # memories: Optional[list[Memory]] | Optional[list[AsyncMemory]] = Field(default_factory=list)
 
 #reasoning agent
 class ReasoningStep(BaseModel):
