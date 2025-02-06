@@ -31,7 +31,6 @@ jobs:
     permissions:
       contents: write  # IMPORTANT: mandatory for making GitHub Releases
       id-token: write  # IMPORTANT: mandatory for trusted publishing
-      pull-requests: write
     steps:
     - uses: actions/create-github-app-token@v1
       id: checkout-token
@@ -62,10 +61,6 @@ jobs:
       run: |
           hatchling version ${{ github.event.inputs.version_bump }}
           echo "new_tag=$(hatchling version)" >> $GITHUB_OUTPUT
-#            git config --global user.email "gha@github.com"
-#            git config --global user.name "github robot"
-#            git commit -am "update package build version gha"
-#            git push origin main
 
     - name: Push package build version.
       uses: EndBug/add-and-commit@v9
@@ -77,76 +72,60 @@ jobs:
         committer_email: gha@github.com
         push: origin main --force
 
-#    - name: create pull request
-#      uses: peter-evans/create-pull-request@v6
-#      with:
-#         token: ${{ steps.checkout-token.outputs.token }}
-#         author: python-distribution-releasep@io.net>
-#         committer: python-distribution-release@io.net>
-#         commit-message: update package build version
-#         path: .tmp
-#         branch: "automation-distribution-release"
-#         base: main
-#         delete-branch: true
-#         title: '[automation] update package build version automatically.'
-#         body: 'This an automated PR to update package build version'
-#         labels: |
-#               automerge
-
     - name: Build a binary wheel and a source tarball
-      run: uv build
+      run: uv build  && uv publish
 
-#    - name: Store the distribution packages
-#      uses: actions/upload-artifact@v4
-#      with:
-#        name: python-package-distributions
-#        path: dist/
-#
-#
-#  github-release:
-#    name: >-
-#      Sign the Python 🐍 distribution 📦 with Sigstore
-#      and upload them to GitHub Release
-#    needs:
-#    - build
-#    runs-on: ubuntu-latest
-#
-#    permissions:
-#      contents: write  # IMPORTANT: mandatory for making GitHub Releases
-#      id-token: write  # IMPORTANT: mandatory for sigstore
-#
-#    steps:
-#    - uses: actions/checkout@v4
-#    - name: Download all the dists
-#      uses: actions/download-artifact@v4.1.8
-#      with:
-#        name: python-package-distributions
-#        path: .
-#
-#    - name: Sign the dists with Sigstore
-#      uses: sigstore/gh-action-sigstore-python@v3.0.0
-#      with:
-#        inputs: >-
-#          ./*.tar.gz
-#          ./*.whl
-#
-#    - name: Create GitHub Release
-#      env:
-#        GITHUB_TOKEN: ${{ github.token }}
-#      run: >-
-#
-#        gh release create
-#        '${{ needs.build.outputs.new_tag }}'
-#        --repo '${{ github.repository }}'
-#        --generate-notes
-#
-#    - name: Upload artifact signatures to GitHub Release
-#      env:
-#        GITHUB_TOKEN: ${{ github.token }}
-#      # Upload to GitHub Release using the `gh` CLI.
-#      # `dist/` contains the built packages, and the
-#      # sigstore-produced signatures and certificates.
-#      run: >-
-#        gh release upload
-#        '${{ needs.build.outputs.new_tag }}' ./*.tar.gz ./*.whl ./*.tar.gz.sigstore.json ./*.whl.sigstore.json
-#        --repo '${{ github.repository }}'
+    - name: Store the distribution packages
+      uses: actions/upload-artifact@v4
+      with:
+        name: python-package-distributions
+        path: dist/
+
+
+  github-release:
+    name: >-
+      Sign the Python 🐍 distribution 📦 with Sigstore
+      and upload them to GitHub Release
+    needs:
+    - build
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write  # IMPORTANT: mandatory for making GitHub Releases
+      id-token: write  # IMPORTANT: mandatory for sigstore
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Download all the dists
+      uses: actions/download-artifact@v4.1.8
+      with:
+        name: python-package-distributions
+        path: .
+
+    - name: Sign the dists with Sigstore
+      uses: sigstore/gh-action-sigstore-python@v3.0.0
+      with:
+        inputs: >-
+          ./*.tar.gz
+          ./*.whl
+
+    - name: Create GitHub Release
+      env:
+        GITHUB_TOKEN: ${{ github.token }}
+      run: >-
+
+        gh release create
+        '${{ needs.build.outputs.new_tag }}'
+        --repo '${{ github.repository }}'
+        --generate-notes
+
+    - name: Upload artifact signatures to GitHub Release
+      env:
+        GITHUB_TOKEN: ${{ github.token }}
+      # Upload to GitHub Release using the `gh` CLI.
+      # `dist/` contains the built packages, and the
+      # sigstore-produced signatures and certificates.
+      run: >-
+        gh release upload
+        '${{ needs.build.outputs.new_tag }}' ./*.tar.gz ./*.whl ./*.tar.gz.sigstore.json ./*.whl.sigstore.json
+        --repo '${{ github.repository }}'
