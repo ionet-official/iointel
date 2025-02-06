@@ -9,7 +9,7 @@ It also supports loading **YAML or JSON** workflows to define multi-step tasks.
 
 ---
 
-## Table of Contents
+## Table of Contents<a id="table-of-contents"></a>
 
 1. [Overview](#overview)  
 2. [Installation](#installation)  
@@ -35,7 +35,7 @@ It also supports loading **YAML or JSON** workflows to define multi-step tasks.
 
 ---
 
-## Overview
+## Overview<a id="overview"></a>
 
 The framework has distilled Agents into 3 distinct pieces:
 - **Agents**
@@ -51,7 +51,7 @@ Users can define tasks (like `council`, `sentiment`, `translate_text`, etc.) in 
 
 ---
 
-## Installation
+## Installation<a id="installation"></a>
 
 1. **Clone the Repo**:
 
@@ -72,21 +72,21 @@ Users can define tasks (like `council`, `sentiment`, `translate_text`, etc.) in 
 
 ---
 
-## Concepts
+## Concepts<a id="concepts"></a>
 
-### Agents
+### Agents<a id="agents"></a>
 
 - They can have a custom model provider (e.g., `ChatOpenAI`, a Llama-based model, etc.).
 - Agents can have tools attached, which are specialized functions accessible during execution.
 - Agents can have a custom Persona Profile configured.
 
-### Tasks
+### Tasks<a id="tasks"></a>
 
 - A **task** is a single step in a workflow, e.g., `council`, `schedule_reminder`, `sentiment`, `translate_text`, etc.
 - Tasks are managed by the `Tasks` class in `tasks.py`.
 - Tasks can be chained for multi-step logic (e.g., `tasks(text="...").council().sentiment().run_tasks()`).
 
-### Client Mode vs Local Mode
+### Client Mode vs Local Mode<a id="client-mode-vs-local-mode"></a>
 
 - **Local Mode**: The system calls `run_agents(...)` directly in your local environment.  
 - **Client Mode**: The system calls out to remote endpoints in a separate API.
@@ -94,7 +94,7 @@ Users can define tasks (like `council`, `sentiment`, `translate_text`, etc.) in 
 
 This allows you to **switch** between running tasks locally or delegating them to a server.
 
-### Workflows (YAML/JSON)
+### Workflows (YAML/JSON)<a id="workflows-yamljson"></a>
 
 - You can define multi-step workflows in YAML or JSON.
 - The endpoint `/upload-workflow` accepts a file (via multipart form data).
@@ -105,9 +105,9 @@ This allows you to **switch** between running tasks locally or delegating them t
 
 ---
 
-## Usage
+## Usage<a id="usage"></a>
 
-### Creating Agents
+### Creating Agents<a id="creating-agents"></a>
 
 ```python
 from iointel.src.agents import Agent
@@ -119,7 +119,7 @@ my_agent = Agent(
 )
 ```
 
-### Creating an Agent with a Persona
+### Creating an Agent with a Persona<a id="creating-an-agent-with-a-persona"></a>
 
 ```python
 from iointel.src.agent_methods.data_models.datamodels import PersonaConfig
@@ -155,7 +155,7 @@ agent = Agent(
 print(agent.instructions)
 ```
 
-### Building Tasks
+### Building Tasks<a id="building-tasks"></a>
 
 In Python code, you can create tasks by instantiating the Tasks class and chaining methods:
 
@@ -175,14 +175,14 @@ print(results)
 ```
 Because client_mode=False, everything runs locally.
 
-### Running a Local Workflow
+### Running a Local Workflow<a id="running-a-local-workflow"></a>
 
 ```python
 tasks = Tasks(text="Breaking news: local sports team wins!", client_mode=False)
 tasks.summarize_text(max_words=50).run_tasks()
 ```
 
-### Running a Remote Workflow (Client Mode)
+### Running a Remote Workflow (Client Mode)<a id="running-a-remote-workflow-client-mode"></a>
 
 ```python
 tasks = Tasks(text="Breaking news: local sports team wins!", client_mode=True)
@@ -190,7 +190,7 @@ tasks.summarize_text(max_words=50).run_tasks()
 ```
 Now, summarize_text calls the client function (e.g., summarize_task(...)) instead of local logic.
 
-### Uploading YAML/JSON Workflows
+### Uploading YAML/JSON Workflows<a id="uploading-yamljson-workflows"></a>
 	1.	Create a YAML or JSON file specifying tasks:
 
 ```yaml
@@ -213,9 +213,9 @@ workflow:
 	2.	Upload via the /upload-workflow endpoint (multipart file upload).
 The server reads it as JSON or YAML and runs the tasks sequentially in local mode.
 
-## Examples
+## Examples<a id="examples"></a>
 
-### Simple Summarize Task
+### Simple Summarize Task<a id="simple-summarize-task"></a>
 
 ```python
 tasks = Tasks("Breaking news: new Python release!", client_mode=False)
@@ -224,7 +224,7 @@ tasks.summarize_text(max_words=30).run_tasks()
 
 Returns a summarized result.
 
-### Chainable Workflows
+### Chainable Workflows<a id="chainable-workflows"></a>
 
 ```python
 tasks = Tasks("Tech giant acquires startup for $2B", client_mode=False)
@@ -240,7 +240,7 @@ results = tasks.run_tasks()
 	2.	Translate to Spanish,
 	3.	Sentiment analysis.
 
-### Custom Workflow
+### Custom Workflow<a id="custom-workflow"></a>
 ```python
 tasks = Tasks("Analyze this special text", client_mode=False)
 tasks.custom(
@@ -255,14 +255,14 @@ results = tasks.run_tasks()
 
 A "custom" task can reference a custom function in the CUSTOM_WORKFLOW_REGISTRY or fall back to a default behavior.
 
-### Loading From a YAML File
+### Loading From a YAML File<a id="loading-from-a-yaml-file"></a>
 
 ```bash
 curl -X POST "http://<your server>/upload-workflow" \
      -F "yaml_file=@path/to/workflow.yaml"
 ```
 
-## API Endpoints
+## API Endpoints<a id="api-endpoints"></a>
 
 Here are some of the key endpoints if you integrate via REST:  
    - POST /council: Runs a council vote with ScheduleRequest.task.  
@@ -275,3 +275,6 @@ Here are some of the key endpoints if you integrate via REST:
    - POST /moderation: Moderation checks with a threshold.
    - POST /custom-workflow: Runs a single “custom” step from CustomWorkflowRequest.
    - POST /upload-workflow: Accepts JSON or YAML for multi-step workflows.
+
+## License<a id="license"></a>
+[Project license](https://github.com/ionet-official/iointel?tab=Apache-2.0-1-ov-file#readme)
