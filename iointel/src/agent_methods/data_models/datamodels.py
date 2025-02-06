@@ -1,106 +1,105 @@
 import sys
 from pydantic import BaseModel, Field
-from typing import List, Annotated, Optional,Union, Callable
+from typing import List, Annotated, Optional, Union, Callable
 from datetime import datetime
 import controlflow
 from controlflow.memory.memory import Memory
+
 # from controlflow.memory.async_memory import AsyncMemory
 if sys.version_info < (3, 12):
     from typing_extensions import TypedDict
 else:
     from typing import TypedDict
 
+
 class PersonaConfig(BaseModel):
     """
     A configuration object that describes an agent's persona or character.
     """
+
     name: Optional[str] = Field(
-        None,
-        description="If the persona has a specific name or nickname."
+        None, description="If the persona has a specific name or nickname."
     )
     age: Optional[int] = Field(
-        None,
-        description="Approximate age of the persona (if relevant).",
-        ge=1
+        None, description="Approximate age of the persona (if relevant).", ge=1
     )
     role: Optional[str] = Field(
         None,
-        description="General role or type, e.g. 'a brave knight', 'a friendly teacher', etc."
+        description="General role or type, e.g. 'a brave knight', 'a friendly teacher', etc.",
     )
     style: Optional[str] = Field(
         None,
-        description="A short description of the agent's style or demeanor (e.g., 'formal and polite')."
+        description="A short description of the agent's style or demeanor (e.g., 'formal and polite').",
     )
     domain_knowledge: List[str] = Field(
         default_factory=list,
-        description="List of domains or special areas of expertise the agent has."
+        description="List of domains or special areas of expertise the agent has.",
     )
     quirks: Optional[str] = Field(
         None,
-        description="Any unique quirks or mannerisms, e.g. 'likes using puns' or 'always references coffee.'"
+        description="Any unique quirks or mannerisms, e.g. 'likes using puns' or 'always references coffee.'",
     )
     bio: Optional[str] = Field(
-        None,
-        description="A short biography or personal background for the persona."
+        None, description="A short biography or personal background for the persona."
     )
     lore: Optional[str] = Field(
         None,
-        description="In-universe lore or backstory, e.g. 'grew up in a small village with magical powers.'"
+        description="In-universe lore or backstory, e.g. 'grew up in a small village with magical powers.'",
     )
     personality: Optional[str] = Field(
         None,
-        description="A more direct statement of the persona's emotional or psychological traits."
+        description="A more direct statement of the persona's emotional or psychological traits.",
     )
     conversation_style: Optional[str] = Field(
         None,
-        description="How the character speaks in conversation, e.g., 'often uses slang' or 'very verbose and flowery.'"
+        description="How the character speaks in conversation, e.g., 'often uses slang' or 'very verbose and flowery.'",
     )
     description: Optional[str] = Field(
         None,
-        description="A general descriptive text, e.g., 'A tall, lean figure wearing a cloak, with a stern demeanor.'"
+        description="A general descriptive text, e.g., 'A tall, lean figure wearing a cloak, with a stern demeanor.'",
     )
 
     friendliness: Optional[float] = Field(
         None,
         description="How friendly the agent is, from 0 (hostile) to 1 (friendly).",
         ge=0,
-        le=1
+        le=1,
     )
     creativity: Optional[float] = Field(
         None,
         description="How creative the agent is, from 0 (very logical) to 1 (very creative).",
         ge=0,
-        le=1
+        le=1,
     )
     curiosity: Optional[float] = Field(
         None,
-        description="How curious the agent is, from 0 (disinterested) to 1 (very curious).",        
+        description="How curious the agent is, from 0 (disinterested) to 1 (very curious).",
         ge=0,
-        le=1
+        le=1,
     )
     empathy: Optional[float] = Field(
         None,
         description="How empathetic the agent is, from 0 (cold) to 1 (very empathetic).",
         ge=0,
-        le=1
+        le=1,
     )
     humor: Optional[float] = Field(
         None,
         description="How humorous the agent is, from 0 (serious) to 1 (very humorous).",
         ge=0,
-        le=1
+        le=1,
     )
     formality: Optional[float] = Field(
         None,
         description="How formal the agent is, from 0 (very casual) to 1 (very formal).",
         ge=0,
-        le=1
+        le=1,
     )
     emotional_stability: Optional[float] = Field(
         None,
         description="How emotionally stable the agent is, from 0 (very emotional) to 1 (very stable).",
         ge=0,
-        le=1
+        le=1,
     )
 
     def to_system_instructions(self) -> str:
@@ -149,15 +148,19 @@ class PersonaConfig(BaseModel):
 
         # 10. Conversation style
         if self.conversation_style:
-            lines.append(f"In conversation, you speak in this style: {self.conversation_style}.")
+            lines.append(
+                f"In conversation, you speak in this style: {self.conversation_style}."
+            )
 
         # 11. General description
         if self.description:
             lines.append(f"General description: {self.description}.")
-        
+
         # 12. Personality traits
         if self.friendliness is not None:
-            lines.append(f"Your overall Friendliness from 0 to 1 is: {self.friendliness}")
+            lines.append(
+                f"Your overall Friendliness from 0 to 1 is: {self.friendliness}"
+            )
 
         if self.creativity is not None:
             lines.append(f"Your overall Creativity from 0 to 1 is: {self.creativity}")
@@ -175,10 +178,13 @@ class PersonaConfig(BaseModel):
             lines.append(f"Your overall Formality from 0 to 1 is: {self.formality}")
 
         if self.emotional_stability is not None:
-            lines.append(f"Your overall Emotional stability from 0 to 1 is: {self.emotional_stability}")
+            lines.append(
+                f"Your overall Emotional stability from 0 to 1 is: {self.emotional_stability}"
+            )
 
         # Return them joined by newlines, or any separator you prefer
         return "\n".join(lines)
+
 
 ##agent params###
 class AgentParams(BaseModel):
@@ -193,7 +199,8 @@ class AgentParams(BaseModel):
     memories: Optional[list[Memory]] = Field(default_factory=list)
     # memories: Optional[list[Memory]] | Optional[list[AsyncMemory]] = Field(default_factory=list)
 
-#reasoning agent
+
+# reasoning agent
 class ReasoningStep(BaseModel):
     explanation: str = Field(
         description="""
@@ -212,7 +219,8 @@ class SummaryResult(BaseModel):
     summary: str
     key_points: List[str]
 
-#translation
+
+# translation
 class TranslationResult(BaseModel):
     translated: str
     target_language: str
@@ -247,6 +255,7 @@ class WorkflowStep(BaseModel):
     context: Optional[dict] = None
     target_language: Optional[str] = None
 
+
 class WorkflowDefinition(BaseModel):
     """
     The top-level structure of the YAML.
@@ -254,63 +263,77 @@ class WorkflowDefinition(BaseModel):
     agents: The agent definitions
     workflow: The list of steps
     """
+
     name: str
     text: Optional[str] = None  # This holds the main text/prompt
     agents: Optional[List[AgentParams]] = None
     workflow: List[WorkflowStep] = Field(default_factory=list)
 
 
-
 ### logging handlers
+
 
 class BaseEventModel(BaseModel):
     """
     A base model to capture common fields or structure for all events.
     """
+
     timestamp: datetime = Field(default_factory=datetime.utcnow)
+
 
 class AgentMessageEvent(BaseEventModel):
     event_type: str = "agent_message"
     agent_name: str
     content: str
 
+
 class UserMessageEvent(BaseEventModel):
     event_type: str = "user_message"
     content: str
+
 
 class OrchestratorMessageEvent(BaseEventModel):
     event_type: str = "orchestrator_message"
     content: str
 
+
 class ToolCallEvent(BaseEventModel):
     event_type: str = "tool_call"
     tool_name: str
+
 
 class ToolResultEvent(BaseEventModel):
     event_type: str = "tool_result"
     tool_name: str
     result: str
 
+
 class OrchestratorStartEvent(BaseEventModel):
     event_type: str = "orchestrator_start"
 
+
 class OrchestratorEndEvent(BaseEventModel):
     event_type: str = "orchestrator_end"
+
 
 class AgentMessageDeltaEvent(BaseEventModel):
     event_type: str = "agent_message_delta"
     delta: str
 
+
 class OrchestratorErrorEvent(BaseEventModel):
     event_type: str = "orchestrator_error"
     error: str
 
+
 class EndTurnEvent(BaseEventModel):
     event_type: str = "end_turn"
+
 
 class CatchallEvent(BaseEventModel):
     event_type: str = "catch-all"
     details: dict = {}
+
 
 # Union of all event models
 EventModelUnion = Union[
@@ -324,11 +347,13 @@ EventModelUnion = Union[
     AgentMessageDeltaEvent,
     OrchestratorErrorEvent,
     EndTurnEvent,
-    CatchallEvent
+    CatchallEvent,
 ]
+
 
 class EventsLog(BaseModel):
     """
     Main aggregator for all events.
     """
+
     events: List[EventModelUnion] = []

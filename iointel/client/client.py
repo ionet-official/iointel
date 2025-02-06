@@ -12,6 +12,7 @@ try:
 except (ValueError, TypeError):
     SLOW_MODE_SLEEP = -1
 
+
 def __make_api_call(method, **kwargs) -> dict:
     start = time.time()
     url = kwargs.pop("url", f"{BASE_URL}/workflows/run")
@@ -26,6 +27,8 @@ def __make_api_call(method, **kwargs) -> dict:
         # by making sure each `__make_api_call()` takes at least `SLOW_MODE_SLEEP` seconds
         time.sleep(remain)
     return result
+
+
 __make_post_call = partial(__make_api_call, method="POST")
 __make_get_call = partial(__make_api_call, method="GET")
 
@@ -35,92 +38,83 @@ def schedule_task(task: str) -> dict:
     # payload = {"task": task}
     # return __make_post_call(json=payload)
 
+
 def run_council_task(task: str) -> dict:
     raise NotImplementedError()
     # return __make_post_call(json=payload)
+
 
 def run_reasoning_task(text: str) -> dict:
     payload = {
         "text": text,
         "agent_names": ["reasoning_agent"],
-        "args": {
-            "type": "solve_with_reasoning"
-        }
+        "args": {"type": "solve_with_reasoning"},
     }
     return __make_post_call(json=payload)
+
 
 def summarize_task(text: str) -> dict:
     payload = {
         "text": text,
         "agent_names": ["summary_agent"],
-        "args": {
-            "type": "summarize_text"
-        }
+        "args": {"type": "summarize_text"},
     }
     return __make_post_call(json=payload)
+
 
 def sentiment_analysis(text: str) -> dict:
     payload = {
         "text": text,
         "agent_names": ["sentiment_analysis_agent"],
-        "args": {
-            "type": "sentiment"
-        }
+        "args": {"type": "sentiment"},
     }
     return __make_post_call(json=payload)
+
 
 def extract_entities(text: str) -> dict:
     payload = {
         "text": text,
         "agent_names": ["extractor"],
-        "args": {
-            "type": "extract_categorized_entities"
-        }
+        "args": {"type": "extract_categorized_entities"},
     }
     return __make_post_call(json=payload)
+
 
 def translate_text_task(text: str, target_language: str) -> dict:
     payload = {
         "text": text,
         "agent_names": ["translation_agent"],
-        "args": {
-            "type": "translate_text",
-            "target_language": target_language
-        }
+        "args": {"type": "translate_text", "target_language": target_language},
     }
     return __make_post_call(json=payload)
+
 
 def classify_text(text: str, classify_by: list[str]) -> dict:
     payload = {
         "text": text,
         "agent_names": ["classification_agent"],
-        "args": {
-            "type": "classify",
-            "classify_by": classify_by
-        }
+        "args": {"type": "classify", "classify_by": classify_by},
     }
     return __make_post_call(json=payload)
+
 
 def moderation_task(text: str, threshold: float = 0.5) -> dict:
     payload = {
         "text": text,
         "agent_names": ["moderation_agent"],
-        "args": {
-            "type": "moderation",
-            "threshold": threshold
-        }
+        "args": {"type": "moderation", "threshold": threshold},
     }
     return __make_post_call(json=payload)
 
-def custom_workflow(
-        text: str,
-        name: str, 
-        objective: str, 
-        instructions: str = "", 
-        agents: Optional[List[str]] = None,
-        context: Optional[dict] = None
-        ) -> dict:
 
+def custom_workflow(
+    text: str,
+    name: str,
+    objective: str,
+    instructions: str = "",
+    agents: Optional[List[str]] = None,
+    context: Optional[dict] = None,
+) -> dict:
     payload = {
         "text": text,
         "agent_names": agents or ["custom_agent"],
@@ -130,22 +124,26 @@ def custom_workflow(
             "objective": objective,
             "instructions": instructions,
             "context": context or {},
-        }
+        },
     }
     return __make_post_call(json=payload)
+
 
 def get_tools() -> dict:
     response = requests.get(f"{BASE_MCP_URL}/mcp/tools")
     response.raise_for_status()
     return response.json()
 
+
 def get_servers() -> dict:
     response = requests.get(f"{BASE_MCP_URL}/mcp/servers")
     response.raise_for_status()
     return response.json()
 
+
 def get_agents() -> dict:
     return __make_get_call(url=f"{BASE_URL}/agents/")
+
 
 def upload_workflow_file(file_path: str) -> dict:
     """
@@ -162,7 +160,7 @@ def upload_workflow_file(file_path: str) -> dict:
     # with open(file_path, "rb") as f:
     #     return __make_post_call(
     #         url=f"{BASE_URL}/workflows/run-file",
-    #         files={"yaml_file": 
-    #                (os.path.basename(file_path), 
-    #                 f, 
+    #         files={"yaml_file":
+    #                (os.path.basename(file_path),
+    #                 f,
     #                 "application/octet-stream")})

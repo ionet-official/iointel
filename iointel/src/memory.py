@@ -1,9 +1,6 @@
 from controlflow.memory.memory import Memory, MemoryProvider
 # from controlflow.memory.async_memory import AsyncMemory, AsyncMemoryProvider
 # from controlflow.memory.providers.postgres import PostgresMemory, AsyncPostgresMemory
-from typing import Optional
-from langchain_openai import OpenAIEmbeddings
-import os
 
 
 class Memory(Memory):
@@ -41,17 +38,13 @@ class Memory(Memory):
     print(results)
     """
 
-    def __init__(        
+    def __init__(
         self,
         key: str,
         instructions: str,
         provider: MemoryProvider = None,
     ):
-        super().__init__(
-            key=key, 
-            instructions=instructions, 
-            provider=provider
-            )
+        super().__init__(key=key, instructions=instructions, provider=provider)
 
 
 # class AsyncMemory(AsyncMemory):
@@ -117,7 +110,7 @@ class Memory(Memory):
 #     ):
 #         if isinstance(embedding_fn, OpenAIEmbeddings):
 #             embedding_fn = embedding_fn
-        
+
 #         else:
 #             embed_kwargs = {}
 #             for key, env_name in {
@@ -151,7 +144,7 @@ class Memory(Memory):
 #     ):
 #         if isinstance(embedding_fn, OpenAIEmbeddings):
 #             embedding_fn = embedding_fn
-        
+
 #         else:
 #             embed_kwargs = {}
 #             for key, env_name in {

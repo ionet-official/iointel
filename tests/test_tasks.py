@@ -1,6 +1,7 @@
 # tests/test_tasks.py
 from iointel.src.workflow import Workflow
 
+
 def test_tasks_chain_basic():
     """
     Ensure that calling chainable methods appends tasks correctly.
@@ -16,6 +17,7 @@ def test_tasks_chain_basic():
     # We won't actually run tasks.run_tasks().
     # Instead, we just confirm the tasks are appended.
 
+
 def test_tasks_custom():
     """
     Test that adding a custom step sets the correct fields.
@@ -25,7 +27,7 @@ def test_tasks_custom():
         name="my-custom-step",
         objective="Custom objective",
         instructions="Some instructions",
-        my_extra="something"
+        my_extra="something",
     )
     assert len(flows.tasks) == 1
     c = flows.tasks[0]

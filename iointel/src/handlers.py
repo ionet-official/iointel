@@ -1,4 +1,4 @@
-from controlflow.orchestration.handler import AsyncHandler,Handler
+from controlflow.orchestration.handler import AsyncHandler, Handler
 from controlflow.events.events import (
     UserMessage,
     AgentMessage,
@@ -7,30 +7,28 @@ from controlflow.events.events import (
     ToolResult,
     EndTurn,
     AgentMessageDelta,
-    Event
+    Event,
 )
 from controlflow.events.orchestrator_events import (
     OrchestratorStart,
     OrchestratorEnd,
     OrchestratorError,
-
 )
 
 from iointel.src.agent_methods.data_models.datamodels import (
     AgentMessageEvent,
     UserMessageEvent,
-    OrchestratorMessageEvent, 
+    OrchestratorMessageEvent,
     ToolCallEvent,
     ToolResultEvent,
-    OrchestratorStartEvent, 
+    OrchestratorStartEvent,
     OrchestratorEndEvent,
     AgentMessageDeltaEvent,
-    OrchestratorErrorEvent, 
+    OrchestratorErrorEvent,
     EndTurnEvent,
     EventsLog,
-    CatchallEvent
-    )
-
+    CatchallEvent,
+)
 
 
 class LoggingHandler(Handler):
@@ -40,68 +38,38 @@ class LoggingHandler(Handler):
     def on_agent_message(self, event: AgentMessage):
         self.log.events.append(
             AgentMessageEvent(
-                agent_name=event.agent.name,
-                content=event.ai_message.content
+                agent_name=event.agent.name, content=event.ai_message.content
             )
         )
 
     def on_user_message(self, event: UserMessage):
-        self.log.events.append(
-            UserMessageEvent(
-                content=event.content
-            )
-        )
+        self.log.events.append(UserMessageEvent(content=event.content))
 
     def on_orchestrator_message(self, event: OrchestratorMessage):
-        self.log.events.append(
-            OrchestratorMessageEvent(
-                content=event.content
-            )
-        )
+        self.log.events.append(OrchestratorMessageEvent(content=event.content))
 
     def on_tool_call(self, event: ToolCall):
-        self.log.events.append(
-            ToolCallEvent(
-                tool_name=event.tool_name
-            )
-        )
+        self.log.events.append(ToolCallEvent(tool_name=event.tool_name))
 
     def on_tool_result(self, event: ToolResult):
         self.log.events.append(
-            ToolResultEvent(
-                tool_name=event.tool_name,
-                result=event.result
-            )
+            ToolResultEvent(tool_name=event.tool_name, result=event.result)
         )
 
     def on_orchestrator_start(self, event: OrchestratorStart):
-        self.log.events.append(
-            OrchestratorStartEvent()
-        )
+        self.log.events.append(OrchestratorStartEvent())
 
     def on_orchestrator_end(self, event: OrchestratorEnd):
-        self.log.events.append(
-            OrchestratorEndEvent()
-        )
+        self.log.events.append(OrchestratorEndEvent())
 
     def on_agent_message_delta(self, event: AgentMessageDelta):
-        self.log.events.append(
-            AgentMessageDeltaEvent(
-                delta=event.delta
-            )
-        )
+        self.log.events.append(AgentMessageDeltaEvent(delta=event.delta))
 
     def on_orchestrator_error(self, event: OrchestratorError):
-        self.log.events.append(
-            OrchestratorErrorEvent(
-                error=str(event.error)
-            )
-        )
+        self.log.events.append(OrchestratorErrorEvent(error=str(event.error)))
 
     def on_end_turn(self, event: EndTurn):
-        self.log.events.append(
-            EndTurnEvent()
-        )
+        self.log.events.append(EndTurnEvent())
 
     def on_event(self, event: Event):
         """
@@ -120,75 +88,44 @@ class LoggingHandler(Handler):
 
 
 class AsyncLoggingHandler(AsyncHandler):
-
     def __init__(self):
         self.log = EventsLog()
 
     async def on_agent_message(self, event: AgentMessage):
         self.log.events.append(
             AgentMessageEvent(
-                agent_name=event.agent.name,
-                content=event.ai_message.content
+                agent_name=event.agent.name, content=event.ai_message.content
             )
         )
 
     async def on_user_message(self, event: UserMessage):
-        self.log.events.append(
-            UserMessageEvent(
-                content=event.content
-            )
-        )
+        self.log.events.append(UserMessageEvent(content=event.content))
 
     async def on_orchestrator_message(self, event: OrchestratorMessage):
-        self.log.events.append(
-            OrchestratorMessageEvent(
-                content=event.content
-            )
-        )
+        self.log.events.append(OrchestratorMessageEvent(content=event.content))
 
     async def on_tool_call(self, event: ToolCall):
-        self.log.events.append(
-            ToolCallEvent(
-                tool_name=event.tool_name
-            )
-        )
+        self.log.events.append(ToolCallEvent(tool_name=event.tool_name))
 
     async def on_tool_result(self, event: ToolResult):
         self.log.events.append(
-            ToolResultEvent(
-                tool_name=event.tool_name,
-                result = event.result
-            )
+            ToolResultEvent(tool_name=event.tool_name, result=event.result)
         )
 
     async def on_orchestrator_start(self, event: OrchestratorStart):
-        self.log.events.append(
-            OrchestratorStartEvent()
-        )
+        self.log.events.append(OrchestratorStartEvent())
 
     async def on_orchestrator_end(self, event: OrchestratorEnd):
-        self.log.events.append(
-            OrchestratorEndEvent()
-        )
+        self.log.events.append(OrchestratorEndEvent())
 
     async def on_agent_message_delta(self, event: AgentMessageDelta):
-        self.log.events.append(
-            AgentMessageDeltaEvent(
-                delta=event.delta
-            )
-        )
+        self.log.events.append(AgentMessageDeltaEvent(delta=event.delta))
 
     async def on_orchestrator_error(self, event: OrchestratorError):
-        self.log.events.append(
-            OrchestratorErrorEvent(
-                error=str(event.error)
-            )
-        )
+        self.log.events.append(OrchestratorErrorEvent(error=str(event.error)))
 
     async def on_end_turn(self, event: EndTurn):
-        self.log.events.append(
-            EndTurnEvent()
-        )
+        self.log.events.append(EndTurnEvent())
 
     async def on_event(self, event: Event):
         """
@@ -200,8 +137,7 @@ class AsyncLoggingHandler(AsyncHandler):
             event_type=event.__class__.__name__.lower(),
             details={
                 "repr": repr(event),
-                
-            }
+            },
         )
         self.log.events.append(generic_event)
         pass
