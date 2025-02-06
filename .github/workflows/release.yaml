@@ -72,7 +72,7 @@ jobs:
         author_email: gha@github.com
         committer_name: python-distribution-release[bot]
         committer_email: gha@github.com
-        push: git push origin main --force
+        push: origin main --force
 
 #    - name: Build a binary wheel and a source tarball
 #      run: uv build && uv publish
