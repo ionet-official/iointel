@@ -755,7 +755,7 @@ wheels = [
 
 [[package]]
 name = "iointel"
-version = "0.0.0"
+version = "1.0.1"
 source = { editable = "." }
 dependencies = [
     { name = "controlflow" },
@@ -789,7 +789,7 @@ tests = [
 
 [package.metadata]
 requires-dist = [
-    { name = "controlflow", specifier = ">=0.12.0" },
+    { name = "controlflow", specifier = "<=0.12.0" },
     { name = "docker", specifier = ">=7.1.0" },
     { name = "fastapi", specifier = ">=0.115.6" },
     { name = "httpx", specifier = ">=0.28.1" },

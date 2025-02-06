@@ -205,30 +205,34 @@ class Workflow:
                         results_dict[result_key] = result
                     else:
                     # logic from solve_with_reasoning flow
+                        goal = t["goal"]
                         while True:
                             response: ReasoningStep = run_agents(
                                 objective="""
                                 Carefully read the `goal` and analyze the problem.
                                 Produce a single step of reasoning that advances you closer to a solution.
+                                when there is a valid solution mark found_validated_solution as True
                                 """,
                                 instructions=REASONING_INSTRUCTIONS,
                                 result_type=ReasoningStep,
                                 agents=agents_for_task,
-                                context=dict(goal=self.text),
-                                model_kwargs=dict(tool_choice="auto"),
+                                context=dict(goal=goal),
+
      
                             )
+                            print(response)
                             if response.found_validated_solution:
+
                                 if run_agents(
                                     """
                                     Check your solution to be absolutely sure that it is correct and meets all requirements of the goal. Return True if it does.
                                     """,
                                     result_type=bool,
-                                    context=dict(goal=self.text),
-         
+                                    context=dict(goal=goal),
+                                    agents=agents_for_task,
                                 ):
                                     break
-                        final = run_agents(objective=self.text, agents=agents_for_task,  )
+                        final = run_agents(objective=goal, agents=agents_for_task)
                         results_dict[result_key] = final 
 
                 elif task_type == "summarize_text":
@@ -520,6 +524,7 @@ class Workflow:
                     else:
                         # logic from solve_with_reasoning flow
                         while True:
+                            goal = t["goal"]
                             response: ReasoningStep = await run_agents_async(
                                 objective="""
                                 Carefully read the `goal` and analyze the problem.
@@ -528,10 +533,10 @@ class Workflow:
                                 instructions=REASONING_INSTRUCTIONS,
                                 result_type=ReasoningStep,
                                 agents=agents_for_task,
-                                context=dict(goal=self.text),
-                                model_kwargs=dict(tool_choice="auto"),
-    
+                                context=dict(goal=goal),
+                                model_kwargs=dict(tool_choice="required"),
                             )
+                            print(response)
                             if response.found_validated_solution:
                                 if await run_agents_async(
                                         """
@@ -539,11 +544,11 @@ class Workflow:
                                         """,
                                         result_type=bool,
                                         agents=agents_for_task,
-                                        context=dict(goal=self.text),
+                                        context=dict(goal=goal),
                                 ):
-                                    
-                                    #final = await run_agents_async(objective=self.text, agents=agents_for_task,  )
-                                    results_dict[result_key] = response.proposed_solution
+                                    break
+                        final = await run_agents_async(objective=goal, agents=agents_for_task,  )
+                        results_dict[result_key] = final 
 
                 elif task_type == "summarize_text":
                     if self.client_mode:
