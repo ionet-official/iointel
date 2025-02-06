@@ -72,7 +72,6 @@ jobs:
          author: python-distribution-releasep@io.net>
          committer: python-distribution-release@io.net>
          commit-message: update package build version
-         path: .tmp
          branch: "automation-distribution-release"
          base: main
          delete-branch: true
