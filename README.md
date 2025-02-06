@@ -1,4 +1,4 @@
-# Agent Framework
+# IO Intelligence Agent Framework
 
 This repository provides a flexible system for building and orchestrating **agents** and **workflows**. It offers two modes:
 
