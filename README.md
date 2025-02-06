@@ -265,7 +265,7 @@ curl -X POST "https://api.intelligence.io.solutions/api/v1/workflows/run-file" \
 
 ## API Endpoints<a id="api-endpoints"></a>
 
-Please refer to (IO.net documentation)[https://docs.io.net/] to see particular endpoints and their documentation.
+Please refer to (IO.net documentation)[https://docs.io.net/docs/exploring-ai-agents] to see particular endpoints and their documentation.
 
 ## License<a id="license"></a>
 See the [LICENSE](https://github.com/ionet-official/iointel?tab=Apache-2.0-1-ov-file#readme) file for license rights and limitations (Apache 2.0).
