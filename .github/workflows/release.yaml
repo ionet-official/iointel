@@ -22,7 +22,6 @@ on:
             - post
 
 jobs:
-
   build:
     name: Build distribution 📦
     runs-on: ubuntu-latest
@@ -32,29 +31,50 @@ jobs:
       contents: write  # IMPORTANT: mandatory for making GitHub Releases
       id-token: write  # IMPORTANT: mandatory for trusted publishing
     steps:
+    - uses: actions/create-github-app-token@v1
+      id: checkout-token
+      name: Generate temporary GitHub Token for Checkout
+      with:
+        app-id: ${{ vars.PYTHON_DISTRIBUTION_RELEASE_APP_ID }}
+        private-key: ${{ secrets.PYTHON_DISTRIBUTION_RELEASE_PRIVATE_KEY }}
+        owner: ${{ github.repository_owner }}
+
     - uses: actions/checkout@v4
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
         python-version: "3.x"
+        token: ${{ steps.checkout-token.outputs.token }}
+
     - name: Install pypa/build
       run: >-
         python3 -m
         pip install
         hatchling uv
         --user
+
     - name: update version tag in pyproject.toml
       id: set_var
-      run: | 
+      run: |
           hatchling version ${{ github.event.inputs.version_bump }}
           echo "new_tag=$(hatchling version)" >> $GITHUB_OUTPUT
-            git config --global user.email "gha@github.com"
-            git config --global user.name "github robot"
-            git commit -am "update package build version gha"
-            git push origin main
+#            git config --global user.email "gha@github.com"
+#            git config --global user.name "github robot"
+#            git commit -am "update package build version gha"
+#            git push origin main
+
+    - name: Push package build version.
+      uses: EndBug/add-and-commit@v9
+      with:
+        message: '[automation]: update package build version gha.'
+        author_name: github-app
+        author_email: gha@github.com
+        committer_name: github-app
+        committer_email: gha@github.com
 
     - name: Build a binary wheel and a source tarball
       run: uv build && uv publish
+
     - name: Store the distribution packages
       uses: actions/upload-artifact@v4
       with:
@@ -81,21 +101,24 @@ jobs:
       with:
         name: python-package-distributions
         path: .
+
     - name: Sign the dists with Sigstore
       uses: sigstore/gh-action-sigstore-python@v3.0.0
       with:
         inputs: >-
           ./*.tar.gz
-          ./*.whl      
+          ./*.whl
+
     - name: Create GitHub Release
       env:
         GITHUB_TOKEN: ${{ github.token }}
       run: >-
-        
+
         gh release create
         '${{ needs.build.outputs.new_tag }}'
         --repo '${{ github.repository }}'
         --generate-notes
+
     - name: Upload artifact signatures to GitHub Release
       env:
         GITHUB_TOKEN: ${{ github.token }}
@@ -106,4 +129,3 @@ jobs:
         gh release upload
         '${{ needs.build.outputs.new_tag }}' ./*.tar.gz ./*.whl ./*.tar.gz.sigstore.json ./*.whl.sigstore.json
         --repo '${{ github.repository }}'
-
