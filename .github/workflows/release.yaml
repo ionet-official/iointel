@@ -59,6 +59,7 @@ jobs:
       run: |
           hatchling version ${{ github.event.inputs.version_bump }}
           echo "new_tag=$(hatchling version)" >> $GITHUB_OUTPUT
+          echo "Actor: $GITHUB_ACTOR"
 #            git config --global user.email "gha@github.com"
 #            git config --global user.name "github robot"
 #            git commit -am "update package build version gha"
@@ -68,9 +69,9 @@ jobs:
       uses: EndBug/add-and-commit@v9
       with:
         message: '[automation]: update package build version gha.'
-        author_name: python-distribution-release
+        author_name: python-distribution-release[bot]
         author_email: gha@github.com
-        committer_name: python-distribution-release
+        committer_name: python-distribution-release[bot]
         committer_email: gha@github.com
         push: origin main --force
 
