@@ -69,8 +69,8 @@ jobs:
       uses: peter-evans/create-pull-request@v7
       with:
          token: ${{ steps.checkout-token.outputs.token }}
-         author: python-distribution-releasep@io.net>
-         committer: python-distribution-release@io.net>
+         author: python-distribution-releasep@io.net
+         committer: python-distribution-release@io.net
          commit-message: update package build version
          branch: "automation-distribution-release"
          base: main
