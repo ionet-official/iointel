@@ -21,7 +21,7 @@ It also supports loading **YAML or JSON** workflows to define multi-step tasks.
 4. [Usage](#usage)  
    - [Creating Agents](#creating-agents)  
    - [Creating an Agent with custom Persona](#creating-an-agent-with-a-persona)  
-   - [Building Workflows](#building-a-workflow)  
+   - [Building a Workflow](#building-a-workflow)  
    - [Running a Local Workflow](#running-a-local-workflow)  
    - [Running a Remote Workflow (Client Mode)](#running-a-remote-workflow-client-mode)  
    - [Uploading YAML/JSON Workflows](#uploading-yamljson-workflows)  
