@@ -68,9 +68,9 @@ jobs:
       uses: EndBug/add-and-commit@v9
       with:
         message: '[automation]: update package build version gha.'
-        author_name: github-app
+        author_name: python-distribution-release[bot]
         author_email: gha@github.com
-        committer_name: github-app
+        committer_name: python-distribution-release[bot]
         committer_email: gha@github.com
 
 #    - name: Build a binary wheel and a source tarball
