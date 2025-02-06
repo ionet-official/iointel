@@ -204,6 +204,9 @@ class ReasoningStep(BaseModel):
         description="A single step of reasoning, not more than 1 or 2 sentences."
     )
     found_validated_solution: bool
+    proposed_solution: str = Field(
+        description="The proposed solution for the problem."
+    )
 
 
 ##summary

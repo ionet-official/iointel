@@ -541,9 +541,9 @@ class Workflow:
                                         agents=agents_for_task,
                                         context=dict(goal=self.text),
                                 ):
-                                    break
-                        final = await run_agents_async(objective=self.text, agents=agents_for_task,  )
-                        results_dict[result_key] = final 
+                                    
+                                    #final = await run_agents_async(objective=self.text, agents=agents_for_task,  )
+                                    results_dict[result_key] = response.proposed_solution
 
                 elif task_type == "summarize_text":
                     if self.client_mode:
