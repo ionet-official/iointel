@@ -64,19 +64,25 @@ jobs:
 #            git commit -am "update package build version gha"
 #            git push origin main
 
-    - name: Push package build version.
-      uses: EndBug/add-and-commit@v9
+    - name: create pull request
+      uses: peter-evans/create-pull-request@v6
       with:
-        message: '[automation]: update package build version gha.'
-        author_name: python-distribution-release[bot]
-        author_email: gha@github.com
-        committer_name: python-distribution-release[bot]
-        committer_email: gha@github.com
-        push: origin main --force
+         token: ${{ steps.checkout-token.outputs.token }}
+         author: python-distribution-releasep@io.net>
+         committer: python-distribution-release@io.net>
+         commit-message: update package build version
+         path: .tmp
+         branch: "automation-distribution-release"
+         base: main
+         delete-branch: true
+         title: '[automation] update package build version automatically.'
+         body: 'This an automated PR to update package build version'
+         labels: |
+               automerge
 
-#    - name: Build a binary wheel and a source tarball
-#      run: uv build && uv publish
-#
+    - name: Build a binary wheel and a source tarball
+      run: uv build
+
 #    - name: Store the distribution packages
 #      uses: actions/upload-artifact@v4
 #      with:
