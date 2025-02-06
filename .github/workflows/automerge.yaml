@@ -1,0 +1,20 @@
+name: auto-merge
+
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+
+jobs:
+  auto-merge:
+    permissions:
+      pull-requests: write
+    uses: ionet-official/reusable-workflows/.github/workflows/automerge.yml@main
+    with:
+      APPROVE_APP_ID: ${{ vars.APPROVE_APP_ID }}
+      APP_ID: ${{ vars.PYTHON_DISTRIBUTION_RELEASE_APP_ID }}
+    secrets:
+        SLACK_WEBHOOK : ${{ secrets.SLACK_WEBHOOK }}
+        APPROVE_APP_PRIVATE_KEY: ${{secrets.APPROVE_PRIVATE_KEY}}
+        APP_PRIVATE_KEY: ${{secrets.PYTHON_DISTRIBUTION_RELEASE_PRIVATE_KEY}}
