@@ -68,9 +68,9 @@ jobs:
       uses: EndBug/add-and-commit@v9
       with:
         message: '[automation]: update package build version gha.'
-        author_name: python-distribution-release[bot]
+        author_name: python-distribution-release
         author_email: gha@github.com
-        committer_name: python-distribution-release[bot]
+        committer_name: python-distribution-release
         committer_email: gha@github.com
         push: origin main --force
 
