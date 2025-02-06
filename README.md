@@ -21,7 +21,7 @@ It also supports loading **YAML or JSON** workflows to define multi-step tasks.
 4. [Usage](#usage)  
    - [Creating Agents](#creating-agents)  
    - [Creating an Agent with custom Persona](#creating-an-agent-with-a-persona)  
-   - [Building Tasks](#building-tasks)  
+   - [Building Workflows](#building-a-workflow)  
    - [Running a Local Workflow](#running-a-local-workflow)  
    - [Running a Remote Workflow (Client Mode)](#running-a-remote-workflow-client-mode)  
    - [Uploading YAML/JSON Workflows](#uploading-yamljson-workflows)  
@@ -47,29 +47,37 @@ The **Agent** can be configured with:
 - **Model Provider** (e.g., OpenAI, Llama, etc.)  
 - **Tools** (e.g., specialized functions)
 
-Users can define tasks (like `council`, `sentiment`, `translate_text`, etc.) in a **local** or **client** mode. They can also upload workflows (in YAML or JSON) to orchestrate multiple steps in sequence.
+Users can define tasks (like `sentiment`, `translate_text`, etc.) in a **local** or **client** mode. They can also upload workflows (in YAML or JSON) to orchestrate multiple steps in sequence.
 
 ---
 
 ## Installation
 
-1. **Clone the Repo**:
+1a. **Clone the Repo**:
 
     ```bash
     git clone https://github.com/webcoderz/agents-framework.git
     cd agents-framework
     ```
 
-2. **Install Dependencies**:
+1b. **Install Dependencies**:
 
     ```bash
     uv pip install -r requirements.txt
     ```
 
-3. **Set Environment Variables**:
+
+1c. **Set Environment Variables**:
     - `OPENAI_API_KEY` for the default OpenAI-based `ChatOpenAI`.
     - `LOGGING_LEVEL` (optional) to configure logging verbosity: `DEBUG`, `INFO`, etc.
 
+
+or
+
+2. **Install from pip**:
+    ```bash
+    pip install iointel
+    ```
 ---
 
 ## Concepts
@@ -82,9 +90,9 @@ Users can define tasks (like `council`, `sentiment`, `translate_text`, etc.) in 
 
 ### Tasks
 
-- A **task** is a single step in a workflow, e.g., `council`, `schedule_reminder`, `sentiment`, `translate_text`, etc.
-- Tasks are managed by the `Tasks` class in `tasks.py`.
-- Tasks can be chained for multi-step logic (e.g., `tasks(text="...").council().sentiment().run_tasks()`).
+- A **task** is a single step in a workflow, e.g.,  `schedule_reminder`, `sentiment`, `translate_text`, etc.
+- Tasks are managed by the `Workflow` class in `workflow.py`.
+- Tasks can be chained for multi-step logic into a workflow (e.g., `Workflow(text="...").translate_text().sentiment().run_tasks()`).
 
 ### Client Mode vs Local Mode
 
@@ -110,7 +118,7 @@ This allows you to **switch** between running tasks locally or delegating them t
 ### Creating Agents
 
 ```python
-from iointel.src.agents import Agent
+from iointel import Agent
 
 my_agent = Agent(
     name="MyAgent",
@@ -122,8 +130,8 @@ my_agent = Agent(
 ### Creating an Agent with a Persona
 
 ```python
-from iointel.src.agent_methods.data_models.datamodels import PersonaConfig
-from iointel.src.agents import Agent
+from iointel import PersonaConfig, Agent
+
 
 my_persona = PersonaConfig(
     name="Elandria the Arcane Scholar",
@@ -155,19 +163,19 @@ agent = Agent(
 print(agent.instructions)
 ```
 
-### Building Tasks
+### Building a Workflow
 
 In Python code, you can create tasks by instantiating the Tasks class and chaining methods:
 
 
 ```python
-from iointel.src.tasks import Tasks
+from iointel import Workflow
 
-tasks = Tasks(text="This is the text to analyze", client_mode=False)
+tasks = Workflow(text="This is the text to analyze", client_mode=False)
 (
   tasks
     .sentiment(agents=[my_agent])
-    .council()   # a second step
+    .translate_text(target_language="french")   # a second step
 )
 
 results = tasks.run_tasks()
@@ -178,14 +186,14 @@ Because client_mode=False, everything runs locally.
 ### Running a Local Workflow
 
 ```python
-tasks = Tasks(text="Breaking news: local sports team wins!", client_mode=False)
+tasks = Workflow(text="Breaking news: local sports team wins!", client_mode=False)
 tasks.summarize_text(max_words=50).run_tasks()
 ```
 
 ### Running a Remote Workflow (Client Mode)
 
 ```python
-tasks = Tasks(text="Breaking news: local sports team wins!", client_mode=True)
+tasks = Workflow(text="Breaking news: local sports team wins!", client_mode=True)
 tasks.summarize_text(max_words=50).run_tasks()
 ```
 Now, summarize_text calls the client function (e.g., summarize_task(...)) instead of local logic.
@@ -218,7 +226,7 @@ The server reads it as JSON or YAML and runs the tasks sequentially in local mod
 ### Simple Summarize Task
 
 ```python
-tasks = Tasks("Breaking news: new Python release!", client_mode=False)
+tasks = Workflow("Breaking news: new Python release!", client_mode=False)
 tasks.summarize_text(max_words=30).run_tasks()
 ```
 
@@ -227,22 +235,20 @@ Returns a summarized result.
 ### Chainable Workflows
 
 ```python
-tasks = Tasks("Tech giant acquires startup for $2B", client_mode=False)
+tasks = Workflow("Tech giant acquires startup for $2B", client_mode=False)
 (tasks
-   .council()
-   .translate_text(target_language="es")
+   .translate_text(target_language="spanish")
    .sentiment()
 )
 results = tasks.run_tasks()
 ```
 
-	1.	Council step,
-	2.	Translate to Spanish,
-	3.	Sentiment analysis.
+	1.	Translate to Spanish,
+	2.	Sentiment analysis.
 
 ### Custom Workflow
 ```python
-tasks = Tasks("Analyze this special text", client_mode=False)
+tasks = Workflow("Analyze this special text", client_mode=False)
 tasks.custom(
     name="my-unique-step",
     objective="Perform advanced analysis",
@@ -264,8 +270,7 @@ curl -X POST "http://<your server>/upload-workflow" \
 
 ## API Endpoints
 
-Here are some of the key endpoints if you integrate via REST:  
-   - POST /council: Runs a council vote with ScheduleRequest.task.  
+Here are some of the key endpoints if you integrate via REST:   
    - POST /reasoning: Runs a reasoning step with TextRequest. 
    - POST /summarize: Summarizes text in TextRequest.
    - POST /sentiment: Performs sentiment analysis on TextRequest.
@@ -275,3 +280,7 @@ Here are some of the key endpoints if you integrate via REST:
    - POST /moderation: Moderation checks with a threshold.
    - POST /custom-workflow: Runs a single “custom” step from CustomWorkflowRequest.
    - POST /upload-workflow: Accepts JSON or YAML for multi-step workflows.
+
+## License
+
+See the [LICENSE](LICENSE) file for license rights and limitations (Apache 2.0).
