@@ -10,7 +10,7 @@ jobs:
   auto-merge:
     permissions:
       pull-requests: write
-    uses: ionet-official/reusable-workflows/.github/workflows/automerge.yml@main
+    uses: ionet-official/reusable-workflows/.github/workflows/automerge.yml@iointel
     with:
       APPROVE_APP_ID: ${{ vars.APPROVE_APP_ID }}
       APP_ID: ${{ vars.PYTHON_DISTRIBUTION_RELEASE_APP_ID }}
