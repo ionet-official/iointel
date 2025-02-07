@@ -53,11 +53,14 @@ def run_reasoning_task(text: str) -> dict:
     return __make_post_call(json=payload)
 
 
-def summarize_task(text: str) -> dict:
+def summarize_task(text: str, max_words: int = 100) -> dict:
     payload = {
         "text": text,
         "agent_names": ["summary_agent"],
-        "args": {"type": "summarize_text"},
+        "args": {
+            "type": "summarize_text",
+            "max_words": max_words,
+        },
     }
     return __make_post_call(json=payload)
 

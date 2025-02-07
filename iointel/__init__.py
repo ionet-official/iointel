@@ -1,4 +1,6 @@
-from .src.magic import UNUSED  # this performs some magic to hide controlflow warning
+from .src.magic import (
+    UNUSED as UNUSED,
+)  # this performs some magic to hide controlflow warning
 from .src.agents import Agent
 
 # from .src.memory import AsyncMemory, AsyncPostgresMemoryProvider, Memory, PostgresMemoryProvider
@@ -24,4 +26,4 @@ __all__ = [
 ]
 
 
-__version__="1.1.0"
+__version__ = "1.1.0"
