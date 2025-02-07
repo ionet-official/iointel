@@ -2,6 +2,7 @@
 from iointel.src.agents import Agent
 from langchain_openai import ChatOpenAI
 
+
 def test_agent_default_model(monkeypatch):
     """
     Test that Agent uses ChatOpenAI with environment variables by default.
@@ -13,10 +14,11 @@ def test_agent_default_model(monkeypatch):
         name="TestAgent",
         instructions="You are a test agent.",
     )
-    assert isinstance(a.model, ChatOpenAI), "Agent should default to ChatOpenAI if no provider is specified."
+    assert isinstance(a.model, ChatOpenAI), (
+        "Agent should default to ChatOpenAI if no provider is specified."
+    )
     assert a.name == "TestAgent"
     assert "test agent" in a.instructions.lower()
-
 
 
 def test_agent_run():
@@ -29,6 +31,6 @@ def test_agent_run():
     # We can call run with a stub prompt and see if it returns something or raises a specific error.
     result = a.run("Hello world")
     assert result is not None, "Expected a result from the agent run."
-    #with pytest.raises(Exception):
+    # with pytest.raises(Exception):
     #    # This might raise an error due to fake API key or no actual LLM.
     #    a.run("Hello world")

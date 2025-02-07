@@ -1,5 +1,6 @@
 from .src.magic import UNUSED  # this performs some magic to hide controlflow warning
 from .src.agents import Agent
+
 # from .src.memory import AsyncMemory, AsyncPostgresMemoryProvider, Memory, PostgresMemoryProvider
 from .src.memory import Memory
 from .src.workflow import Workflow, run_agents
@@ -19,7 +20,7 @@ __all__ = [
     "PersonaConfig",
     "AsyncLoggingHandler",
     "LoggingHandler",
-    "client"
+    "client",
 ]
 
 

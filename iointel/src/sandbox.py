@@ -3,8 +3,11 @@ import os
 import docker
 from typing import Tuple, Union
 import logging
-from iointel.src.code_parsers.pycode_parser import (PythonModule, PythonCodeGenerator)
-from iointel.src.code_parsers.jscode_parser import (JavaScriptModule,JavaScriptCodeGenerator)
+from iointel.src.code_parsers.pycode_parser import PythonModule, PythonCodeGenerator
+from iointel.src.code_parsers.jscode_parser import (
+    JavaScriptModule,
+    JavaScriptCodeGenerator,
+)
 from pydantic import ValidationError
 
 # Configure logging for this module. In a larger application, configure logging in a main entry point.
@@ -20,19 +23,20 @@ formatter = logging.Formatter("%(asctime)s [%(levelname)s] %(name)s: %(message)s
 handler.setFormatter(formatter)
 logger.addHandler(handler)
 
+
 class DockerSandbox:
     def __init__(
-        self, 
-        image: str = "python:3.11-slim", 
-        memory_limit="500m", 
-        cpu_period=100000, 
+        self,
+        image: str = "python:3.11-slim",
+        memory_limit="500m",
+        cpu_period=100000,
         cpu_quota=50000,
         read_only=True,
         network_disabled=True,
         cap_drop=["ALL"],
         user="nobody",
         security_opt=["no-new-privileges"],
-        runtime="runsc"  # Use gVisor runtime
+        runtime="runsc",  # Use gVisor runtime
     ):
         """
         Initialize a DockerSandbox environment with gVisor and additional security measures.
@@ -81,7 +85,9 @@ class DockerSandbox:
                 logger.info("Module validated as JavaScriptModule.")
                 return js_module
             except ValidationError as e:
-                logger.error("Validation failed for both PythonModule and JavaScriptModule.")
+                logger.error(
+                    "Validation failed for both PythonModule and JavaScriptModule."
+                )
 
     def run_code_in_sandbox(self, module_json: str) -> Tuple[str, str, int]:
         """
@@ -124,7 +130,7 @@ class DockerSandbox:
             If there is an error pulling the image, creating, or running the container.
         """
         module = self.validate_module(module_json)
-        
+
         if isinstance(module, PythonModule):
             logger.debug("Module detected as Python.")
             # Generate Python code
@@ -142,7 +148,11 @@ class DockerSandbox:
             logger.debug("Packages to install (for Python): %s", packages)
 
             runtime_cmd = "python script.py"
-            install_cmd = f"pip install --no-cache-dir --user {' '.join(packages)}" if packages else ""
+            install_cmd = (
+                f"pip install --no-cache-dir --user {' '.join(packages)}"
+                if packages
+                else ""
+            )
             container_image = self.image
             script_name = "script.py"
             extra_env = {"HOME": "/home/nobody"}
@@ -165,23 +175,28 @@ class DockerSandbox:
             runtime_cmd = "node script.js"
             # Install JS packages into /app/vendor
             # Use npm with --prefix to install packages into /app/vendor
-            install_cmd = f"npm install --prefix /app/vendor {' '.join(js_packages)}" if js_packages else ""
+            install_cmd = (
+                f"npm install --prefix /app/vendor {' '.join(js_packages)}"
+                if js_packages
+                else ""
+            )
 
             # Use Node.js image
             container_image = "node:18-slim"
             script_name = "script.js"
 
             # For JS, we provide writable vendor directory and set NODE_PATH
-            extra_env = {"HOME": "/home/nobody", "NODE_PATH": "/app/vendor/node_modules"}
-            # tmpfs for writable vendor directory and home
-            extra_tmpfs = {
-                "/home/nobody": "size=128m",
-                "/app/vendor": "size=128m"
+            extra_env = {
+                "HOME": "/home/nobody",
+                "NODE_PATH": "/app/vendor/node_modules",
             }
+            # tmpfs for writable vendor directory and home
+            extra_tmpfs = {"/home/nobody": "size=128m", "/app/vendor": "size=128m"}
 
         else:
-            raise ValueError("Unsupported module type. Must be PythonModule or JavaScriptModule.")
-
+            raise ValueError(
+                "Unsupported module type. Must be PythonModule or JavaScriptModule."
+            )
 
         with tempfile.TemporaryDirectory() as tmpdir:
             script_path = os.path.join(tmpdir, script_name)
@@ -215,7 +230,7 @@ class DockerSandbox:
                     container_image,
                     command=["/bin/sh", "-c", full_cmd],
                     working_dir="/app",
-                    volumes={tmpdir: {'bind': '/app', 'mode': 'ro'}},
+                    volumes={tmpdir: {"bind": "/app", "mode": "ro"}},
                     tmpfs=extra_tmpfs,
                     environment=extra_env,
                     stdin_open=False,
@@ -250,7 +265,7 @@ class DockerSandbox:
             stdout = logs.decode("utf-8")
             stderr = ""
             if isinstance(exit_code, dict):
-                exit_code = exit_code.get('StatusCode', 1)
+                exit_code = exit_code.get("StatusCode", 1)
 
             logger.info("Execution completed. Exit code: %d", exit_code)
             logger.debug("STDOUT: %s", stdout)

@@ -19,7 +19,9 @@ def test_reasoning_task():
 
 
 def test_summarize_task():
-    result = client.summarize_task("This is a long text talking about nothing, emptiness and things like that. Nobody knows what it is about. The void gazes into you.")
+    result = client.summarize_task(
+        "This is a long text talking about nothing, emptiness and things like that. Nobody knows what it is about. The void gazes into you."
+    )
     assert result
 
 
@@ -82,4 +84,3 @@ name: whatever
 """)
     with pytest.raises(NotImplementedError):
         client.upload_workflow_file(str(tmpfile))
-
