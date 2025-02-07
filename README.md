@@ -1,5 +1,8 @@
 # IO Intelligence Agent Framework
 
+> [!IMPORTANT]
+> Beta Warning! This project is under rapid development, might not be suitable for production use!
+
 This repository provides a flexible system for building and orchestrating **agents** and **workflows**. It offers two modes:
 
 - **Client Mode**: Where tasks call out to a remote API client (e.g., your `client.py` functions).  

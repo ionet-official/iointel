@@ -70,8 +70,8 @@ content-type = "text/markdown"
 fragments = [
     {path = 'README.md'},
 ]
-# convert GitHub issue/PR numbers and handles to links
 substitutions = [
+    # convert GitHub issue/PR numbers and handles to links
     {pattern = '(\s+)#(\d+)', replacement = '\1[#\2](https://github.com/ionet-official/iointel/issues/\2)'},
     {pattern = '(\s+)@([\w\-]+)', replacement = '\1[@\2](https://github.com/\2)'},
     {pattern = '@@', replacement = '@'},
@@ -79,5 +79,7 @@ substitutions = [
     # see https://github.com/pypa/readme_renderer/issues/169#issuecomment-808577486
     {pattern = '(\n##+\s+[^<]*?)\n', replacement = '\1 (MISSING ANCHOR)\n'},
     # strip whitespace between section name and anchor
-    {pattern = '(\n##+\s+.*?)\s*(<a .*\n)', replacement='\1\2'}
+    {pattern = '(\n##+\s+.*?)\s*(<a .*\n)', replacement='\1\2'},
+    # replace Github-styled callout (not supported on pypi) with just bold
+    {pattern = '\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]', replacement = '**\1**:'},
 ]
