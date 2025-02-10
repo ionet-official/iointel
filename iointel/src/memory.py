@@ -46,6 +46,8 @@ class Memory(Memory):
     ):
         super().__init__(key=key, instructions=instructions, provider=provider)
 
+# TODO: use the same instantiation logic for `OPENAI_API_BASE_URL` etc
+#       as done in `iointel/src/agents.py`
 
 # class AsyncMemory(AsyncMemory):
 #     """
