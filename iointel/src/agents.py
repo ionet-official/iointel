@@ -2,6 +2,7 @@ import os
 
 from .memory import Memory  # , AsyncMemory
 from .agent_methods.data_models.datamodels import PersonaConfig
+from iointel.src.constants import IO_INTEL_API, IO_INTEL_BASE_MODEL
 
 from langchain_openai import ChatOpenAI
 import controlflow as cf
@@ -57,12 +58,12 @@ class Agent(cf.Agent):
 
         else:
             kwargs = dict(model_kwargs)
-            for key, env_name in {
-                "api_key": "OPENAI_API_KEY",
-                "model": "OPENAI_API_MODEL",
-                "base_url": "OPENAI_API_BASE_URL",
-            }.items():
-                if value := os.environ.get(env_name):
+            for key, env_name, env_default in [
+                ("api_key", "OPENAI_API_KEY", ""),
+                ("model", "OPENAI_API_MODEL", IO_INTEL_BASE_MODEL),
+                ("base_url", "OPENAI_API_BASE_URL", IO_INTEL_API),
+            ]:
+                if value := os.environ.get(env_name, env_default):
                     kwargs[key] = value
             model_instance = ChatOpenAI(**kwargs)
 
