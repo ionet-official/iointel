@@ -100,6 +100,7 @@ class Workflow:
             ModerationException,
         )
         from .agent_methods.prompts.instructions import REASONING_INSTRUCTIONS
+        from .agent_methods.agents.agents_factory import get_agent, create_agent
 
         # from .code_parsers.pycode_parser import PythonModule
         # from .code_parsers.jscode_parser import JavaScriptModule
@@ -143,7 +144,7 @@ class Workflow:
                             instructions="""
                                 Schedule a reminder and use the tool to track the time for the reminder.
                             """,
-                            agents=agents_for_task,
+                            agents=agents_for_task or [get_agent("reminder_agent")],
                             context={"command": self.text},
                             result_type=str,
                         )
@@ -152,10 +153,6 @@ class Workflow:
                     results_dict[result_key] = result
 
                 elif task_type == "council":
-                    # these agents are hardcoded for now, because its a advanced workflow
-                    from .agent_methods.agents.agents_factory import get_agent
-                    from .agent_methods.agents.agents_factory import create_agent
-
                     leader = get_agent("leader")
                     council_member1 = get_agent("council_member1")
                     council_member2 = get_agent("council_member2")
@@ -227,7 +224,8 @@ class Workflow:
                                 """,
                                 instructions=REASONING_INSTRUCTIONS,
                                 result_type=ReasoningStep,
-                                agents=agents_for_task,
+                                agents=agents_for_task
+                                or [get_agent("reasoning_agent")],
                                 context=dict(goal=self.text),
                                 model_kwargs=dict(tool_choice="auto"),
                             )
@@ -237,12 +235,14 @@ class Workflow:
                                     Check your solution to be absolutely sure that it is correct and meets all requirements of the goal. Return True if it does.
                                     """,
                                     result_type=bool,
+                                    agents=agents_for_task
+                                    or [get_agent("reasoning_agent")],
                                     context=dict(goal=self.text),
                                 ):
                                     break
                         final = run_agents(
                             objective=self.text,
-                            agents=agents_for_task,
+                            agents=agents_for_task or [get_agent("reasoning_agent")],
                         )
                         results_dict[result_key] = final
 
@@ -258,7 +258,7 @@ class Workflow:
                             f"Summarize the given text in no more than {t['max_words']} words and list key points",
                             result_type=SummaryResult,
                             context={"text": self.text},
-                            agents=agents_for_task,
+                            agents=agents_for_task or [get_agent("summary_agent")],
                         )
 
                         results_dict[result_key] = summary
@@ -271,7 +271,8 @@ class Workflow:
                     else:
                         sentiment_val = run_agents(
                             "Classify the sentiment of the text as a value between 0 and 1",
-                            agents=agents_for_task,
+                            agents=agents_for_task
+                            or [get_agent("sentiment_analysis_agent")],
                             result_type=float,
                             result_validator=between(0, 1),
                             context={"text": self.text},
@@ -298,7 +299,7 @@ class Workflow:
                             - 'events': List of event names
                             Only include keys if entities of that type are found in the text.
                             """,
-                            agents=agents_for_task,
+                            agents=agents_for_task or [get_agent("extractor")],
                             result_type=Dict[str, List[str]],
                             context={"text": self.text},
                         )
@@ -318,7 +319,7 @@ class Workflow:
                             f"Translate the given text to {target_lang}",
                             result_type=TranslationResult,
                             context={"text": self.text, "target_language": target_lang},
-                            agents=agents_for_task,
+                            agents=agents_for_task or [get_agent("translation_agent")],
                         )
                         results_dict[result_key] = translated.translated
 
@@ -332,7 +333,8 @@ class Workflow:
                     else:
                         classification = run_agents(
                             "Classify the news headline into the most appropriate category",
-                            agents=agents_for_task,
+                            agents=agents_for_task
+                            or [get_agent("classification_agent")],
                             result_type=t["classify_by"],
                             context={"headline": self.text},
                         )
@@ -363,7 +365,7 @@ class Workflow:
                     else:
                         result: ViolationActivation = run_agents(
                             "Check the text for violations and return the activation levels",
-                            agents=agents_for_task,
+                            agents=agents_for_task or [get_agent("moderation_agent")],
                             result_type=ViolationActivation,
                             context={"text": self.text},
                         )
@@ -400,7 +402,7 @@ class Workflow:
                                 name=t["name"],
                                 objective=t["objective"],
                                 instructions=t.get("instructions", ""),
-                                agents=agents_for_task,
+                                agents=agents_for_task or [get_agent("default_agent")],
                                 context={**t.get("kwargs", {}), "text": self.text},
                             )
                             results_dict[result_key] = result
@@ -409,7 +411,7 @@ class Workflow:
                             result = run_agents(
                                 objective=t["objective"],
                                 instructions=t.get("instructions", ""),
-                                agents=agents_for_task,
+                                agents=agents_for_task or [get_agent("default_agent")],
                                 context={"text": self.text, **t.get("kwargs", {})},
                                 result_type=str,
                             )
@@ -430,6 +432,7 @@ class Workflow:
             ModerationException,
         )
         from .agent_methods.prompts.instructions import REASONING_INSTRUCTIONS
+        from .agent_methods.agents.agents_factory import get_agent, create_agent
 
         # from .code_parsers.pycode_parser import PythonModule
         # from .code_parsers.jscode_parser import JavaScriptModule
@@ -473,7 +476,7 @@ class Workflow:
                             instructions="""
                                 Schedule a reminder and use the tool to track the time for the reminder.
                             """,
-                            agents=agents_for_task,
+                            agents=agents_for_task or [get_agent("reminder_agent")],
                             context={"command": self.text},
                             result_type=str,
                         )
@@ -482,10 +485,6 @@ class Workflow:
                     results_dict[result_key] = result
 
                 elif task_type == "council":
-                    # these agents are hardcoded for now, because its a advanced workflow
-                    from .agent_methods.agents.agents_factory import get_agent
-                    from .agent_methods.agents.agents_factory import create_agent
-
                     leader = get_agent("leader")
                     council_member1 = get_agent("council_member1")
                     council_member2 = get_agent("council_member2")
@@ -557,7 +556,8 @@ class Workflow:
                                 """,
                                 instructions=REASONING_INSTRUCTIONS,
                                 result_type=ReasoningStep,
-                                agents=agents_for_task,
+                                agents=agents_for_task
+                                or [get_agent("reasoning_agent")],
                                 context=dict(goal=self.text),
                                 model_kwargs=dict(tool_choice="auto"),
                             )
@@ -567,13 +567,14 @@ class Workflow:
                                         Check your solution to be absolutely sure that it is correct and meets all requirements of the goal. Return True if it does.
                                         """,
                                     result_type=bool,
-                                    agents=agents_for_task,
+                                    agents=agents_for_task
+                                    or [get_agent("reasoning_agent")],
                                     context=dict(goal=self.text),
                                 ):
                                     break
                         final = await run_agents_async(
                             objective=self.text,
-                            agents=agents_for_task,
+                            agents=agents_for_task or [get_agent("reasoning_agent")],
                         )
                         results_dict[result_key] = final
 
@@ -589,7 +590,7 @@ class Workflow:
                             f"Summarize the given text in no more than {t['max_words']} words and list key points",
                             result_type=SummaryResult,
                             context={"text": self.text},
-                            agents=agents_for_task,
+                            agents=agents_for_task or [get_agent("summary_agent")],
                         )
 
                         results_dict[result_key] = summary
@@ -602,7 +603,8 @@ class Workflow:
                     else:
                         sentiment_val = await run_agents_async(
                             "Classify the sentiment of the text as a value between 0 and 1",
-                            agents=agents_for_task,
+                            agents=agents_for_task
+                            or [get_agent("sentiment_analysis_agent")],
                             result_type=float,
                             result_validator=between(0, 1),
                             context={"text": self.text},
@@ -629,7 +631,7 @@ class Workflow:
                             - 'events': List of event names
                             Only include keys if entities of that type are found in the text.
                             """,
-                            agents=agents_for_task,
+                            agents=agents_for_task or [get_agent("extractor")],
                             result_type=Dict[str, List[str]],
                             context={"text": self.text},
                         )
@@ -649,7 +651,7 @@ class Workflow:
                             f"Translate the given text to {target_lang}",
                             result_type=TranslationResult,
                             context={"text": self.text, "target_language": target_lang},
-                            agents=agents_for_task,
+                            agents=agents_for_task or [get_agent("translation_agent")],
                         )
                         results_dict[result_key] = translated.translated
 
@@ -663,7 +665,8 @@ class Workflow:
                     else:
                         classification = await run_agents_async(
                             "Classify the news headline into the most appropriate category",
-                            agents=agents_for_task,
+                            agents=agents_for_task
+                            or [get_agent("classification_agent")],
                             result_type=t["classify_by"],
                             context={"headline": self.text},
                         )
@@ -694,7 +697,7 @@ class Workflow:
                     else:
                         result: ViolationActivation = await run_agents_async(
                             "Check the text for violations and return the activation levels",
-                            agents=agents_for_task,
+                            agents=agents_for_task or [get_agent("moderation_agent")],
                             result_type=ViolationActivation,
                             context={"text": self.text},
                         )
@@ -733,7 +736,7 @@ class Workflow:
                                 name=t["name"],
                                 objective=t["objective"],
                                 instructions=t.get("instructions", ""),
-                                agents=agents_for_task,
+                                agents=agents_for_task or [get_agent("default_agent")],
                                 context={**t.get("kwargs", {}), "text": self.text},
                             )
                             results_dict[result_key] = result
@@ -742,7 +745,7 @@ class Workflow:
                             result = await run_agents_async(
                                 objective=t["objective"],
                                 instructions=t.get("instructions", ""),
-                                agents=agents_for_task,
+                                agents=agents_for_task or [get_agent("default_agent")],
                                 context={"text": self.text, **t.get("kwargs", {})},
                                 result_type=t.get("result_type", str),
                             )
