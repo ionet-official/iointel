@@ -22,10 +22,10 @@ def _patch_openai_init():
     ChatOpenAI.__init__ = orig_init
 
 
-UNUSED = _patch_openai_init()
-
 # turn off most prefect log messages, as they aren't useful
 # to end user, but might hurt UX for inexperience ones
 os.environ["PREFECT_LOGGING_LEVEL"] = os.environ.get(
     "PREFECT_LOGGING_LEVEL", "CRITICAL"
 )
+
+UNUSED = _patch_openai_init()

@@ -4,7 +4,9 @@ import time
 from typing import Optional, List
 from functools import partial
 
-BASE_URL = os.getenv("OPENAI_API_BASE_URL", "").rstrip("/")
+from iointel.src.constants import IO_INTEL_API
+
+BASE_URL = os.getenv("OPENAI_API_BASE_URL", IO_INTEL_API).rstrip("/")
 API_KEY = os.getenv("OPENAI_API_KEY")
 BASE_MCP_URL = os.getenv("BASE_MCP_URL")
 try:
