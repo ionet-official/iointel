@@ -4,10 +4,9 @@ import time
 from typing import Optional, List
 from functools import partial
 
-from iointel.src.constants import IO_INTEL_API
+from iointel.src.constants import get_api_url, get_api_key
 
-BASE_URL = os.getenv("OPENAI_API_BASE_URL", IO_INTEL_API).rstrip("/")
-API_KEY = os.getenv("OPENAI_API_KEY")
+BASE_URL, API_KEY = get_api_url(), get_api_key()
 BASE_MCP_URL = os.getenv("BASE_MCP_URL")
 try:
     SLOW_MODE_SLEEP = int(os.getenv("SLOW_MODE_SLEEP"))
