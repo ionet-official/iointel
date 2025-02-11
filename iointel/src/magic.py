@@ -23,9 +23,8 @@ def _patch_openai_init():
 
 
 # turn off most prefect log messages, as they aren't useful
-# to end user, but might hurt UX for inexperience ones
-os.environ["PREFECT_LOGGING_LEVEL"] = os.environ.get(
-    "PREFECT_LOGGING_LEVEL", "CRITICAL"
-)
+# to end user, but might hurt UX for inexperienced ones
+for env_name in ("PREFECT_LOGGING_SERVER_LEVEL", "PREFECT_LOGGING_LEVEL"):
+    os.environ[env_name] = os.environ.get(env_name, "CRITICAL")
 
 UNUSED = _patch_openai_init()
