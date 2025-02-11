@@ -1,7 +1,7 @@
 # IO Intelligence Agent Framework
 
 > [!IMPORTANT]
-> Beta Warning! This project is under rapid development, might not be suitable for production use!
+> **Beta Notice:** This project is in rapid development and may not be stable for production use.
 
 This repository provides a flexible system for building and orchestrating **agents** and **workflows**. It offers two modes:
 
