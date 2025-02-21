@@ -57,6 +57,13 @@ class LazyCaller(BaseModel):
         else:
             return value
 
+    async def _resolve_nested_async(self, value: Any) -> Any:
+        # Do a bold approach for now
+        # To properly rewrite the whole thing in async need working tests
+        # Then will be able to make sure every callable on the way is async
+        event_loop = asyncio.get_event_loop()
+        return await event_loop.run_in_executor(None, self._resolve_nested, value)
+
     def evaluate(self) -> Any:
         if not self._evaluated:
             resolved_args = self._resolve_nested(self.args)
@@ -75,6 +82,10 @@ class LazyCaller(BaseModel):
             self._evaluated = True
         return self._result
 
+    async def evaluate_async(self) -> Any:
+        event_loop = asyncio.get_event_loop()
+        return await event_loop.run_in_executor(None, self.evaluate)
+
     def execute(self) -> Any:
         result = self.evaluate()
         # Resolve if the entire result is lazy
@@ -82,6 +93,10 @@ class LazyCaller(BaseModel):
             result = result.execute()
         # Then recursively resolve nested lazy objects
         return self._resolve_nested(result)
+
+    async def execute_async(self) -> Any:
+        event_loop = asyncio.get_event_loop()
+        return await event_loop.run_in_executor(None, self.execute)
 
     @model_serializer
     def ser_model(self) -> dict:
