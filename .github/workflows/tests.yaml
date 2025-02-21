@@ -52,7 +52,7 @@ jobs:
         run: curl -LsSf https://astral.sh/uv/install.sh | sh
 
       - name: Install dependencies
-        run: uv pip install --system -e . && uv pip install --system ".[tests]" && uv pip install -U httpcore --system 
+        run: uv pip install --system -e . && uv pip install --system ".[tests]" && uv pip install --system ".[all]" && uv pip install -U httpcore --system 
 
       - name: Run tests
         run: pytest -vv tests/
