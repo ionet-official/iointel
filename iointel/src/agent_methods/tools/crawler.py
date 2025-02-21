@@ -1,3 +1,4 @@
+import asyncio
 import uuid
 import nest_asyncio
 from firecrawl.firecrawl import FirecrawlApp
@@ -62,7 +63,7 @@ class Crawler:
         """
         return self.app.batch_scrape_urls(urls, params)
 
-    def async_batch_scrape_urls(
+    async def async_batch_scrape_urls(
         self, urls: List[str], params: Dict[str, Any]
     ) -> Dict[str, Any]:
         """
@@ -75,7 +76,8 @@ class Crawler:
         Returns:
             Dict[str, Any]: The asynchronous batch scraping result.
         """
-        return self.app.async_batch_scrape_urls(urls, params)
+        event_loop = asyncio.get_event_loop()
+        return await event_loop.run_in_executor(None, self.app.async_batch_scrape_urls, urls, params)
 
     def crawl_url(
         self,
@@ -100,7 +102,7 @@ class Crawler:
             idempotency_key = str(uuid.uuid4())
         return self.app.crawl_url(url, crawl_params, depth, idempotency_key)
 
-    def async_crawl_url(
+    async def async_crawl_url(
         self,
         url: str,
         crawl_params: Dict[str, Any],
@@ -119,7 +121,9 @@ class Crawler:
         """
         if idempotency_key is None:
             idempotency_key = ""
-        return self.app.async_crawl_url(url, crawl_params, idempotency_key)
+        event_loop = asyncio.get_event_loop()
+        return await event_loop.run_in_executor(None, self.app.async_crawl_url,
+                                                url, crawl_params, idempotency_key)
 
     def scrape_urls(
         self, urls: List[str], extraction_schema: Type[T]
