@@ -2,7 +2,7 @@
 
 from .memory import Memory
 from .agent_methods.data_models.datamodels import PersonaConfig
-
+from iointel.src.constants import get_api_url, get_base_model, get_api_key
 
 from pydantic_ai.models.openai import OpenAIModel
 from pydantic import SecretStr
@@ -64,12 +64,12 @@ class Agent(marvin.Agent):
 
         else:
             kwargs = dict(model_kwargs)
-            for key, env_name in {
-                "api_key": "OPENAI_API_KEY",
-                "model_name": "OPENAI_API_MODEL",
-                "base_url": "OPENAI_API_BASE_URL",
-            }.items():
-                if value := os.environ.get(env_name):
+            for key, value in [
+                ("api_key", get_api_key()),
+                ("model", get_base_model()),
+                ("base_url", get_api_url()),
+            ]:
+                if value:
                     kwargs[key] = value
             if self.api_key:
                 kwargs["api_key"] = self.api_key.get_secret_value()
