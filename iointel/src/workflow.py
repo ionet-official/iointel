@@ -1,99 +1,23 @@
-import asyncio
-import json
-from typing import Dict, List, Optional, Any
+from typing import List, Optional, Any, Union
 import uuid
-
-from .chainables import CHAINABLE_METHODS
-from .task import CUSTOM_WORKFLOW_REGISTRY, Task
-
-from .agent_methods.data_models.datamodels import (
-    ReasoningStep,
-    SummaryResult,
-    TranslationResult,
-    ViolationActivation,
-    ModerationException,
-)
-from .agent_methods.prompts.instructions import REASONING_INSTRUCTIONS
-from .agent_methods.agents.agents_factory import get_agent
-
-from iointel.client.client import (
-    moderation_task,
-    run_reasoning_task,
-    sentiment_analysis,
-    extract_entities,
-    translate_text_task,
-    summarize_task,
-    classify_text,
-    custom_workflow,
-)
-
-from pydantic import Field
-from typing import Annotated
+import inspect
 import marvin
+from .utilities.registries import TASK_EXECUTOR_REGISTRY
+from prefect import flow
+import logging
 
 from .utilities.asyncio_utils import run_async
 
-
-def run_agents(objective: str, **kwargs):
-    """
-    A wrapper to run agent workflows synchronously.
-    """
-    runner = Task()
-    return runner.run(objective, **kwargs)
-
-
-async def run_agents_async(objective: str, **kwargs):
-    """
-    A wrapper to run agent workflows asynchronously.
-    """
-    runner = Task()
-    return await runner.a_run(objective, **kwargs)
-
+logger = logging.getLogger(__name__)
 
 class Workflow:
     """
-    A class to manage a list of tasks and run them sequentially.
-    Each task is a dictionary with a "type" key that determines the type of task to run.
+    Manages a chain of tasks and runs them sequentially.
 
-    # Usage example:
-    my_agent = Agent(name="my_agent", instructions="Some instructions", model_provider="default")
-    my_agent.run()
-    reasoning_agent = Agent(name="my_agent", instructions="Some instructions")
-    # Build a chain of tasks using the Tasks class
-
-    workflow = Workflow()
-    (workflow(text="Breaking news: team wins the championship!")
-        .classify(["politics", "sports"], agents=[my_agent])
-        .summarize_text( max_words=50, agents=[reasoning_agent]))
-        .sentiment() ...
-
-    # Run all tasks and get results
-    results = workflow.run_tasks()
-    print(results)
-
-
-    For custom tasks:
-
-    # Suppose you have an Agent instance:
-    my_agent = Agent(name="MyAgent", instructions="Some instructions", model_provider="default")
-
-    # Create a Workflow instance and define a custom workflow step:
-    workflow = Workflow()
-
-    (workflow("My text to process")
-        .custom(
-            name="do-fancy-thing",
-            objective="Perform a fancy custom step on the text",
-            agents=[my_agent],
-            instructions="Analyze the text in a fancy custom way",
-            custom_key="some_extra_value",
-        )
-        .council()  # chaining built-in method 'council' afterwards
-        ...
-       )
-
-    results = workflow.run_tasks()
-    print(results)
+    Example usage:
+        workflow = Workflow(text="Some input text", client_mode=False, agents=[swarm])
+        workflow.summarize_text(max_words=50).custom(name="do-fancy-thing", objective="Fancy step", agents=[my_agent])
+        results = workflow.run_tasks()
     """
 
     def __init__(
@@ -115,231 +39,283 @@ class Workflow:
         self.agents = agents
         return self
 
+    def add_task(self, task: dict):
+        # If 'agents' is not provided or is None, use self.agents
+        if not task.get("agents"):
+            task = dict(task, agents=self.agents)
+        self.tasks.append(task)
+        return self
+
+
+    def run_task(self, task: dict, default_text: str, default_agents: list) -> Any:
+        return run_async(self.run_task_async(task, default_text, default_agents))
+
     def run_tasks(self, **kwargs):
         return run_async(self.run_tasks_async(**kwargs))
 
-    async def run_tasks_async(self, **kwargs):
+    async def run_task_async(self, task: dict, default_text: str, default_agents: list) -> any:
+        """
+        Async version of run_task. Mirrors the synchronous branch but awaits async results.
+        If a declarative multi-stage task is defined, offload the synchronous container.run() call
+        to the default executor.
+        """
+        from .utilities.stages import SimpleStage, SequentialStage, ParallelStage, WhileStage, FallbackStage
+
+        import asyncio
+
+        text_for_task = task.get("text", default_text)
+        agents_for_task = task.get("agents") or default_agents
+        execution_metadata = task.get("execution_metadata", {})
+        client_mode = execution_metadata.get("client_mode", self.client_mode)
+
+        if execution_metadata.get("stages"):
+            stage_defs = execution_metadata["stages"]
+            stage_objects = []
+            for stage_def in stage_defs:
+                stage_type = stage_def.get("stage_type", "simple")
+                rtype = stage_def.get("result_type", None)
+                context = stage_def.get("context", {})
+                if stage_type == "simple":
+                    stage_objects.append(SimpleStage(objective=stage_def["objective"], context=context, result_type=rtype))
+                elif stage_type == "while":
+                    condition = stage_def["condition"]
+                    nested_stage_def = stage_def["stage"]
+                    nested_context = nested_stage_def.get("context", {})
+                    nested_rtype = nested_stage_def.get("result_type", None)
+                    nested_stage = SimpleStage(objective=nested_stage_def["objective"], context=nested_context, result_type=nested_rtype)
+                    stage_objects.append(
+                        WhileStage(
+                            condition=condition,
+                            stage=nested_stage,
+                            max_iterations=stage_def.get("max_iterations", 100)
+                        )
+                    )
+                elif stage_type == "parallel":
+                    nested_defs = stage_def.get("stages", [])
+                    nested_objs = [
+                        SimpleStage(objective=nd["objective"], context=nd.get("context", {}), result_type=nd.get("result_type", None))
+                        for nd in nested_defs
+                    ]
+                    stage_objects.append(ParallelStage(nested_objs))
+                elif stage_type == "fallback":
+                    primary_obj = SimpleStage(objective=stage_def["primary"]["objective"],
+                                               context=stage_def["primary"].get("context", {}),
+                                               result_type=stage_def["primary"].get("result_type", None))
+                    fallback_obj = SimpleStage(objective=stage_def["fallback"]["objective"],
+                                                context=stage_def["fallback"].get("context", {}),
+                                                result_type=stage_def["fallback"].get("result_type", None))
+                    stage_objects.append(FallbackStage(primary=primary_obj, fallback=fallback_obj))
+                else:
+                    stage_objects.append(SimpleStage(objective=stage_def["objective"], context=context, result_type=rtype))
+            container_mode = execution_metadata.get("execution_mode", "sequential")
+            if container_mode == "parallel":
+                container = ParallelStage(stage_objects)
+            else:
+                container = SequentialStage(stage_objects)
+            # Offload container.run() (a synchronous call) to the default executor.
+            loop = asyncio.get_event_loop()
+            result = await loop.run_in_executor(None, container.run, agents_for_task, task.get("task_metadata", {}), text_for_task)
+            if isinstance(result, list):
+                base = task.get("name") or task.get("task_id") or "task"
+                result = {f"{base}_stage_{i+1}": val for i, val in enumerate(result)}
+            return result
+        else:
+            task_type = task.get("type") or task.get("name")
+            executor = TASK_EXECUTOR_REGISTRY.get(task_type)
+            if executor is None:
+                raise ValueError(f"No executor registered for task type: {task_type}")
+            result = executor(
+                task_metadata=task.get("task_metadata", {}),
+                text=text_for_task,
+                agents=agents_for_task,
+                execution_metadata=execution_metadata,
+            )
+            if inspect.isawaitable(result):
+                result = await result
+            elif hasattr(result, "execute") and callable(result.execute):
+                result = result.execute()
+            return result
+
+    async def run_tasks_async(self, conversation_id: Optional[str] = None, **kwargs):
+        if not conversation_id:
+            conversation_id = str(uuid.uuid4())
         results_dict = {}
-
-        # Implement logic to call the appropriate underlying flow based on the task type.
-        # For each task in self.tasks, you call run_agents() similarly to how your flows do:
-        for t in self.tasks:
-            task_type = t["type"]
-            agents_for_task = t.get("agents") or self.agents
-            result_key = t.get("name", task_type)
-
-            if task_type == "solve_with_reasoning":
-                if self.client_mode:
-                    # Use client function if you have something like `run_reasoning_task`.
-                    # If not, create a similar client function or skip.
-                    result = run_reasoning_task(self.text)
-                    results_dict[result_key] = result
-                else:
-                    # logic from solve_with_reasoning flow
-                    while True:
-                        response: ReasoningStep = await run_agents_async(
-                            objective=f"""
-                            Carefully read the `goal` and analyze the problem.
-                            Produce a single step of reasoning that advances you closer to a solution.
-
-                            The goal: {self.text}
-
-                            Here are additional instructions:
-                            {REASONING_INSTRUCTIONS}
-                            """,
-                            result_type=ReasoningStep,
-                            agents=agents_for_task or [get_agent("reasoning_agent")],
-                        )
-                        if response.found_validated_solution:
-                            if run_agents(
-                                    f"""
-                                Check your solution to be absolutely sure that it is correct 
-                                and meets all requirements of the goal. Return True if it does.
-
-                                The goal: {self.text}
-                                """,
-                                    result_type=bool,
-                                    agents=agents_for_task or [get_agent("reasoning_agent")],
-                            ):
-                                break
-                    final = await run_agents_async(
-                        objective=self.text,
-                        agents=agents_for_task or [get_agent("reasoning_agent")],
-                    )
-                    results_dict[result_key] = final
-
-            elif task_type == "summarize_text":
-                if self.client_mode:
-                    # Use client function
-                    # If your `summarize_task` signature differs, adapt accordingly.
-                    max_words = t["max_words"]
-                    result = summarize_task(text=self.text, max_words=max_words)
-                    results_dict[result_key] = result
-                else:
-                    summary = await run_agents_async(
-                        f"Summarize the given text in no more than {t['max_words']} words and list key points. "
-                        f"Here's the text: {self.text}",
-                        result_type=SummaryResult,
-                        agents=agents_for_task or [get_agent("summary_agent")],
-                    )
-
-                    results_dict[result_key] = summary
-
-            elif task_type == "sentiment":
-                if self.client_mode:
-                    # Use client function
-                    sentiment_val = sentiment_analysis(text=self.text)
-                    results_dict[result_key] = sentiment_val
-                else:
-                    sentiment_val = await run_agents_async(
-                        "Classify the sentiment of the text as a value between 0 and 1. "
-                        f"Here's the text: {self.text}",
-                        agents=agents_for_task or [get_agent("sentiment_analysis_agent")],
-                        result_type=Annotated[float, Field(ge=0, le=1)],
-                    )
-
-                    results_dict[result_key] = sentiment_val
-
-            elif task_type == "extract_categorized_entities":
-                if self.client_mode:
-                    # Use client function, e.g. `extract_entities(text=self.text)`
-                    # If that function returns the same structure, great; otherwise adapt.
-                    extracted = extract_entities(text=self.text)
-                    results_dict[result_key] = extracted
-
-                else:
-                    extracted = await run_agents_async(
-                        f"""
-                        Extract named entities from the text and categorize them.
-
-                        Return a dictionary with the following keys:
-                        - 'persons': List of person names
-                        - 'organizations': List of organization names
-                        - 'locations': List of location names
-                        - 'dates': List of date references
-                        - 'events': List of event names
-                        Only include keys if entities of that type are found in the text.
-
-                        Here's the text: {self.text}
-                        """,
-                        agents=agents_for_task or [get_agent("extractor")],
-                        result_type=Dict[str, List[str]],
-                    )
-
-                    results_dict[result_key] = extracted
-
-            elif task_type == "translate_text":
-                target_lang = t["target_language"]
-                if self.client_mode:
-                    # Use client function
-                    translated = translate_text_task(
-                        text=self.text, target_language=target_lang
-                    )
-                    results_dict[result_key] = translated
-                else:
-                    translated = await run_agents_async(
-                        f"""
-                        Translate the given text to {target_lang}.
-                        Here's the text: {self.text}.
-                        """,
-                        result_type=TranslationResult,
-                        agents=agents_for_task or [get_agent("translation_agent")],
-                    )
-                    results_dict[result_key] = translated.translated
-
-            elif task_type == "classify":
-                if self.client_mode:
-                    # Use client function
-                    classification = classify_text(
-                        text=self.text, classify_by=t["classify_by"]
-                    )
-                    results_dict[result_key] = classification
-                else:
-                    classification = await run_agents_async(
-                        f"""
-                        Classify the news headline into the most appropriate category.
-
-                        Here's the headline: {self.text}.
-                        """,
-                        agents=agents_for_task or [get_agent("classification_agent")],
-                        result_type=t["classify_by"],
-                    )
-                    results_dict[result_key] = classification
-
-            elif task_type == "moderation":
-                def raise_moderation_exeption(result: dict, threshold: float):
-                    if result.get("extreme_profanity", 0) > t["threshold"]:
-                        raise ModerationException("Extreme profanity detected")
-                    elif result.get("sexually_explicit", 0) > t["threshold"]:
-                        raise ModerationException(
-                            "Sexually explicit content detected"
-                        )
-                    elif result.get("hate_speech", 0) > t["threshold"]:
-                        raise ModerationException("Hate speech detected")
-                    elif result.get("harassment", 0) > t["threshold"]:
-                        raise ModerationException("Harassment detected")
-                    elif result.get("self_harm", 0) > t["threshold"]:
-                        raise ModerationException("Self harm detected")
-                    elif result.get("dangerous_content", 0) > t["threshold"]:
-                        raise ModerationException("Dangerous content detected")
-
-                if self.client_mode:
-                    # Use client function
-                    result = moderation_task(
-                        text=self.text, threshold=t["threshold"]
-                    )
-                else:
-                    result: ViolationActivation = await run_agents_async(
-                        f"""
-                        Check the text for violations and return the activation levels.
-
-                        Here's the text: {self.text}.
-                        """,
-                        agents=agents_for_task or [get_agent("moderation_agent")],
-                        result_type=ViolationActivation,
-                    )
-                raise_moderation_exeption(result, t["threshold"])
-                results_dict[result_key] = result
-
-            # Now handle "custom" tasks
-            elif task_type == "custom":
-                name = t["name"]
-                if name in CUSTOM_WORKFLOW_REGISTRY:
-                    # A registered custom function
-                    custom_fn = CUSTOM_WORKFLOW_REGISTRY[name]
-                    result = custom_fn(t, run_agents, self.text)
-                    results_dict[result_key] = result
-                else:
-                    if self.client_mode:
-                        # Call your client function for custom workflows, e.g.:
-                        result = custom_workflow(
-                            name=t["name"],
-                            objective=t["objective"],
-                            instructions=t.get("instructions", ""),
-                            agents=agents_for_task or [get_agent("default_agent")],
-                            context={**t.get("kwargs", {}), "text": self.text},
-                        )
-                        results_dict[result_key] = result
-                    else:
-                        # fallback logic if no specific function is found
-                        context_formatted = json.dumps({"text": self.text, **t.get("kwargs", {})}, indent=4)
-
-                        result = await run_agents_async(
-                            f"""
-                            Task objective: {t["objective"]}
-                            Task instructions: {t.get("instructions", "")}
-                            Additional task context: {context_formatted}
-                            """,
-                            agents=agents_for_task or [get_agent("default_agent")],
-                            result_type=str,
-                        )
-                        results_dict[result_key] = result
-
-        # Clear tasks after running
+        with marvin.Thread(id=conversation_id):
+            for t in self.tasks:
+                if t.get("agents"):
+                    for agent in t["agents"]:
+                        if hasattr(agent, "members"):
+                            for member in agent.members:
+                                member.tools = [
+                                    tool.fn if hasattr(tool, "fn") and callable(tool.fn) else tool
+                                    for tool in member.tools
+                                ]
+                        else:
+                            agent.tools = [
+                                tool.fn if hasattr(tool, "fn") and callable(tool.fn) else tool
+                                for tool in agent.tools
+                            ]
+                result_key = t.get("name") or t.get("task_id") or t.get("type")
+                results_dict[result_key] = await self.run_task_async(t, self.text, self.agents)
         self.tasks.clear()
-        return {"results": results_dict}
+        return {"conversation_id": conversation_id, "results": results_dict}
 
 
-# Add chainable methods to Tasks class
+
+
+    def to_yaml(
+        self,
+        workflow_name: str = "My YAML Workflow",
+        file_path: Optional[str] = None,
+        store_creds: bool = False,
+    ) -> str:
+        import yaml
+        from pathlib import Path
+        from .agent_methods.data_models.datamodels import WorkflowDefinition, TaskDefinition, AgentParams
+        from .agent_methods.agents.agents_factory import agent_or_swarm
+        import uuid
+
+        #top
+        agent_params_list = []
+        if self.agents:
+            for agent_obj in self.agents:
+                agent_params_list.extend(agent_or_swarm(agent_obj, store_creds))
+        
+
+        task_models = []
+        for t in self.tasks:
+            task_metadata = t.get("task_metadata") or {}
+            if "client_mode" not in task_metadata:
+                task_metadata["client_mode"] = t.get("client_mode", self.client_mode)
+            task_model = TaskDefinition(
+                task_id=t.get("task_id", t.get("type", str(uuid.uuid4()))),
+                name=t.get("name", t.get("type", "Unnamed Task")),
+                text=t.get("text"),
+                task_metadata=task_metadata,
+                execution_metadata=t.get("execution_metadata") or {},
+            )
+            # Process task-level agents similarly.
+            step_agents_params = []
+            if t.get("agents"):
+                for agent in t["agents"]:
+                    step_agents_params.extend(agent_or_swarm(agent, store_creds))
+                task_model.agents = step_agents_params
+            task_models.append(task_model)
+        
+        # Build the WorkflowDefinition.
+        from .agent_methods.data_models.datamodels import WorkflowDefinition  # re-import if needed
+        wf_def = WorkflowDefinition(
+            name=workflow_name,
+            text=self.text,
+            client_mode=self.client_mode,
+            agents=agent_params_list,
+            tasks=task_models,
+        )
+        wf_dict = wf_def.model_dump(mode="json")
+        yaml_str = yaml.safe_dump(wf_dict, sort_keys=False)
+        if file_path:
+            Path(file_path).write_text(yaml_str, encoding="utf-8")
+        return yaml_str
+
+    def from_yaml(self, yaml_str: str = None, file_path: str = None) -> "Workflow":
+        import yaml
+        from pathlib import Path
+        from collections import defaultdict
+        from .agent_methods.data_models.datamodels import WorkflowDefinition, TaskDefinition, AgentParams
+        from .agent_methods.agents.agents_factory import create_agent, create_swarm
+
+        if not yaml_str and not file_path:
+            raise ValueError("Either yaml_str or file_path must be provided.")
+        if yaml_str:
+            data = yaml.safe_load(yaml_str)
+        else:
+            data = yaml.safe_load(Path(file_path).read_text(encoding="utf-8"))
+
+        wf_def = WorkflowDefinition(**data)
+        self.text = wf_def.text or ""
+
+        # --- Rehydrate Top-Level Agents ---
+        swarm_lookup = {}   # key: swarm_name, value: list of AgentParams objects
+        individual_agents = []  # list of AgentParams without a swarm_name
+        if wf_def.agents:
+            for agent_data in wf_def.agents:
+
+                if hasattr(agent_data, "swarm_name") and agent_data.swarm_name is not None:
+                    swarm_name = agent_data.swarm_name
+                    logger.debug(f"Top-level agent '{agent_data.name}' is part of swarm '{swarm_name}'")
+                    swarm_lookup.setdefault(swarm_name, []).append(agent_data)
+                else:
+                    individual_agents.append(agent_data)
+        
+        real_agents = []
+
+
+        for swarm_name, members_list in swarm_lookup.items():
+            logger.debug(f" Group for swarm '{swarm_name}': {len(members_list)} member(s)")
+            members = [create_agent(member) for member in members_list]
+            swarm_obj = create_swarm(members)
+            # Explicitly set the swarm's name.
+            swarm_obj.name = swarm_name
+            real_agents.append(swarm_obj)
+        # Rehydrate individual agents.
+        for agent_data in individual_agents:
+            real_agents.append(create_agent(agent_data))
+        self.agents = real_agents
+
+        top_level_swarm_lookup = {swarm_obj.name: swarm_obj for swarm_obj in real_agents if hasattr(swarm_obj, "members")}
+
+        # --- Rehydrate Tasks ---
+        self.tasks.clear()
+        for task in wf_def.tasks:
+            new_task = {
+                "task_id": task.task_id,
+                "name": task.name,
+                "text": task.text,
+                "task_metadata": task.task_metadata or {},
+                "execution_metadata": task.execution_metadata or {},
+            }
+            if task.agents:
+                step_agents = []
+                # Group task-level agents by swarm_name.
+                swarm_groups = defaultdict(list)
+                individual = []
+                for agent in task.agents:
+
+                    swarm_name = None
+                    if isinstance(agent, dict):
+                        swarm_name = agent.get("swarm_name")
+                    else:
+                        swarm_name = getattr(agent, "swarm_name", None)
+
+                    if swarm_name:
+                        swarm_groups[swarm_name].append(agent)
+                    else:
+                        individual.append(agent)
+
+                logger.debug(f"Task '{task.name}': Found {len(swarm_groups)} swarm group(s) and {len(individual)} individual agent(s)")
+
+                for swarm_name, members_list in swarm_groups.items():
+                    logger.debug(f"  Group for swarm '{swarm_name}': {len(members_list)} member(s)")
+
+                    if swarm_name in top_level_swarm_lookup:
+                        logger.debug(f"Task '{task.name}'  Using top-level swarm '{swarm_name}'")
+                        step_agents.append(top_level_swarm_lookup[swarm_name])
+                    else:
+                        members = [create_agent(AgentParams.model_validate(m)) for m in members_list]
+                        swarm_obj = create_swarm(members)
+                        swarm_obj.name = swarm_name  # set the swarm name explicitly
+                        logger.debug(f" Task '{task.name}' Created new swarm '{swarm_obj.name}' with {len(swarm_obj.members)} members")
+                        step_agents.append(swarm_obj)
+
+                for agent in individual:
+                    rehydrated = create_agent(AgentParams.model_validate(agent))
+
+                    logger.debug(f"  Rehydrated individual agent: {rehydrated.name}")
+                    step_agents.append(rehydrated)
+                new_task["agents"] = step_agents
+            self.tasks.append(new_task)
+        return self
+
+from .chainables import CHAINABLE_METHODS  #has to be down here else circular import
 for method_name, func in CHAINABLE_METHODS.items():
     setattr(Workflow, method_name, func)
