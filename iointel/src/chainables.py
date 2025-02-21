@@ -16,7 +16,7 @@ from .agents import Agent
 def execute_schedule_reminder(
     task_metadata: dict, text: str, agents: List[Agent], execution_metadata: dict
 ):
-    from framework.apis.client.client import schedule_task
+    from ..client.client import schedule_task
     client_mode = execution_metadata.get("client_mode", False)
     if client_mode:
         return schedule_task(command=text)
@@ -39,7 +39,7 @@ def execute_solve_with_reasoning(
     from .agent_methods.data_models.datamodels import ReasoningStep
     client_mode = execution_metadata.get("client_mode", False)
     if client_mode:
-        from framework.apis.client.client import run_reasoning_task
+        from ..client.client import run_reasoning_task
 
         return run_reasoning_task(text)
     else:
@@ -68,7 +68,7 @@ def execute_solve_with_reasoning(
 def execute_summarize_text(
     task_metadata: dict, text: str, agents: List[Agent], execution_metadata: dict
 ):
-    from framework.apis.client.client import summarize_task
+    from ..client.client import summarize_task
     from .agent_methods.data_models.datamodels import SummaryResult
 
     max_words = task_metadata.get("max_words")
@@ -88,7 +88,7 @@ def execute_summarize_text(
 @register_custom_task("sentiment")
 def execute_sentiment(task_metadata: dict, text: str, agents: List[Agent], execution_metadata: dict):
 
-    from framework.apis.client.client import sentiment_analysis
+    from ..client.client import sentiment_analysis
 
     client_mode = execution_metadata.get("client_mode", False)
     
@@ -109,7 +109,7 @@ def execute_sentiment(task_metadata: dict, text: str, agents: List[Agent], execu
 def execute_extract_entities(
     task_metadata: dict, text: str, agents: List[Agent], execution_metadata: dict
 ):
-    from framework.apis.client.client import extract_entities
+    from ..client.client import extract_entities
     client_mode = execution_metadata.get("client_mode", False)
     if client_mode:
         return extract_entities(text=text)
@@ -136,7 +136,7 @@ def execute_translate_text(
     task_metadata: dict, text: str, agents: List[Agent], execution_metadata: dict
 ):
     target_lang = task_metadata["target_language"]
-    from framework.apis.client.client import translate_text_task
+    from ..client.client import translate_text_task
     from .agent_methods.data_models.datamodels import TranslationResult
 
     client_mode = execution_metadata.get("client_mode", False)
@@ -158,7 +158,7 @@ def execute_translate_text(
 def execute_classify(
     task_metadata: dict, text: str, agents: List[Agent], execution_metadata: dict
 ):
-    from framework.apis.client.client import classify_text
+    from ..client.client import classify_text
 
     client_mode = execution_metadata.get("client_mode", False)
     classify_by = task_metadata.get("classify_by")
@@ -183,7 +183,7 @@ def execute_moderation(
         ViolationActivation,
         ModerationException,
     )
-    from framework.apis.client.client import moderation_task
+    from ..client.client import moderation_task
 
     client_mode = execution_metadata.get("client_mode", False)
     threshold = task_metadata["threshold"]
@@ -232,7 +232,7 @@ def execute_custom(
         return result
     else:
         if client_mode:
-            from framework.apis.client.client import custom_workflow
+            from ..client.client import custom_workflow
 
             return custom_workflow(
                 name=task_metadata["name"],
