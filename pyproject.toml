@@ -5,21 +5,11 @@ description = "A framework to create agents, tasks, and workflows."
 requires-python = ">= 3.10"
 dependencies = [
     "pydantic>=2.10.3",
-    "docker>=7.1.0",
-    "sqlalchemy>=2.0.36",
-    "uvicorn>=0.32.1",
     "python-dotenv>=1.0.1",
-    "fastapi>=0.115.6",
-    "httpx>=0.28.1",
+    "httpx",
     "pytest>=8.3.4",
-    "pytest-mock>=3.12.0",
     "python-multipart>=0.0.20",
-    "sqlalchemy-utils>=0.41.2",
-    "pgvector>=0.3.6",
-    "solders>=0.23.0",
-    "solana>=0.36.2",
-    "langchain-core>=0.3.28",
-    "controlflow>=0.11.4,<0.12",
+    "prefect>=3.2.2",
     "pydantic-ai>=0.0.37",
     "marvin==3.0.1",
 ]
@@ -54,6 +44,47 @@ tests = [
     "pytest-dotenv",
 ]
 
+tools = [
+    "solders>=0.23.0",
+    "solana>=0.36.2",
+    "r2r>=3.3.32",
+    "firecrawl-py>=1.11.0",
+    "wolframalpha>=5.1.3",
+]
+
+memory = [
+    "sqlalchemy>=2.0.36",
+    "sqlalchemy-utils>=0.41.2",
+    "pgvector>=0.3.6",
+    "langchain-openai>=0.2.14",
+    "langchain-core>=0.3.28",
+]
+
+all = [
+    "pydantic>=2.10.3",
+    "python-dotenv>=1.0.1",
+    "httpx",
+    "pytest>=8.3.4",
+    "python-multipart>=0.0.20",
+    "marvin",
+    "pydantic-ai",
+    "prefect>=3.2.2",
+    "sqlalchemy>=2.0.36",
+    "sqlalchemy-utils>=0.41.2",
+    "pgvector>=0.3.6",
+    "langchain-openai>=0.2.14",
+    "langchain-core>=0.3.28",
+    "solders>=0.23.0",
+    "solana>=0.36.2",
+    "r2r>=3.3.32",
+    "firecrawl-py>=1.11.0",
+    "wolframalpha>=5.1.3",
+]
+
+api = [
+    "fastapi-cors>=0.0.6",
+]
+
 [build-system]
 requires = ["hatchling", "hatch-fancy-pypi-readme"]
 build-backend = "hatchling.build"
@@ -85,3 +116,7 @@ substitutions = [
     # replace Github-styled callout (not supported on pypi) with just bold
     {pattern = '\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]', replacement = '**\1**:'},
 ]
+
+[tool.uv.sources]
+pydantic-ai = { git = "https://github.com/webcoderz/pydantic-ai", rev = "webcoderz-model-settings" }
+marvin = { git = "https://github.com/webcoderz/marvin" }
