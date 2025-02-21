@@ -1,3 +1,6 @@
+from .src.magic import (
+    UNUSED as UNUSED,
+)  # this performs some magic to hide controlflow warning
 from .src.agents import Agent, Swarm
 
 # from .src.memory import AsyncMemory, AsyncPostgresMemoryProvider, Memory, PostgresMemoryProvider
@@ -15,6 +18,7 @@ from .src.agent_methods.tools.wolfram import Wolfram
 from .src.utilities.decorators import register_custom_task, register_tool
 from .src.utilities.runners import run_agents, run_agents_async
 from .src.code_parsers.pycode_parser import PythonModule, ClassDefinition, FunctionDefinition, Argument, ImportStatement , PythonCodeGenerator
+
 __all__ = [
 
 
@@ -59,4 +63,4 @@ __all__ = [
 ]
 
 
-__version__ = "0.0.0"
+__version__ = "1.1.3"
