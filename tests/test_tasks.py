@@ -31,7 +31,7 @@ def test_tasks_custom():
     assert len(flows.tasks) == 1
     c = flows.tasks[0]
     assert c["type"] == "custom"
-    assert c["name"] == "my-custom-step"
+    assert c["task_metadata"]["name"] == "my-custom-step"
     assert c["objective"] == "Custom objective"
     assert c["instructions"] == "Some instructions"
     assert c["kwargs"]["my_extra"] == "something"
