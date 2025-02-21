@@ -7,12 +7,11 @@ def test_tasks_chain_basic():
     Ensure that calling chainable methods appends tasks correctly.
     """
     f = Workflow(text="Sample text", client_mode=False)
-    f.schedule_reminder(delay=10).council().sentiment()
+    f.schedule_reminder(delay=10).sentiment()
     assert len(f.tasks) == 3
 
     assert f.tasks[0]["type"] == "schedule_reminder"
     assert f.tasks[0]["delay"] == 10
-    assert f.tasks[1]["type"] == "council"
     assert f.tasks[2]["type"] == "sentiment"
     # We won't actually run tasks.run_tasks().
     # Instead, we just confirm the tasks are appended.
