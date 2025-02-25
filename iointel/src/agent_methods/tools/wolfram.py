@@ -13,7 +13,7 @@ class Wolfram:
         res = self.client.query(query)
         return next(res.results).text
     
-    async def aquery(self, query):
+    async def query_async(self, query):
         res = await self.client.aquery(query)
         return next(res.results).text
     
