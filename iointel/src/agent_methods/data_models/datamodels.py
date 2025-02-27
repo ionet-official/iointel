@@ -59,43 +59,43 @@ class PersonaConfig(BaseModel):
         description="A general descriptive text, e.g., 'A tall, lean figure wearing a cloak, with a stern demeanor.'",
     )
 
-    friendliness: Optional[float] = Field(
+    friendliness: Optional[Union[float,str]] = Field(
         None,
         description="How friendly the agent is, from 0 (hostile) to 1 (friendly).",
         ge=0,
         le=1,
     )
-    creativity: Optional[float] = Field(
+    creativity: Optional[Union[float,str]] = Field(
         None,
         description="How creative the agent is, from 0 (very logical) to 1 (very creative).",
         ge=0,
         le=1,
     )
-    curiosity: Optional[float] = Field(
+    curiosity: Optional[Union[float,str]] = Field(
         None,
         description="How curious the agent is, from 0 (disinterested) to 1 (very curious).",
         ge=0,
         le=1,
     )
-    empathy: Optional[float] = Field(
+    empathy: Optional[Union[float,str]] = Field(
         None,
         description="How empathetic the agent is, from 0 (cold) to 1 (very empathetic).",
         ge=0,
         le=1,
     )
-    humor: Optional[float] = Field(
+    humor: Optional[Union[float,str]] = Field(
         None,
         description="How humorous the agent is, from 0 (serious) to 1 (very humorous).",
         ge=0,
         le=1,
     )
-    formality: Optional[float] = Field(
+    formality: Optional[Union[float,str]] = Field(
         None,
         description="How formal the agent is, from 0 (very casual) to 1 (very formal).",
         ge=0,
         le=1,
     )
-    emotional_stability: Optional[float] = Field(
+    emotional_stability: Optional[Union[float,str]] = Field(
         None,
         description="How emotionally stable the agent is, from 0 (very emotional) to 1 (very stable).",
         ge=0,
