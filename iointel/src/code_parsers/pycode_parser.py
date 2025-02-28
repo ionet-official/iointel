@@ -8,10 +8,12 @@ class ImportStatement(BaseModel):
     names: List[str] = []
     alias: Optional[str] = None
 
+
 class Argument(BaseModel):
     name: str
     default: Optional[str] = None
     annotation: Optional[str] = None
+
 
 class FunctionDefinition(BaseModel):
     name: str
@@ -21,11 +23,13 @@ class FunctionDefinition(BaseModel):
     decorators: List[str] = []
     returns: Optional[str] = None
 
+
 class ClassDefinition(BaseModel):
     name: str
     docstring: Optional[str] = None
     methods: List[FunctionDefinition] = []
     decorators: List[str] = []
+
 
 class PythonModule(BaseModel):
     docstring: Optional[str] = None
@@ -53,7 +57,7 @@ class PythonCodeGenerator:
         code_lines.append(f"def {func.name}({args_str}){return_str}:")
         if func.docstring:
             code_lines.append(f'    """{func.docstring}"""')
-        body_lines = func.body.split('\n')
+        body_lines = func.body.split("\n")
         if any(line.strip() for line in body_lines):
             for line in body_lines:
                 code_lines.append("    " + line)
@@ -103,7 +107,9 @@ class PythonCodeGenerator:
         for imp in module.imports:
             if imp.names:
                 if imp.alias and len(imp.names) == 1:
-                    code_lines.append(f"from {imp.module} import {imp.names[0]} as {imp.alias}")
+                    code_lines.append(
+                        f"from {imp.module} import {imp.names[0]} as {imp.alias}"
+                    )
                 else:
                     names_str = ", ".join(imp.names)
                     code_lines.append(f"from {imp.module} import {names_str}")
@@ -124,7 +130,9 @@ class PythonCodeGenerator:
             code_lines.append(module.body)
             code_lines.append("")
 
-        return "\n".join(line for line in code_lines if line.strip() != "" or line == "")
+        return "\n".join(
+            line for line in code_lines if line.strip() != "" or line == ""
+        )
 
     def extract_imported_modules(self, module: PythonModule) -> List[str]:
         # Use a set to avoid duplicates

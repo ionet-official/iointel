@@ -35,9 +35,9 @@ jobs:
     environment: ${{ github.ref == 'refs/heads/main' && 'prod' || github.base_ref == 'main' && 'prod' || github.ref == 'refs/heads/staging' && 'staging' || github.base_ref == 'staging' && 'staging' || github.ref == 'refs/heads/dev' && 'dev' || github.base_ref == 'dev' && 'dev' }}
 
     env:
-      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-      OPENAI_API_BASE_URL: ${{ secrets.OPENAI_API_BASE_URL }}
-      OPENAI_API_MODEL: meta-llama/Llama-3.3-70B-Instruct
+      IO_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      IO_API_BASE_URL: ${{ secrets.OPENAI_API_BASE_URL }}
+      IO_API_MODEL: meta-llama/Llama-3.3-70B-Instruct
       SLOW_MODE_SLEEP: 30
 
     steps:
@@ -57,3 +57,8 @@ jobs:
       - name: Run tests
         run: pytest -vv tests/
         if: ${{ !(github.event.pull_request.head.repo.fork) }}
+
+      - name: Check readme anchors
+        run: |
+          pip install pipx
+          pipx run hatch-fancy-pypi-readme | grep -vq 'MISSING ANCHOR'

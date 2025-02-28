@@ -5,11 +5,10 @@ from ..data_models.datamodels import AgentParams
 from typing import Optional
 
 
-
 AGENT_SPECS = {
     "reminder_agent": {
         "name": "Reminder Agent",
-        "instructions": "A simple agent that sends reminders."
+        "instructions": "A simple agent that sends reminders.",
     },
     "leader": {
         "name": "Leader",
@@ -17,86 +16,85 @@ AGENT_SPECS = {
             You are the council leader, 
             you lead the council and provide guidance, 
             and administer the voting process.
-        """
+        """,
     },
     "council_member1": {
         "name": "Council Member 1",
-        "instructions": "You are a council member who provides input and votes on decisions."
+        "instructions": "You are a council member who provides input and votes on decisions.",
     },
     "council_member2": {
         "name": "Council Member 2",
-        "instructions": "You are a council member who provides input and votes on decisions."
+        "instructions": "You are a council member who provides input and votes on decisions.",
     },
     "council_member3": {
         "name": "Council Member 3",
-        "instructions": "You are a council member who provides input and votes on decisions."
+        "instructions": "You are a council member who provides input and votes on decisions.",
     },
     "coder": {
         "name": "Coder",
-        "instructions": "You are an expert python coder who provides code for the task."
+        "instructions": "You are an expert python coder who provides code for the task.",
     },
     "agent_maker": {
         "name": "Agent Maker",
-        "instructions": "You create agents that can perform tasks from the provided code."
+        "instructions": "You create agents that can perform tasks from the provided code.",
     },
     "reasoning_agent": {
         "name": "Reasoning Agent",
-        "instructions": "You are an agent that performs reasoning steps."
+        "instructions": "You are an agent that performs reasoning steps.",
     },
     "docker_sandbox_agent": {
         "name": "Docker Sandbox Agent",
-        "instructions": "You are an agent that runs code in a docker sandbox."
+        "instructions": "You are an agent that runs code in a docker sandbox.",
     },
     "summary_agent": {
         "name": "Summary Agent",
-        "instructions": "You are an agent that summarizes text."
+        "instructions": "You are an agent that summarizes text.",
     },
     "sentiment_analysis_agent": {
         "name": "Sentiment Analysis Agent",
-        "instructions": "You are an agent that performs unbiased sentiment analysis on text."
+        "instructions": "You are an agent that performs unbiased sentiment analysis on text.",
     },
     "extractor": {
         "name": "Named Entity Recognizer",
-        "instructions": "You are an agent that extracts named entities from text."
+        "instructions": "You are an agent that extracts named entities from text.",
     },
     "default_agent": {
         "name": "Default Agent",
-        "instructions": "You are an agent that does a lot of different things, you are dynamic."
+        "instructions": "You are an agent that does a lot of different things, you are dynamic.",
     },
     "moderation_agent": {
         "name": "Moderation Agent",
-        "instructions": "You are an agent that moderates content."
+        "instructions": "You are an agent that moderates content.",
     },
     "classification_agent": {
         "name": "Classification Agent",
-        "instructions": "You are an agent that is an expert in classifying things."
+        "instructions": "You are an agent that is an expert in classifying things.",
     },
     "translation_agent": {
         "name": "Translation Agent",
-        "instructions": "You are an agent that is a polyglot of multiple languages and is an expert in translating text."
+        "instructions": "You are an agent that is a polyglot of multiple languages and is an expert in translating text.",
     },
 }
+
 
 def create_agent(params: AgentParams) -> Agent:
     """
     Create a Agent instance from the given AgentParams.
     """
-    #return Agent(name=params.name, instructions=params.instructions, persona=params.persona, tools=params.tools)
+    # return Agent(name=params.name, instructions=params.instructions, persona=params.persona, tools=params.tools)
     return Agent(**params.model_dump(exclude_none=True))
+
 
 def create_agents():
     return {
         agent_key: create_agent(
-            AgentParams(
-                name=spec["name"],
-                instructions=spec["instructions"]
-            )
+            AgentParams(name=spec["name"], instructions=spec["instructions"])
         )
         for agent_key, spec in AGENT_SPECS.items()
     }
 
 
-AGENTS = create_agents() if os.environ.get('LIBRARY_MODE', '').lower() != 'true' else {}
+AGENTS = create_agents() if os.environ.get("LIBRARY_MODE", "").lower() != "true" else {}
 
 
 def get_agent(agent_name: str, agent_params: Optional[AgentParams] = None) -> Agent:
