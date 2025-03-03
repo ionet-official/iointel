@@ -45,3 +45,29 @@ def test_tool_call():
     current_date = get_current_datetime().split(' ')[0]
     assert result is not None, "Expected a result from the agent run."
     assert current_date in result, "Date should be extracted correctly"
+
+def test_tool_call_with_addition():
+    """
+    Check addition tool.
+    Make sure the types are resolved correctly
+    """
+    toolcall_happened = None
+
+    def add_two_numbers(a: int, b: int) -> int:
+        """
+        Return the result of addition
+        """
+        nonlocal toolcall_happened
+        toolcall_happened = {
+            'a': a,
+            'b': b,
+            'a+b': a + b
+        }
+        return a + b
+
+    a = Agent(name="RunAgent", instructions="Test run method.", tools=[add_two_numbers])
+    result = a.run("Add numbers 2 and 7. Use the provided tool. Return result provided by the tool")
+    assert result is not None, "Expected a result from the agent run."
+    assert '9' in result, "Result should be 9"
+    assert toolcall_happened is not None, "Make sure the tool was actually called"
+    assert toolcall_happened['a+b'] == 9, "Make sure the result of the toolcall matches the return value of the agent"
