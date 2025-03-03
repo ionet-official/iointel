@@ -19,7 +19,13 @@ def test_reasoning_task():
 
 
 def test_summarize_task():
-    result = client.summarize_task("This is a long text talking about nothing, emptiness and things like that. Nobody knows what it is about. The void gazes into you.")
+    result = client.summarize_task(
+        "This is a long text talking about nothing, emptiness and things like that. Nobody knows what it is about. The void gazes into you."
+    )
+    assert result
+    result = client.summarize_task(
+        "Breaking news: local sports team wins!", max_words=50
+    )
     assert result
 
 
@@ -45,6 +51,8 @@ def test_classify():
 
 def test_moderation_task():
     result = client.moderation_task("random junk")
+    assert result
+    result = client.moderation_task("random junk", threshold=1.0)
     assert result
 
 
@@ -82,4 +90,3 @@ name: whatever
 """)
     with pytest.raises(NotImplementedError):
         client.upload_workflow_file(str(tmpfile))
-

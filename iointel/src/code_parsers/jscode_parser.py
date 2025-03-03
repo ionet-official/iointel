@@ -10,6 +10,7 @@ class ImportSpecifier(BaseModel):
     # If local is None, local name = imported
     # For default imports: imported='default', local='myDefault'
 
+
 class ImportStatement(BaseModel):
     source: str
     specifiers: List[ImportSpecifier] = []
@@ -20,11 +21,13 @@ class ImportStatement(BaseModel):
     # import {foo, bar as baz} from 'another-module'
     # import * as utils from 'utils'
 
+
 class ExportSpecifier(BaseModel):
     exported: str
     local: Optional[str] = None
     # e.g. export { foo as bar }
     # exported='bar', local='foo'
+
 
 class ExportStatement(BaseModel):
     specifiers: List[ExportSpecifier] = []
@@ -32,11 +35,13 @@ class ExportStatement(BaseModel):
     # If default_export=True, then it's something like `export default function ...`
     # or `export default class ...`
 
+
 class Parameter(BaseModel):
     name: str
     default: Optional[str] = None
-    # No explicit annotation since JS is dynamically typed, 
+    # No explicit annotation since JS is dynamically typed,
     # unless you're parsing TypeScript, then you can add type info.
+
 
 class FunctionDefinition(BaseModel):
     name: str
@@ -47,6 +52,7 @@ class FunctionDefinition(BaseModel):
     # You could add a flag to distinguish between a function declaration and function expression if needed.
     # For arrow functions, consider a separate model or a boolean flag.
 
+
 class ClassMethodDefinition(BaseModel):
     name: str
     parameters: List[Parameter] = []
@@ -55,11 +61,13 @@ class ClassMethodDefinition(BaseModel):
     static: bool = False
     # Could add getters, setters if needed
 
+
 class ClassFieldDefinition(BaseModel):
     name: str
     value: Optional[str] = None
     static: bool = False
     # For class fields like `class MyClass { static foo = 42; bar = 'hello'; }`
+
 
 class ClassDefinition(BaseModel):
     name: str
@@ -67,13 +75,16 @@ class ClassDefinition(BaseModel):
     methods: List[ClassMethodDefinition] = []
     fields: List[ClassFieldDefinition] = []
 
+
 class VariableDeclarator(BaseModel):
     name: str
     value: Optional[str] = None
 
+
 class VariableDeclaration(BaseModel):
     kind: str  # 'var', 'let', 'const'
     declarations: List[VariableDeclarator]
+
 
 class JavaScriptModule(BaseModel):
     imports: List[ImportStatement] = []
@@ -85,19 +96,18 @@ class JavaScriptModule(BaseModel):
 
 
 class JavaScriptCodeGenerator:
-
     def generate_code_from_import(self, imp: ImportStatement) -> str:
         # For a default import:
         if imp.default_import and not imp.namespace_import and not imp.specifiers:
             # const _ = require('lodash');
             return f"const {imp.default_import} = require('{imp.source}');"
-        
+
         # For namespace imports:
         if imp.namespace_import:
             # const utils = require('utils');
             # emulate `import * as utils from 'utils'`:
             return f"const {imp.namespace_import} = require('{imp.source}');"
-        
+
         # For named imports:
         if imp.specifiers:
             # import {foo, bar as baz} from 'mod';
@@ -110,7 +120,7 @@ class JavaScriptCodeGenerator:
                     specs.append(s.imported)
             spec_str = ", ".join(specs)
             return f"const {{ {spec_str} }} = require('{imp.source}');"
-        
+
         # If no default, no specifiers, just a side-effect import:
         return f"require('{imp.source}');"
 
@@ -122,7 +132,9 @@ class JavaScriptCodeGenerator:
 
         if exp.specifiers:
             spec_list = [
-                f"{s.local if s.local else s.exported} as {s.exported}" if s.local else s.exported
+                f"{s.local if s.local else s.exported} as {s.exported}"
+                if s.local
+                else s.exported
                 for s in exp.specifiers
             ]
             return f"export {{ {', '.join(spec_list)} }};"
@@ -131,7 +143,9 @@ class JavaScriptCodeGenerator:
     def generate_code_from_function(self, func: FunctionDefinition) -> str:
         async_str = "async " if func.async_function else ""
         gen_str = "*" if func.generator else ""
-        params = [f"{p.name}={p.default}" if p.default else p.name for p in func.parameters]
+        params = [
+            f"{p.name}={p.default}" if p.default else p.name for p in func.parameters
+        ]
         param_str = ", ".join(params)
         return f"{async_str}function{gen_str} {func.name}({param_str}) {{\n{self.indent_code(func.body)}\n}}"
 
@@ -149,25 +163,35 @@ class JavaScriptCodeGenerator:
         for method in cls.methods:
             async_str = "async " if method.async_method else ""
             static_str = "static " if method.static else ""
-            params = [f"{p.name}={p.default}" if p.default else p.name for p in method.parameters]
+            params = [
+                f"{p.name}={p.default}" if p.default else p.name
+                for p in method.parameters
+            ]
             param_str = ", ".join(params)
-            code_lines.append(f"    {async_str}{static_str}{method.name}({param_str}) {{")
+            code_lines.append(
+                f"    {async_str}{static_str}{method.name}({param_str}) {{"
+            )
             code_lines.append(self.indent_code(method.body, level=2))
             code_lines.append("    }")
 
         code_lines.append("}")
         return "\n".join(code_lines)
 
-    def generate_code_from_variables(self, vars: List[VariableDeclaration]) -> List[str]:
+    def generate_code_from_variables(
+        self, vars: List[VariableDeclaration]
+    ) -> List[str]:
         lines = []
         for v in vars:
-            decls = [f"{d.name} = {d.value}" if d.value is not None else d.name for d in v.declarations]
+            decls = [
+                f"{d.name} = {d.value}" if d.value is not None else d.name
+                for d in v.declarations
+            ]
             lines.append(f"{v.kind} " + ", ".join(decls) + ";")
         return lines
 
     def indent_code(self, code: str, level: int = 1) -> str:
         prefix = "    " * level
-        return "\n".join(prefix + line for line in code.split('\n'))
+        return "\n".join(prefix + line for line in code.split("\n"))
 
     def generate_code_from_js_module(self, module: JavaScriptModule) -> str:
         code_lines = []

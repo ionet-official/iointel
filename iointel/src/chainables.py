@@ -1,104 +1,126 @@
 from typing import List, Optional
 
-def schedule_reminder(self, delay: int = 0, agents: List[str]=None):
-    #WIP
-    self.tasks.append({
-        "type": "schedule_reminder",
-        "command": self.text,
-        "delay": delay,
-        "agents": agents
-    })
+
+def schedule_reminder(self, delay: int = 0, agents: List[str] = None):
+    # WIP
+    self.tasks.append(
+        {
+            "type": "schedule_reminder",
+            "command": self.text,
+            "delay": delay,
+            "agents": agents,
+        }
+    )
     return self
+
 
 def council(self):
-    self.tasks.append({
-        "type": "council",
-        "task": self.text,
-    })
+    self.tasks.append(
+        {
+            "type": "council",
+            "task": self.text,
+        }
+    )
     return self
 
-def solve_with_reasoning(self, agents: Optional[List[str]]=None):
-    self.tasks.append({
-        "type": "solve_with_reasoning",
-        "goal": self.text,
-        "agents": agents
-    })
+
+def solve_with_reasoning(self, agents: Optional[List[str]] = None):
+    self.tasks.append(
+        {"type": "solve_with_reasoning", "goal": self.text, "agents": agents}
+    )
     return self
 
-def summarize_text(self, max_words: int = 100, agents: Optional[List[str]]=None):
-    self.tasks.append({
-        "type": "summarize_text",
-        "text": self.text,
-        "max_words": max_words,
-        "agents": agents
-    })
+
+def summarize_text(self, max_words: int = 100, agents: Optional[List[str]] = None):
+    self.tasks.append(
+        {
+            "type": "summarize_text",
+            "text": self.text,
+            "max_words": max_words,
+            "agents": agents,
+        }
+    )
     return self
 
-def sentiment(self, agents: Optional[List[str]]=None):
-    self.tasks.append({
-        "type": "sentiment",
-        "text": self.text,
-        "agents": agents
-    })
+
+def sentiment(self, agents: Optional[List[str]] = None):
+    self.tasks.append({"type": "sentiment", "text": self.text, "agents": agents})
     return self
 
-def extract_categorized_entities(self, agents: Optional[List[str]]=None):
-    self.tasks.append({
-        "type": "extract_categorized_entities",
-        "text": self.text,
-        "agents": agents
-    })
+
+def extract_categorized_entities(self, agents: Optional[List[str]] = None):
+    self.tasks.append(
+        {"type": "extract_categorized_entities", "text": self.text, "agents": agents}
+    )
     return self
 
-def translate_text(self, target_language: str, agents: Optional[List[str]]=None):
-    self.tasks.append({
-        "type": "translate_text",
-        "text": self.text,
-        "target_language": target_language,
-        "agents": agents
-    })
+
+def translate_text(self, target_language: str, agents: Optional[List[str]] = None):
+    self.tasks.append(
+        {
+            "type": "translate_text",
+            "text": self.text,
+            "target_language": target_language,
+            "agents": agents,
+        }
+    )
     return self
 
-def classify(self, classify_by: list, agents: Optional[List[str]]=None):
-    self.tasks.append({
-        "type": "classify",
-        "classify_by": classify_by,
-        "to_be_classified": self.text,
-        "agents": agents
-    })
+
+def classify(self, classify_by: list, agents: Optional[List[str]] = None):
+    self.tasks.append(
+        {
+            "type": "classify",
+            "classify_by": classify_by,
+            "to_be_classified": self.text,
+            "agents": agents,
+        }
+    )
     return self
 
-def moderation(self, threshold: float, agents: Optional[List[str]]=None):
-    self.tasks.append({
-        "type": "moderation",
-        "text": self.text,
-        "threshold": threshold,
-        "agents": agents
-    })
+
+def moderation(self, threshold: float, agents: Optional[List[str]] = None):
+    self.tasks.append(
+        {
+            "type": "moderation",
+            "text": self.text,
+            "threshold": threshold,
+            "agents": agents,
+        }
+    )
     return self
 
-def custom(self, name: str, objective: str, agents: Optional[List[str]] = None, instructions: str = "", **kwargs):
+
+def custom(
+    self,
+    name: str,
+    objective: str,
+    agents: Optional[List[str]] = None,
+    instructions: str = "",
+    **kwargs,
+):
     """
     Allows users to define a custom workflow (or step) that can be chained
     like the built-in tasks. 'name' can help identify the custom workflow
     in run_tasks().
-    
+
     :param name: Unique identifier for this custom workflow step.
     :param objective: The main objective or prompt for run_agents.
     :param agents: List of agents used (if None, a default can be used).
     :param instructions: Additional instructions for run_agents.
     :param kwargs: Additional data needed for this custom workflow.
     """
-    self.tasks.append({
-        "type": "custom",
-        "text": self.text,
-        "name": name,
-        "objective": objective,
-        "agents": agents,
-        "instructions": instructions,
-
-        "kwargs": kwargs,  # store other data
-    })
+    self.tasks.append(
+        {
+            "type": "custom",
+            "text": self.text,
+            "name": name,
+            "objective": objective,
+            "agents": agents,
+            "instructions": instructions,
+            "kwargs": kwargs,  # store other data
+        }
+    )
     return self
 
 
@@ -113,5 +135,5 @@ CHAINABLE_METHODS = {
     "translate_text": translate_text,
     "classify": classify,
     "moderation": moderation,
-    "custom": custom
+    "custom": custom,
 }

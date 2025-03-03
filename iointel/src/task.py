@@ -3,6 +3,7 @@ from .agents import Agent
 import controlflow as cf
 import asyncio
 
+
 class Task:
     """
     A class to manage and orchestrate runs using ControlFlow's cf.run().
@@ -29,7 +30,7 @@ class Task:
         instructions: str = "",
         context: Dict[str, Any] = None,
         result_type: Any = str,
-        **kwargs
+        **kwargs,
     ) -> Any:
         """
         Wrap cf.run() to execute a given objective with optional instructions, context, and agents.
@@ -51,7 +52,7 @@ class Task:
             instructions=instructions,
             context=context or {},
             result_type=result_type,
-            **kwargs
+            **kwargs,
         )
 
     async def a_run(
@@ -62,7 +63,7 @@ class Task:
         instructions: str = "",
         context: Dict[str, Any] = None,
         result_type: Any = str,
-        **kwargs
+        **kwargs,
     ) -> Any:
         """
         Wrap cf.run_async() to execute a given objective with optional instructions, context, and agents.
@@ -84,10 +85,12 @@ class Task:
             instructions=instructions,
             context=context or {},
             result_type=result_type,
-            **kwargs
+            **kwargs,
         )
 
-    def chain_runs(self, run_specs: List[Dict[str, Any]], run_async: Optional[bool] = False) -> List[Any]:
+    def chain_runs(
+        self, run_specs: List[Dict[str, Any]], run_async: Optional[bool] = False
+    ) -> List[Any]:
         """
         Execute multiple runs in sequence. Each element in run_specs is a dict containing parameters for `self.run`.
         The output of one run can be fed into the context of the next run if desired.
@@ -133,19 +136,45 @@ class Task:
                     instructions=spec.get("instructions", ""),
                     context=spec.get("context"),
                     result_type=spec.get("result_type", str),
-                    **{k: v for k, v in spec.items() if k not in ["objective", "agents", "completion_agents", "instructions", "context", "result_type"]}
+                    **{
+                        k: v
+                        for k, v in spec.items()
+                        if k
+                        not in [
+                            "objective",
+                            "agents",
+                            "completion_agents",
+                            "instructions",
+                            "context",
+                            "result_type",
+                        ]
+                    },
                 )
                 results.append(result)
             else:
-                result = asyncio.run(self.a_run(
-                    objective=spec["objective"],
-                    agents=spec.get("agents"),
-                    completion_agents=spec.get("completion_agents"),
-                    instructions=spec.get("instructions", ""),
-                    context=spec.get("context"),
-                    result_type=spec.get("result_type", str),
-                    **{k: v for k, v in spec.items() if k not in ["objective", "agents", "completion_agents", "instructions", "context", "result_type"]}
-                ))
+                result = asyncio.run(
+                    self.a_run(
+                        objective=spec["objective"],
+                        agents=spec.get("agents"),
+                        completion_agents=spec.get("completion_agents"),
+                        instructions=spec.get("instructions", ""),
+                        context=spec.get("context"),
+                        result_type=spec.get("result_type", str),
+                        **{
+                            k: v
+                            for k, v in spec.items()
+                            if k
+                            not in [
+                                "objective",
+                                "agents",
+                                "completion_agents",
+                                "instructions",
+                                "context",
+                                "result_type",
+                            ]
+                        },
+                    )
+                )
                 results.append(result)
         return results
 
@@ -153,8 +182,10 @@ class Task:
 # A global or module-level registry of custom workflows
 CUSTOM_WORKFLOW_REGISTRY = {}
 
+
 def register_custom_workflow(name: str):
     def decorator(func):
         CUSTOM_WORKFLOW_REGISTRY[name] = func
         return func
+
     return decorator
