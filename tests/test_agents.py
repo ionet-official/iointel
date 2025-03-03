@@ -1,5 +1,6 @@
 import pytest
 
+from iointel.src.agent_methods.tools.tools import get_current_datetime
 from iointel.src.agents import Agent
 from langchain_openai import ChatOpenAI
 
@@ -28,11 +29,19 @@ def test_agent_run():
     Basic check that the agent's run method calls Agent.run under the hood.
     We'll mock it or just ensure it doesn't crash.
     """
-    a = Agent(name="RunAgent", instructions="Test run method.")
-    # Because there's no real LLM here (mock credentials), the actual run might fail or stub.
-    # We can call run with a stub prompt and see if it returns something or raises a specific error.
+    a = Agent(
+        name="RunAgent",
+        instructions="Test run method.",
+    )
     result = a.run("Hello world")
     assert result is not None, "Expected a result from the agent run."
-    # with pytest.raises(Exception):
-    #    # This might raise an error due to fake API key or no actual LLM.
-    #    a.run("Hello world")
+
+def test_tool_call():
+    """
+    Basic check that the agent's toolcall mechanism is working
+    """
+    a = Agent(name="RunAgent", instructions="Test run method.", tools=[get_current_datetime])
+    result = a.run("Return current datetime")
+    current_date = get_current_datetime().split(' ')[0]
+    assert result is not None, "Expected a result from the agent run."
+    assert current_date in result, "Date should be extracted correctly"
