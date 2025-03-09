@@ -105,23 +105,6 @@ def resolve_tools(params: AgentParams) -> List:
                 resolved_tools.append(new_tool)
                 continue
         else:
-            logger.debug(
-                f"Rehydrating tool '{tool_obj.name}' not found in TOOLS_REGISTRY."
-            )
-            rehydrated_fn = rehydrate_tool(tool_obj)
-            if not callable(rehydrated_fn):
-                raise ValueError(
-                    f"Rehydrated tool for {tool_obj.name} is not callable!"
-                )
-            # Instead of model_copy(), explicitly copy the dictionary and update fn.
-            original_data = tool_obj.model_dump()
-            if "body" not in original_data or not original_data["body"]:
-                original_data["body"] = tool_obj.body
-            original_data["fn"] = rehydrated_fn
-            new_tool = Tool(**original_data)
-            TOOLS_REGISTRY[tool_obj.name] = new_tool
-            logger.debug(
-                f"Registered rehydrated tool '{tool_obj.name}' in TOOLS_REGISTRY with body: {new_tool.body}"
-            )
-            resolved_tools.append(new_tool)
+            logger.warning(f"Tool '{tool_obj.name}' not found in TOOLS_REGISTRY, and rehydration is disabled for security.")
+            continue
     return resolved_tools

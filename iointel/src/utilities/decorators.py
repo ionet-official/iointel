@@ -7,6 +7,11 @@ from .registries import (
     TOOLS_REGISTRY,
 )
 from ..workflow import Workflow
+from ..agent_methods.data_models.datamodels import Tool
+from ..utilities.helpers import make_logger
+
+
+logger = make_logger(__name__)
 
 
 ########register custom task decorator########
@@ -70,6 +75,14 @@ def register_custom_workflow(name: str):
 
 
 # decorator to register tools
-def register_tool(fn):
-    TOOLS_REGISTRY[fn.__name__] = fn
-    return fn
+def register_tool(executor_fn: Callable):
+    tool_name = executor_fn.__name__
+
+    if tool_name in TOOLS_REGISTRY:
+        raise ValueError(f"Tool '{tool_name}' is already registered.")
+
+    # Register the executor function explicitly
+    TOOLS_REGISTRY[tool_name] = Tool(name=tool_name, fn=executor_fn)
+    logger.debug(f"Registered tool '{tool_name}' safely in TOOLS_REGISTRY.")
+
+    return executor_fn
