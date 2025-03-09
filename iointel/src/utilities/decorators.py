@@ -1,4 +1,5 @@
-from typing import Callable
+from functools import wraps
+from typing import Callable, Optional
 from prefect import task
 from .registries import (
     CHAINABLE_METHODS,
@@ -74,15 +75,31 @@ def register_custom_workflow(name: str):
     return decorator
 
 
-# decorator to register tools
-def register_tool(executor_fn: Callable):
-    tool_name = executor_fn.__name__
+def register_tool(_fn=None, *, name: Optional[str] = None):
+    def decorator(executor_fn: Callable):
+        tool_name = name or executor_fn.__name__
 
-    if tool_name in TOOLS_REGISTRY:
-        raise ValueError(f"Tool '{tool_name}' is already registered.")
+        if tool_name in TOOLS_REGISTRY:
+            existing_tool = TOOLS_REGISTRY[tool_name]
+            if executor_fn.__code__.co_code != existing_tool.fn.__code__.co_code:
+                raise ValueError(
+                    f"Tool name '{tool_name}' already registered with a different function. Potential spoofing detected."
+                )
+            logger.debug(f"Tool '{tool_name}' is already safely registered.")
+            return executor_fn
 
-    # Register the executor function explicitly
-    TOOLS_REGISTRY[tool_name] = Tool(name=tool_name, fn=executor_fn)
-    logger.debug(f"Registered tool '{tool_name}' safely in TOOLS_REGISTRY.")
+        if 'self' in executor_fn.__code__.co_varnames:
+            @wraps(executor_fn)
+            def wrapper(self, *args, **kwargs):
+                return executor_fn(self, *args, **kwargs)
 
-    return executor_fn
+            TOOLS_REGISTRY[tool_name] = Tool.from_function(wrapper)
+            logger.debug(f"Registered method tool '{tool_name}' safely.")
+            return wrapper
+
+        TOOLS_REGISTRY[tool_name] = Tool.from_function(executor_fn)
+        logger.debug(f"Registered tool '{tool_name}' safely.")
+        return executor_fn
+
+    if callable(_fn):
+        return decorator(_fn)
