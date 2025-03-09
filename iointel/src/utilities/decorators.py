@@ -68,8 +68,8 @@ def register_tool(executor_fn: Callable):
     if tool_name in TOOLS_REGISTRY:
         raise ValueError(f"Tool '{tool_name}' is already registered.")
 
-    # Register the executor function explicitly
-    TOOLS_REGISTRY[tool_name] = Tool(name=tool_name, fn=executor_fn)
-    logger.debug(f"Registered tool '{tool_name}' safely in TOOLS_REGISTRY.")
+    tool = Tool.from_function(executor_fn)
+    TOOLS_REGISTRY[tool_name] = tool
 
+    logger.debug(f"Registered tool '{tool_name}' safely via from_function().")
     return executor_fn
