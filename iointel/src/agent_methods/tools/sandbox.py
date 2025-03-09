@@ -3,8 +3,8 @@ import os
 import docker
 from typing import Tuple, Union
 import logging
-from iointel.src.code_parsers.pycode_parser import PythonModule, PythonCodeGenerator
-from iointel.src.code_parsers.jscode_parser import (
+from framework.src.code_parsers.pycode_parser import PythonModule, PythonCodeGenerator
+from framework.src.code_parsers.jscode_parser import (
     JavaScriptModule,
     JavaScriptCodeGenerator,
 )
