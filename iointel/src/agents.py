@@ -2,7 +2,7 @@
 from .memory import Memory  # , AsyncMemory
 from .agent_methods.data_models.datamodels import PersonaConfig
 from .utilities.constants import get_api_url, get_base_model, get_api_key
-
+from .utilities.registries import TOOLS_REGISTRY
 from pydantic_ai.models.openai import OpenAIModel
 from pydantic import SecretStr
 import marvin
@@ -86,6 +86,18 @@ class Agent(marvin.Agent):
         if persona_instructions.strip():
             combined_instructions += "\n\n" + persona_instructions
 
+        resolved_tools = []
+        if tools:
+            for tool in tools:
+                if isinstance(tool, str):
+                    registered_tool = TOOLS_REGISTRY.get(tool)
+                    if not registered_tool:
+                        raise ValueError(f"Tool '{tool}' not found in registry.")
+                    resolved_tools.append(registered_tool.fn)
+                elif callable(tool):
+                    resolved_tools.append(tool)
+                else:
+                    raise ValueError(f"Tool '{tool}' is neither a registered name nor a callable.")
 
         super().__init__(
             name=name,

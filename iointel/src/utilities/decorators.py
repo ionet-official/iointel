@@ -1,4 +1,4 @@
-from typing import Callable
+from typing import Callable, Optional
 from prefect import task
 from .registries import (
     CHAINABLE_METHODS,
@@ -20,9 +20,9 @@ def register_custom_task(task_type: str, chainable: bool = True):
     method to the Tasks class so that it can be called as tasks.<task_type>(**kwargs).
     """
 
-    def decorator(executor_fn: Callable):
+    def decorator(tool_fn: Callable):
         # Register the executor function for later task execution.
-        prefect_task = task(executor_fn, name=task_type, persist_result=False)
+        prefect_task = task(tool_fn, name=task_type, persist_result=False)
         TASK_EXECUTOR_REGISTRY[task_type] = prefect_task
 
         if chainable:
@@ -48,7 +48,7 @@ def register_custom_task(task_type: str, chainable: bool = True):
             # **Attach the chainable method directly to the Tasks class.**
             setattr(Workflow, task_type, chainable_method)
 
-        return executor_fn
+        return tool_fn
 
     return decorator
 
@@ -62,19 +62,22 @@ def register_custom_workflow(name: str):
     return decorator
 
 # decorator to register tools
-def register_tool(tool_fn: Callable):
-    tool_name = tool_fn.__name__
+def register_tool(name: Optional[str] = None):
+    def decorator(tool_fn: Callable):
+        tool_name = name or tool_fn.__name__
 
-    if tool_name in TOOLS_REGISTRY:
-        existing_tool = TOOLS_REGISTRY[tool_name]
-        if tool_fn.__code__.co_code != existing_tool.fn.__code__.co_code:
-            raise ValueError(f"Tool name '{tool_name}' already registered with a different function. Potential spoofing detected.")
-        else:
-            logger.debug(f"Tool '{tool_name}' is already safely registered.")
-            return tool_fn
+        if tool_name in TOOLS_REGISTRY:
+            existing_tool = TOOLS_REGISTRY[tool_name]
+            if tool_fn.__code__.co_code != existing_tool.fn.__code__.co_code:
+                raise ValueError(f"Tool name '{tool_name}' already registered with a different function. Potential spoofing detected.")
+            else:
+                logger.debug(f"Tool '{tool_name}' is already safely registered.")
+                return tool_fn
 
-    tool = Tool.from_function(tool_fn)
-    TOOLS_REGISTRY[tool_name] = tool
+        tool = Tool.from_function(tool_fn)
+        TOOLS_REGISTRY[tool_name] = tool
 
-    logger.debug(f"Registered tool '{tool_name}' safely via from_function().")
-    return tool_fn
+        logger.debug(f"Registered tool '{tool_name}' safely via from_function().")
+        return tool_fn
+
+    return decorator
