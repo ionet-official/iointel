@@ -1,5 +1,6 @@
 from typing import Callable, Optional
 from prefect import task
+from functools import wraps
 from .registries import (
     CHAINABLE_METHODS,
     TASK_EXECUTOR_REGISTRY,
@@ -64,24 +65,46 @@ def register_custom_workflow(name: str):
 
 
 # decorator to register tools
-def register_tool(name: Optional[str] = None):
-    def decorator(tool_fn: Callable):
-        tool_name = name or tool_fn.__name__
+def register_tool(_fn=None, *, name: Optional[str] = None):
+    """
+    
+    Decorator that registers a tool function with the given name. If the name is not provided, the function name is used.
+    Can be used as a decorator or as a function. If used as a function, the name must be provided.
+    Can be used to register a method as a tool by passing the method as an argument.
+    Or can be used to register a function as a tool by using it as a decorator.
+
+    param _fn: The function to register as a tool.
+    param name: The name to register the tool with. If not provided, the function name is used.
+    return: The registered function or method.
+    """
+    def decorator(executor_fn: Callable):
+        tool_name = name or executor_fn.__name__
 
         if tool_name in TOOLS_REGISTRY:
             existing_tool = TOOLS_REGISTRY[tool_name]
-            if tool_fn.__code__.co_code != existing_tool.fn.__code__.co_code:
+            if executor_fn.__code__.co_code != existing_tool.fn.__code__.co_code:
                 raise ValueError(
                     f"Tool name '{tool_name}' already registered with a different function. Potential spoofing detected."
                 )
-            else:
-                logger.debug(f"Tool '{tool_name}' is already safely registered.")
-                return tool_fn
+            logger.debug(f"Tool '{tool_name}' is already safely registered.")
+            return executor_fn
 
-        tool = Tool.from_function(tool_fn)
+        if 'self' in executor_fn.__code__.co_varnames:
+            @wraps(executor_fn)
+            def wrapper(self, *args, **kwargs):
+                return executor_fn(self, *args, **kwargs)
+
+            tool = Tool.from_function(wrapper)
+            TOOLS_REGISTRY[tool_name] = tool
+            logger.debug(f"Registered method tool '{tool_name}' safely.")
+            return wrapper
+
+        tool = Tool.from_function(executor_fn)
         TOOLS_REGISTRY[tool_name] = tool
+        logger.debug(f"Registered tool '{tool_name}' safely.")
+        return executor_fn
 
-        logger.debug(f"Registered tool '{tool_name}' safely via from_function().")
-        return tool_fn
+    if callable(_fn):
+        return decorator(_fn)
 
     return decorator
