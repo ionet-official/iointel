@@ -1,6 +1,6 @@
 import inspect
 import json
-from collections.abc import Awaitable, Callable, Sequence
+from collections.abc import Awaitable, Callable
 from typing import (
     Annotated,
     Any,
@@ -13,7 +13,6 @@ from pydantic.fields import FieldInfo
 from pydantic_core import PydanticUndefined
 
 from .exceptions import InvalidSignature
-
 
 
 class ArgModelBase(BaseModel):

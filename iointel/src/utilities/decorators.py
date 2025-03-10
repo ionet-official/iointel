@@ -9,6 +9,7 @@ from .registries import (
 from ..workflow import Workflow
 from ..agent_methods.data_models.datamodels import Tool
 import logging
+
 logger = logging.getLogger(__name__)
 
 
@@ -61,6 +62,7 @@ def register_custom_workflow(name: str):
 
     return decorator
 
+
 # decorator to register tools
 def register_tool(name: Optional[str] = None):
     def decorator(tool_fn: Callable):
@@ -69,7 +71,9 @@ def register_tool(name: Optional[str] = None):
         if tool_name in TOOLS_REGISTRY:
             existing_tool = TOOLS_REGISTRY[tool_name]
             if tool_fn.__code__.co_code != existing_tool.fn.__code__.co_code:
-                raise ValueError(f"Tool name '{tool_name}' already registered with a different function. Potential spoofing detected.")
+                raise ValueError(
+                    f"Tool name '{tool_name}' already registered with a different function. Potential spoofing detected."
+                )
             else:
                 logger.debug(f"Tool '{tool_name}' is already safely registered.")
                 return tool_fn

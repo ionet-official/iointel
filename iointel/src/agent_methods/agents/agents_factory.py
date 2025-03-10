@@ -5,8 +5,8 @@ from .tool_factory import resolve_tools
 import logging
 
 
-import logging
 import os
+
 # logger = logging.getLogger(__name__)
 # logger.setLevel(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
@@ -22,7 +22,6 @@ handler.setFormatter(formatter)
 logger.addHandler(handler)
 
 
-
 def create_agent(params: AgentParams) -> Agent:
     """
     Create an Agent instance from the given AgentParams.
@@ -34,7 +33,7 @@ def create_agent(params: AgentParams) -> Agent:
     """
     # Dump the rest of the agent data (excluding tools) then reinsert our resolved tools.
     agent_data = params.model_dump(exclude={"tools"})
-    #agent_data["tools"] = [tool.fn for tool in resolved_tools]
+    # agent_data["tools"] = [tool.fn for tool in resolved_tools]
     agent_data["tools"] = resolve_tools(params)
     return Agent(**agent_data)
 
@@ -46,7 +45,7 @@ def create_swarm(agents: List[Agent]) -> Swarm:
 def agent_or_swarm(agent_obj, store_creds: bool) -> list:
     """
     Serializes an agent object into a list of AgentParams.
-    
+
     - If the agent_obj is an individual agent (has an 'api_key'),
       returns a list with one AgentParams instance.
     - If the agent_obj is a swarm (has a 'members' attribute),
@@ -65,8 +64,10 @@ def agent_or_swarm(agent_obj, store_creds: bool) -> list:
             AgentParams(
                 name=agent_obj.name,
                 instructions=agent_obj.instructions,
-                tools=[Tool.from_function(t).model_dump(exclude={"fn", "fn_metadata"})
-                       for t in agent_obj.tools],
+                tools=[
+                    Tool.from_function(t).model_dump(exclude={"fn", "fn_metadata"})
+                    for t in agent_obj.tools
+                ],
                 model=getattr(agent_obj.model, "model_name", None),
                 model_settings=agent_obj.model_settings,
                 api_key=get_api_key(agent_obj),
@@ -80,8 +81,10 @@ def agent_or_swarm(agent_obj, store_creds: bool) -> list:
             AgentParams(
                 name=member.name,
                 instructions=member.instructions,
-                tools=[Tool.from_function(t).model_dump(exclude={"fn", "fn_metadata"})
-                       for t in member.tools],
+                tools=[
+                    Tool.from_function(t).model_dump(exclude={"fn", "fn_metadata"})
+                    for t in member.tools
+                ],
                 model=getattr(member.model, "model_name", None),
                 model_settings=member.model_settings,
                 api_key=get_api_key(member),
@@ -94,13 +97,17 @@ def agent_or_swarm(agent_obj, store_creds: bool) -> list:
     else:
         # Fallback: return a minimal AgentParams.
         return [
-                AgentParams(
-                    name=agent_obj.name, 
-                    instructions=agent_obj.instructions, 
-                    tools=[Tool.from_function(t).model_dump(exclude={"fn", "fn_metadata"})
-                            for t in agent_obj.tools], 
-                    model=getattr(agent_obj.model, "model_name", None), 
-                    model_settings=agent_obj.model_settings, 
-                    api_key=get_api_key(agent_obj), 
-                    base_url=agent_obj.base_url, memories=agent_obj.memories)
-            ]
+            AgentParams(
+                name=agent_obj.name,
+                instructions=agent_obj.instructions,
+                tools=[
+                    Tool.from_function(t).model_dump(exclude={"fn", "fn_metadata"})
+                    for t in agent_obj.tools
+                ],
+                model=getattr(agent_obj.model, "model_name", None),
+                model_settings=agent_obj.model_settings,
+                api_key=get_api_key(agent_obj),
+                base_url=agent_obj.base_url,
+                memories=agent_obj.memories,
+            )
+        ]

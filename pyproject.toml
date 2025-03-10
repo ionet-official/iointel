@@ -12,7 +12,7 @@ dependencies = [
     "python-multipart>=0.0.20",
     "marvin",
     "pydantic-ai",
-    "prefect>=3.2.2",
+    "prefect>=3.2.2"
 ]
 
 keywords = ["Agents", "LLM", "framework", "AI", "tools"]
@@ -46,6 +46,10 @@ tests = [
     "pytest-dotenv",
 ]
 
+dev = [
+    "pre-commit>=4.1.0",
+]
+
 tools = [
     "solders>=0.23.0",
     "solana>=0.36.2",
@@ -61,6 +65,7 @@ memory = [
     "langchain-core>=0.3.28",
 
 ]
+
 
 [build-system]
 requires = ["hatchling", "hatch-fancy-pypi-readme"]

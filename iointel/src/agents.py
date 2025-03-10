@@ -1,4 +1,3 @@
-
 from .memory import Memory  # , AsyncMemory
 from .agent_methods.data_models.datamodels import PersonaConfig
 from .utilities.constants import get_api_url, get_base_model, get_api_key
@@ -8,6 +7,7 @@ from pydantic import SecretStr
 import marvin
 from typing import List, Dict, Any, Optional, Union
 from prefect import task
+
 
 class Agent(marvin.Agent):
     """
@@ -97,7 +97,9 @@ class Agent(marvin.Agent):
                 elif callable(tool):
                     resolved_tools.append(tool)
                 else:
-                    raise ValueError(f"Tool '{tool}' is neither a registered name nor a callable.")
+                    raise ValueError(
+                        f"Tool '{tool}' is neither a registered name nor a callable."
+                    )
 
         super().__init__(
             name=name,
@@ -123,6 +125,7 @@ class Agent(marvin.Agent):
     def add_tool(self, tool):
         updated_tools = self.tools + [tool]
         self.tools = updated_tools
+
 
 class Swarm(marvin.Swarm):
     def __init__(self, agents: List[Agent] = None, **kwargs):

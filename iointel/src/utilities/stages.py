@@ -2,12 +2,19 @@ import concurrent.futures
 from .runners import run_agents
 from typing import Optional, Any
 
+
 class BaseStage:
     def run(self, agents, task_metadata, default_text) -> any:
         raise NotImplementedError("Subclasses must implement this method.")
 
+
 class SimpleStage(BaseStage):
-    def __init__(self, objective: str, context: Optional[dict] = None, result_type: Optional[Any] = None):
+    def __init__(
+        self,
+        objective: str,
+        context: Optional[dict] = None,
+        result_type: Optional[Any] = None,
+    ):
         self.objective = objective
         self.context = context or {}
         self.result_type = result_type
@@ -22,8 +29,10 @@ class SimpleStage(BaseStage):
             objective=self.objective,
             agents=agents,
             context=merged_context,
-            result_type=self.result_type
+            result_type=self.result_type,
         ).execute()
+
+
 class SequentialStage(BaseStage):
     def __init__(self, stages: list):
         self.stages = stages
@@ -35,6 +44,7 @@ class SequentialStage(BaseStage):
             results.append(result)
         return results
 
+
 class ParallelStage(BaseStage):
     def __init__(self, stages: list):
         self.stages = stages
@@ -42,14 +52,19 @@ class ParallelStage(BaseStage):
     def run(self, agents, task_metadata, default_text) -> list:
         results = []
         with concurrent.futures.ThreadPoolExecutor() as executor:
-            futures = [executor.submit(stage.run, agents, task_metadata, default_text)
-                       for stage in self.stages]
+            futures = [
+                executor.submit(stage.run, agents, task_metadata, default_text)
+                for stage in self.stages
+            ]
             for future in concurrent.futures.as_completed(futures):
                 results.append(future.result())
         return results
 
+
 class WhileStage(BaseStage):
-    def __init__(self, condition: callable, stage: BaseStage, max_iterations: int = 100):
+    def __init__(
+        self, condition: callable, stage: BaseStage, max_iterations: int = 100
+    ):
         """
         :param condition: A callable that returns True if the loop should continue.
         :param stage: The stage to execute repeatedly.
@@ -67,6 +82,7 @@ class WhileStage(BaseStage):
             results.append(result)
             iterations += 1
         return results
+
 
 class FallbackStage(BaseStage):
     def __init__(self, primary: BaseStage, fallback: BaseStage):
