@@ -23,9 +23,9 @@ def register_custom_task(task_type: str, chainable: bool = True):
     method to the Tasks class so that it can be called as tasks.<task_type>(**kwargs).
     """
 
-    def decorator(executor_fn: Callable):
+    def decorator(tool_fn: Callable):
         # Register the executor function for later task execution.
-        prefect_task = task(executor_fn, name=task_type, persist_result=False)
+        prefect_task = task(tool_fn, name=task_type, persist_result=False)
         TASK_EXECUTOR_REGISTRY[task_type] = prefect_task
 
         if chainable:
@@ -53,7 +53,7 @@ def register_custom_task(task_type: str, chainable: bool = True):
             # **Attach the chainable method directly to the Tasks class.**
             setattr(Workflow, task_type, chainable_method)
 
-        return executor_fn
+        return tool_fn
 
     return decorator
 
