@@ -64,19 +64,7 @@ def register_custom_workflow(name: str):
     return decorator
 
 
-# decorator to register tools
-def register_tool(_fn=None, name: Optional[str] = None):
-    """
-    
-    Decorator that registers a tool function with the given name. If the name is not provided, the function name is used.
-    Can be used as a decorator or as a function. If used as a function, the name must be provided.
-    Can be used to register a method as a tool by passing the method as an argument.
-    Or can be used to register a function as a tool by using it as a decorator.
-
-    param _fn: The function to register as a tool.
-    param name: The name to register the tool with. If not provided, the function name is used.
-    return: The registered function or method.
-    """
+def register_tool(_fn=None, *, name: Optional[str] = None):
     def decorator(executor_fn: Callable):
         tool_name = name or executor_fn.__name__
 
@@ -106,5 +94,13 @@ def register_tool(_fn=None, name: Optional[str] = None):
 
     if callable(_fn):
         return decorator(_fn)
+
+    if isinstance(_fn, str):
+        # Handle case @register_tool("tool_name")
+        name = _fn
+        return decorator
+
+    if _fn is not None:
+        raise ValueError("Invalid usage of register_tool. Must provide a callable or use name='...'.")
 
     return decorator
