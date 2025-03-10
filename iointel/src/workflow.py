@@ -257,7 +257,6 @@ class Workflow:
             task_models.append(task_model)
 
         # Build the WorkflowDefinition.
-
         wf_def = WorkflowDefinition(
             name=workflow_name,
             text=self.text,

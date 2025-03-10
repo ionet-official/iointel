@@ -89,7 +89,9 @@ class Agent(marvin.Agent):
                 elif callable(tool):
                     resolved_tools.append(tool)
                 else:
-                    raise ValueError(f"Tool '{tool}' is neither a registered name nor a callable.")
+                    raise ValueError(
+                        f"Tool '{tool}' is neither a registered name nor a callable."
+                    )
 
         super().__init__(
             name=name,

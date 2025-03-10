@@ -105,6 +105,8 @@ def resolve_tools(params: AgentParams) -> List:
                 resolved_tools.append(new_tool)
                 continue
         else:
-            logger.warning(f"Tool '{tool_obj.name}' not found in TOOLS_REGISTRY, and rehydration is disabled for security.")
+            logger.warning(
+                f"Tool '{tool_obj.name}' not found in TOOLS_REGISTRY, and rehydration is disabled for security."
+            )
             continue
     return resolved_tools
