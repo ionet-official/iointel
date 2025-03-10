@@ -65,7 +65,7 @@ def register_custom_workflow(name: str):
 
 
 # decorator to register tools
-def register_tool(_fn=None, *, name: Optional[str] = None):
+def register_tool(_fn=None, name: Optional[str] = None):
     """
     
     Decorator that registers a tool function with the given name. If the name is not provided, the function name is used.
