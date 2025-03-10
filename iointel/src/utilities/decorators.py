@@ -115,4 +115,11 @@ def register_tool(_fn=None, name: Optional[str] = None):
     if callable(_fn):
         return decorator(_fn)
 
+    if isinstance(_fn, str):
+        # Handle case @register_tool("tool_name")
+        return register_tool(name=_fn)
+
+    if _fn is not None:
+        raise ValueError("Invalid usage of register_tool. Must provide a callable or use name='...'.")
+
     return decorator
