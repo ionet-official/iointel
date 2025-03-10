@@ -4,7 +4,7 @@ import time
 from typing import Optional, List
 from functools import partial
 
-from iointel.src.constants import get_api_url, get_api_key
+from ..src.utilities.constants import get_api_url, get_api_key
 
 BASE_URL, API_KEY = get_api_url(), get_api_key()
 BASE_MCP_URL = os.getenv("BASE_MCP_URL")

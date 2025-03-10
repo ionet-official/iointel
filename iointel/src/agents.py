@@ -1,7 +1,7 @@
 
 from .memory import Memory  # , AsyncMemory
 from .agent_methods.data_models.datamodels import PersonaConfig
-from iointel.src.constants import get_api_url, get_base_model, get_api_key
+from .utilities.constants import get_api_url, get_base_model, get_api_key
 
 from langchain_openai import ChatOpenAI
 import controlflow as cf
