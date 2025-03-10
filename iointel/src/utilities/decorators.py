@@ -62,14 +62,19 @@ def register_custom_workflow(name: str):
     return decorator
 
 # decorator to register tools
-def register_tool(executor_fn: Callable):
-    tool_name = executor_fn.__name__
+def register_tool(tool_fn: Callable):
+    tool_name = tool_fn.__name__
 
     if tool_name in TOOLS_REGISTRY:
-        raise ValueError(f"Tool '{tool_name}' is already registered.")
+        existing_tool = TOOLS_REGISTRY[tool_name]
+        if tool_fn.__code__.co_code != existing_tool.fn.__code__.co_code:
+            raise ValueError(f"Tool name '{tool_name}' already registered with a different function. Potential spoofing detected.")
+        else:
+            logger.debug(f"Tool '{tool_name}' is already safely registered.")
+            return tool_fn
 
-    tool = Tool.from_function(executor_fn)
+    tool = Tool.from_function(tool_fn)
     TOOLS_REGISTRY[tool_name] = tool
 
     logger.debug(f"Registered tool '{tool_name}' safely via from_function().")
-    return executor_fn
+    return tool_fn
