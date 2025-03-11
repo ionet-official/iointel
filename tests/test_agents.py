@@ -1,6 +1,6 @@
 import pytest
 
-from iointel.src.agent_methods.tools.tools import get_current_datetime
+from datetime import datetime
 from iointel.src.agents import Agent
 from langchain_openai import ChatOpenAI
 
@@ -40,11 +40,22 @@ def test_tool_call():
     """
     Basic check that the agent's toolcall mechanism is working
     """
-    a = Agent(name="RunAgent", instructions="Test run method.", tools=[get_current_datetime])
-    result = a.run("Return current datetime")
-    current_date = get_current_datetime().split(' ')[0]
+    toolcall_happened = None
+
+    def get_current_datetime() -> str:
+        nonlocal toolcall_happened
+        current_datetime = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        toolcall_happened = {
+            'datetime': current_datetime,
+        }
+        return current_datetime
+
+    a = Agent(name="RunAgent", instructions="Return current datetime, provided by the tool.",
+              tools=[get_current_datetime])
+    result = a.run("Return current datetime. Use the tools provided")
     assert result is not None, "Expected a result from the agent run."
-    assert current_date in result, "Date should be extracted correctly"
+    assert toolcall_happened is not None, "Make sure the tool was actually called"
+    assert toolcall_happened['datetime'] in result, "Make sure the result of the toolcall matches the return value of the agent"
 
 def test_tool_call_with_addition():
     """
@@ -65,9 +76,9 @@ def test_tool_call_with_addition():
         }
         return a + b
 
-    a = Agent(name="RunAgent", instructions="Test run method.", tools=[add_two_numbers])
-    result = a.run("Add numbers 2 and 7. Use the provided tool. Return result provided by the tool")
+    a = Agent(name="RunAgent", instructions="Add two numbers.", tools=[add_two_numbers])
+    result = a.run("Add numbers 2 and 7. Use the tools provided")
     assert result is not None, "Expected a result from the agent run."
     assert '9' in result, "Result should be 9"
     assert toolcall_happened is not None, "Make sure the tool was actually called"
-    assert toolcall_happened['a+b'] == 9, "Make sure the result of the toolcall matches the return value of the agent"
+    assert str(toolcall_happened['a+b']) == result, "Make sure the result of the toolcall matches the return value of the agent"
