@@ -20,6 +20,8 @@ dependencies = [
     "solana>=0.36.2",
     "langchain-core>=0.3.28",
     "controlflow>=0.11.4,<0.12",
+    "pydantic-ai>=0.0.37",
+    "marvin>=3.0.1",
 ]
 keywords = ["Agents", "LLM", "framework", "AI", "tools"]
 classifiers = [

@@ -1,12 +1,35 @@
 from typing import Dict, List, Optional, Any
 import uuid
 
-import controlflow as cf
 from .chainables import CHAINABLE_METHODS
 from .task import CUSTOM_WORKFLOW_REGISTRY, Task
 
+from .agent_methods.data_models.datamodels import (
+    AgentParams,
+    ReasoningStep,
+    SummaryResult,
+    TranslationResult,
+    ViolationActivation,
+    ModerationException,
+)
+from .agent_methods.prompts.instructions import REASONING_INSTRUCTIONS
+from .agent_methods.agents.agents_factory import get_agent, create_agent
 
-@cf.flow
+from iointel.client.client import (
+    moderation_task,
+    run_council_task,
+    run_reasoning_task,
+    sentiment_analysis,
+    extract_entities,
+    translate_text_task,
+    summarize_task,
+    schedule_task,
+    classify_text,
+    custom_workflow,
+)
+
+import marvin
+
 def run_agents(objective: str, **kwargs):
     """
     A wrapper to run agent workflows synchronously.
@@ -15,7 +38,6 @@ def run_agents(objective: str, **kwargs):
     return runner.run(objective, **kwargs)
 
 
-@cf.flow
 async def run_agents_async(objective: str, **kwargs):
     """
     A wrapper to run agent workflows asynchronously.
@@ -90,39 +112,12 @@ class Workflow:
         return self
 
     def run_tasks(self, conversation_id: Optional[str] = None, **kwargs):
-        from controlflow.tasks.validators import between
-        from .agent_methods.data_models.datamodels import (
-            AgentParams,
-            ReasoningStep,
-            SummaryResult,
-            TranslationResult,
-            ViolationActivation,
-            ModerationException,
-        )
-        from .agent_methods.prompts.instructions import REASONING_INSTRUCTIONS
-        from .agent_methods.agents.agents_factory import get_agent, create_agent
-
-        # from .code_parsers.pycode_parser import PythonModule
-        # from .code_parsers.jscode_parser import JavaScriptModule
-        from iointel.client.client import (
-            moderation_task,
-            run_council_task,
-            run_reasoning_task,
-            sentiment_analysis,
-            extract_entities,
-            translate_text_task,
-            summarize_task,
-            schedule_task,
-            classify_text,
-            custom_workflow,
-        )
-
         if not conversation_id:
             conversation_id = str(uuid.uuid4())
 
         results_dict = {}
 
-        with cf.Flow(thread_id=conversation_id):
+        with marvin.Thread(id=conversation_id) as thread:
             # Implement logic to call the appropriate underlying flow based on the task type.
             # For each task in self.tasks, you call run_agents() similarly to how your flows do:
             for t in self.tasks:
@@ -130,85 +125,7 @@ class Workflow:
                 agents_for_task = t.get("agents") or self.agents
                 result_key = t.get("name", task_type)
 
-                if task_type == "schedule_reminder":
-                    if self.client_mode:
-                        # Use client function
-                        # If your schedule_task function needs more params (e.g. delay),
-                        # you can adapt this call accordingly.
-                        result = schedule_task(command=self.text)
-
-                    else:
-                        # matches schedule_reminder_flow(command: str, delay: int)
-                        response = run_agents(
-                            objective="Schedule a reminder",
-                            instructions="""
-                                Schedule a reminder and use the tool to track the time for the reminder.
-                            """,
-                            agents=agents_for_task or [get_agent("reminder_agent")],
-                            context={"command": self.text},
-                            result_type=str,
-                        )
-                        result = response
-
-                    results_dict[result_key] = result
-
-                elif task_type == "council":
-                    leader = get_agent("leader")
-                    council_member1 = get_agent("council_member1")
-                    council_member2 = get_agent("council_member2")
-                    council_member3 = get_agent("council_member3")
-                    agent_maker = get_agent("agent_maker")
-
-                    if self.client_mode:
-                        # Use client function, passing self.text
-                        result = run_council_task(task=self.text)
-                        results_dict[result_key] = result
-                    else:
-                        deliberate = run_agents(
-                            "Deliberate and vote on the best way to complete the task.",
-                            agents=[
-                                leader,
-                                council_member1,
-                                council_member2,
-                                council_member3,
-                            ],
-                            completion_agents=[leader],
-                            instructions="""
-                                Deliberate with other council members on the best way to complete the task.
-                                Allow each council member to provide input before voting.
-                                Vote on the best answer.
-                                Show the entire deliberation, voting process, final decision, and reasoning.
-                            """,
-                            context={"task": self.text},
-                            result_type=str,
-                        )
-                        # codes = run_agents(   #WIP
-                        #    "Write code for the task",
-                        #    agents=[coder],
-                        #    instructions="""
-                        #        Provide Python or javascript code to accomplish the task depending on the user's choice.
-                        #        Returns code as a pydantic model.
-                        #    """,
-                        #    context={"deliberation": deliberate},
-                        #    result_type=PythonModule | JavaScriptModule
-                        # )
-
-                        custom_agent_params = run_agents(
-                            "Create a agent to complete the task",
-                            agents=[agent_maker],
-                            context={"deliberation": deliberate},
-                            result_type=AgentParams,
-                        )
-
-                        final_result = run_agents(
-                            "Execute the agent to complete the task",
-                            agents=[create_agent(custom_agent_params)],
-                            result_type=str,
-                        )
-
-                        results_dict[result_key] = final_result
-
-                elif task_type == "solve_with_reasoning":
+                if task_type == "solve_with_reasoning":
                     if self.client_mode:
                         # Use client function if you have something like `run_reasoning_task`.
                         # If not, create a similar client function or skip.
@@ -218,26 +135,28 @@ class Workflow:
                         # logic from solve_with_reasoning flow
                         while True:
                             response: ReasoningStep = run_agents(
-                                objective="""
+                                objective=f"""
                                 Carefully read the `goal` and analyze the problem.
                                 Produce a single step of reasoning that advances you closer to a solution.
+                                
+                                The goal: {self.text}
+                                
+                                Here are additional instructions:
+                                {REASONING_INSTRUCTIONS}
                                 """,
-                                instructions=REASONING_INSTRUCTIONS,
                                 result_type=ReasoningStep,
-                                agents=agents_for_task
-                                or [get_agent("reasoning_agent")],
-                                context=dict(goal=self.text),
-                                model_kwargs=dict(tool_choice="auto"),
+                                agents=agents_for_task or [get_agent("reasoning_agent")],
                             )
                             if response.found_validated_solution:
                                 if run_agents(
-                                    """
-                                    Check your solution to be absolutely sure that it is correct and meets all requirements of the goal. Return True if it does.
+                                    f"""
+                                    Check your solution to be absolutely sure that it is correct 
+                                    and meets all requirements of the goal. Return True if it does.
+                                    
+                                    The goal: {self.text}
                                     """,
                                     result_type=bool,
-                                    agents=agents_for_task
-                                    or [get_agent("reasoning_agent")],
-                                    context=dict(goal=self.text),
+                                    agents=agents_for_task or [get_agent("reasoning_agent")],
                                 ):
                                     break
                         final = run_agents(
@@ -255,9 +174,9 @@ class Workflow:
                         results_dict[result_key] = result
                     else:
                         summary = run_agents(
-                            f"Summarize the given text in no more than {t['max_words']} words and list key points",
+                            f"Summarize the given text in no more than {t['max_words']} words and list key points"
+                            f"Here's the text: {self.text}",
                             result_type=SummaryResult,
-                            context={"text": self.text},
                             agents=agents_for_task or [get_agent("summary_agent")],
                         )
 
@@ -270,12 +189,10 @@ class Workflow:
                         results_dict[result_key] = sentiment_val
                     else:
                         sentiment_val = run_agents(
-                            "Classify the sentiment of the text as a value between 0 and 1",
-                            agents=agents_for_task
-                            or [get_agent("sentiment_analysis_agent")],
+                            "Classify the sentiment of the text as a value between 0 and 1."
+                            f"Here's the text: {self.text}",
+                            agents=agents_for_task or [get_agent("sentiment_analysis_agent")],
                             result_type=float,
-                            result_validator=between(0, 1),
-                            context={"text": self.text},
                         )
 
                         results_dict[result_key] = sentiment_val
@@ -289,8 +206,9 @@ class Workflow:
 
                     else:
                         extracted = run_agents(
-                            "Extract named entities from the text and categorize them",
-                            instructions="""
+                            f"""
+                            Extract named entities from the text and categorize them.
+                            
                             Return a dictionary with the following keys:
                             - 'persons': List of person names
                             - 'organizations': List of organization names
@@ -298,10 +216,11 @@ class Workflow:
                             - 'dates': List of date references
                             - 'events': List of event names
                             Only include keys if entities of that type are found in the text.
+                            
+                            Here's the text: {self.text}
                             """,
                             agents=agents_for_task or [get_agent("extractor")],
                             result_type=Dict[str, List[str]],
-                            context={"text": self.text},
                         )
 
                         results_dict[result_key] = extracted
@@ -316,9 +235,11 @@ class Workflow:
                         results_dict[result_key] = translated
                     else:
                         translated = run_agents(
-                            f"Translate the given text to {target_lang}",
+                            f"""
+                            Translate the given text to {target_lang}.
+                            Here's the text: {self.text}.
+                            """,
                             result_type=TranslationResult,
-                            context={"text": self.text, "target_language": target_lang},
                             agents=agents_for_task or [get_agent("translation_agent")],
                         )
                         results_dict[result_key] = translated.translated
@@ -332,21 +253,18 @@ class Workflow:
                         results_dict[result_key] = classification
                     else:
                         classification = run_agents(
-                            "Classify the news headline into the most appropriate category",
-                            agents=agents_for_task
-                            or [get_agent("classification_agent")],
+                            f"""
+                            Classify the news headline into the most appropriate category.
+                            
+                            Here's the headline: {self.text}.
+                            """,
+                            agents=agents_for_task or [get_agent("classification_agent")],
                             result_type=t["classify_by"],
-                            context={"headline": self.text},
                         )
                         results_dict[result_key] = classification
 
                 elif task_type == "moderation":
-                    if self.client_mode:
-                        # Use client function
-                        result = moderation_task(
-                            text=self.text, threshold=t["threshold"]
-                        )
-                        # If moderation_task raises exceptions or returns codes, adapt as needed:
+                    def raise_moderation_exeption(result: dict, threshold: float):
                         if result.get("extreme_profanity", 0) > t["threshold"]:
                             raise ModerationException("Extreme profanity detected")
                         elif result.get("sexually_explicit", 0) > t["threshold"]:
@@ -361,31 +279,24 @@ class Workflow:
                             raise ModerationException("Self harm detected")
                         elif result.get("dangerous_content", 0) > t["threshold"]:
                             raise ModerationException("Dangerous content detected")
-                        results_dict[result_key] = result
+
+                    if self.client_mode:
+                        # Use client function
+                        result = moderation_task(
+                            text=self.text, threshold=t["threshold"]
+                        )
                     else:
                         result: ViolationActivation = run_agents(
-                            "Check the text for violations and return the activation levels",
+                            f"""
+                            Check the text for violations and return the activation levels.
+                            
+                            Here's the text: {self.text}.
+                            """,
                             agents=agents_for_task or [get_agent("moderation_agent")],
                             result_type=ViolationActivation,
-                            context={"text": self.text},
                         )
-                        threshold = t["threshold"]
-                        if result["extreme_profanity"] > threshold:
-                            raise ModerationException("Extreme profanity detected")
-                        elif result["sexually_explicit"] > threshold:
-                            raise ModerationException(
-                                "Sexually explicit content detected"
-                            )
-                        elif result["hate_speech"] > threshold:
-                            raise ModerationException("Hate speech detected")
-                        elif result["harassment"] > threshold:
-                            raise ModerationException("Harassment detected")
-                        elif result["self_harm"] > threshold:
-                            raise ModerationException("Self harm detected")
-                        elif result["dangerous_content"] > threshold:
-                            raise ModerationException("Dangerous content detected")
-
-                        results_dict[result_key] = result
+                    raise_moderation_exeption(result, t["threshold"])
+                    results_dict[result_key] = result
 
                 # Now handle "custom" tasks
                 elif task_type == "custom":
@@ -408,11 +319,15 @@ class Workflow:
                             results_dict[result_key] = result
                         else:
                             # fallback logic if no specific function is found
+                            context_formatted = json.dumps({"text": self.text, **t.get("kwargs", {})}, indent=4)
+
                             result = run_agents(
-                                objective=t["objective"],
-                                instructions=t.get("instructions", ""),
+                                f"""
+                                Task objective: {t["objective"]}
+                                Task instructions: {t.get("instructions", "")}
+                                Additional task context: {context_formatted}
+                                """,
                                 agents=agents_for_task or [get_agent("default_agent")],
-                                context={"text": self.text, **t.get("kwargs", {})},
                                 result_type=str,
                             )
                             results_dict[result_key] = result
@@ -422,39 +337,12 @@ class Workflow:
             return {"conversation_id": conversation_id, "results": results_dict}
 
     async def run_tasks_async(self, conversation_id: Optional[str] = None, **kwargs):
-        from controlflow.tasks.validators import between
-        from .agent_methods.data_models.datamodels import (
-            AgentParams,
-            ReasoningStep,
-            SummaryResult,
-            TranslationResult,
-            ViolationActivation,
-            ModerationException,
-        )
-        from .agent_methods.prompts.instructions import REASONING_INSTRUCTIONS
-        from .agent_methods.agents.agents_factory import get_agent, create_agent
-
-        # from .code_parsers.pycode_parser import PythonModule
-        # from .code_parsers.jscode_parser import JavaScriptModule
-        from iointel.client.client import (
-            moderation_task,
-            run_council_task,
-            run_reasoning_task,
-            sentiment_analysis,
-            extract_entities,
-            translate_text_task,
-            summarize_task,
-            schedule_task,
-            classify_text,
-            custom_workflow,
-        )
-
         if not conversation_id:
             conversation_id = str(uuid.uuid4())
 
         results_dict = {}
 
-        with cf.Flow(thread_id=conversation_id):
+        with marvin.Thread(thread_id=conversation_id) as thread:
             # Implement logic to call the appropriate underlying flow based on the task type.
             # For each task in self.tasks, you call run_agents() similarly to how your flows do:
             for t in self.tasks:
@@ -462,85 +350,7 @@ class Workflow:
                 agents_for_task = t.get("agents") or self.agents
                 result_key = t.get("name", task_type)
 
-                if task_type == "schedule_reminder":
-                    if self.client_mode:
-                        # Use client function
-                        # If your schedule_task function needs more params (e.g. delay),
-                        # you can adapt this call accordingly.
-                        result = schedule_task(command=self.text)
-
-                    else:
-                        # matches schedule_reminder_flow(command: str, delay: int)
-                        response = await run_agents_async(
-                            objective="Schedule a reminder",
-                            instructions="""
-                                Schedule a reminder and use the tool to track the time for the reminder.
-                            """,
-                            agents=agents_for_task or [get_agent("reminder_agent")],
-                            context={"command": self.text},
-                            result_type=str,
-                        )
-                        result = response
-
-                    results_dict[result_key] = result
-
-                elif task_type == "council":
-                    leader = get_agent("leader")
-                    council_member1 = get_agent("council_member1")
-                    council_member2 = get_agent("council_member2")
-                    council_member3 = get_agent("council_member3")
-                    agent_maker = get_agent("agent_maker")
-
-                    if self.client_mode:
-                        # Use client function, passing self.text
-                        result = run_council_task(task=self.text)
-                        results_dict[result_key] = result
-                    else:
-                        deliberate = await run_agents(
-                            "Deliberate and vote on the best way to complete the task.",
-                            agents=[
-                                leader,
-                                council_member1,
-                                council_member2,
-                                council_member3,
-                            ],
-                            completion_agents=[leader],
-                            instructions="""
-                                Deliberate with other council members on the best way to complete the task.
-                                Allow each council member to provide input before voting.
-                                Vote on the best answer.
-                                Show the entire deliberation, voting process, final decision, and reasoning.
-                            """,
-                            context={"task": self.text},
-                            result_type=str,
-                        )
-                        # codes = run_agents(   #WIP
-                        #    "Write code for the task",
-                        #    agents=[coder],
-                        #    instructions="""
-                        #        Provide Python or javascript code to accomplish the task depending on the user's choice.
-                        #        Returns code as a pydantic model.
-                        #    """,
-                        #    context={"deliberation": deliberate},
-                        #    result_type=PythonModule | JavaScriptModule
-                        # )
-
-                        custom_agent_params = await run_agents_async(
-                            "Create a agent to complete the task",
-                            agents=[agent_maker],
-                            context={"deliberation": deliberate},
-                            result_type=AgentParams,
-                        )
-
-                        final_result = await run_agents_async(
-                            "Execute the agent to complete the task",
-                            agents=[create_agent(custom_agent_params)],
-                            result_type=str,
-                        )
-
-                        results_dict[result_key] = final_result
-
-                elif task_type == "solve_with_reasoning":
+                if task_type == "solve_with_reasoning":
                     if self.client_mode:
                         # Use client function if you have something like `run_reasoning_task`.
                         # If not, create a similar client function or skip.
@@ -550,26 +360,28 @@ class Workflow:
                         # logic from solve_with_reasoning flow
                         while True:
                             response: ReasoningStep = await run_agents_async(
-                                objective="""
+                                objective=f"""
                                 Carefully read the `goal` and analyze the problem.
                                 Produce a single step of reasoning that advances you closer to a solution.
+
+                                The goal: {self.text}
+
+                                Here are additional instructions:
+                                {REASONING_INSTRUCTIONS}
                                 """,
-                                instructions=REASONING_INSTRUCTIONS,
                                 result_type=ReasoningStep,
-                                agents=agents_for_task
-                                or [get_agent("reasoning_agent")],
-                                context=dict(goal=self.text),
-                                model_kwargs=dict(tool_choice="auto"),
+                                agents=agents_for_task or [get_agent("reasoning_agent")],
                             )
                             if response.found_validated_solution:
-                                if await run_agents_async(
-                                    """
-                                        Check your solution to be absolutely sure that it is correct and meets all requirements of the goal. Return True if it does.
-                                        """,
-                                    result_type=bool,
-                                    agents=agents_for_task
-                                    or [get_agent("reasoning_agent")],
-                                    context=dict(goal=self.text),
+                                if run_agents(
+                                        f"""
+                                    Check your solution to be absolutely sure that it is correct 
+                                    and meets all requirements of the goal. Return True if it does.
+
+                                    The goal: {self.text}
+                                    """,
+                                        result_type=bool,
+                                        agents=agents_for_task or [get_agent("reasoning_agent")],
                                 ):
                                     break
                         final = await run_agents_async(
@@ -587,9 +399,9 @@ class Workflow:
                         results_dict[result_key] = result
                     else:
                         summary = await run_agents_async(
-                            f"Summarize the given text in no more than {t['max_words']} words and list key points",
+                            f"Summarize the given text in no more than {t['max_words']} words and list key points"
+                            f"Here's the text: {self.text}",
                             result_type=SummaryResult,
-                            context={"text": self.text},
                             agents=agents_for_task or [get_agent("summary_agent")],
                         )
 
@@ -602,12 +414,10 @@ class Workflow:
                         results_dict[result_key] = sentiment_val
                     else:
                         sentiment_val = await run_agents_async(
-                            "Classify the sentiment of the text as a value between 0 and 1",
-                            agents=agents_for_task
-                            or [get_agent("sentiment_analysis_agent")],
+                            "Classify the sentiment of the text as a value between 0 and 1."
+                            f"Here's the text: {self.text}",
+                            agents=agents_for_task or [get_agent("sentiment_analysis_agent")],
                             result_type=float,
-                            result_validator=between(0, 1),
-                            context={"text": self.text},
                         )
 
                         results_dict[result_key] = sentiment_val
@@ -621,8 +431,9 @@ class Workflow:
 
                     else:
                         extracted = await run_agents_async(
-                            "Extract named entities from the text and categorize them",
-                            instructions="""
+                            f"""
+                            Extract named entities from the text and categorize them.
+
                             Return a dictionary with the following keys:
                             - 'persons': List of person names
                             - 'organizations': List of organization names
@@ -630,10 +441,11 @@ class Workflow:
                             - 'dates': List of date references
                             - 'events': List of event names
                             Only include keys if entities of that type are found in the text.
+
+                            Here's the text: {self.text}
                             """,
                             agents=agents_for_task or [get_agent("extractor")],
                             result_type=Dict[str, List[str]],
-                            context={"text": self.text},
                         )
 
                         results_dict[result_key] = extracted
@@ -648,9 +460,11 @@ class Workflow:
                         results_dict[result_key] = translated
                     else:
                         translated = await run_agents_async(
-                            f"Translate the given text to {target_lang}",
+                            f"""
+                            Translate the given text to {target_lang}.
+                            Here's the text: {self.text}.
+                            """,
                             result_type=TranslationResult,
-                            context={"text": self.text, "target_language": target_lang},
                             agents=agents_for_task or [get_agent("translation_agent")],
                         )
                         results_dict[result_key] = translated.translated
@@ -664,21 +478,18 @@ class Workflow:
                         results_dict[result_key] = classification
                     else:
                         classification = await run_agents_async(
-                            "Classify the news headline into the most appropriate category",
-                            agents=agents_for_task
-                            or [get_agent("classification_agent")],
+                            f"""
+                            Classify the news headline into the most appropriate category.
+
+                            Here's the headline: {self.text}.
+                            """,
+                            agents=agents_for_task or [get_agent("classification_agent")],
                             result_type=t["classify_by"],
-                            context={"headline": self.text},
                         )
                         results_dict[result_key] = classification
 
                 elif task_type == "moderation":
-                    if self.client_mode:
-                        # Use client function
-                        result = moderation_task(
-                            text=self.text, threshold=t["threshold"]
-                        )
-                        # If moderation_task raises exceptions or returns codes, adapt as needed:
+                    def raise_moderation_exeption(result: dict, threshold: float):
                         if result.get("extreme_profanity", 0) > t["threshold"]:
                             raise ModerationException("Extreme profanity detected")
                         elif result.get("sexually_explicit", 0) > t["threshold"]:
@@ -693,45 +504,36 @@ class Workflow:
                             raise ModerationException("Self harm detected")
                         elif result.get("dangerous_content", 0) > t["threshold"]:
                             raise ModerationException("Dangerous content detected")
-                        results_dict[result_key] = result
+
+                    if self.client_mode:
+                        # Use client function
+                        result = moderation_task(
+                            text=self.text, threshold=t["threshold"]
+                        )
                     else:
                         result: ViolationActivation = await run_agents_async(
-                            "Check the text for violations and return the activation levels",
+                            f"""
+                            Check the text for violations and return the activation levels.
+
+                            Here's the text: {self.text}.
+                            """,
                             agents=agents_for_task or [get_agent("moderation_agent")],
                             result_type=ViolationActivation,
-                            context={"text": self.text},
                         )
-                        threshold = t["threshold"]
-                        if result["extreme_profanity"] > threshold:
-                            raise ModerationException("Extreme profanity detected")
-                        elif result["sexually_explicit"] > threshold:
-                            raise ModerationException(
-                                "Sexually explicit content detected"
-                            )
-                        elif result["hate_speech"] > threshold:
-                            raise ModerationException("Hate speech detected")
-                        elif result["harassment"] > threshold:
-                            raise ModerationException("Harassment detected")
-                        elif result["self_harm"] > threshold:
-                            raise ModerationException("Self harm detected")
-                        elif result["dangerous_content"] > threshold:
-                            raise ModerationException("Dangerous content detected")
-
-                        results_dict[result_key] = result
+                    raise_moderation_exeption(result, t["threshold"])
+                    results_dict[result_key] = result
 
                 # Now handle "custom" tasks
                 elif task_type == "custom":
                     name = t["name"]
                     if name in CUSTOM_WORKFLOW_REGISTRY:
                         # A registered custom function
-                        # TODO: Enable separate registry for async functions
                         custom_fn = CUSTOM_WORKFLOW_REGISTRY[name]
                         result = custom_fn(t, run_agents, self.text)
                         results_dict[result_key] = result
                     else:
                         if self.client_mode:
                             # Call your client function for custom workflows, e.g.:
-                            # TODO: Implement async logic for client mode
                             result = custom_workflow(
                                 name=t["name"],
                                 objective=t["objective"],
@@ -742,12 +544,16 @@ class Workflow:
                             results_dict[result_key] = result
                         else:
                             # fallback logic if no specific function is found
+                            context_formatted = json.dumps({"text": self.text, **t.get("kwargs", {})}, indent=4)
+
                             result = await run_agents_async(
-                                objective=t["objective"],
-                                instructions=t.get("instructions", ""),
+                                f"""
+                                Task objective: {t["objective"]}
+                                Task instructions: {t.get("instructions", "")}
+                                Additional task context: {context_formatted}
+                                """,
                                 agents=agents_for_task or [get_agent("default_agent")],
-                                context={"text": self.text, **t.get("kwargs", {})},
-                                result_type=t.get("result_type", str),
+                                result_type=str,
                             )
                             results_dict[result_key] = result
 
