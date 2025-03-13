@@ -1,3 +1,4 @@
+import json
 from typing import Dict, List, Optional, Any
 import uuid
 
@@ -5,7 +6,6 @@ from .chainables import CHAINABLE_METHODS
 from .task import CUSTOM_WORKFLOW_REGISTRY, Task
 
 from .agent_methods.data_models.datamodels import (
-    AgentParams,
     ReasoningStep,
     SummaryResult,
     TranslationResult,
@@ -13,21 +13,21 @@ from .agent_methods.data_models.datamodels import (
     ModerationException,
 )
 from .agent_methods.prompts.instructions import REASONING_INSTRUCTIONS
-from .agent_methods.agents.agents_factory import get_agent, create_agent
+from .agent_methods.agents.agents_factory import get_agent
 
 from iointel.client.client import (
     moderation_task,
-    run_council_task,
     run_reasoning_task,
     sentiment_analysis,
     extract_entities,
     translate_text_task,
     summarize_task,
-    schedule_task,
     classify_text,
     custom_workflow,
 )
 
+from pydantic import Field
+from typing import Annotated
 import marvin
 
 def run_agents(objective: str, **kwargs):
@@ -192,7 +192,7 @@ class Workflow:
                             "Classify the sentiment of the text as a value between 0 and 1."
                             f"Here's the text: {self.text}",
                             agents=agents_for_task or [get_agent("sentiment_analysis_agent")],
-                            result_type=float,
+                            result_type=Annotated[int, Field(ge=0, le=1)],
                         )
 
                         results_dict[result_key] = sentiment_val
