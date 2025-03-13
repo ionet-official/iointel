@@ -17,11 +17,12 @@ Powerful enough to destroy an entire planet, its completion spells certain doom 
 
 @pytest.fixture
 def poet() -> Agent:
-    return Agent(
+    agent = Agent(
         name="ArcanePoetAgent",
         instructions="You are an assistant specialized in arcane knowledge.",
     )
-
+    agent.id = "test-id"  # Temporary patch for the test fixture
+    return agent
 
 def test_composite_workflow(poet):
     workflow = Workflow(text=text, agents=[poet], client_mode=False)
