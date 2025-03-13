@@ -34,17 +34,6 @@ __make_post_call = partial(__make_api_call, method="POST")
 __make_get_call = partial(__make_api_call, method="GET")
 
 
-def schedule_task(task: str) -> dict:
-    raise NotImplementedError()
-    # payload = {"task": task}
-    # return __make_post_call(json=payload)
-
-
-def run_council_task(task: str) -> dict:
-    raise NotImplementedError()
-    # return __make_post_call(json=payload)
-
-
 def run_reasoning_task(text: str) -> dict:
     payload = {
         "text": text,

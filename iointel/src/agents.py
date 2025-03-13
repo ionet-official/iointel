@@ -1,14 +1,15 @@
 
-from .memory import Memory  # , AsyncMemory
 from .agent_methods.data_models.datamodels import PersonaConfig
 from .utilities.constants import get_api_url, get_base_model, get_api_key
 
-from langchain_openai import ChatOpenAI
-import controlflow as cf
+from pydantic_ai.models.openai import OpenAIModel
+from pydantic_ai.providers.openai import OpenAIProvider
+import marvin
+
 from typing import Optional, Callable
 
 
-class Agent(cf.Agent):
+class Agent(marvin.Agent):
     """
     A configurable wrapper around cf.Agent that allows you to plug in different chat models,
     instructions, and tools. By default, it uses the ChatOpenAI model.
@@ -25,10 +26,6 @@ class Agent(cf.Agent):
         persona: Optional[PersonaConfig] = None,
         tools: Optional[list] = None,
         model: Optional[Callable] | Optional[str] = None,
-        memories: Optional[list[Memory]] = None,
-        # memories: Optional[list[Memory]] | Optional[list[AsyncMemory]]= None,
-        interactive: Optional[bool] = False,
-        llm_rules: Optional[cf.llm.rules.LLMRules] = None,
         **model_kwargs,
     ):
         """
@@ -36,7 +33,7 @@ class Agent(cf.Agent):
         :param instructions: The instruction prompt for the agent.
         :param description: A description of the agent. Visible to other agents.
         :param persona: A PersonaConfig instance to use for the agent. Used to set persona instructions.
-        :param tools: A list of cf.Tool instances or @cf.tool decorated functions.
+        :param tools: A list of marvin.Tool instances or @marvin.fn decorated functions.
         :param model_provider: A callable that returns a configured model instance.
                               If provided, it should handle all model-related configuration.
         :param model_kwargs: Additional keyword arguments passed to the model factory or ChatOpenAI if no factory is provided.
@@ -50,21 +47,23 @@ class Agent(cf.Agent):
 
         """
         if isinstance(model, str):
-            model_instance = ChatOpenAI(model=model, **model_kwargs)
+            model_instance = OpenAIModel(model_name=model, **model_kwargs)
 
         elif model is not None:
             model_instance = model
 
         else:
             kwargs = dict(model_kwargs)
+            kwargs["provider"] = OpenAIProvider(
+                base_url=get_api_url(),
+                api_key=get_api_key()
+            )
             for key, value in [
-                ("api_key", get_api_key()),
-                ("model", get_base_model()),
-                ("base_url", get_api_url()),
+                ("model_name", get_base_model()),
             ]:
                 if value:
                     kwargs[key] = value
-            model_instance = ChatOpenAI(**kwargs)
+            model_instance = OpenAIModel(**kwargs)
 
         # Build a persona snippet if provided
         persona_instructions = ""
@@ -82,10 +81,10 @@ class Agent(cf.Agent):
             description=description,
             tools=tools or [],
             model=model_instance,
-            memories=memories or [],
-            interactive=interactive,
-            llm_rules=llm_rules,
         )
+
+    def get_end_turn_tools(self):
+        return [str] + super().get_end_turn_tools()  # a hack to override tool_choice='auto'
 
     def run(self, prompt: str):
         return super().run(prompt)
