@@ -81,7 +81,7 @@ def test_sentiment_workflow():
 
 
 def test_moderation_workflow():
-    workflow = Workflow("I absolutely hate this service!", client_mode=False)
+    workflow = Workflow("I absolutely hate this service! And i hate you! And all your friends!", client_mode=False)
     with pytest.raises(ModerationException):
         workflow.moderation(threshold=.25).run_tasks()["results"]
 
