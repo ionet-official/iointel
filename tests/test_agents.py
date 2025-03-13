@@ -15,10 +15,9 @@ def test_agent_default_model(prefix, monkeypatch):
     a = Agent(
         name="TestAgent",
         instructions="You are a test agent.",
-        model="gpt-over-9000",
     )
-    assert isinstance(a.model, str), (
-        "Agent should be set to a str"
+    assert isinstance(a.model, OpenAIModel), (
+        "Agent should default to ChatOpenAI if no provider is specified."
     )
     assert a.name == "TestAgent"
     assert "test agent" in a.instructions.lower()
