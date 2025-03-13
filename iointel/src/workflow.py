@@ -335,9 +335,9 @@ class Workflow:
                         )
                         results_dict[result_key] = result
 
-            # Clear tasks after running
-            self.tasks.clear()
-            return {"conversation_id": conversation_id, "results": results_dict}
+        # Clear tasks after running
+        self.tasks.clear()
+        return {"conversation_id": conversation_id, "results": results_dict}
 
 
 # Add chainable methods to Tasks class
