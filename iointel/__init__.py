@@ -6,7 +6,7 @@ from .src.memory import Memory
 from .src.workflow import Workflow
 from .src.utilities.runners import run_agents
 from .src.agent_methods.data_models.datamodels import PersonaConfig
-from .src.utilities.handlers import AsyncLoggingHandler, LoggingHandler
+
 from .client import client
 
 
@@ -19,8 +19,6 @@ __all__ = [
     "Workflow",
     "run_agents",
     "PersonaConfig",
-    "AsyncLoggingHandler",
-    "LoggingHandler",
     "client",
 ]
 
