@@ -35,7 +35,7 @@ class Task:
         :param objective: The primary task or objective to run.
         :param agents: A list of agents to use for this run. If None, uses self.agents.
         :param result_type: The expected return type (e.g. str, dict).
-        :param kwargs: Additional keyword arguments passed directly to mavrin.run().
+        :param kwargs: Additional keyword arguments passed directly to marvin.run().
         :return: The result of the marvin.run() call.
         """
         chosen_agents = agents if agents is not None else self.agents
@@ -59,11 +59,11 @@ class Task:
         :param objective: The primary task or objective to run.
         :param agents: A list of agents to use for this run. If None, uses self.agents.
         :param result_type: The expected return type (e.g. str, dict).
-        :param kwargs: Additional keyword arguments passed directly to mavrin.run().
+        :param kwargs: Additional keyword arguments passed directly to marvin.run().
         :return: The result of the marvin.run() call.
         """
         chosen_agents = agents if agents is not None else self.agents
-        return await marvin.run(
+        return await marvin.run_async(
             instructions=objective,
             agents=chosen_agents,
             result_type=result_type,
