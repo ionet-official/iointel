@@ -127,3 +127,10 @@ def test_task_level_agent_workflow(poet):
     results = workflow.run_tasks()["results"]
     assert "translate_text" in results, results
     assert results["sentiment"] >= 0, results
+
+
+def test_sentiment_classify_workflow():
+    workflow = Workflow("A major tech company has announced a breakthrough in battery technology",
+                        client_mode=False)
+    results = workflow.classify(classify_by=["fact", "fiction", "sci-fi", "fantasy"]).run_tasks()["results"]
+    assert results['classify'] == 'fact'
