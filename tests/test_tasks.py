@@ -11,7 +11,7 @@ def test_tasks_chain_basic():
     assert len(f.tasks) == 2
 
     assert f.tasks[0]["type"] == "schedule_reminder"
-    assert f.tasks[0]["delay"] == 10
+    assert f.tasks[0]["task_metadata"]["delay"] == 10
     assert f.tasks[1]["type"] == "sentiment"
     # We won't actually run tasks.run_tasks().
     # Instead, we just confirm the tasks are appended.

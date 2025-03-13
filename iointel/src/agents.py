@@ -47,7 +47,7 @@ class Agent(marvin.Agent):
         :param llm_rules: An LLMRules instance to use for the agent. If provided, the agent uses the LLMRules for logic-based reasoning.
 
         """
-        self.api_key = SecretStr(api_key)
+        self.api_key = SecretStr(api_key) if api_key else None
         self.base_url = base_url
 
         if isinstance(model, str):
