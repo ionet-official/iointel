@@ -8,7 +8,7 @@ def test_tasks_chain_basic():
     """
     f = Workflow(text="Sample text", client_mode=False)
     f.schedule_reminder(delay=10).sentiment()
-    assert len(f.tasks) == 3
+    assert len(f.tasks) == 2
 
     assert f.tasks[0]["type"] == "schedule_reminder"
     assert f.tasks[0]["delay"] == 10
