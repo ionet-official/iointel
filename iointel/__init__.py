@@ -9,7 +9,6 @@ from .src.workflow import Workflow
 from .src.utilities.runners import run_agents
 from .src.agent_methods.data_models.datamodels import PersonaConfig
 
-# from .src.handlers import AsyncLoggingHandler, LoggingHandler
 from .src.utilities.decorators import register_custom_task, register_tool
 from .src.utilities.runners import run_agents, run_agents_async
 from .src.code_parsers.pycode_parser import (
@@ -38,8 +37,6 @@ __all__ = [
     "run_agents_async",
     ###persona####
     "PersonaConfig",
-    # "AsyncLoggingHandler",
-    # "LoggingHandler"
     ###code parsers###
     "PythonModule",
     "ClassDefinition",
