@@ -5,7 +5,7 @@ _IO_INTEL_API = "https://api.intelligence.io.solutions/api/v1"
 _IO_INTEL_BASE_MODEL = "meta-llama/Llama-3.3-70B-Instruct"
 
 
-def _get_env_var(suffix, default=""):
+def _get_env_var(suffix, default=None):
     for prefix in ("IO_API", "OPENAI_API"):
         if value := os.getenv(f"{prefix}_{suffix}", ""):
             return value

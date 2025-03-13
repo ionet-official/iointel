@@ -54,12 +54,12 @@ class Agent(marvin.Agent):
 
         else:
             kwargs = dict(model_kwargs)
+            kwargs["provider"] = OpenAIProvider(
+                base_url=get_api_url(),
+                api_key=get_api_key()
+            )
             for key, value in [
                 ("model_name", get_base_model()),
-                ("provider", OpenAIProvider(
-                    base_url=get_api_url(),
-                    api_key=get_api_key()
-                )),
             ]:
                 if value:
                     kwargs[key] = value
