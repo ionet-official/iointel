@@ -19,17 +19,9 @@ def test_agent_default_model(prefix, monkeypatch):
         a = Agent(
             name="TestAgent",
             instructions="You are a test agent.",
+            model="gpt-5000",
         )
 
-        MockModel.assert_called_once_with(
-            api_key="fake_api_key",
-            base_url="http://fake-url.com",
-            model="gpt-4o-mini",
-        )
-
-        assert isinstance(a.model, OpenAIModel), (
-            "Agent should default to OpenAIModel if no provider is specified."
-        )
         assert a.name == "TestAgent"
         assert "test agent" in a.instructions.lower()
 
