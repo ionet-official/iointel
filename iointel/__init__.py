@@ -5,9 +5,8 @@ from .src.agents import Agent, Swarm
 
 # from .src.memory import AsyncMemory, AsyncPostgresMemoryProvider, Memory, PostgresMemoryProvider
 from .src.memory import Memory, PostgresMemoryProvider
-
-# from .src.task import Tasks
 from .src.workflow import Workflow
+from .src.utilities.runners import run_agents
 from .src.agent_methods.data_models.datamodels import PersonaConfig
 
 # from .src.handlers import AsyncLoggingHandler, LoggingHandler
