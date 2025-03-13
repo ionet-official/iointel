@@ -121,7 +121,7 @@ class Workflow:
 
         results_dict = {}
 
-        with marvin.Thread(id=conversation_id) as thread:
+        async with marvin.Thread(id=conversation_id) as thread:
             # Implement logic to call the appropriate underlying flow based on the task type.
             # For each task in self.tasks, you call run_agents() similarly to how your flows do:
             for t in self.tasks:
