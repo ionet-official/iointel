@@ -29,7 +29,9 @@ jobs:
         # os: [ubuntu-latest, macos-latest, windows-latest]
         os: [ubuntu-latest]
         # python-version: ['3.9', '3.10', '3.11', '3.12']
-        python-version: ["3.10", "3.12"]
+        python-version: ${{ (github.ref == 'refs/heads/dev' || github.base_ref == 'dev')
+          ? fromJson('["3.10"]')
+          : fromJson('["3.10", "3.12"]') }}
 
     runs-on: ${{ matrix.os }}
     environment: ${{ github.ref == 'refs/heads/main' && 'prod' || github.base_ref == 'main' && 'prod' || github.ref == 'refs/heads/staging' && 'staging' || github.base_ref == 'staging' && 'staging' || github.ref == 'refs/heads/dev' && 'dev' || github.base_ref == 'dev' && 'dev' }}
@@ -38,7 +40,7 @@ jobs:
       IO_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       IO_API_BASE_URL: ${{ secrets.OPENAI_API_BASE_URL }}
       IO_API_MODEL: meta-llama/Llama-3.3-70B-Instruct
-      SLOW_MODE_SLEEP: 30
+      SLOW_MODE_SLEEP: 10
 
     steps:
       - uses: actions/checkout@v4
