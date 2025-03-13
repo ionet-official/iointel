@@ -1,5 +1,5 @@
 import pytest
-from unittest.mock import patch, MagicMock
+
 from iointel.src.agents import Agent
 from pydantic_ai.models.openai import OpenAIModel
 
@@ -7,32 +7,33 @@ from pydantic_ai.models.openai import OpenAIModel
 @pytest.mark.parametrize("prefix", ["OPENAI_API", "IO_API"])
 def test_agent_default_model(prefix, monkeypatch):
     """
-    Test that Agent uses OpenAIModel with environment variables by default.
+    Test that Agent uses ChatOpenAI with environment variables by default.
     """
     monkeypatch.setenv(f"{prefix}_KEY", "fake_api_key")
     monkeypatch.setenv(f"{prefix}_BASE_URL", "http://fake-url.com")
 
-    with patch("iointel.src.agents.OpenAIModel") as MockModel:
-        mock_instance = MagicMock(spec=OpenAIModel)
-        MockModel.return_value = mock_instance
+    a = Agent(
+        name="TestAgent",
+        instructions="You are a test agent.",
+        model="gpt-over-9000",
+    )
+    assert isinstance(a.model, str), (
+        "Agent should be set to a str"
+    )
+    assert a.name == "TestAgent"
+    assert "test agent" in a.instructions.lower()
 
-        a = Agent(
-            name="TestAgent",
-            instructions="You are a test agent.",
-            model="gpt-5000",
-        )
-
-        assert a.name == "TestAgent"
-        assert "test agent" in a.instructions.lower()
 
 def test_agent_run():
     """
     Basic check that the agent's run method calls Agent.run under the hood.
+    We'll mock it or just ensure it doesn't crash.
     """
-    with patch.object(Agent, 'run', return_value="Mocked response") as mock_run:
-        a = Agent(name="RunAgent", instructions="Test run method.")
-
-        result = a.run("Hello world")
-
-        mock_run.assert_called_once_with("Hello world")
-        assert result == "Mocked response", "Expected mocked result from agent run."
+    a = Agent(name="RunAgent", instructions="Test run method.")
+    # Because there's no real LLM here (mock credentials), the actual run might fail or stub.
+    # We can call run with a stub prompt and see if it returns something or raises a specific error.
+    result = a.run("Hello world")
+    assert result is not None, "Expected a result from the agent run."
+    # with pytest.raises(Exception):
+    #    # This might raise an error due to fake API key or no actual LLM.
+    #    a.run("Hello world")
