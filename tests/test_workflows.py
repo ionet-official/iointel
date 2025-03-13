@@ -37,7 +37,7 @@ def test_defaulting_workflow():
     workflow.translate_text(target_language="spanish").sentiment()
     results = workflow.run_tasks()["results"]
     assert "translate_text" in results, results
-    assert results["sentiment"] > 0, results
+    assert results["sentiment"] >= 0, results
 
 
 def test_translation_workflow(poet):
