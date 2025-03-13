@@ -3,6 +3,7 @@ from .agent_methods.data_models.datamodels import PersonaConfig
 from .utilities.constants import get_api_url, get_base_model, get_api_key
 from .utilities.registries import TOOLS_REGISTRY
 from pydantic_ai.models.openai import OpenAIModel
+from pydantic_ai.providers.openai import OpenAIProvider
 from pydantic import SecretStr
 import marvin
 from typing import List, Dict, Any, Optional, Union
@@ -62,17 +63,15 @@ class Agent(marvin.Agent):
 
         else:
             kwargs = dict(model_kwargs)
+            kwargs["provider"] = OpenAIProvider(
+                base_url=get_api_url(),
+                api_key=get_api_key()
+            )
             for key, value in [
-                ("api_key", get_api_key()),
-                ("model", get_base_model()),
-                ("base_url", get_api_url()),
+                ("model_name", get_base_model()),
             ]:
                 if value:
                     kwargs[key] = value
-            if self.api_key:
-                kwargs["api_key"] = self.api_key.get_secret_value()
-            if self.base_url:
-                kwargs["base_url"] = base_url
             model_instance = OpenAIModel(**kwargs)
 
         # Build a persona snippet if provided
