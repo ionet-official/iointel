@@ -28,7 +28,6 @@ class Agent(marvin.Agent):
         tools: Optional[list] = None,
         model: Optional[Union[OpenAIModel, str]] = None,
         memories: Optional[list[Memory]] = None,
-        model_settings: Optional[Dict[str, Any]] = dict(tool_choice="auto"),
         api_key: Optional[SecretStr] = None,
         base_url: Optional[str] = None,
         **model_kwargs,
@@ -99,8 +98,7 @@ class Agent(marvin.Agent):
             description=description,
             tools=tools or [],
             model=model_instance,
-            memories=memories or [],
-            model_settings=model_settings,
+            memories=memories or []
         )
 
     def get_end_turn_tools(self):
