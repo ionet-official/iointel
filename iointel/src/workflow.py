@@ -76,7 +76,6 @@ class Workflow:
                 )
             )]
         text_for_task = task.get("text", default_text)
-        agents=agents_for_task or [create_agent],
         agents_for_task = task.get("agents") or default_agents
         execution_metadata = task.get("execution_metadata", {})
         # client_mode is now inside execution_metadata (if provided)
