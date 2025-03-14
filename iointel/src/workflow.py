@@ -3,6 +3,9 @@ import uuid
 import inspect
 import marvin
 from .utilities.registries import TASK_EXECUTOR_REGISTRY
+from .agent_methods.agents.agents_factory import create_agent
+from .agent_methods.data_models.datamodels import AgentParams
+from .utilities.constants import get_api_key, get_base_model, get_api_url
 from prefect import flow
 import logging
 
@@ -61,8 +64,19 @@ class Workflow:
             WhileStage,
             FallbackStage,
         )
-
+        if default_agents is None:
+            default_agents = [create_agent(
+                AgentParams(
+                    name="default-agent",
+                    description="Default agent for tasks without agents",
+                    instructions="you are a generalist who is good at everything.",
+                    model=get_base_model(),
+                    api_key=get_api_key(),
+                    base_url=get_api_url(),
+                )
+            )]
         text_for_task = task.get("text", default_text)
+        agents=agents_for_task or [create_agent],
         agents_for_task = task.get("agents") or default_agents
         execution_metadata = task.get("execution_metadata", {})
         # client_mode is now inside execution_metadata (if provided)
@@ -208,6 +222,18 @@ class Workflow:
         )
 
         import asyncio
+
+        if default_agents is None:
+            default_agents = [create_agent(
+                AgentParams(
+                    name="default-agent",
+                    description="Default agent for tasks without agents",
+                    instructions="you are a generalist who is good at everything.",
+                    model=get_base_model(),
+                    api_key=get_api_key(),
+                    base_url=get_api_url(),
+                )
+            )]
 
         text_for_task = task.get("text", default_text)
         agents_for_task = task.get("agents") or default_agents

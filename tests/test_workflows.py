@@ -48,3 +48,10 @@ def test_defaulting_workflow():
     results = workflow.run_tasks()["results"]
     assert "translate_text" in results, results
     assert results["sentiment"] >= 0, results
+
+def test_task_level_agent_workflow():
+    workflow = Workflow("Hello, how is your health today?", client_mode=False)
+    workflow.translate_text(agents=[poet], target_language="spanish").sentiment()
+    results = workflow.run_tasks()["results"]
+    assert "translate_text" in results, results
+    assert results["sentiment"] >= 0, results
