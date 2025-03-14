@@ -17,7 +17,7 @@ Powerful enough to destroy an entire planet, its completion spells certain doom 
 """
 
 llm = OpenAIModel(
-    model = get_base_model(),
+    model_name = get_base_model(),
     provider = OpenAIProvider(
                     base_url=get_api_url(),
                     api_key=get_api_key()
