@@ -14,9 +14,7 @@ from typing import (
 
 from pydantic_ai.models.openai import OpenAIModel
 from datetime import datetime
-# import controlflow
-# from controlflow.memory.memory import Memory
-# from controlflow.memory.async_memory import AsyncMemory
+
 
 from marvin.memory.memory import Memory
 from ...utilities.func_metadata import func_metadata, FuncMetadata
@@ -295,9 +293,6 @@ class AgentParams(BaseModel):
         None, description="Base URL for the model, if required."
     )
     tools: Optional[List[Tool]] = Field(default_factory=list)
-    # llm_rules: Optional[controlflow.llm.rules.LLMRules] = None
-    # interactive: Optional[bool] = False
-    # memories: Optional[list[Memory]] | Optional[list[AsyncMemory]] = Field(default_factory=list)
     memories: Optional[list[Memory]] = Field(default_factory=list)
     model_settings: Optional[Dict[str, Any]] = Field(default_factory=dict)
 

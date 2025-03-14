@@ -10,8 +10,8 @@ dependencies = [
     "httpx",
     "pytest>=8.3.4",
     "python-multipart>=0.0.20",
-    "marvin",
-    "pydantic-ai",
+    "marvin==3.0.1",
+    "pydantic-ai>=0.0.37",
     "prefect>=3.2.2"
 ]
 

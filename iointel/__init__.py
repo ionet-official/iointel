@@ -1,10 +1,8 @@
 
-from .src.agents import Agent
-
-# from .src.memory import AsyncMemory, AsyncPostgresMemoryProvider, Memory, PostgresMemoryProvider
+from .src.agents import Agent, Swarm
 from .src.memory import Memory
 from .src.workflow import Workflow
-from .src.utilities.runners import run_agents
+from .src.utilities.runners import run_agents, run_agents_async
 from .src.agent_methods.data_models.datamodels import PersonaConfig
 
 from .client import client
@@ -12,12 +10,11 @@ from .client import client
 
 __all__ = [
     "Agent",
-    # "AsyncMemory",
-    # "AsyncPostgresMemoryProvider",
+    "Swarm",
     "Memory",
-    # "PostgresMemoryProvider",
     "Workflow",
     "run_agents",
+    "run_agents_async",
     "PersonaConfig",
     "client",
 ]

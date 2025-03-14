@@ -7,7 +7,7 @@ from typing import TypeVar, Type
 from pydantic import BaseModel
 
 T = TypeVar("T", bound=BaseModel)
-# Apply nest_asyncio to allow nested event loops (if needed)
+
 nest_asyncio.apply()
 
 

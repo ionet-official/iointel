@@ -52,13 +52,6 @@ class Task:
                 **kwargs,
             )
         )
-        # return marvin.run(
-        #    objective,
-        #    agents=chosen_agents,
-        #    context=context or {},
-        #    result_type=result_type,
-        #    **kwargs
-        # )
 
     async def a_run(
         self,
@@ -88,13 +81,7 @@ class Task:
                 **kwargs,
             )
         )
-        # return await marvin.run_async(
-        #    objective,
-        #    agents=chosen_agents,
-        #    context=context or {},
-        #    result_type=result_type,
-        #    **kwargs
-        # )
+
 
     def chain_runs(
         self, run_specs: List[Dict[str, Any]], run_async: Optional[bool] = False
