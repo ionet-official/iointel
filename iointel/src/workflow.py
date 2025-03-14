@@ -198,7 +198,7 @@ class Workflow:
                     for agent in t["agents"]:
                         if hasattr(agent, "members"):
                             for member in agent.members:
-                                tools = member.tools if member.tools is not None else []
+                                tools = getattr(member, "tools", []) or []
                                 member.tools = [
                                     tool.fn
                                     if hasattr(tool, "fn") and callable(tool.fn)
@@ -206,7 +206,7 @@ class Workflow:
                                     for tool in tools
                                 ]
                         else:
-                            tools = agent.tools if agent.tools is not None else []
+                            tools = getattr(agent, "tools", []) or []
                             agent.tools = [
                                 tool.fn
                                 if hasattr(tool, "fn") and callable(tool.fn)
