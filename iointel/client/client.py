@@ -82,12 +82,11 @@ def translate_text_task(text: str, target_language: str) -> dict:
     return __make_post_call(json=payload)
 
 
-def classify_text(text: str, classify_by: list) -> dict:
+def classify_text(text: str, classify_by: list[str]) -> dict:
     payload = {
-        "type": "classify",
         "text": text,
         "agent_names": ["classification_agent"],
-        "task_metadata": {"classify_by": classify_by},
+        "args": {"type": "classify", "classify_by": classify_by},
     }
     return __make_post_call(json=payload)
 
