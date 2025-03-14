@@ -114,4 +114,4 @@ def test_custom_workflow():
         instructions="Every name should be present in the result exactly once."
                      "Format the result like this: Name1, Name2, ..., NameX",
     ).run_tasks()
-    assert 'Alice, Bob' in results['results']['custom-task'], results
+    assert 'Alice, Bob' in results['results']['custom'], results
