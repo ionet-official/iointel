@@ -186,18 +186,20 @@ class Workflow:
                     for agent in t["agents"]:
                         if hasattr(agent, "members"):
                             for member in agent.members:
+                                tools = member.tools if member.tools is not None else []
                                 member.tools = [
                                     tool.fn
                                     if hasattr(tool, "fn") and callable(tool.fn)
                                     else tool
-                                    for tool in member.tools
+                                    for tool in tools
                                 ]
                         else:
+                            tools = agent.tools if agent.tools is not None else []
                             agent.tools = [
                                 tool.fn
                                 if hasattr(tool, "fn") and callable(tool.fn)
                                 else tool
-                                for tool in agent.tools
+                                for tool in tools
                             ]
                 result_key = t.get("name") or t.get("task_id") or t.get("type")
                 results_dict[result_key] = self.run_task(t, self.text, self.agents)
@@ -230,7 +232,7 @@ class Workflow:
                     instructions="you are a generalist who is good at everything.",
                     model=get_base_model(),
                     api_key=get_api_key(),
-                    base_url=get_api_url(),
+                    base_url=get_api_url()
                 )
             )]
 
@@ -350,18 +352,20 @@ class Workflow:
                     for agent in t["agents"]:
                         if hasattr(agent, "members"):
                             for member in agent.members:
+                                tools = member.tools if member.tools is not None else []
                                 member.tools = [
                                     tool.fn
                                     if hasattr(tool, "fn") and callable(tool.fn)
                                     else tool
-                                    for tool in member.tools
+                                    for tool in tools
                                 ]
                         else:
+                            tools = agent.tools if agent.tools is not None else []
                             agent.tools = [
                                 tool.fn
                                 if hasattr(tool, "fn") and callable(tool.fn)
                                 else tool
-                                for tool in agent.tools
+                                for tool in tools
                             ]
                 result_key = t.get("name") or t.get("task_id") or t.get("type")
                 results_dict[result_key] = await self.run_task_async(
