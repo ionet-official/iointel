@@ -119,4 +119,4 @@ def test_moderation_workflow():
 def test_custom_workflow(poet):
     workflow = Workflow("Goku has a power level of over 9000", client_mode=False)
     results = workflow.hi(agents=[poet]).run_tasks()['results']
-    assert 'Goku, over, 9000' in results['hi'], results
+    assert "It's over 9000!" in results['hi'], results
