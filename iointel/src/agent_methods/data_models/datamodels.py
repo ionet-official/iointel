@@ -11,7 +11,6 @@ from typing import (
     Any,
     Literal,
 )
-
 from pydantic_ai.models.openai import OpenAIModel
 from datetime import datetime
 
