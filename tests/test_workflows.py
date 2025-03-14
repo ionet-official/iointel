@@ -1,8 +1,9 @@
 import pytest
+from iointel.src.utilities.decorators import _unregister_custom_task
 from iointel.src.utilities.constants import get_api_url, get_base_model, get_api_key
 from pydantic_ai.models.openai import OpenAIModel
 from pydantic_ai.providers.openai import OpenAIProvider
-from iointel import Agent, Workflow
+from iointel import Agent, Workflow, register_custom_task, run_agents
 from iointel.src.agent_methods.data_models.datamodels import ModerationException
 
 text = """A long time ago, In a galaxy far, far away, 
@@ -23,6 +24,19 @@ llm = OpenAIModel(
                     api_key=get_api_key()
                 )
     )
+
+@pytest.fixture
+def custom_hi_task():
+    @register_custom_task("hi")
+    def execute_hi(task_metadata, text, agents, execution_metadata):
+        return run_agents(
+            objective=text,
+            agents=agents,
+            result_type=str,
+        ).execute()
+
+    yield
+    _unregister_custom_task("hi")
 
 @pytest.fixture
 def poet() -> Agent:
@@ -134,3 +148,9 @@ def test_sentiment_classify_workflow():
                         client_mode=False)
     results = workflow.classify(classify_by=["fact", "fiction", "sci-fi", "fantasy"]).run_tasks()["results"]
     assert results['classify'] == 'fact'
+
+
+def test_custom_steps_workflow(custom_hi_task, poet):
+    workflow = Workflow("Goku has a power level of over 9000", client_mode=False)
+    results = workflow.hi(agents=[poet]).run_tasks()['results']
+    assert 'Goku, over, 9000' in results['hi'], results
