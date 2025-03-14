@@ -7,7 +7,7 @@ from pydantic_ai.models.openai import OpenAIModel
 @pytest.mark.parametrize("prefix", ["OPENAI_API", "IO_API"])
 def test_agent_default_model(prefix, monkeypatch):
     """
-    Test that Agent uses ChatOpenAI with environment variables by default.
+    Test that Agent uses OpenAIModel with environment variables by default.
     """
     monkeypatch.setenv(f"{prefix}_KEY", "fake_api_key")
     monkeypatch.setenv(f"{prefix}_BASE_URL", "http://fake-url.com")
