@@ -1,5 +1,7 @@
 import pytest
-
+from iointel.src.utilities.constants import get_api_url, get_base_model, get_api_key
+from pydantic_ai.models.openai import OpenAIModel
+from pydantic_ai.providers.openai import OpenAIProvider
 from iointel import Agent, Workflow
 from iointel.src.agent_methods.data_models.datamodels import ModerationException
 
@@ -14,12 +16,20 @@ To crush the rebellion once and for all, the EMPIRE is constructing a sinister n
 Powerful enough to destroy an entire planet, its completion spells certain doom for the champions of freedom.
 """
 
+llm = OpenAIModel(
+    model = get_base_model(),
+    provider = OpenAIProvider(
+                    base_url=get_api_url(),
+                    api_key=get_api_key()
+                )
+    )
 
 @pytest.fixture
 def poet() -> Agent:
     agent = Agent(
         name="ArcanePoetAgent",
         instructions="You are an assistant specialized in arcane knowledge.",
+        model=llm,
     )
     agent.id = "test-id"  # Temporary patch for the test fixture
     return agent
