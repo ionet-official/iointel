@@ -53,8 +53,10 @@ class Agent(marvin.Agent):
         if isinstance(model, str):
             model_instance = OpenAIModel(
                 model_name=model,
-                api_key=self.api_key.get_secret_value(),
-                base_url=self.base_url,
+                provider = OpenAIProvider(
+                    api_key=self.api_key.get_secret_value(),
+                    base_url=self.base_url,
+                )
             )
 
         elif isinstance(model, OpenAIModel):
