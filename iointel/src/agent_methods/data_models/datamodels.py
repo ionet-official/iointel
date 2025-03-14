@@ -3,7 +3,6 @@ from pydantic import BaseModel, Field, ConfigDict, SecretStr
 
 from typing import (
     List,
-    TypedDict,
     Annotated,
     Optional,
     Union,
@@ -298,9 +297,6 @@ class AgentParams(BaseModel):
         None, description="Base URL for the model, if required."
     )
     tools: Optional[List[Tool]] = Field(default_factory=list)
-    # llm_rules: Optional[controlflow.llm.rules.LLMRules] = None
-    # interactive: Optional[bool] = False
-    # memories: Optional[list[Memory]] | Optional[list[AsyncMemory]] = Field(default_factory=list)
     memories: Optional[list[Memory]] = Field(default_factory=list)
     model_settings: Optional[Dict[str, Any]] = Field(default_factory=dict)
 

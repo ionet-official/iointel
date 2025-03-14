@@ -10,7 +10,17 @@ from .agents import Agent
 ##############################################
 # Example Executor Functions
 ##############################################
+'''
+The executor functions below are examples of how to implement custom tasks.
+These functions are registered with the @register_custom_task decorator.
+The decorator takes a string argument that is the name of the custom task.
+The function should take the following arguments:
+    - task_metadata: A dictionary of metadata for the task. This can include any additional information needed for the task.
+    - text: The text to process. This is the input to the task.
+    - agents: A list of agents to use for the task. These agents can be used to run sub-tasks.
+    - execution_metadata: A dictionary of metadata for the execution. This can include any additional information needed for the execution like client mode, etc.
 
+'''
 
 @register_custom_task("schedule_reminder")
 def execute_schedule_reminder(
@@ -257,6 +267,14 @@ def execute_custom(
 ##############################################
 # CHAINABLES
 ##############################################
+'''
+The chainable methods below are used to chain tasks together in a workflow.
+Each method takes a 'self' argument, which is the task object being chained.
+The method should return the 'self' object with the task appended to the 'tasks' list.
+The 'tasks' list is used to store the tasks in the workflow.
+
+'''
+
 def schedule_reminder(self, delay: int = 0, agents: Optional[List[Agent]] = None):
     # WIP
     self.tasks.append(
@@ -370,8 +388,7 @@ def custom(
             "type": "custom",
             "text": self.text,
             "task_metadata": {"name": name, "objective": objective, "kwargs": kwargs},
-            "agents": self.agents if agents is None else agents,
-            # "instructions": instructions,
+            "agents": self.agents if agents is None else agents
         }
     )
     return self
