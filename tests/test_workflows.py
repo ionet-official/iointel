@@ -153,4 +153,4 @@ def test_sentiment_classify_workflow():
 def test_custom_steps_workflow(custom_hi_task, poet):
     workflow = Workflow("Goku has a power level of over 9000", client_mode=False)
     results = workflow.hi(agents=[poet]).run_tasks()['results']
-    assert 'Goku, over, 9000' in results['hi'], results
+    assert "It's over 9000!" in results['hi'], results
