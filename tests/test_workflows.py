@@ -1,8 +1,9 @@
 import pytest
+from typing import Any
 from iointel.src.utilities.constants import get_api_url, get_base_model, get_api_key
 from pydantic_ai.models.openai import OpenAIModel
 from pydantic_ai.providers.openai import OpenAIProvider
-from iointel import Agent, Workflow
+from iointel import Agent, Workflow, register_custom_task, run_agents
 from iointel.src.agent_methods.data_models.datamodels import ModerationException
 
 text = """A long time ago, In a galaxy far, far away, 
@@ -23,6 +24,15 @@ llm = OpenAIModel(
                     api_key=get_api_key()
                 )
     )
+
+@register_custom_task("hi")
+def execute_hi(task_metadata: dict, text: str, agents: Any, execution_metadata: dict):
+    hi = run_agents(
+        objective=text,
+        agents=agents,
+        result_type=str
+    )
+    return hi.execute()
 
 @pytest.fixture
 def poet() -> Agent:
@@ -106,12 +116,7 @@ def test_moderation_workflow():
         workflow.moderation(threshold=.25).run_tasks()["results"]
 
 
-def test_custom_workflow():
-    workflow = Workflow("Alice and Bob are exchanging messages", client_mode=False)
-    results = workflow.custom(
-        name="custom-task",
-        objective="Give me names of the people in the text",
-        instructions="Every name should be present in the result exactly once."
-                     "Format the result like this: Name1, Name2, ..., NameX",
-    ).run_tasks()
-    assert 'Alice, Bob' in results['results']['custom'], results
+def test_custom_workflow(poet):
+    workflow = Workflow("Goku has a power level of over 9000", client_mode=False)
+    results = workflow.hi(agents=[poet]).run_tasks()['results']
+    assert 'Goku, over, 9000' in results['hi'], results
