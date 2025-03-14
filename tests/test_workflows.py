@@ -120,3 +120,10 @@ def test_custom_workflow():
         "Format the result like this: Name1, Name2, ..., NameX",
     ).run_tasks()
     assert "Alice, Bob" in results["results"]["custom-task"], results
+
+def test_task_level_agent_workflow():
+    workflow = Workflow("Hello, how is your health today?", client_mode=False)
+    workflow.translate_text(agents=[poet], target_language="spanish").sentiment()
+    results = workflow.run_tasks()["results"]
+    assert "translate_text" in results, results
+    assert results["sentiment"] >= 0, results

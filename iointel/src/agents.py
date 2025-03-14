@@ -123,7 +123,7 @@ class Agent(marvin.Agent):
 
     @classmethod
     def make_default(cls):
-        return cls(name="Default agent", instructions="")
+        return cls(name="default-agent", instructions="you are a generalist who is good at everything.", description="Default agent for tasks without agents")
 
 
 class Swarm(marvin.Swarm):

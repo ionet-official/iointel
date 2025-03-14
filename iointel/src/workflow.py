@@ -81,6 +81,9 @@ class Workflow:
 
         import asyncio
 
+        if default_agents is None:
+            default_agents = [Agent.make_default()]
+
         text_for_task = task.get("text", default_text)
         agents_for_task = task.get("agents") or default_agents
         execution_metadata = task.get("execution_metadata", {})
