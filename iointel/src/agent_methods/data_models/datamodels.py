@@ -2,7 +2,6 @@ from pydantic import BaseModel, Field, ConfigDict, SecretStr
 
 from typing import (
     List,
-    TypedDict,
     Annotated,
     Optional,
     Union,
@@ -11,7 +10,7 @@ from typing import (
     Any,
     Literal,
 )
-
+from typing_extensions import TypedDict
 from pydantic_ai.models.openai import OpenAIModel
 from datetime import datetime
 
