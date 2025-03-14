@@ -6,6 +6,7 @@ from .src.memory import Memory
 from .src.workflow import Workflow
 from .src.utilities.runners import run_agents, run_agents_async
 from .src.agent_methods.data_models.datamodels import PersonaConfig
+from .src.utilities.decorators import register_custom_task, register_tool
 
 from .src.utilities.decorators import register_custom_task, register_tool
 from .src.utilities.runners import run_agents, run_agents_async
@@ -28,6 +29,8 @@ __all__ = [
     "register_tool",
     "run_agents",
     "run_agents_async",
+    "register_custom_task",
+    "register_tool",
     "PersonaConfig",
     ###code parsers###
     "PythonModule",
