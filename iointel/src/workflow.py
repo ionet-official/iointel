@@ -112,13 +112,10 @@ class Workflow:
         self.agents = agents
         return self
 
-    def run_tasks(self, conversation_id: Optional[str] = None, **kwargs):
-        return asyncio.run(self.run_tasks_async(conversation_id, **kwargs))
+    def run_tasks(self, **kwargs):
+        return asyncio.run(self.run_tasks_async(**kwargs))
 
-    async def run_tasks_async(self, conversation_id: Optional[str] = None, **kwargs):
-        if not conversation_id:
-            conversation_id = str(uuid.uuid4())
-
+    async def run_tasks_async(self, **kwargs):
         results_dict = {}
 
         # Implement logic to call the appropriate underlying flow based on the task type.
@@ -337,7 +334,7 @@ class Workflow:
 
         # Clear tasks after running
         self.tasks.clear()
-        return {"conversation_id": conversation_id, "results": results_dict}
+        return {"results": results_dict}
 
 
 # Add chainable methods to Tasks class
