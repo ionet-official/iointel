@@ -31,6 +31,9 @@ from pydantic import Field
 from typing import Annotated
 import marvin
 
+from .utilities.asyncio_utils import run_async
+
+
 def run_agents(objective: str, **kwargs):
     """
     A wrapper to run agent workflows synchronously.
@@ -113,7 +116,7 @@ class Workflow:
         return self
 
     def run_tasks(self, **kwargs):
-        return asyncio.run(self.run_tasks_async(**kwargs))
+        return run_async(self.run_tasks_async(**kwargs))
 
     async def run_tasks_async(self, **kwargs):
         results_dict = {}
