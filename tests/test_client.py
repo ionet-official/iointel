@@ -3,16 +3,6 @@ import pytest
 from iointel.client import client
 
 
-def test_schedule_task():
-    with pytest.raises(NotImplementedError):
-        client.schedule_task("random junk")
-
-
-def test_council_task():
-    with pytest.raises(NotImplementedError):
-        client.run_council_task("random junk")
-
-
 def test_reasoning_task():
     result = client.run_reasoning_task("I need to add 2 and 2")
     assert result

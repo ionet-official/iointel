@@ -1,12 +1,12 @@
 from typing import List, Dict, Any, Optional
 from .agents import Agent
-import controlflow as cf
+import marvin
 import asyncio
 
 
 class Task:
     """
-    A class to manage and orchestrate runs using ControlFlow's cf.run().
+    A class to manage and orchestrate runs using Marvin's marvin.run().
     It can store a set of agents and provide methods to run them with given instructions and context.
     """
 
@@ -26,31 +26,22 @@ class Task:
         self,
         objective: str,
         agents: List[Agent] = None,
-        completion_agents: List[Agent] = None,
-        instructions: str = "",
-        context: Dict[str, Any] = None,
         result_type: Any = str,
         **kwargs,
     ) -> Any:
         """
-        Wrap cf.run() to execute a given objective with optional instructions, context, and agents.
+        Wrap marvin.run() to execute a given objective
 
         :param objective: The primary task or objective to run.
         :param agents: A list of agents to use for this run. If None, uses self.agents.
-        :param completion_agents: Agents that finalize the run (e.g., selecting a final answer).
-        :param instructions: Additional instructions or prompt details for the run.
-        :param context: A dictionary of context data passed to the run.
         :param result_type: The expected return type (e.g. str, dict).
-        :param kwargs: Additional keyword arguments passed directly to cf.run().
-        :return: The result of the cf.run() call.
+        :param kwargs: Additional keyword arguments passed directly to marvin.run().
+        :return: The result of the marvin.run() call.
         """
         chosen_agents = agents if agents is not None else self.agents
-        return cf.run(
-            objective,
+        return marvin.run(
+            instructions=objective,
             agents=chosen_agents,
-            completion_agents=completion_agents,
-            instructions=instructions,
-            context=context or {},
             result_type=result_type,
             **kwargs,
         )
@@ -59,125 +50,25 @@ class Task:
         self,
         objective: str,
         agents: List[Agent] = None,
-        completion_agents: List[Agent] = None,
-        instructions: str = "",
-        context: Dict[str, Any] = None,
         result_type: Any = str,
         **kwargs,
     ) -> Any:
         """
-        Wrap cf.run_async() to execute a given objective with optional instructions, context, and agents.
+        Wrap marvin.run() to execute a given objective
 
         :param objective: The primary task or objective to run.
         :param agents: A list of agents to use for this run. If None, uses self.agents.
-        :param completion_agents: Agents that finalize the run (e.g., selecting a final answer).
-        :param instructions: Additional instructions or prompt details for the run.
-        :param context: A dictionary of context data passed to the run.
         :param result_type: The expected return type (e.g. str, dict).
-        :param kwargs: Additional keyword arguments passed directly to cf.run().
-        :return: The result of the cf.run_async() call.
+        :param kwargs: Additional keyword arguments passed directly to marvin.run().
+        :return: The result of the marvin.run() call.
         """
         chosen_agents = agents if agents is not None else self.agents
-        return await cf.run_async(
-            objective,
+        return await marvin.run_async(
+            instructions=objective,
             agents=chosen_agents,
-            completion_agents=completion_agents,
-            instructions=instructions,
-            context=context or {},
             result_type=result_type,
             **kwargs,
         )
-
-    def chain_runs(
-        self, run_specs: List[Dict[str, Any]], run_async: Optional[bool] = False
-    ) -> List[Any]:
-        """
-        Execute multiple runs in sequence. Each element in run_specs is a dict containing parameters for `self.run`.
-        The output of one run can be fed into the context of the next run if desired.
-
-        Example run_specs:
-        [
-          {
-            "objective": "Deliberate on task",
-            "instructions": "...",
-            "result_type": str
-          },
-          {
-            "objective": "Use the result of the previous run to code a solution",
-            "instructions": "...",
-            "context": {"previous_result": "$0"}  # '$0' means use the result of the first run
-          }
-        ]
-
-        :param run_specs: A list of dictionaries, each describing one run's parameters.
-        :return: A list of results from each run in order.
-        """
-        results = []
-        for i, spec in enumerate(run_specs):
-            # Resolve any placeholders in context using previous results
-            context = spec.get("context", {})
-            if context:
-                resolved_context = {}
-                for k, v in context.items():
-                    if isinstance(v, str) and v.startswith("$"):
-                        # Format: "$<index>" to reference a previous run's result
-                        idx = int(v[1:])
-                        resolved_context[k] = results[idx]
-                    else:
-                        resolved_context[k] = v
-                spec["context"] = resolved_context
-
-            if not run_async:
-                # Execute the run
-                result = self.run(
-                    objective=spec["objective"],
-                    agents=spec.get("agents"),
-                    completion_agents=spec.get("completion_agents"),
-                    instructions=spec.get("instructions", ""),
-                    context=spec.get("context"),
-                    result_type=spec.get("result_type", str),
-                    **{
-                        k: v
-                        for k, v in spec.items()
-                        if k
-                        not in [
-                            "objective",
-                            "agents",
-                            "completion_agents",
-                            "instructions",
-                            "context",
-                            "result_type",
-                        ]
-                    },
-                )
-                results.append(result)
-            else:
-                result = asyncio.run(
-                    self.a_run(
-                        objective=spec["objective"],
-                        agents=spec.get("agents"),
-                        completion_agents=spec.get("completion_agents"),
-                        instructions=spec.get("instructions", ""),
-                        context=spec.get("context"),
-                        result_type=spec.get("result_type", str),
-                        **{
-                            k: v
-                            for k, v in spec.items()
-                            if k
-                            not in [
-                                "objective",
-                                "agents",
-                                "completion_agents",
-                                "instructions",
-                                "context",
-                                "result_type",
-                            ]
-                        },
-                    )
-                )
-                results.append(result)
-        return results
-
 
 # A global or module-level registry of custom workflows
 CUSTOM_WORKFLOW_REGISTRY = {}

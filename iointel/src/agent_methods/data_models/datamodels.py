@@ -2,10 +2,7 @@ import sys
 from pydantic import BaseModel, Field
 from typing import List, Annotated, Optional, Union, Callable
 from datetime import datetime
-import controlflow
-from controlflow.memory.memory import Memory
 
-# from controlflow.memory.async_memory import AsyncMemory
 if sys.version_info < (3, 12):
     from typing_extensions import TypedDict
 else:
@@ -194,10 +191,6 @@ class AgentParams(BaseModel):
     persona: Optional[PersonaConfig] = None
     model: Optional[Callable] = None
     tools: Optional[List[str]] | Optional[List[Callable]] = Field(default_factory=list)
-    llm_rules: Optional[controlflow.llm.rules.LLMRules] = None
-    interactive: Optional[bool] = False
-    memories: Optional[list[Memory]] = Field(default_factory=list)
-    # memories: Optional[list[Memory]] | Optional[list[AsyncMemory]] = Field(default_factory=list)
 
 
 # reasoning agent
@@ -268,92 +261,3 @@ class WorkflowDefinition(BaseModel):
     text: Optional[str] = None  # This holds the main text/prompt
     agents: Optional[List[AgentParams]] = None
     workflow: List[WorkflowStep] = Field(default_factory=list)
-
-
-### logging handlers
-
-
-class BaseEventModel(BaseModel):
-    """
-    A base model to capture common fields or structure for all events.
-    """
-
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
-
-
-class AgentMessageEvent(BaseEventModel):
-    event_type: str = "agent_message"
-    agent_name: str
-    content: str
-
-
-class UserMessageEvent(BaseEventModel):
-    event_type: str = "user_message"
-    content: str
-
-
-class OrchestratorMessageEvent(BaseEventModel):
-    event_type: str = "orchestrator_message"
-    content: str
-
-
-class ToolCallEvent(BaseEventModel):
-    event_type: str = "tool_call"
-    tool_name: str
-
-
-class ToolResultEvent(BaseEventModel):
-    event_type: str = "tool_result"
-    tool_name: str
-    result: str
-
-
-class OrchestratorStartEvent(BaseEventModel):
-    event_type: str = "orchestrator_start"
-
-
-class OrchestratorEndEvent(BaseEventModel):
-    event_type: str = "orchestrator_end"
-
-
-class AgentMessageDeltaEvent(BaseEventModel):
-    event_type: str = "agent_message_delta"
-    delta: str
-
-
-class OrchestratorErrorEvent(BaseEventModel):
-    event_type: str = "orchestrator_error"
-    error: str
-
-
-class EndTurnEvent(BaseEventModel):
-    event_type: str = "end_turn"
-
-
-class CatchallEvent(BaseEventModel):
-    event_type: str = "catch-all"
-    details: dict = {}
-
-
-# Union of all event models
-EventModelUnion = Union[
-    AgentMessageEvent,
-    UserMessageEvent,
-    OrchestratorMessageEvent,
-    ToolCallEvent,
-    ToolResultEvent,
-    OrchestratorStartEvent,
-    OrchestratorEndEvent,
-    AgentMessageDeltaEvent,
-    OrchestratorErrorEvent,
-    EndTurnEvent,
-    CatchallEvent,
-]
-
-
-class EventsLog(BaseModel):
-    """
-    Main aggregator for all events.
-    """
-
-    events: List[EventModelUnion] = []

@@ -38,7 +38,7 @@ jobs:
       IO_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       IO_API_BASE_URL: ${{ secrets.OPENAI_API_BASE_URL }}
       IO_API_MODEL: meta-llama/Llama-3.3-70B-Instruct
-      SLOW_MODE_SLEEP: 30
+      SLOW_MODE_SLEEP: 10
 
     steps:
       - uses: actions/checkout@v4

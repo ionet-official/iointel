@@ -6,10 +6,6 @@ from typing import Optional
 
 
 AGENT_SPECS = {
-    "reminder_agent": {
-        "name": "Reminder Agent",
-        "instructions": "A simple agent that sends reminders.",
-    },
     "leader": {
         "name": "Leader",
         "instructions": """
