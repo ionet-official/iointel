@@ -1,5 +1,5 @@
 import uuid
-import nest_asyncio
+# import nest_asyncio
 from firecrawl.firecrawl import FirecrawlApp
 from typing import List, Dict, Any, Optional, Callable
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -8,7 +8,7 @@ from pydantic import BaseModel
 
 T = TypeVar("T", bound=BaseModel)
 # Apply nest_asyncio to allow nested event loops (if needed)
-nest_asyncio.apply()
+# nest_asyncio.apply()
 
 
 class Crawler:

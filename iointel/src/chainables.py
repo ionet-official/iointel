@@ -235,13 +235,14 @@ def execute_custom(
             from ..client.client import custom_workflow
 
             return custom_workflow(
-                name=task_metadata["name"],
+                name=name,
                 objective=task_metadata["objective"],
                 agents=agents,
                 context={**task_metadata.get("kwargs", {}), "text": text},
             )
         else:
             response = run_agents(
+                name=name,
                 objective=task_metadata["objective"],
                 agents=agents,
                 context={"text": text, **task_metadata.get("kwargs", {})},

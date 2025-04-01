@@ -7,6 +7,7 @@ from prefect import flow
 import logging
 
 from .utilities.asyncio_utils import run_async
+from .agents import Agent
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +30,7 @@ class Workflow:
         self.tasks: List[dict] = []
         self.text = text
         self.client_mode = client_mode
-        self.agents = agents
+        self.agents = agents or [Agent.make_default()]
 
     def __call__(
         self, text: str, client_mode: bool = True, agents: Optional[List[Any]] = None
@@ -155,7 +156,7 @@ class Workflow:
                                 tool.fn if hasattr(tool, "fn") and callable(tool.fn) else tool
                                 for tool in agent.tools
                             ]
-                result_key = t.get("name") or t.get("task_id") or t.get("type")
+                result_key = t.get("task_id") or t.get("task_metadata", {}).get("name") or t.get("type")
                 results_dict[result_key] = await self.run_task_async(t, self.text, self.agents)
         self.tasks.clear()
         return {"conversation_id": conversation_id, "results": results_dict}
@@ -269,9 +270,8 @@ class Workflow:
         for task in wf_def.tasks:
             new_task = {
                 "task_id": task.task_id,
-                "name": task.name,
                 "text": task.text,
-                "task_metadata": task.task_metadata or {},
+                "task_metadata": dict(task.task_metadata or {}, name=task.name),
                 "execution_metadata": task.execution_metadata or {},
             }
             if task.agents:

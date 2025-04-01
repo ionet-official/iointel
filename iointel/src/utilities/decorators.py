@@ -26,9 +26,7 @@ def register_custom_task(task_type: str, chainable: bool = True):
 
             def chainable_method(self, **kwargs):
                 # Create a task dictionary for this custom task.
-                task_dict = {"type": task_type, "text": self.text}
-                # Merge in any extra parameters passed to the chainable method.
-                task_dict.update(kwargs)
+                task_dict = {"type": task_type, "text": self.text, "task_metadata": kwargs}
                 # If agents weren't provided, use the Tasks instance default.
                 if not task_dict.get("agents"):
                     task_dict["agents"] = self.agents

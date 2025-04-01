@@ -102,6 +102,9 @@ class Agent(marvin.Agent):
         updated_tools = self.tools + [tool]
         self.tools = updated_tools
 
+    @classmethod
+    def make_default(cls):
+        return cls(name="Default agent", instructions="")
 
 class Swarm(marvin.Swarm):
     def __init__(self, agents: List[Agent] = None, **kwargs):
