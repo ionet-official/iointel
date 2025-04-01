@@ -69,5 +69,3 @@ def _run_fallback(stage: FallbackStage, agents, task_metadata, default_text) -> 
     except Exception as e:
         print(f"Primary stage failed with error: {e}. Running fallback stage.")
         return execute_stage(stage.fallback, agents, task_metadata, default_text)
-
-breakpoint()

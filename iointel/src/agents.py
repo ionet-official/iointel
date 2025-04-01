@@ -108,10 +108,10 @@ class Agent(marvin.Agent):
 
 class Swarm(marvin.Swarm):
     def __init__(self, agents: List[Agent] = None, **kwargs):
-        self.members = agents or []
         """
-            :param agents: Optional list of Agent instances that this runner can orchestrate.
-            """
+        :param agents: Optional list of Agent instances that this runner can orchestrate.
+        """
+        self.members = agents or []
         super().__init__(members=self.members, **kwargs)
 
     def __call__(self, agents: List[Agent] = None, **kwargs):

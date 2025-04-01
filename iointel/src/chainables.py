@@ -149,7 +149,7 @@ def execute_translate_text(
             context={"text": text, "target_language": target_lang},
             agents=agents,
         )
-        result = translated.execute()
+        result: TranslationResult = translated.execute()
         # Assuming the model has an attribute 'translated'
         return result.translated
 

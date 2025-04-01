@@ -1,6 +1,6 @@
 from .src.utilities.magic import (
     UNUSED as UNUSED,
-)  # this performs some magic to hide controlflow warning
+)  # this performs some magic to stop prefect mucking with logging setup
 from .src.agents import Agent, Swarm
 
 # from .src.memory import AsyncMemory, AsyncPostgresMemoryProvider, Memory, PostgresMemoryProvider
@@ -9,10 +9,6 @@ from .src.memory import Memory, PostgresMemoryProvider
 # from .src.task import Tasks
 from .src.workflow import Workflow
 from .src.agent_methods.data_models.datamodels import PersonaConfig
-from .src.agent_methods.tools.rag import RAG
-from .src.agent_methods.tools.searxng import SearxngClient
-from .src.agent_methods.tools.crawler import Crawler
-from .src.agent_methods.tools.wolfram import Wolfram
 
 # from .src.handlers import AsyncLoggingHandler, LoggingHandler
 from .src.utilities.decorators import register_custom_task, register_tool
@@ -41,12 +37,6 @@ __all__ = [
 
     ###persona####
     "PersonaConfig",
-
-    ###tools####
-    "RAG",
-    "SearxngClient",
-    "Crawler",
-    "Wolfram",
 
     # "AsyncLoggingHandler",
     # "LoggingHandler"
