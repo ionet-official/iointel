@@ -11,6 +11,9 @@ from .agents import Agent
 
 logger = logging.getLogger(__name__)
 
+def _get_task_key(task: dict) -> str:
+    return task.get("task_id") or task.get("task_metadata", {}).get("name") or task.get("type")
+
 class Workflow:
     """
     Manages a chain of tasks and runs them sequentially.
@@ -60,7 +63,8 @@ class Workflow:
         If a declarative multi-stage task is defined, offload the synchronous container.run() call
         to the default executor.
         """
-        from .utilities.stages import SimpleStage, SequentialStage, ParallelStage, WhileStage, FallbackStage
+        from .utilities.stages import execute_stage
+        from .agent_methods.data_models.datamodels import SimpleStage, WhileStage, ParallelStage, FallbackStage, SequentialStage
 
         import asyncio
 
@@ -115,9 +119,9 @@ class Workflow:
                 container = SequentialStage(stage_objects)
             # Offload container.run() (a synchronous call) to the default executor.
             loop = asyncio.get_event_loop()
-            result = await loop.run_in_executor(None, container.run, agents_for_task, task.get("task_metadata", {}), text_for_task)
+            result = await loop.run_in_executor(None, execute_stage, container, agents_for_task, task.get("task_metadata", {}), text_for_task)
             if isinstance(result, list):
-                base = task.get("name") or task.get("task_id") or "task"
+                base = _get_task_key(task)
                 result = {f"{base}_stage_{i+1}": val for i, val in enumerate(result)}
             return result
         else:
@@ -156,7 +160,7 @@ class Workflow:
                                 tool.fn if hasattr(tool, "fn") and callable(tool.fn) else tool
                                 for tool in agent.tools
                             ]
-                result_key = t.get("task_id") or t.get("task_metadata", {}).get("name") or t.get("type")
+                result_key = _get_task_key(t)
                 results_dict[result_key] = await self.run_task_async(t, self.text, self.agents)
         self.tasks.clear()
         return {"conversation_id": conversation_id, "results": results_dict}

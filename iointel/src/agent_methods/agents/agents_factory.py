@@ -15,7 +15,6 @@ def create_agent(params: AgentParams) -> Agent:
     """
     # Dump the rest of the agent data (excluding tools) then reinsert our resolved tools.
     agent_data = params.model_dump(exclude={"tools"})
-    #agent_data["tools"] = [tool.fn for tool in resolved_tools]
     agent_data["tools"] = resolve_tools(params)
     return Agent(**agent_data)
 
@@ -36,53 +35,30 @@ def agent_or_swarm(agent_obj, store_creds: bool) -> list:
     from ...agent_methods.data_models.datamodels import AgentParams, Tool
 
     def get_api_key(agent):
-        if store_creds and hasattr(agent.api_key, "get_secret_value"):
-            return agent.api_key.get_secret_value()
-        return agent.api_key
+        if (api_key := getattr(agent, "api_key", None)) is None:
+            return None
+        if store_creds and hasattr(api_key, "get_secret_value"):
+            return api_key.get_secret_value()
+        return api_key
+
+    def make_params(agent):
+        return AgentParams(
+            name=agent.name,
+            instructions=agent.instructions,
+            tools=[Tool.from_function(t).model_dump(exclude={"fn", "fn_metadata"}) for t in agent.tools],
+            model=getattr(agent.model, "model_name", None),
+            model_settings=agent.model_settings,
+            api_key=get_api_key(agent),
+            base_url=agent.base_url,
+            memories=agent.memories,
+        )
 
     if hasattr(agent_obj, "api_key"):
         # Individual agent.
-        return [
-            AgentParams(
-                name=agent_obj.name,
-                instructions=agent_obj.instructions,
-                tools=[Tool.from_function(t).model_dump(exclude={"fn", "fn_metadata"})
-                       for t in agent_obj.tools],
-                model=getattr(agent_obj.model, "model_name", None),
-                model_settings=agent_obj.model_settings,
-                api_key=get_api_key(agent_obj),
-                base_url=agent_obj.base_url,
-                memories=agent_obj.memories,
-            )
-        ]
+        return [make_params(agent_obj)]
     elif hasattr(agent_obj, "members"):
         # Swarm: return AgentParams for each member.
-        return [
-            AgentParams(
-                name=member.name,
-                instructions=member.instructions,
-                tools=[Tool.from_function(t).model_dump(exclude={"fn", "fn_metadata"})
-                       for t in member.tools],
-                model=getattr(member.model, "model_name", None),
-                model_settings=member.model_settings,
-                api_key=get_api_key(member),
-                base_url=member.base_url,
-                memories=member.memories,
-                swarm_name=agent_obj.name,
-            )
-            for member in agent_obj.members
-        ]
+        return [make_params(member) for member in agent_obj.members]
     else:
         # Fallback: return a minimal AgentParams.
-        return [
-                AgentParams(
-                    name=agent_obj.name, 
-                    instructions=agent_obj.instructions, 
-                    tools=[Tool.from_function(t).model_dump(exclude={"fn", "fn_metadata"})
-                            for t in agent_obj.tools], 
-                    model=getattr(agent_obj.model, "model_name", None), 
-                    model_settings=agent_obj.model_settings, 
-                    api_key=get_api_key(agent_obj), 
-                    base_url=agent_obj.base_url, memories=agent_obj.memories
-                )
-            ]
+        return [make_params(agent_obj)]

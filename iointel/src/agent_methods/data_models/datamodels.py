@@ -221,8 +221,7 @@ class Tool(BaseModel):
     def __call__(self, *args, **kwargs):
         if self.fn:
             return self.fn(*args, **kwargs)
-        else:
-            raise ValueError(f"Tool {self.name} has not been rehydrated correctly.")
+        raise ValueError(f"Tool {self.name} has not been rehydrated correctly.")
 
     @property
     def __name__(self):
@@ -355,18 +354,15 @@ class ViolationActivation(TypedDict):
 
 ##### task and workflow models ########
 class BaseStage(BaseModel):
-    stage_id: int
-    stage_name: str
-    objective: str
-    agents: List[Union[AgentParams,Swarm]]
+    stage_id: Optional[int] = None
+    stage_name: str = ""
+    agents: List[Union[AgentParams,Swarm]] = Field(default_factory=list)
     context: Optional[Dict[str, Any]] = Field(default_factory=dict)
 
 class SimpleStage(BaseStage):
     stage_type: Literal["simple"] = "simple"
-
-class IterativeStage(BaseStage):
-    stage_type: Literal["iterative"] = "iterative"
-    termination_condition: str
+    objective: str
+    result_type: Any = None
 
 class SequentialStage(BaseStage):
     stage_type: Literal["sequential"] = "sequential"
@@ -375,13 +371,13 @@ class SequentialStage(BaseStage):
 
 class ParallelStage(BaseStage):
     stage_type: Literal["parallel"] = "parallel"
-    merge_strategy: Optional[str] = None
+    # merge_strategy: Optional[str] = None
     stages: List["Stage"] = Field(..., description="List of stages to execute in parallel")
 
 
 class WhileStage(BaseStage):
     stage_type: Literal["while"] = "while"
-    condition: str = Field(
+    condition: str|Callable = Field(
         ...,
         description=(
             "A condition (expressed as a string or expression) that determines whether "
@@ -393,6 +389,7 @@ class WhileStage(BaseStage):
         100,
         description="An optional safeguard to limit the number of iterations and prevent infinite loops."
     )
+    stage: List["Stage"] = Field(..., description="The loop body")
 
 class FallbackStage(BaseStage):
     stage_type: Literal["fallback"] = "fallback"
@@ -400,12 +397,13 @@ class FallbackStage(BaseStage):
     fallback: "Stage" = Field(..., description="The fallback stage to execute if primary fails")
 
 
-Stage = Union[SimpleStage, IterativeStage, ParallelStage, WhileStage, FallbackStage]
+Stage = Union[SimpleStage, ParallelStage, WhileStage, FallbackStage]
 
 
 FallbackStage.model_rebuild()
 ParallelStage.model_rebuild()
 SequentialStage.model_rebuild()
+WhileStage.model_rebuild()
 
 
 class TaskDefinition(BaseModel):
