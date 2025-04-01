@@ -1,4 +1,4 @@
-from .src.magic import (
+from .src.utilities.magic import (
     UNUSED as UNUSED,
 )  # this performs some magic to hide controlflow warning
 from .src.agents import Agent, Swarm

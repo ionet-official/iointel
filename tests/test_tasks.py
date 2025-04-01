@@ -8,11 +8,11 @@ def test_tasks_chain_basic():
     """
     f = Workflow(text="Sample text", client_mode=False)
     f.schedule_reminder(delay=10).sentiment()
-    assert len(f.tasks) == 3
+    assert len(f.tasks) == 2
 
     assert f.tasks[0]["type"] == "schedule_reminder"
-    assert f.tasks[0]["delay"] == 10
-    assert f.tasks[2]["type"] == "sentiment"
+    assert f.tasks[0]["task_metadata"]["delay"] == 10
+    assert f.tasks[1]["type"] == "sentiment"
     # We won't actually run tasks.run_tasks().
     # Instead, we just confirm the tasks are appended.
 
@@ -25,13 +25,11 @@ def test_tasks_custom():
     flows.custom(
         name="my-custom-step",
         objective="Custom objective",
-        instructions="Some instructions",
         my_extra="something",
     )
     assert len(flows.tasks) == 1
     c = flows.tasks[0]
     assert c["type"] == "custom"
     assert c["task_metadata"]["name"] == "my-custom-step"
-    assert c["objective"] == "Custom objective"
-    assert c["instructions"] == "Some instructions"
-    assert c["kwargs"]["my_extra"] == "something"
+    assert c["task_metadata"]["objective"] == "Custom objective"
+    assert c["task_metadata"]["kwargs"]["my_extra"] == "something"

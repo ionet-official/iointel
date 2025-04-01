@@ -359,7 +359,6 @@ def custom(
     :param name: Unique identifier for this custom workflow step.
     :param objective: The main objective or prompt for run_agents.
     :param agents: List of agents used (if None, a default can be used).
-    #:param instructions: Additional instructions for run_agents.
     :param kwargs: Additional data needed for this custom workflow.
     """
     self.tasks.append(

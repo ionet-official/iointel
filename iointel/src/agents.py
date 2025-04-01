@@ -10,7 +10,7 @@ from pydantic import SecretStr
 import marvin
 from prefect import task
 
-from typing import Optional, Callable
+from typing import Any, Dict, List, Optional, Callable, Union
 
 
 class Agent(marvin.Agent):
@@ -52,26 +52,15 @@ class Agent(marvin.Agent):
         self.api_key = SecretStr(api_key or get_api_key())
         self.base_url = base_url or get_api_url()
 
-        if isinstance(model, str):
-            model_instance = OpenAIModel(
-                model_name=model,
-                api_key=self.api_key.get_secret_value(),
-                base_url=self.base_url,
-            )
-
-        elif isinstance(model, OpenAIModel):
+        if isinstance(model, OpenAIModel):
             model_instance = model
 
         else:
-            kwargs = dict(model_kwargs)
-            for key, value in [
-                ("api_key", self.api_key.get_secret_value()),
-                ("model", get_base_model()),
-                ("base_url", self.base_url),
-            ]:
-                if value:
-                    kwargs[key] = value
-            model_instance = OpenAIModel(**kwargs)
+            kwargs = dict(model_kwargs, provider=OpenAIProvider(
+                base_url=self.base_url,
+                api_key=self.api_key.get_secret_value()
+            ))
+            model_instance = OpenAIModel(model_name=model if isinstance(model, str) else get_base_model(), **kwargs)
 
         # Build a persona snippet if provided
         if isinstance(persona, PersonaConfig):
