@@ -2,29 +2,13 @@ from ..data_models.datamodels import AgentParams
 from typing import Callable, List
 import re
 from ...utilities.registries import TOOLS_REGISTRY
+from ...utilities.helpers import make_logger
 from ..data_models.datamodels import Tool
 
 import textwrap
-import logging
 
 
-import logging
-import os
-# logger = logging.getLogger(__name__)
-# logger.setLevel(level=logging.DEBUG)
-logger = logging.getLogger(__name__)
-# Fallback to "DEBUG" if not set
-level_name = os.environ.get("AGENT_LOGGING_LEVEL", "INFO")
-level_name = level_name.upper()
-# Safely get the numeric logging level, default to DEBUG if invalid
-numeric_level = getattr(logging, level_name, logging.INFO)
-logger.setLevel(numeric_level)
-handler = logging.StreamHandler()
-formatter = logging.Formatter("%(asctime)s [%(levelname)s] %(name)s: %(message)s")
-handler.setFormatter(formatter)
-logger.addHandler(handler)
-
-
+logger = make_logger(__name__)
 
 
 def rehydrate_tool(tool_def: Tool) -> Callable:

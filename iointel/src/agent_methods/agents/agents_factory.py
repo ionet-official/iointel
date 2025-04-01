@@ -2,25 +2,6 @@ from ...agents import Agent, Swarm
 from ..data_models.datamodels import AgentParams
 from typing import List
 from .tool_factory import resolve_tools
-import logging
-
-
-import logging
-import os
-# logger = logging.getLogger(__name__)
-# logger.setLevel(level=logging.DEBUG)
-logger = logging.getLogger(__name__)
-# Fallback to "DEBUG" if not set
-level_name = os.environ.get("AGENT_LOGGING_LEVEL", "INFO")
-level_name = level_name.upper()
-# Safely get the numeric logging level, default to DEBUG if invalid
-numeric_level = getattr(logging, level_name, logging.INFO)
-logger.setLevel(numeric_level)
-handler = logging.StreamHandler()
-formatter = logging.Formatter("%(asctime)s [%(levelname)s] %(name)s: %(message)s")
-handler.setFormatter(formatter)
-logger.addHandler(handler)
-
 
 
 def create_agent(params: AgentParams) -> Agent:
