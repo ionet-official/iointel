@@ -4,12 +4,12 @@ import inspect
 import marvin
 from .utilities.registries import TASK_EXECUTOR_REGISTRY
 from prefect import flow
-import logging
 
 from .utilities.asyncio_utils import run_async
 from .agents import Agent
+from .utilities.helpers import make_logger
 
-logger = logging.getLogger(__name__)
+logger = make_logger(__name__)
 
 def _get_task_key(task: dict) -> str:
     return task.get("task_id") or task.get("task_metadata", {}).get("name") or task.get("type")
@@ -71,10 +71,8 @@ class Workflow:
         text_for_task = task.get("text", default_text)
         agents_for_task = task.get("agents") or default_agents
         execution_metadata = task.get("execution_metadata", {})
-        client_mode = execution_metadata.get("client_mode", self.client_mode)
 
-        if execution_metadata.get("stages"):
-            stage_defs = execution_metadata["stages"]
+        if stage_defs := execution_metadata.get("stages"):
             stage_objects = []
             for stage_def in stage_defs:
                 stage_type = stage_def.get("stage_type", "simple")
@@ -117,7 +115,7 @@ class Workflow:
                 container = ParallelStage(stage_objects)
             else:
                 container = SequentialStage(stage_objects)
-            # Offload container.run() (a synchronous call) to the default executor.
+            # Offload execute_stage(container) (a synchronous call) to the default executor.
             loop = asyncio.get_event_loop()
             result = await loop.run_in_executor(None, execute_stage, container, agents_for_task, task.get("task_metadata", {}), text_for_task)
             if isinstance(result, list):

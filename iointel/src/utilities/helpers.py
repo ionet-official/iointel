@@ -47,7 +47,6 @@ class LazyCaller(BaseModel):
             return {k: self._resolve_nested(v) for k, v in value.items()}
         elif isinstance(value, (list, tuple, set)):
             logger.debug("Resolving collection: %s", value)
-            t = type(value)
             if isinstance(value, list):
                 return [self._resolve_nested(item) for item in value]
             elif isinstance(value, tuple):
@@ -62,7 +61,7 @@ class LazyCaller(BaseModel):
             resolved_args = self._resolve_nested(self.args)
             resolved_kwargs = self._resolve_nested(self.kwargs)
             logger.debug("Resolved args: %s", resolved_args)
-            logger.debug("Resolved args: %s", resolved_args)
+            logger.debug("Resolved kwargs: %s", resolved_kwargs)
             result = self.func(*resolved_args, **resolved_kwargs)
             if inspect.isawaitable(result):
                 try:

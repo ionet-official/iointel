@@ -2,11 +2,11 @@
 #    uv pip compile pyproject.toml --all-extras -o requirements.txt
 aiofiles==24.1.0
     # via r2r
-aiosqlite==0.20.0
+aiosqlite==0.21.0
     # via
     #   marvin
     #   prefect
-alembic==1.14.0
+alembic==1.15.2
     # via
     #   prefect
     #   r2r
@@ -14,7 +14,7 @@ annotated-types==0.7.0
     # via pydantic
 anthropic==0.49.0
     # via pydantic-ai-slim
-anyio==4.7.0
+anyio==4.9.0
     # via
     #   anthropic
     #   groq
@@ -25,20 +25,22 @@ anyio==4.7.0
     #   pydantic-evals
     #   sse-starlette
     #   starlette
-apprise==1.9.1
+apprise==1.9.3
     # via prefect
 argcomplete==3.6.1
     # via pydantic-ai-slim
 asgi-lifespan==2.1.0
     # via prefect
+async-timeout==5.0.1
+    # via
+    #   asyncpg
+    #   python-socks
 asyncpg==0.30.0
     # via prefect
-attrs==24.3.0
+attrs==25.3.0
     # via
     #   jsonschema
     #   referencing
-backoff==2.2.1
-    # via posthog
 backports-tarfile==1.2.0
     # via jaraco-context
 boto3==1.37.24
@@ -47,11 +49,11 @@ botocore==1.37.24
     # via
     #   boto3
     #   s3transfer
-cachetools==5.5.0
+cachetools==5.5.2
     # via
     #   google-auth
     #   prefect
-certifi==2024.12.14
+certifi==2025.1.31
     # via
     #   apprise
     #   httpcore
@@ -67,7 +69,7 @@ click==8.1.8
     #   prefect
     #   typer
     #   uvicorn
-cloudpickle==3.1.0
+cloudpickle==3.1.1
     # via prefect
 cohere==5.14.0
     # via pydantic-ai-slim
@@ -79,18 +81,17 @@ construct-typing==0.5.6
     # via solana
 coolname==2.2.0
     # via prefect
-cryptography==44.0.0
+cryptography==44.0.2
     # via prefect
-dateparser==1.2.0
+dateparser==1.2.1
     # via prefect
-deprecated==1.2.15
+deprecated==1.2.18
     # via opentelemetry-api
 distro==1.9.0
     # via
     #   anthropic
     #   groq
     #   openai
-    #   posthog
 dnspython==2.7.0
     # via email-validator
 docker==7.1.0
@@ -103,11 +104,16 @@ eval-type-backport==0.2.2
     # via
     #   mistralai
     #   pydantic-ai-slim
+    #   pydantic-evals
 exceptiongroup==1.2.2
-    # via prefect
+    # via
+    #   anyio
+    #   prefect
+    #   pydantic-ai-slim
+    #   pytest
 execnet==2.1.1
     # via pytest-xdist
-fastapi==0.114.2
+fastapi==0.115.12
     # via
     #   fastapi-cors
     #   prefect
@@ -118,9 +124,11 @@ fastavro==1.10.0
     # via cohere
 filelock==3.18.0
     # via huggingface-hub
+filetype==1.2.0
+    # via r2r
 firecrawl-py==1.15.0
     # via iointel (pyproject.toml)
-fsspec==2024.12.0
+fsspec==2025.3.2
     # via
     #   huggingface-hub
     #   prefect
@@ -130,7 +138,7 @@ graphviz==0.20.3
     # via prefect
 greenlet==3.1.1
     # via sqlalchemy
-griffe==1.5.4
+griffe==1.7.2
     # via
     #   prefect
     #   pydantic-ai-slim
@@ -140,9 +148,9 @@ h11==0.14.0
     # via
     #   httpcore
     #   uvicorn
-h2==4.1.0
+h2==4.2.0
     # via httpx
-hpack==4.0.0
+hpack==4.1.0
     # via h2
 httpcore==1.0.7
     # via
@@ -170,11 +178,11 @@ httpx-sse==0.4.0
     #   mcp
 huggingface-hub==0.30.1
     # via tokenizers
-humanize==4.11.0
+humanize==4.12.2
     # via
     #   jinja2-humanize-extension
     #   prefect
-hyperframe==6.0.1
+hyperframe==6.1.0
     # via h2
 idna==3.10
     # via
@@ -182,20 +190,20 @@ idna==3.10
     #   email-validator
     #   httpx
     #   requests
-importlib-metadata==8.5.0
+importlib-metadata==8.6.1
     # via opentelemetry-api
-iniconfig==2.0.0
+iniconfig==2.1.0
     # via pytest
 jaraco-context==6.0.1
     # via wolframalpha
-jinja2==3.1.5
+jinja2==3.1.6
     # via
     #   jinja2-humanize-extension
     #   marvin
     #   prefect
 jinja2-humanize-extension==0.4.0
     # via prefect
-jiter==0.8.2
+jiter==0.9.0
     # via
     #   anthropic
     #   openai
@@ -229,7 +237,7 @@ logfire-api==3.12.0
     # via
     #   pydantic-evals
     #   pydantic-graph
-mako==1.3.8
+mako==1.3.9
     # via alembic
 markdown==3.7
     # via apprise
@@ -249,8 +257,6 @@ mdurl==0.1.2
     # via markdown-it-py
 mistralai==1.5.2
     # via pydantic-ai-slim
-monotonic==1.6
-    # via posthog
 more-itertools==10.6.0
     # via wolframalpha
 multidict==6.3.0
@@ -268,11 +274,11 @@ openai==1.70.0
     #   langchain-openai
     #   pydantic-ai-slim
     #   r2r
-opentelemetry-api==1.29.0
+opentelemetry-api==1.31.1
     # via
     #   prefect
     #   pydantic-ai-slim
-orjson==3.10.12
+orjson==3.10.16
     # via
     #   langsmith
     #   prefect
@@ -294,13 +300,11 @@ pgvector==0.4.0
     # via iointel (pyproject.toml)
 pluggy==1.5.0
     # via pytest
-posthog==3.23.0
-    # via r2r
 prefect==3.3.1
     # via iointel (pyproject.toml)
 prometheus-client==0.21.1
     # via prefect
-prompt-toolkit==3.0.48
+prompt-toolkit==3.0.50
     # via pydantic-ai-slim
 psycopg-binary==3.2.6
     # via r2r
@@ -312,7 +316,7 @@ pyasn1-modules==0.4.2
     # via google-auth
 pycparser==2.22
     # via cffi
-pydantic==2.10.4
+pydantic==2.11.1
     # via
     #   iointel (pyproject.toml)
     #   anthropic
@@ -332,31 +336,32 @@ pydantic==2.10.4
     #   pydantic-extra-types
     #   pydantic-graph
     #   pydantic-settings
+    #   r2r
 pydantic-ai==0.0.48
     # via
     #   iointel (pyproject.toml)
     #   marvin
 pydantic-ai-slim==0.0.48
     # via pydantic-ai
-pydantic-core==2.27.2
+pydantic-core==2.33.0
     # via
     #   cohere
     #   prefect
     #   pydantic
 pydantic-evals==0.0.48
     # via pydantic-ai-slim
-pydantic-extra-types==2.10.1
+pydantic-extra-types==2.10.3
     # via prefect
 pydantic-graph==0.0.48
     # via pydantic-ai-slim
-pydantic-settings==2.7.0
+pydantic-settings==2.8.1
     # via
     #   marvin
     #   mcp
     #   prefect
-pygments==2.18.0
+pygments==2.19.1
     # via rich
-pytest==8.3.4
+pytest==8.3.5
     # via
     #   iointel (pyproject.toml)
     #   pytest-asyncio
@@ -383,10 +388,9 @@ python-dateutil==2.9.0.post0
     #   dateparser
     #   mistralai
     #   pendulum
-    #   posthog
     #   prefect
     #   time-machine
-python-dotenv==1.0.1
+python-dotenv==1.1.0
     # via
     #   iointel (pyproject.toml)
     #   environs
@@ -394,13 +398,15 @@ python-dotenv==1.0.1
     #   pydantic-settings
     #   pytest-dotenv
     #   r2r
+python-json-logger==3.3.0
+    # via r2r
 python-multipart==0.0.20
     # via iointel (pyproject.toml)
 python-slugify==8.0.4
     # via prefect
-python-socks==2.6.1
+python-socks==2.7.1
     # via prefect
-pytz==2024.2
+pytz==2025.2
     # via
     #   dateparser
     #   prefect
@@ -410,11 +416,11 @@ pyyaml==6.0.2
     #   huggingface-hub
     #   langchain-core
     #   prefect
-r2r==3.4.1
+r2r==3.5.5
     # via iointel (pyproject.toml)
 readchar==4.2.1
     # via prefect
-referencing==0.35.1
+referencing==0.36.2
     # via
     #   jsonschema
     #   jsonschema-specifications
@@ -430,7 +436,6 @@ requests==2.32.3
     #   firecrawl-py
     #   huggingface-hub
     #   langsmith
-    #   posthog
     #   pydantic-ai-slim
     #   r2r
     #   requests-oauthlib
@@ -442,20 +447,20 @@ requests-toolbelt==1.0.0
     # via langsmith
 rfc3339-validator==0.1.4
     # via prefect
-rich==13.9.4
+rich==14.0.0
     # via
     #   marvin
     #   prefect
     #   pydantic-ai-slim
     #   pydantic-evals
     #   typer
-rpds-py==0.22.3
+rpds-py==0.24.0
     # via
     #   jsonschema
     #   referencing
 rsa==4.9
     # via google-auth
-ruamel-yaml==0.18.6
+ruamel-yaml==0.18.10
     # via prefect
 ruamel-yaml-clib==0.2.12
     # via ruamel-yaml
@@ -465,7 +470,6 @@ shellingham==1.5.4
     # via typer
 six==1.17.0
     # via
-    #   posthog
     #   python-dateutil
     #   rfc3339-validator
 sniffio==1.3.1
@@ -483,7 +487,7 @@ solders==0.26.0
     # via
     #   iointel (pyproject.toml)
     #   solana
-sqlalchemy==2.0.36
+sqlalchemy==2.0.40
     # via
     #   iointel (pyproject.toml)
     #   alembic
@@ -492,9 +496,9 @@ sqlalchemy==2.0.36
     #   sqlalchemy-utils
 sqlalchemy-utils==0.41.2
     # via iointel (pyproject.toml)
-sse-starlette==2.1.3
+sse-starlette==2.2.1
     # via mcp
-starlette==0.38.6
+starlette==0.46.1
     # via
     #   fastapi
     #   mcp
@@ -505,8 +509,10 @@ termcolor==3.0.0
     # via pytest-sugar
 text-unidecode==1.3
     # via python-slugify
-tiktoken==0.9.0
-    # via langchain-openai
+tiktoken==0.8.0
+    # via
+    #   langchain-openai
+    #   r2r
 time-machine==2.16.0
     # via pendulum
 tokenizers==0.21.1
@@ -515,6 +521,8 @@ toml==0.10.2
     # via
     #   prefect
     #   r2r
+tomli==2.2.1
+    # via pytest
 tqdm==4.67.1
     # via
     #   huggingface-hub
@@ -529,38 +537,44 @@ types-requests==2.32.0.20250328
     # via
     #   cohere
     #   r2r
-typing-extensions==4.12.2
+typing-extensions==4.13.0
     # via
     #   aiosqlite
     #   alembic
     #   anthropic
     #   anyio
     #   cohere
+    #   environs
     #   fastapi
     #   groq
     #   huggingface-hub
     #   langchain-core
+    #   multidict
     #   openai
     #   prefect
     #   pydantic
     #   pydantic-core
     #   pydantic-extra-types
     #   r2r
+    #   referencing
+    #   rich
     #   solana
     #   solders
     #   sqlalchemy
     #   typer
     #   typing-inspect
     #   typing-inspection
+    #   uvicorn
 typing-inspect==0.9.0
     # via mistralai
 typing-inspection==0.4.0
     # via
+    #   pydantic
     #   pydantic-ai-slim
     #   pydantic-graph
-tzdata==2024.2
+tzdata==2025.2
     # via pendulum
-tzlocal==5.2
+tzlocal==5.3.1
     # via dateparser
 ujson==5.10.0
     # via prefect
@@ -576,17 +590,16 @@ uvicorn==0.34.0
     # via
     #   mcp
     #   prefect
-    #   sse-starlette
 wcwidth==0.2.13
     # via prompt-toolkit
-websockets==13.1
+websockets==15.0
     # via
     #   firecrawl-py
     #   prefect
     #   solana
 wolframalpha==5.1.3
     # via iointel (pyproject.toml)
-wrapt==1.17.0
+wrapt==1.17.2
     # via deprecated
 xmltodict==0.14.2
     # via wolframalpha
