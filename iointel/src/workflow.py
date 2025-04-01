@@ -1,9 +1,8 @@
-from typing import List, Optional, Any, Union
+from typing import List, Optional, Any
 import uuid
 import inspect
 import marvin
 from .utilities.registries import TASK_EXECUTOR_REGISTRY
-from prefect import flow
 
 from .utilities.asyncio_utils import run_async
 from .agents import Agent
@@ -11,8 +10,14 @@ from .utilities.helpers import make_logger
 
 logger = make_logger(__name__)
 
+
 def _get_task_key(task: dict) -> str:
-    return task.get("task_id") or task.get("task_metadata", {}).get("name") or task.get("type")
+    return (
+        task.get("task_id")
+        or task.get("task_metadata", {}).get("name")
+        or task.get("type")
+    )
+
 
 class Workflow:
     """
@@ -50,21 +55,28 @@ class Workflow:
         self.tasks.append(task)
         return self
 
-
     def run_task(self, task: dict, default_text: str, default_agents: list) -> Any:
         return run_async(self.run_task_async(task, default_text, default_agents))
 
     def run_tasks(self, **kwargs):
         return run_async(self.run_tasks_async(**kwargs))
 
-    async def run_task_async(self, task: dict, default_text: str, default_agents: list) -> any:
+    async def run_task_async(
+        self, task: dict, default_text: str, default_agents: list
+    ) -> any:
         """
         Async version of run_task. Mirrors the synchronous branch but awaits async results.
         If a declarative multi-stage task is defined, offload the synchronous container.run() call
         to the default executor.
         """
         from .utilities.stages import execute_stage
-        from .agent_methods.data_models.datamodels import SimpleStage, WhileStage, ParallelStage, FallbackStage, SequentialStage
+        from .agent_methods.data_models.datamodels import (
+            SimpleStage,
+            WhileStage,
+            ParallelStage,
+            FallbackStage,
+            SequentialStage,
+        )
 
         import asyncio
 
@@ -79,37 +91,63 @@ class Workflow:
                 rtype = stage_def.get("result_type", None)
                 context = stage_def.get("context", {})
                 if stage_type == "simple":
-                    stage_objects.append(SimpleStage(objective=stage_def["objective"], context=context, result_type=rtype))
+                    stage_objects.append(
+                        SimpleStage(
+                            objective=stage_def["objective"],
+                            context=context,
+                            result_type=rtype,
+                        )
+                    )
                 elif stage_type == "while":
                     condition = stage_def["condition"]
                     nested_stage_def = stage_def["stage"]
                     nested_context = nested_stage_def.get("context", {})
                     nested_rtype = nested_stage_def.get("result_type", None)
-                    nested_stage = SimpleStage(objective=nested_stage_def["objective"], context=nested_context, result_type=nested_rtype)
+                    nested_stage = SimpleStage(
+                        objective=nested_stage_def["objective"],
+                        context=nested_context,
+                        result_type=nested_rtype,
+                    )
                     stage_objects.append(
                         WhileStage(
                             condition=condition,
                             stage=nested_stage,
-                            max_iterations=stage_def.get("max_iterations", 100)
+                            max_iterations=stage_def.get("max_iterations", 100),
                         )
                     )
                 elif stage_type == "parallel":
                     nested_defs = stage_def.get("stages", [])
                     nested_objs = [
-                        SimpleStage(objective=nd["objective"], context=nd.get("context", {}), result_type=nd.get("result_type", None))
+                        SimpleStage(
+                            objective=nd["objective"],
+                            context=nd.get("context", {}),
+                            result_type=nd.get("result_type", None),
+                        )
                         for nd in nested_defs
                     ]
                     stage_objects.append(ParallelStage(nested_objs))
                 elif stage_type == "fallback":
-                    primary_obj = SimpleStage(objective=stage_def["primary"]["objective"],
-                                               context=stage_def["primary"].get("context", {}),
-                                               result_type=stage_def["primary"].get("result_type", None))
-                    fallback_obj = SimpleStage(objective=stage_def["fallback"]["objective"],
-                                                context=stage_def["fallback"].get("context", {}),
-                                                result_type=stage_def["fallback"].get("result_type", None))
-                    stage_objects.append(FallbackStage(primary=primary_obj, fallback=fallback_obj))
+                    primary_obj = SimpleStage(
+                        objective=stage_def["primary"]["objective"],
+                        context=stage_def["primary"].get("context", {}),
+                        result_type=stage_def["primary"].get("result_type", None),
+                    )
+                    fallback_obj = SimpleStage(
+                        objective=stage_def["fallback"]["objective"],
+                        context=stage_def["fallback"].get("context", {}),
+                        result_type=stage_def["fallback"].get("result_type", None),
+                    )
+                    stage_objects.append(
+                        FallbackStage(primary=primary_obj, fallback=fallback_obj)
+                    )
                 else:
-                    stage_objects.append(SimpleStage(objective=stage_def["objective"], context=context, result_type=rtype))
+                    stage_objects.append(
+                        SimpleStage(
+                            objective=stage_def["objective"],
+                            context=context,
+                            result_type=rtype,
+                        )
+                    )
             container_mode = execution_metadata.get("execution_mode", "sequential")
             if container_mode == "parallel":
                 container = ParallelStage(stage_objects)
@@ -117,7 +155,14 @@ class Workflow:
                 container = SequentialStage(stage_objects)
             # Offload execute_stage(container) (a synchronous call) to the default executor.
             loop = asyncio.get_event_loop()
-            result = await loop.run_in_executor(None, execute_stage, container, agents_for_task, task.get("task_metadata", {}), text_for_task)
+            result = await loop.run_in_executor(
+                None,
+                execute_stage,
+                container,
+                agents_for_task,
+                task.get("task_metadata", {}),
+                text_for_task,
+            )
             if isinstance(result, list):
                 base = _get_task_key(task)
                 result = {f"{base}_stage_{i+1}": val for i, val in enumerate(result)}
@@ -150,21 +195,24 @@ class Workflow:
                         if hasattr(agent, "members"):
                             for member in agent.members:
                                 member.tools = [
-                                    tool.fn if hasattr(tool, "fn") and callable(tool.fn) else tool
+                                    tool.fn
+                                    if hasattr(tool, "fn") and callable(tool.fn)
+                                    else tool
                                     for tool in member.tools
                                 ]
                         else:
                             agent.tools = [
-                                tool.fn if hasattr(tool, "fn") and callable(tool.fn) else tool
+                                tool.fn
+                                if hasattr(tool, "fn") and callable(tool.fn)
+                                else tool
                                 for tool in agent.tools
                             ]
                 result_key = _get_task_key(t)
-                results_dict[result_key] = await self.run_task_async(t, self.text, self.agents)
+                results_dict[result_key] = await self.run_task_async(
+                    t, self.text, self.agents
+                )
         self.tasks.clear()
         return {"conversation_id": conversation_id, "results": results_dict}
-
-
-
 
     def to_yaml(
         self,
@@ -174,16 +222,18 @@ class Workflow:
     ) -> str:
         import yaml
         from pathlib import Path
-        from .agent_methods.data_models.datamodels import WorkflowDefinition, TaskDefinition, AgentParams
+        from .agent_methods.data_models.datamodels import (
+            WorkflowDefinition,
+            TaskDefinition,
+        )
         from .agent_methods.agents.agents_factory import agent_or_swarm
         import uuid
 
-        #top
+        # top
         agent_params_list = []
         if self.agents:
             for agent_obj in self.agents:
                 agent_params_list.extend(agent_or_swarm(agent_obj, store_creds))
-        
 
         task_models = []
         for t in self.tasks:
@@ -204,9 +254,9 @@ class Workflow:
                     step_agents_params.extend(agent_or_swarm(agent, store_creds))
                 task_model.agents = step_agents_params
             task_models.append(task_model)
-        
+
         # Build the WorkflowDefinition.
-        from .agent_methods.data_models.datamodels import WorkflowDefinition  # re-import if needed
+
         wf_def = WorkflowDefinition(
             name=workflow_name,
             text=self.text,
@@ -224,7 +274,10 @@ class Workflow:
         import yaml
         from pathlib import Path
         from collections import defaultdict
-        from .agent_methods.data_models.datamodels import WorkflowDefinition, TaskDefinition, AgentParams
+        from .agent_methods.data_models.datamodels import (
+            WorkflowDefinition,
+            AgentParams,
+        )
         from .agent_methods.agents.agents_factory import create_agent, create_swarm
 
         if not yaml_str and not file_path:
@@ -238,23 +291,28 @@ class Workflow:
         self.text = wf_def.text or ""
 
         # --- Rehydrate Top-Level Agents ---
-        swarm_lookup = {}   # key: swarm_name, value: list of AgentParams objects
+        swarm_lookup = {}  # key: swarm_name, value: list of AgentParams objects
         individual_agents = []  # list of AgentParams without a swarm_name
         if wf_def.agents:
             for agent_data in wf_def.agents:
-
-                if hasattr(agent_data, "swarm_name") and agent_data.swarm_name is not None:
+                if (
+                    hasattr(agent_data, "swarm_name")
+                    and agent_data.swarm_name is not None
+                ):
                     swarm_name = agent_data.swarm_name
-                    logger.debug(f"Top-level agent '{agent_data.name}' is part of swarm '{swarm_name}'")
+                    logger.debug(
+                        f"Top-level agent '{agent_data.name}' is part of swarm '{swarm_name}'"
+                    )
                     swarm_lookup.setdefault(swarm_name, []).append(agent_data)
                 else:
                     individual_agents.append(agent_data)
-        
+
         real_agents = []
 
-
         for swarm_name, members_list in swarm_lookup.items():
-            logger.debug(f" Group for swarm '{swarm_name}': {len(members_list)} member(s)")
+            logger.debug(
+                f" Group for swarm '{swarm_name}': {len(members_list)} member(s)"
+            )
             members = [create_agent(member) for member in members_list]
             swarm_obj = create_swarm(members)
             # Explicitly set the swarm's name.
@@ -265,7 +323,11 @@ class Workflow:
             real_agents.append(create_agent(agent_data))
         self.agents = real_agents
 
-        top_level_swarm_lookup = {swarm_obj.name: swarm_obj for swarm_obj in real_agents if hasattr(swarm_obj, "members")}
+        top_level_swarm_lookup = {
+            swarm_obj.name: swarm_obj
+            for swarm_obj in real_agents
+            if hasattr(swarm_obj, "members")
+        }
 
         # --- Rehydrate Tasks ---
         self.tasks.clear()
@@ -282,7 +344,6 @@ class Workflow:
                 swarm_groups = defaultdict(list)
                 individual = []
                 for agent in task.agents:
-
                     swarm_name = None
                     if isinstance(agent, dict):
                         swarm_name = agent.get("swarm_name")
@@ -294,19 +355,30 @@ class Workflow:
                     else:
                         individual.append(agent)
 
-                logger.debug(f"Task '{task.name}': Found {len(swarm_groups)} swarm group(s) and {len(individual)} individual agent(s)")
+                logger.debug(
+                    f"Task '{task.name}': Found {len(swarm_groups)} swarm group(s) and {len(individual)} individual agent(s)"
+                )
 
                 for swarm_name, members_list in swarm_groups.items():
-                    logger.debug(f"  Group for swarm '{swarm_name}': {len(members_list)} member(s)")
+                    logger.debug(
+                        f"  Group for swarm '{swarm_name}': {len(members_list)} member(s)"
+                    )
 
                     if swarm_name in top_level_swarm_lookup:
-                        logger.debug(f"Task '{task.name}'  Using top-level swarm '{swarm_name}'")
+                        logger.debug(
+                            f"Task '{task.name}'  Using top-level swarm '{swarm_name}'"
+                        )
                         step_agents.append(top_level_swarm_lookup[swarm_name])
                     else:
-                        members = [create_agent(AgentParams.model_validate(m)) for m in members_list]
+                        members = [
+                            create_agent(AgentParams.model_validate(m))
+                            for m in members_list
+                        ]
                         swarm_obj = create_swarm(members)
                         swarm_obj.name = swarm_name  # set the swarm name explicitly
-                        logger.debug(f" Task '{task.name}' Created new swarm '{swarm_obj.name}' with {len(swarm_obj.members)} members")
+                        logger.debug(
+                            f" Task '{task.name}' Created new swarm '{swarm_obj.name}' with {len(swarm_obj.members)} members"
+                        )
                         step_agents.append(swarm_obj)
 
                 for agent in individual:
@@ -318,6 +390,9 @@ class Workflow:
             self.tasks.append(new_task)
         return self
 
-from .chainables import CHAINABLE_METHODS  #has to be down here else circular import
+
+# has to be down here else circular import
+from .chainables import CHAINABLE_METHODS  # noqa: E402
+
 for method_name, func in CHAINABLE_METHODS.items():
     setattr(Workflow, method_name, func)

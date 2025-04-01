@@ -1,13 +1,21 @@
 import sys
-from pydantic import ( BaseModel, Field, ConfigDict, 
-                      SecretStr)
+from pydantic import BaseModel, Field, ConfigDict, SecretStr
 
-from typing import ( List, TypedDict, Annotated, 
-                    Optional, Union, Callable, 
-                    Dict, Any, Literal )
+from typing import (
+    List,
+    TypedDict,
+    Annotated,
+    Optional,
+    Union,
+    Callable,
+    Dict,
+    Any,
+    Literal,
+)
 
 from pydantic_ai.models.openai import OpenAIModel
 from datetime import datetime
+
 if sys.version_info < (3, 12):
     from typing_extensions import TypedDict
 else:
@@ -20,11 +28,12 @@ from ...utilities.exceptions import ToolError
 import inspect
 
 
-#monkey patching for OpenAIModel to return a generic schema
+# monkey patching for OpenAIModel to return a generic schema
 def patched_get_json_schema(cls, core_schema, handler):
     # Return a generic schema for the OpenAIModel.
     # Adjust this as needed for your application.
     return {"type": "object", "title": cls.__name__}
+
 
 # Monkey-patch the __get_pydantic_json_schema__ on OpenAIModel.
 OpenAIModel.__get_pydantic_json_schema__ = classmethod(patched_get_json_schema)
@@ -78,43 +87,43 @@ class PersonaConfig(BaseModel):
         description="A general descriptive text, e.g., 'A tall, lean figure wearing a cloak, with a stern demeanor.'",
     )
 
-    friendliness: Optional[Union[float,str]] = Field(
+    friendliness: Optional[Union[float, str]] = Field(
         None,
         description="How friendly the agent is, from 0 (hostile) to 1 (friendly).",
         ge=0,
         le=1,
     )
-    creativity: Optional[Union[float,str]] = Field(
+    creativity: Optional[Union[float, str]] = Field(
         None,
         description="How creative the agent is, from 0 (very logical) to 1 (very creative).",
         ge=0,
         le=1,
     )
-    curiosity: Optional[Union[float,str]] = Field(
+    curiosity: Optional[Union[float, str]] = Field(
         None,
         description="How curious the agent is, from 0 (disinterested) to 1 (very curious).",
         ge=0,
         le=1,
     )
-    empathy: Optional[Union[float,str]] = Field(
+    empathy: Optional[Union[float, str]] = Field(
         None,
         description="How empathetic the agent is, from 0 (cold) to 1 (very empathetic).",
         ge=0,
         le=1,
     )
-    humor: Optional[Union[float,str]] = Field(
+    humor: Optional[Union[float, str]] = Field(
         None,
         description="How humorous the agent is, from 0 (serious) to 1 (very humorous).",
         ge=0,
         le=1,
     )
-    formality: Optional[Union[float,str]] = Field(
+    formality: Optional[Union[float, str]] = Field(
         None,
         description="How formal the agent is, from 0 (very casual) to 1 (very formal).",
         ge=0,
         le=1,
     )
-    emotional_stability: Optional[Union[float,str]] = Field(
+    emotional_stability: Optional[Union[float, str]] = Field(
         None,
         description="How emotionally stable the agent is, from 0 (very emotional) to 1 (very stable).",
         ge=0,
@@ -228,8 +237,11 @@ class Tool(BaseModel):
         if self.fn and hasattr(self.fn, "__name__"):
             return self.fn.__name__
         return self.name  # fallback to the Tool's name
+
     @classmethod
-    def from_function(cls, fn: Callable, name: Optional[str] = None, description: Optional[str] = None) -> "Tool":
+    def from_function(
+        cls, fn: Callable, name: Optional[str] = None, description: Optional[str] = None
+    ) -> "Tool":
         func_name = name or fn.__name__
         if func_name == "<lambda>":
             raise ValueError("You must provide a name for lambda functions")
@@ -243,7 +255,7 @@ class Tool(BaseModel):
         else:
             try:
                 body = inspect.getsource(fn)
-            except Exception as e:
+            except Exception:
                 body = None
         return cls(
             fn=fn,
@@ -259,45 +271,38 @@ class Tool(BaseModel):
         """Run the tool with arguments."""
         try:
             return await self.fn_metadata.call_fn_with_arg_validation(
-                self.fn,
-                self.is_async,
-                arguments
-
+                self.fn, self.is_async, arguments
             )
         except Exception as e:
             raise ToolError(f"Error executing tool {self.name}: {e}") from e
+
 
 ##agent params###
 class AgentParams(BaseModel):
     model_config = ConfigDict(
         arbitrary_types_allowed=True,
-        serializers={
-            SecretStr: lambda s: s.get_secret_value()
-        }
+        serializers={SecretStr: lambda s: s.get_secret_value()},
     )
     name: Optional[str] = None
     instructions: Optional[str] = None
     description: Optional[str] = None
     swarm_name: Optional[str] = None
-    model: Optional[Union[OpenAIModel, str]]= Field(
+    model: Optional[Union[OpenAIModel, str]] = Field(
         default="meta-llama/Llama-3.3-70B-Instruct",
-        description="Model or model name for the agent"
+        description="Model or model name for the agent",
     )
-    api_key:  Optional[Union[str, SecretStr]]  = Field(
-        None,
-        description="API key for the model, if required."
+    api_key: Optional[Union[str, SecretStr]] = Field(
+        None, description="API key for the model, if required."
     )
     base_url: Optional[str] = Field(
-        None,
-        description="Base URL for the model, if required."
+        None, description="Base URL for the model, if required."
     )
-    tools: Optional[List[Tool]]  = Field(default_factory=list)
+    tools: Optional[List[Tool]] = Field(default_factory=list)
     # llm_rules: Optional[controlflow.llm.rules.LLMRules] = None
     # interactive: Optional[bool] = False
     # memories: Optional[list[Memory]] | Optional[list[AsyncMemory]] = Field(default_factory=list)
     memories: Optional[list[Memory]] = Field(default_factory=list)
     model_settings: Optional[Dict[str, Any]] = Field(default_factory=dict)
-    
 
 
 # reasoning agent
@@ -317,7 +322,8 @@ class ReasoningStep(BaseModel):
 
 class Swarm(BaseModel):
     members: List[AgentParams]
-    
+
+
 ##summary
 class SummaryResult(BaseModel):
     summary: str
@@ -350,51 +356,58 @@ class ViolationActivation(TypedDict):
     dangerous_content: Activation
 
 
-
-
 ##### task and workflow models ########
 class BaseStage(BaseModel):
     stage_id: Optional[int] = None
     stage_name: str = ""
-    agents: List[Union[AgentParams,Swarm]] = Field(default_factory=list)
+    agents: List[Union[AgentParams, Swarm]] = Field(default_factory=list)
     context: Optional[Dict[str, Any]] = Field(default_factory=dict)
+
 
 class SimpleStage(BaseStage):
     stage_type: Literal["simple"] = "simple"
     objective: str
     result_type: Any = None
 
+
 class SequentialStage(BaseStage):
     stage_type: Literal["sequential"] = "sequential"
-    stages: List["Stage"] = Field(..., description="List of stages to execute sequentially")
+    stages: List["Stage"] = Field(
+        ..., description="List of stages to execute sequentially"
+    )
 
 
 class ParallelStage(BaseStage):
     stage_type: Literal["parallel"] = "parallel"
     # merge_strategy: Optional[str] = None
-    stages: List["Stage"] = Field(..., description="List of stages to execute in parallel")
+    stages: List["Stage"] = Field(
+        ..., description="List of stages to execute in parallel"
+    )
 
 
 class WhileStage(BaseStage):
     stage_type: Literal["while"] = "while"
-    condition: str|Callable = Field(
+    condition: str | Callable = Field(
         ...,
         description=(
             "A condition (expressed as a string or expression) that determines whether "
             "the loop should continue. The evaluation of this condition should be handled "
             "by the executor logic."
-        )
+        ),
     )
     max_iterations: Optional[int] = Field(
         100,
-        description="An optional safeguard to limit the number of iterations and prevent infinite loops."
+        description="An optional safeguard to limit the number of iterations and prevent infinite loops.",
     )
     stage: List["Stage"] = Field(..., description="The loop body")
+
 
 class FallbackStage(BaseStage):
     stage_type: Literal["fallback"] = "fallback"
     primary: "Stage" = Field(..., description="The primary stage to execute")
-    fallback: "Stage" = Field(..., description="The fallback stage to execute if primary fails")
+    fallback: "Stage" = Field(
+        ..., description="The fallback stage to execute if primary fails"
+    )
 
 
 Stage = Union[SimpleStage, ParallelStage, WhileStage, FallbackStage]
@@ -409,14 +422,14 @@ WhileStage.model_rebuild()
 class TaskDefinition(BaseModel):
     task_id: str
     name: str
-    #description: Optional[str] = None
+    # description: Optional[str] = None
     text: Optional[str] = None
-    agents: Optional[Union[List[AgentParams],Swarm]] = None
+    agents: Optional[Union[List[AgentParams], Swarm]] = None
     task_metadata: Optional[Dict[str, Any]] = None
-    #metadata: Optional[Dict[str, Any]] = Field(default_factory=dict)
+    # metadata: Optional[Dict[str, Any]] = Field(default_factory=dict)
     execution_metadata: Optional[Dict[str, Any]] = None
-    #execution_mode: Literal["sequential", "parallel"] = "sequential"
-    #stages: List[Stage] = Field(..., description="The sequence of stages that make up this task")
+    # execution_mode: Literal["sequential", "parallel"] = "sequential"
+    # stages: List[Stage] = Field(..., description="The sequence of stages that make up this task")
 
 
 class WorkflowDefinition(BaseModel):
@@ -426,13 +439,12 @@ class WorkflowDefinition(BaseModel):
     - agents: The agent definitions
     - tasks: The list of tasks that make up the workflow
     """
+
     name: str
     text: Optional[str] = None  # Main text/prompt for the workflow
     client_mode: Optional[bool] = None
-    agents: Optional[Union[List[AgentParams],Swarm]] = None
+    agents: Optional[Union[List[AgentParams], Swarm]] = None
     tasks: List[TaskDefinition] = Field(default_factory=list)
-
-
 
 
 ### logging handlers
@@ -522,4 +534,3 @@ class EventsLog(BaseModel):
     """
 
     events: List[EventModelUnion] = []
-

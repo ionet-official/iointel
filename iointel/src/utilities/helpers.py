@@ -7,6 +7,7 @@ from pydantic import BaseModel, ConfigDict, model_serializer
 import logging
 import os
 
+
 def make_logger(name: str, level: str = "INFO"):
     logger = logging.getLogger(name)
     level_name = os.environ.get("AGENT_LOGGING_LEVEL", level).upper()
@@ -20,6 +21,7 @@ def make_logger(name: str, level: str = "INFO"):
 
 
 logger = make_logger(__name__)
+
 
 class LazyCaller(BaseModel):
     func: Callable

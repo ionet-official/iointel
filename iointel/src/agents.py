@@ -10,7 +10,7 @@ from pydantic import SecretStr
 import marvin
 from prefect import task
 
-from typing import Any, Dict, List, Optional, Callable, Union
+from typing import Any, Dict, List, Optional, Union
 
 
 class Agent(marvin.Agent):
@@ -56,11 +56,16 @@ class Agent(marvin.Agent):
             model_instance = model
 
         else:
-            kwargs = dict(model_kwargs, provider=OpenAIProvider(
-                base_url=self.base_url,
-                api_key=self.api_key.get_secret_value()
-            ))
-            model_instance = OpenAIModel(model_name=model if isinstance(model, str) else get_base_model(), **kwargs)
+            kwargs = dict(
+                model_kwargs,
+                provider=OpenAIProvider(
+                    base_url=self.base_url, api_key=self.api_key.get_secret_value()
+                ),
+            )
+            model_instance = OpenAIModel(
+                model_name=model if isinstance(model, str) else get_base_model(),
+                **kwargs,
+            )
 
         # Build a persona snippet if provided
         if isinstance(persona, PersonaConfig):
@@ -73,7 +78,6 @@ class Agent(marvin.Agent):
         if persona_instructions.strip():
             combined_instructions += "\n\n" + persona_instructions
 
-
         super().__init__(
             name=name,
             instructions=combined_instructions,
@@ -85,7 +89,9 @@ class Agent(marvin.Agent):
         )
 
     def get_end_turn_tools(self):
-        return [str] + super().get_end_turn_tools()  # a hack to override tool_choice='auto'
+        return [
+            str
+        ] + super().get_end_turn_tools()  # a hack to override tool_choice='auto'
 
     @task(persist_result=False)
     def run(self, prompt: str):
@@ -105,6 +111,7 @@ class Agent(marvin.Agent):
     @classmethod
     def make_default(cls):
         return cls(name="Default agent", instructions="")
+
 
 class Swarm(marvin.Swarm):
     def __init__(self, agents: List[Agent] = None, **kwargs):

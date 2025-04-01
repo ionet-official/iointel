@@ -1,4 +1,4 @@
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict
 
 # from .task import CUSTOM_WORKFLOW_REGISTRY
 from .agent_methods.tools.tools import between
@@ -17,6 +17,7 @@ def execute_schedule_reminder(
     task_metadata: dict, text: str, agents: List[Agent], execution_metadata: dict
 ):
     from ..client.client import schedule_task
+
     client_mode = execution_metadata.get("client_mode", False)
     if client_mode:
         return schedule_task(command=text)
@@ -37,6 +38,7 @@ def execute_solve_with_reasoning(
 ):
     from .agent_methods.prompts.instructions import REASONING_INSTRUCTIONS
     from .agent_methods.data_models.datamodels import ReasoningStep
+
     client_mode = execution_metadata.get("client_mode", False)
     if client_mode:
         from ..client.client import run_reasoning_task
@@ -86,12 +88,13 @@ def execute_summarize_text(
 
 
 @register_custom_task("sentiment")
-def execute_sentiment(task_metadata: dict, text: str, agents: List[Agent], execution_metadata: dict):
-
+def execute_sentiment(
+    task_metadata: dict, text: str, agents: List[Agent], execution_metadata: dict
+):
     from ..client.client import sentiment_analysis
 
     client_mode = execution_metadata.get("client_mode", False)
-    
+
     if client_mode:
         return sentiment_analysis(text=text)
     else:
@@ -110,6 +113,7 @@ def execute_extract_entities(
     task_metadata: dict, text: str, agents: List[Agent], execution_metadata: dict
 ):
     from ..client.client import extract_entities
+
     client_mode = execution_metadata.get("client_mode", False)
     if client_mode:
         return extract_entities(text=text)
@@ -219,8 +223,7 @@ def execute_moderation(
 @register_custom_task("custom")
 def execute_custom(
     task_metadata: dict, text: str, agents: List[Agent], execution_metadata: dict
-    ):
-
+):
     client_mode = execution_metadata.get("client_mode", False)
     name = task_metadata["name"]
 
@@ -270,10 +273,10 @@ def schedule_reminder(self, delay: int = 0, agents: Optional[List[Agent]] = None
 def solve_with_reasoning(self, agents: Optional[List[Agent]] = None):
     self.tasks.append(
         {
-         "type": "solve_with_reasoning",
-         "text": self.text,
-         "agents": self.agents if agents is None else agents,
-         }
+            "type": "solve_with_reasoning",
+            "text": self.text,
+            "agents": self.agents if agents is None else agents,
+        }
     )
     return self
 
@@ -292,12 +295,12 @@ def summarize_text(self, max_words: int = 100, agents: Optional[List[Agent]] = N
 
 def sentiment(self, agents: Optional[List[Agent]] = None):
     self.tasks.append(
-            {
-                "type": "sentiment",
-                "text": self.text,
-                "agents": self.agents if agents is None else agents,
-            }
-        )
+        {
+            "type": "sentiment",
+            "text": self.text,
+            "agents": self.agents if agents is None else agents,
+        }
+    )
     return self
 
 

@@ -83,7 +83,6 @@ class Task:
             )
         )
 
-
     def chain_runs(
         self, run_specs: List[Dict[str, Any]], run_async: Optional[bool] = False
     ) -> List[Any]:

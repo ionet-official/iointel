@@ -26,7 +26,7 @@ def create_swarm(agents: List[Agent]) -> Swarm:
 def agent_or_swarm(agent_obj, store_creds: bool) -> list:
     """
     Serializes an agent object into a list of AgentParams.
-    
+
     - If the agent_obj is an individual agent (has an 'api_key'),
       returns a list with one AgentParams instance.
     - If the agent_obj is a swarm (has a 'members' attribute),
@@ -45,7 +45,10 @@ def agent_or_swarm(agent_obj, store_creds: bool) -> list:
         return AgentParams(
             name=agent.name,
             instructions=agent.instructions,
-            tools=[Tool.from_function(t).model_dump(exclude={"fn", "fn_metadata"}) for t in agent.tools],
+            tools=[
+                Tool.from_function(t).model_dump(exclude={"fn", "fn_metadata"})
+                for t in agent.tools
+            ],
             model=getattr(agent.model, "model_name", None),
             model_settings=agent.model_settings,
             api_key=get_api_key(agent),

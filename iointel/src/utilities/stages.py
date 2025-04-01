@@ -1,12 +1,19 @@
 import concurrent.futures
 from .runners import run_agents
-from typing import Optional, Any, get_type_hints
+from typing import Any, get_type_hints
 
 
-from ..agent_methods.data_models.datamodels import BaseStage, SimpleStage, SequentialStage, \
-    ParallelStage, WhileStage, FallbackStage
+from ..agent_methods.data_models.datamodels import (
+    BaseStage,
+    SimpleStage,
+    SequentialStage,
+    ParallelStage,
+    WhileStage,
+    FallbackStage,
+)
 
 _STAGE_RUNNERS = {}
+
 
 def execute_stage(stage: BaseStage, agents, task_metadata, default_text):
     try:
@@ -15,11 +22,13 @@ def execute_stage(stage: BaseStage, agents, task_metadata, default_text):
         raise NotImplementedError(f"Stage {stage.__class__} not supported yet")
     return runner(stage, agents, task_metadata, default_text)
 
+
 def register_stage_runner(func):
-    stage = get_type_hints(func).get('stage', None)
+    stage = get_type_hints(func).get("stage", None)
     assert stage and issubclass(stage, BaseStage) and stage not in _STAGE_RUNNERS
     _STAGE_RUNNERS[stage] = func
     return func
+
 
 @register_stage_runner
 def _run_simple(stage: SimpleStage, agents, task_metadata, default_text) -> Any:
@@ -32,25 +41,34 @@ def _run_simple(stage: SimpleStage, agents, task_metadata, default_text) -> Any:
         objective=stage.objective,
         agents=stage.agents,
         context=merged_context,
-        result_type=stage.result_type
+        result_type=stage.result_type,
     ).execute()
 
+
 @register_stage_runner
-def _run_sequential(stage: SequentialStage, agents, task_metadata, default_text) -> list:
+def _run_sequential(
+    stage: SequentialStage, agents, task_metadata, default_text
+) -> list:
     results = []
     for substage in stage.stages:
         results.append(execute_stage(substage, agents, task_metadata, default_text))
     return results
 
+
 @register_stage_runner
 def _run_parallel(stage: ParallelStage, agents, task_metadata, default_text) -> list:
     results = []
     with concurrent.futures.ThreadPoolExecutor() as executor:
-        futures = [executor.submit(execute_stage, substage, agents, task_metadata, default_text)
-                    for substage in stage.stages]
+        futures = [
+            executor.submit(
+                execute_stage, substage, agents, task_metadata, default_text
+            )
+            for substage in stage.stages
+        ]
         for future in concurrent.futures.as_completed(futures):
             results.append(future.result())
     return results
+
 
 @register_stage_runner
 def _run_while(stage: WhileStage, agents, task_metadata, default_text) -> list:
@@ -61,6 +79,7 @@ def _run_while(stage: WhileStage, agents, task_metadata, default_text) -> list:
         results.append(result)
         iterations += 1
     return results
+
 
 @register_stage_runner
 def _run_fallback(stage: FallbackStage, agents, task_metadata, default_text) -> any:
