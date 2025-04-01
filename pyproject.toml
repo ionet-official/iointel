@@ -67,7 +67,7 @@ all = [
     "pytest>=8.3.4",
     "python-multipart>=0.0.20",
     "marvin",
-    "pydantic-ai",
+    "pydantic-ai>=0.0.37",
     "prefect>=3.2.2",
     "sqlalchemy>=2.0.36",
     "sqlalchemy-utils>=0.41.2",
@@ -117,6 +117,6 @@ substitutions = [
     {pattern = '\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]', replacement = '**\1**:'},
 ]
 
-[tool.uv.sources]
-pydantic-ai = { git = "https://github.com/webcoderz/pydantic-ai", rev = "webcoderz-model-settings" }
-marvin = { git = "https://github.com/webcoderz/marvin" }
+# [tool.uv.sources]
+# pydantic-ai = { git = "https://github.com/webcoderz/pydantic-ai", rev = "webcoderz-model-settings" }
+# marvin = { git = "https://github.com/webcoderz/marvin" }
