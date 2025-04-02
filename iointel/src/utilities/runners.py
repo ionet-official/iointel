@@ -46,4 +46,5 @@ async def run_agents_async(objective: str, **kwargs) -> LazyCaller:
     """
     Asynchronous lazy wrapper around Task().a_run.
     """
+    # FIXME: could it break due to lambda returning awaitable? see if it needs fixes
     return LazyCaller(_run_async, objective, **kwargs)

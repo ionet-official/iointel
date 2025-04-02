@@ -72,7 +72,7 @@ class Task:
         :return: The result of the marvin.run() call.
         """
         chosen_agents = agents if agents is not None else self.agents
-        # FIXME: likely would break due to lambda returning awaitable
+        # FIXME: could it break due to lambda returning awaitable? see if it needs fixes
         return LazyCaller(
             lambda: marvin.run_async(
                 objective,
