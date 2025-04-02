@@ -1,8 +1,9 @@
 import asyncio
 from datetime import datetime
 
+import marvin
+
 from iointel import Agent
-from iointel.src.workflow import run_agents_async
 
 
 def add_two_numbers(a: int, b: int) -> int:
@@ -23,7 +24,7 @@ def test_basic_tools():
     numbers = [22122837493142, 17268162387617, 159864395786239452]
 
     result = asyncio.run(
-        run_agents_async(
+        marvin.run_async(
             f"Add three numbers: {numbers[0]} and {numbers[1]} and {numbers[2]}",
             agents=[agent], tools=[add_two_numbers, get_current_datetime],
         )

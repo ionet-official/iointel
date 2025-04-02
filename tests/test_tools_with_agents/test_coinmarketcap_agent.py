@@ -1,10 +1,12 @@
 import asyncio
 
+import marvin
+
 from iointel import Agent
 from iointel.src.agent_methods.tools_before_rebase.coinmarketcap import listing_coins, get_coin_info, get_coin_quotes, \
     get_coin_quotes_historical
 from iointel.src.agent_methods.tools_before_rebase.utils import what_time_is_it
-from iointel.src.workflow import run_agents_async
+from iointel.src.utilities.runners import run_agents_async
 
 
 def get_coinmarketcap_agent():
@@ -28,7 +30,7 @@ def get_coinmarketcap_agent():
 def test_coinmarketcap_btc_year():
     agent = get_coinmarketcap_agent()
     result = asyncio.run(
-        run_agents_async(
+        marvin.run_async(
             "What year was bitcoin established at? Return the date obtained from toolcall result",
             agents=[agent]
         )
@@ -40,7 +42,7 @@ def test_coinmarketcap_btc_year():
 def test_top_10_currencies_by_capitalization():
     agent = get_coinmarketcap_agent()
     result = asyncio.run(
-        run_agents_async(
+        marvin.run_async(
             "Return names of top 10 cryptocurrencies, sorted by capitalization. "
             "Use the format: currency1,currency2,...,currencyX",
             agents=[agent]
@@ -56,7 +58,7 @@ def test_top_10_currencies_by_capitalization():
 def test_coinmarketcap_different_crypto_for_same_symbol():
     agent = get_coinmarketcap_agent()
     result = asyncio.run(
-        run_agents_async(
+        marvin.run_async(
             "List some of the cryptocurrency names with a symbol BTC. Use get_coin_info function.",
             agents=[agent]
         )
@@ -71,7 +73,7 @@ def test_coinmarketcap_different_crypto_for_same_symbol():
 def test_coinmarketcap_btc_capitalization():
     agent = get_coinmarketcap_agent()
     result = asyncio.run(
-        run_agents_async(
+        marvin.run_async(
             "What's bitcoin capitalization? Return a single number: capitalization in USD",
             agents=[agent]
         )
@@ -83,7 +85,7 @@ def test_coinmarketcap_btc_capitalization():
 def test_coinmarketcap_get_current_price():
     agent = get_coinmarketcap_agent()
     result = asyncio.run(
-        run_agents_async(
+        marvin.run_async(
             "Get current price of bitcoin. Return a single number: price in USD.",
             agents=[agent]
         )
@@ -95,7 +97,7 @@ def test_coinmarketcap_get_current_price():
 def test_coinmarketcap_historical_price():
     agent = get_coinmarketcap_agent()
     result = asyncio.run(
-        run_agents_async(
+        marvin.run_async(
             "Get price of bitcoin yesterday at 12:00. Return a single number: price in USD.",
             agents=[agent],
         )

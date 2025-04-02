@@ -1,8 +1,9 @@
 import asyncio
 
+import marvin
+
 from iointel import Agent
 from iointel.src.agent_methods.tools_before_rebase.firecrawl import Crawler
-from iointel.src.workflow import run_agents_async
 
 
 def test_firecrawl():
@@ -11,7 +12,7 @@ def test_firecrawl():
         name="Agent",
         instructions="You are a crawler agent. Crawl web pages, retrieve information, do what user asks."
     )
-    result = asyncio.run(run_agents_async(
+    result = asyncio.run(marvin.run_async(
         "Crawl this page: https://decrypt.co/306329/io-net-launches-generative-intelligence-platform-for-developers. "
         "What is the exact date of the io-intelligence first release? "
         "Provide the response in a format: dd-mm-yyyy",

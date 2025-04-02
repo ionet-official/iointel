@@ -1,8 +1,9 @@
 import asyncio
 
+import marvin
+
 from iointel import Agent
 from iointel.src.agent_methods.tools_before_rebase.wolfram import query_wolfram_async
-from iointel.src.workflow import run_agents_async
 
 
 def get_wolfram_agent():
@@ -19,7 +20,7 @@ def get_wolfram_agent():
 def test_wolframalpha():
     agent = get_wolfram_agent()
     result = asyncio.run(
-        run_agents_async(
+        marvin.run_async(
             "Find all solutions to this equation in REAL numbers: 13x^5-7x^4+3x^3+1=0. "
             "Return response in the following format: "
             "Solutions: X1,X2,X3,... "

@@ -2,7 +2,7 @@ import asyncio
 
 from iointel import Agent
 from iointel.src.agent_methods.tools_before_rebase.duckduckgo import search_the_web_async
-from iointel.src.workflow import run_agents_async
+from iointel.src.utilities.runners import run_agents_async
 
 
 def test_duckduckgo():

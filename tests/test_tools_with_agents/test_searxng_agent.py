@@ -1,8 +1,9 @@
 import asyncio
 
+import marvin
+
 from iointel import Agent
 from iointel.src.agent_methods.tools_before_rebase.searxng import SearxngClient
-from iointel.src.workflow import run_agents_async
 
 
 def test_searxng():
@@ -14,7 +15,7 @@ def test_searxng():
         tools=[client.search],
     )
 
-    result = asyncio.run(run_agents_async(
+    result = asyncio.run(marvin.run_async(
         "Search the web. How many models were released on the first version of io-intelligence product?",
         agents=[agent],
     ))
