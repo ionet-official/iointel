@@ -54,6 +54,9 @@ jobs:
       - name: Install dependencies
         run: uv pip install --system -e . && uv pip install --system ".[tests]" && uv pip install --system ".[all]" && uv pip install -U httpcore --system 
 
+      - name: Prepare for tests
+        run: make prepare_for_tests
+
       - name: Run tests
         run: pytest -vv tests/
         if: ${{ !(github.event.pull_request.head.repo.fork) }}
