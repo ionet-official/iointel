@@ -360,14 +360,14 @@ class ViolationActivation(TypedDict):
 class BaseStage(BaseModel):
     stage_id: Optional[int] = None
     stage_name: str = ""
-    agents: List[Union[AgentParams, Swarm]] = Field(default_factory=list)
-    context: Optional[Dict[str, Any]] = Field(default_factory=dict)
 
 
 class SimpleStage(BaseStage):
     stage_type: Literal["simple"] = "simple"
     objective: str
     result_type: Any = None
+    agents: List[Union[AgentParams, Swarm]] = Field(default_factory=list)
+    context: Optional[Dict[str, Any]] = Field(default_factory=dict)
 
 
 class SequentialStage(BaseStage):

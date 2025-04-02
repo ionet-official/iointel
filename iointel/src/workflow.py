@@ -16,6 +16,7 @@ def _get_task_key(task: dict) -> str:
         task.get("task_id")
         or task.get("task_metadata", {}).get("name")
         or task.get("type")
+        or "task"
     )
 
 
@@ -125,7 +126,7 @@ class Workflow:
                         )
                         for nd in nested_defs
                     ]
-                    stage_objects.append(ParallelStage(nested_objs))
+                    stage_objects.append(ParallelStage(stages=nested_objs))
                 elif stage_type == "fallback":
                     primary_obj = SimpleStage(
                         objective=stage_def["primary"]["objective"],
@@ -150,9 +151,9 @@ class Workflow:
                     )
             container_mode = execution_metadata.get("execution_mode", "sequential")
             if container_mode == "parallel":
-                container = ParallelStage(stage_objects)
+                container = ParallelStage(stages=stage_objects)
             else:
-                container = SequentialStage(stage_objects)
+                container = SequentialStage(stages=stage_objects)
             # Offload execute_stage(container) (a synchronous call) to the default executor.
             loop = asyncio.get_event_loop()
             result = await loop.run_in_executor(

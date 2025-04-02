@@ -39,7 +39,7 @@ def _run_simple(stage: SimpleStage, agents, task_metadata, default_text) -> Any:
     # Pass result_stage if provided.
     return run_agents(
         objective=stage.objective,
-        agents=stage.agents,
+        agents=agents or stage.agents,
         context=merged_context,
         result_type=stage.result_type,
     ).execute()

@@ -52,6 +52,14 @@ def register_custom_task(task_type: str, chainable: bool = True):
     return decorator
 
 
+# used in tests
+def _unregister_custom_task(task_type: str, chainable: bool = True):
+    del TASK_EXECUTOR_REGISTRY[task_type]
+    if chainable:
+        del CHAINABLE_METHODS[task_type]
+        delattr(Workflow, task_type)
+
+
 # decorator to register custom workflows
 def register_custom_workflow(name: str):
     def decorator(func):
