@@ -15,6 +15,7 @@ SOLSCAN_API_URL = "https://pro-api.solscan.io"
 
 
 async def fetch_solscan(path, full_url: Optional[str] = None, params: Optional[dict] = None) -> dict | str:
+    assert SOLSCAN_API_KEY
     url = f"{SOLSCAN_API_URL}{path}"
     if full_url:
         url = full_url

@@ -26,6 +26,7 @@ class Crawler:
         """
         if not api_key:
             api_key = FIRECRAWL_API_KEY
+        assert api_key
         if version:
             self.app: FirecrawlApp = FirecrawlApp(api_key=api_key, version=version)
         else:

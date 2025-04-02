@@ -27,6 +27,7 @@ async def coinmarketcap_request(endpoint: str, params: Dict[str, Any]) -> Option
 
 async def make_coinmarketcap_request(client: httpx.AsyncClient, url: str) -> dict[str, Any] | None:
     """Make a request to the CoinMarketCap API with proper error handling."""
+    assert COINMARKETCAP_API_KEY
     headers = {
     'Accepts': 'application/json',
     'X-CMC_PRO_API_KEY': COINMARKETCAP_API_KEY,
