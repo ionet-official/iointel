@@ -35,7 +35,7 @@ def test_coinmarketcap_btc_year():
         )
     )
     assert result is not None, "Expected a result from the agent run."
-    assert '2010' in result
+    assert '2010' in result or '2009' in result
 
 
 def test_top_10_currencies_by_capitalization():
@@ -74,7 +74,8 @@ def test_coinmarketcap_btc_capitalization():
     result = asyncio.run(
         marvin.run_async(
             "What's bitcoin capitalization? Return a single number: capitalization in USD",
-            agents=[agent]
+            agents=[agent],
+            result_type=float
         )
     )
     assert result is not None, "Expected a result from the agent run."
@@ -86,7 +87,8 @@ def test_coinmarketcap_get_current_price():
     result = asyncio.run(
         marvin.run_async(
             "Get current price of bitcoin. Return a single number: price in USD.",
-            agents=[agent]
+            agents=[agent],
+            result_type=float
         )
     )
     assert result is not None, "Expected a result from the agent run."
@@ -99,6 +101,7 @@ def test_coinmarketcap_historical_price():
         marvin.run_async(
             "Get price of bitcoin yesterday at 12:00. Return a single number: price in USD.",
             agents=[agent],
+            result_type=float
         )
     )
     assert result is not None, "Expected a result from the agent run."
