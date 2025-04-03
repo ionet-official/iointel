@@ -4,13 +4,13 @@ dynamic = ["version", "readme"]
 description = "A framework to create agents, tasks, and workflows."
 requires-python = ">= 3.10"
 dependencies = [
-    "pydantic>=2.10.3",
+    "pydantic==2.10.3",
     "python-dotenv>=1.0.1",
     "httpx",
     "pytest>=8.3.4",
     "python-multipart>=0.0.20",
     "prefect>=3.2.2",
-    "pydantic-ai>=0.0.37",
+    "pydantic-ai==0.0.37",
     "marvin==3.0.1",
     "firecrawl>=1.15.0",
     "duckduckgo-search>=2025.4.1",
