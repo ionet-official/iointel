@@ -43,6 +43,7 @@ jobs:
       COINMARKETCAP_API_KEY: ${{ secrets.COINMARKETCAP_API_KEY }}
       FIRECRAWL_API_KEY: ${{ secrets.FIRECRAWL_API_KEY }}
       SLOW_MODE_SLEEP: 10
+      LOGFIRE_IGNORE_NO_CONFIG: 1
 
     steps:
       - uses: actions/checkout@v4
