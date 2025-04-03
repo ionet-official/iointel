@@ -24,6 +24,15 @@ prepare_for_tests:
 		-e "INSTANCE_NAME=my-instance" \
 		--name iointel-searxng \
 		searxng/searxng
+	sleep 5
+	# Retrieve the response from localhost:8080 silently.
+	@response=$$(curl -s localhost:8080) ; \
+	if [ -n "$$response" ]; then \
+	  echo "Success: Server returned output."; \
+	else \
+	  echo "Error: No output received from server."; \
+	  exit 1; \
+	fi
 
 
 .PHONY: prepare_for_tests
