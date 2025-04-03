@@ -14,6 +14,7 @@ dependencies = [
     "marvin==3.0.1",
     "firecrawl>=1.15.0",
     "duckduckgo-search>=2025.4.1",
+    "pyyaml>=6.0.2",
 ]
 keywords = ["Agents", "LLM", "framework", "AI", "tools"]
 classifiers = [
