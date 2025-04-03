@@ -2,6 +2,9 @@ prepare_for_tests:
 	export PORT=8080
 	docker pull searxng/searxng
 	docker stop iointel-searxng || true
+
+	# Run searxng to generate default settings.yml
+	# Then edit settings.yml to support json format in the output, and restart docker with updated settings
 	docker run --rm -d \
 		-p ${PORT}:8080 \
 		-v "${PWD}/searxng:/etc/searxng" \
