@@ -15,6 +15,7 @@ dependencies = [
     "firecrawl>=1.15.0",
     "duckduckgo-search>=2025.4.1",
     "pyyaml>=6.0.2",
+    "numpy==1.26.4",
 ]
 keywords = ["Agents", "LLM", "framework", "AI", "tools"]
 classifiers = [

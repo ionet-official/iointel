@@ -8,7 +8,7 @@ prepare_for_tests:
 	docker run --rm -d \
 		-p ${PORT}:8080 \
 		-v "${PWD}/searxng:/etc/searxng" \
-		-e "BASE_URL=http://localhost:$PORT/" \
+		-e "BASE_URL=http://localhost:${PORT}/" \
 		-e "INSTANCE_NAME=my-instance" \
 		--name iointel-searxng \
 		searxng/searxng
@@ -20,7 +20,7 @@ prepare_for_tests:
 	docker run --rm -d \
 		-p ${PORT}:8080 \
 		-v "${PWD}/searxng:/etc/searxng" \
-		-e "BASE_URL=http://localhost:$PORT/" \
+		-e "BASE_URL=http://localhost:${PORT}/" \
 		-e "INSTANCE_NAME=my-instance" \
 		--name iointel-searxng \
 		searxng/searxng
