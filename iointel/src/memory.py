@@ -48,6 +48,7 @@ class Memory(Memory):
     ):
         super().__init__(key=key, instructions=instructions, provider=provider)
 
+
 class PostgresMemoryProvider(PostgresMemory):
     """
     A class to store and retrieve data from a PostgreSQL database.

@@ -85,10 +85,17 @@ def resolve_tools(params: AgentParams) -> List:
                 "Unexpected type for tool_data; expected dict, Tool instance, or callable."
             )
 
-        registered_tool = next((t for t in TOOLS_REGISTRY.values() if t.body == tool_obj.body), None)
+        registered_tool = next(
+            (t for t in TOOLS_REGISTRY.values() if t.body == tool_obj.body), None
+        )
         if registered_tool:
-            registered_tool_name = next((name for name, t in TOOLS_REGISTRY.items() if t.body == tool_obj.body), None)
-            logger.debug(f"Tool '{tool_obj.name}' found in TOOLS_REGISTRY under the custom name '{registered_tool_name}'.")
+            registered_tool_name = next(
+                (name for name, t in TOOLS_REGISTRY.items() if t.body == tool_obj.body),
+                None,
+            )
+            logger.debug(
+                f"Tool '{tool_obj.name}' found in TOOLS_REGISTRY under the custom name '{registered_tool_name}'."
+            )
             resolved_tools.append(registered_tool)
             continue
         else:

@@ -18,12 +18,10 @@ Powerful enough to destroy an entire planet, its completion spells certain doom 
 """
 
 llm = OpenAIModel(
-    model_name = get_base_model(),
-    provider = OpenAIProvider(
-                    base_url=get_api_url(),
-                    api_key=get_api_key()
-                )
-    )
+    model_name=get_base_model(),
+    provider=OpenAIProvider(base_url=get_api_url(), api_key=get_api_key()),
+)
+
 
 @pytest.fixture
 def custom_hi_task():
@@ -38,6 +36,7 @@ def custom_hi_task():
     yield
     _unregister_custom_task("hi")
 
+
 @pytest.fixture
 def poet() -> Agent:
     agent = Agent(
@@ -48,6 +47,7 @@ def poet() -> Agent:
     agent.id = "test-id"  # Temporary patch for the test fixture
     return agent
 
+
 def test_composite_workflow(poet):
     workflow = Workflow(text=text, agents=[poet], client_mode=False)
     workflow.translate_text(target_language="spanish").sentiment()
@@ -56,6 +56,7 @@ def test_composite_workflow(poet):
     assert "translate_text" in results, results
     assert "sentiment" in results, results
     assert results["sentiment"] > 0
+
 
 def test_defaulting_workflow():
     workflow = Workflow("Hello, how is your health today?", client_mode=False)
@@ -135,6 +136,7 @@ def test_custom_workflow():
     ).run_tasks()
     assert "Alice, Bob" in results["results"]["custom-task"], results
 
+
 def test_task_level_agent_workflow(poet):
     workflow = Workflow("Hello, how is your health today?", client_mode=False)
     workflow.translate_text(agents=[poet], target_language="spanish").sentiment()
@@ -144,16 +146,20 @@ def test_task_level_agent_workflow(poet):
 
 
 def test_sentiment_classify_workflow():
-    workflow = Workflow("A major tech company has announced a breakthrough in battery technology",
-                        client_mode=False)
-    results = workflow.classify(classify_by=["fact", "fiction", "sci-fi", "fantasy"]).run_tasks()["results"]
-    assert results['classify'] == 'fact'
+    workflow = Workflow(
+        "A major tech company has announced a breakthrough in battery technology",
+        client_mode=False,
+    )
+    results = workflow.classify(
+        classify_by=["fact", "fiction", "sci-fi", "fantasy"]
+    ).run_tasks()["results"]
+    assert results["classify"] == "fact"
 
 
 def test_custom_steps_workflow(custom_hi_task, poet):
     workflow = Workflow("Goku has a power level of over 9000", client_mode=False)
-    results = workflow.hi(agents=[poet]).run_tasks()['results']
+    results = workflow.hi(agents=[poet]).run_tasks()["results"]
     assert any(
-        phrase in results['hi'].lower() 
+        phrase in results["hi"].lower()
         for phrase in ["over 9000", "Goku", "9000", "power level", "over 9000!"]
     ), f"Unexpected result: {results['hi']}"

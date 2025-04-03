@@ -87,6 +87,7 @@ def register_tool(_fn=None, name: Optional[str] = None):
     param name: The name to register the tool with. If not provided, the function name is used.
     return: The registered function or method.
     """
+
     def decorator(executor_fn: Callable):
         tool_name = name or executor_fn.__name__
 
@@ -99,7 +100,8 @@ def register_tool(_fn=None, name: Optional[str] = None):
             logger.debug(f"Tool '{tool_name}' is already safely registered.")
             return executor_fn
 
-        if 'self' in executor_fn.__code__.co_varnames:
+        if "self" in executor_fn.__code__.co_varnames:
+
             @wraps(executor_fn)
             def wrapper(self, *args, **kwargs):
                 return executor_fn(self, *args, **kwargs)
@@ -120,6 +122,8 @@ def register_tool(_fn=None, name: Optional[str] = None):
         return register_tool(name=_fn)
 
     if _fn is not None:
-        raise ValueError("Invalid usage of register_tool. Must provide a callable or use name='...'.")
+        raise ValueError(
+            "Invalid usage of register_tool. Must provide a callable or use name='...'."
+        )
 
     return decorator

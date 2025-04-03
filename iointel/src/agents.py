@@ -10,7 +10,7 @@ from pydantic import SecretStr
 import marvin
 from prefect import task
 
-from typing import Any, Dict, List, Optional, Union
+from typing import List, Optional, Union
 
 
 class Agent(marvin.Agent):
@@ -98,7 +98,7 @@ class Agent(marvin.Agent):
             description=description,
             tools=tools or [],
             model=model_instance,
-            memories=memories or []
+            memories=memories or [],
         )
 
     def get_end_turn_tools(self):
@@ -123,7 +123,11 @@ class Agent(marvin.Agent):
 
     @classmethod
     def make_default(cls):
-        return cls(name="default-agent", instructions="you are a generalist who is good at everything.", description="Default agent for tasks without agents")
+        return cls(
+            name="default-agent",
+            instructions="you are a generalist who is good at everything.",
+            description="Default agent for tasks without agents",
+        )
 
 
 class Swarm(marvin.Swarm):
