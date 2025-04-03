@@ -1,11 +1,13 @@
 import asyncio
 
 import marvin
+import pytest
 
 from iointel import Agent
 from iointel.src.agent_methods.tools_before_rebase.searxng import SearxngClient
 
 
+@pytest.mark.skip(reason="Coudn't run searxng in github CI")
 def test_searxng():
     client = SearxngClient(base_url='http://localhost:8080')
 
