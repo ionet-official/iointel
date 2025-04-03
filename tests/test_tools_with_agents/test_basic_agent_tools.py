@@ -19,14 +19,15 @@ def test_basic_tools():
     """
     agent = Agent(
         name="Agent",
-        instructions="Do whatever you're asked",
+        instructions="When you need to add numbers, use the tool",
+        tools=[add_two_numbers, get_current_datetime],
     )
     numbers = [22122837493142, 17268162387617, 159864395786239452]
 
     result = asyncio.run(
         marvin.run_async(
-            f"Add three numbers: {numbers[0]} and {numbers[1]} and {numbers[2]}",
-            agents=[agent], tools=[add_two_numbers, get_current_datetime],
+            f"Add three numbers: {numbers[0]} and {numbers[1]} and {numbers[2]}. Return their sum",
+            agents=[agent],
         )
     )
     assert result == str(sum(numbers))

@@ -16,6 +16,9 @@ dependencies = [
     "duckduckgo-search>=2025.4.1",
     "pyyaml>=6.0.2",
     "numpy==1.26.4",
+    "langchain-openai>=0.3.3",
+    "sqlalchemy-utils>=0.41.2",
+    "pgvector>=0.3.6",
 ]
 keywords = ["Agents", "LLM", "framework", "AI", "tools"]
 classifiers = [
