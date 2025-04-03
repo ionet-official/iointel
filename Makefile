@@ -12,7 +12,7 @@ prepare_for_tests:
 	sleep 5
 	docker stop iointel-searxng || true
 
-	python3 -c "import yaml; f='searxng/settings.yml'; d=yaml.safe_load(open(f)); d.setdefault('search',{}).setdefault('formats',[]).append('json'); open(f,'w').write(yaml.safe_dump(d))"
+	sudo python3 -c "import yaml; f='searxng/settings.yml'; d=yaml.safe_load(open(f)); d.setdefault('search',{}).setdefault('formats',[]).append('json'); open(f,'w').write(yaml.safe_dump(d))"
 
 	docker run --rm -d \
 		-p ${PORT}:8080 \
