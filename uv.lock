@@ -987,6 +987,7 @@ dependencies = [
     { name = "pydantic" },
     { name = "pydantic-ai" },
     { name = "pytest" },
+    { name = "pytest-retry" },
     { name = "python-dotenv" },
     { name = "python-multipart" },
     { name = "pyyaml" },
@@ -1069,6 +1070,7 @@ requires-dist = [
     { name = "pytest-asyncio", marker = "extra == 'tests'", specifier = ">=0.18.2,!=0.22.0,<0.23.0" },
     { name = "pytest-dotenv", marker = "extra == 'tests'" },
     { name = "pytest-rerunfailures", marker = "extra == 'tests'", specifier = ">=10,<14" },
+    { name = "pytest-retry", specifier = ">=1.7.0" },
     { name = "pytest-sugar", marker = "extra == 'tests'", specifier = ">=0.9,<2.0" },
     { name = "pytest-timeout", marker = "extra == 'tests'" },
     { name = "pytest-xdist", marker = "extra == 'tests'" },
@@ -2351,6 +2353,18 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/41/40/26684be329d127f0402144b731dea116e8bce27d0b04cd91e8e0bea4df4a/pytest-rerunfailures-13.0.tar.gz", hash = "sha256:e132dbe420bc476f544b96e7036edd0a69707574209b6677263c950d19b09199", size = 20846 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/f6/79/fe715fc9d6d9df4538c2115c0e8d49c95ddd34a16decb0cc54394ab4c9ba/pytest_rerunfailures-13.0-py3-none-any.whl", hash = "sha256:34919cb3fcb1f8e5d4b940aa75ccdea9661bade925091873b7c6fa5548333069", size = 12481 },
+]
+
+[[package]]
+name = "pytest-retry"
+version = "1.7.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pytest" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/c5/5b/607b017994cca28de3a1ad22a3eee8418e5d428dcd8ec25b26b18e995a73/pytest_retry-1.7.0.tar.gz", hash = "sha256:f8d52339f01e949df47c11ba9ee8d5b362f5824dff580d3870ec9ae0057df80f", size = 19977 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/7c/ff/3266c8a73b9b93c4b14160a7e2b31d1e1088e28ed29f4c2d93ae34093bfd/pytest_retry-1.7.0-py3-none-any.whl", hash = "sha256:a2dac85b79a4e2375943f1429479c65beb6c69553e7dae6b8332be47a60954f4", size = 13775 },
 ]
 
 [[package]]

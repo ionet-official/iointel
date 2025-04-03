@@ -19,6 +19,7 @@ dependencies = [
     "langchain-openai>=0.3.3",
     "sqlalchemy-utils>=0.41.2",
     "pgvector>=0.3.6",
+    "pytest-retry>=1.7.0",
 ]
 keywords = ["Agents", "LLM", "framework", "AI", "tools"]
 classifiers = [

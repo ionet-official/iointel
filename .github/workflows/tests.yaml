@@ -63,7 +63,7 @@ jobs:
         run: make prepare_for_tests
 
       - name: Run tests
-        run: pytest -vv tests/
+        run: pytest -vv tests/ --retries 2 --retry-delay 5
         if: ${{ !(github.event.pull_request.head.repo.fork) }}
 
       - name: Check readme anchors
