@@ -4,7 +4,8 @@ from iointel.src.agent_methods.tools_before_rebase.solscan import tools_with_exa
 
 
 def test_all_endpoints():
-    for func, params in tools_with_examples.items():
+    # Do not test all of them, because solscan API has limited capacity
+    for func, params in tools_with_examples.items()[:5]:
         result = asyncio.run(func(**params))
         assert result # Make sure it returns something
 
