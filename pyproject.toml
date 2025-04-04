@@ -44,6 +44,10 @@ tests = [
     "pytest-dotenv",
 ]
 
+dev = [
+    "pre-commit>=4.1.0",
+]
+
 tools = [
     "solders>=0.23.0",
     "solana>=0.36.2",

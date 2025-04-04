@@ -18,7 +18,7 @@ def test_agent_default_model(prefix, monkeypatch):
     )
     assert isinstance(
         a.model, OpenAIModel
-    ), "Agent should default to OpenAIModel if no provider is specified."
+    ), "Agent should default to ChatOpenAI if no provider is specified."
     assert a.name == "TestAgent"
     assert "test agent" in a.instructions.lower()
 

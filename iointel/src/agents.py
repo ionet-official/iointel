@@ -3,14 +3,14 @@
 from .memory import Memory
 from .agent_methods.data_models.datamodels import PersonaConfig
 from .utilities.constants import get_api_url, get_base_model, get_api_key
-
+from .utilities.registries import TOOLS_REGISTRY
 from pydantic_ai.models.openai import OpenAIModel
 from pydantic_ai.providers.openai import OpenAIProvider
 from pydantic import SecretStr
 import marvin
 from prefect import task
 
-from typing import Any, Dict, List, Optional, Union
+from typing import List, Optional, Union
 
 
 class Agent(marvin.Agent):
@@ -28,7 +28,6 @@ class Agent(marvin.Agent):
         tools: Optional[list] = None,
         model: Optional[Union[OpenAIModel, str]] = None,
         memories: Optional[list[Memory]] = None,
-        model_settings: Optional[Dict[str, Any]] = dict(tool_choice="auto"),
         api_key: Optional[SecretStr] = None,
         base_url: Optional[str] = None,
         **model_kwargs,
@@ -78,6 +77,21 @@ class Agent(marvin.Agent):
         if persona_instructions.strip():
             combined_instructions += "\n\n" + persona_instructions
 
+        resolved_tools = []
+        if tools:
+            for tool in tools:
+                if isinstance(tool, str):
+                    registered_tool = TOOLS_REGISTRY.get(tool)
+                    if not registered_tool:
+                        raise ValueError(f"Tool '{tool}' not found in registry.")
+                    resolved_tools.append(registered_tool.fn)
+                elif callable(tool):
+                    resolved_tools.append(tool)
+                else:
+                    raise ValueError(
+                        f"Tool '{tool}' is neither a registered name nor a callable."
+                    )
+
         super().__init__(
             name=name,
             instructions=combined_instructions,
@@ -85,7 +99,6 @@ class Agent(marvin.Agent):
             tools=tools or [],
             model=model_instance,
             memories=memories or [],
-            model_settings=model_settings,
         )
 
     def get_end_turn_tools(self):
@@ -110,7 +123,11 @@ class Agent(marvin.Agent):
 
     @classmethod
     def make_default(cls):
-        return cls(name="Default agent", instructions="")
+        return cls(
+            name="default-agent",
+            instructions="you are a generalist who is good at everything.",
+            description="Default agent for tasks without agents",
+        )
 
 
 class Swarm(marvin.Swarm):

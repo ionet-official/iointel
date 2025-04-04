@@ -81,6 +81,9 @@ class Workflow:
 
         import asyncio
 
+        if default_agents is None:
+            default_agents = [Agent.make_default()]
+
         text_for_task = task.get("text", default_text)
         agents_for_task = task.get("agents") or default_agents
         execution_metadata = task.get("execution_metadata", {})
@@ -195,18 +198,20 @@ class Workflow:
                     for agent in t["agents"]:
                         if hasattr(agent, "members"):
                             for member in agent.members:
+                                tools = getattr(member, "tools", []) or []
                                 member.tools = [
                                     tool.fn
                                     if hasattr(tool, "fn") and callable(tool.fn)
                                     else tool
-                                    for tool in member.tools
+                                    for tool in tools
                                 ]
                         else:
+                            tools = getattr(agent, "tools", []) or []
                             agent.tools = [
                                 tool.fn
                                 if hasattr(tool, "fn") and callable(tool.fn)
                                 else tool
-                                for tool in agent.tools
+                                for tool in tools
                             ]
                 result_key = _get_task_key(t)
                 results_dict[result_key] = await self.run_task_async(
@@ -257,7 +262,6 @@ class Workflow:
             task_models.append(task_model)
 
         # Build the WorkflowDefinition.
-
         wf_def = WorkflowDefinition(
             name=workflow_name,
             text=self.text,
