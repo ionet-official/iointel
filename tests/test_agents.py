@@ -1,5 +1,6 @@
 import pytest
 
+from datetime import datetime
 from iointel.src.agents import Agent
 from pydantic_ai.models.openai import OpenAIModel
 
@@ -28,11 +29,56 @@ def test_agent_run():
     Basic check that the agent's run method calls Agent.run under the hood.
     We'll mock it or just ensure it doesn't crash.
     """
-    a = Agent(name="RunAgent", instructions="Test run method.")
-    # Because there's no real LLM here (mock credentials), the actual run might fail or stub.
-    # We can call run with a stub prompt and see if it returns something or raises a specific error.
+    a = Agent(
+        name="RunAgent",
+        instructions="Test run method.",
+    )
     result = a.run("Hello world")
     assert result is not None, "Expected a result from the agent run."
-    # with pytest.raises(Exception):
-    #    # This might raise an error due to fake API key or no actual LLM.
-    #    a.run("Hello world")
+
+def test_tool_call():
+    """
+    Basic check that the agent's toolcall mechanism is working
+    """
+    toolcall_happened = None
+
+    def get_current_datetime() -> str:
+        nonlocal toolcall_happened
+        current_datetime = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        toolcall_happened = {
+            'datetime': current_datetime,
+        }
+        return current_datetime
+
+    a = Agent(name="RunAgent", instructions="Return current datetime, provided by the tool.",
+              tools=[get_current_datetime])
+    result = a.run("Return current datetime. Use the tools provided")
+    assert result is not None, "Expected a result from the agent run."
+    assert toolcall_happened is not None, "Make sure the tool was actually called"
+    assert toolcall_happened['datetime'] in result, "Make sure the result of the toolcall matches the return value of the agent"
+
+def test_tool_call_with_addition():
+    """
+    Check addition tool.
+    Make sure the types are resolved correctly
+    """
+    toolcall_happened = None
+
+    def add_two_numbers(a: int, b: int) -> int:
+        """
+        Return the result of addition
+        """
+        nonlocal toolcall_happened
+        toolcall_happened = {
+            'a': a,
+            'b': b,
+            'a+b': a + b
+        }
+        return a + b
+
+    a = Agent(name="RunAgent", instructions="Add two numbers.", tools=[add_two_numbers])
+    result = a.run("Add numbers 2 and 7. Use the tools provided")
+    assert result is not None, "Expected a result from the agent run."
+    assert '9' in result, "Result should be 9"
+    assert toolcall_happened is not None, "Make sure the tool was actually called"
+    assert str(toolcall_happened['a+b']) == result, "Make sure the result of the toolcall matches the return value of the agent"
