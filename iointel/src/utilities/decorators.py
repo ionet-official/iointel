@@ -1,4 +1,5 @@
-from typing import Callable
+from functools import wraps
+from typing import Callable, Optional
 from prefect import task
 from .registries import (
     CHAINABLE_METHODS,
@@ -7,6 +8,11 @@ from .registries import (
     TOOLS_REGISTRY,
 )
 from ..workflow import Workflow
+from ..agent_methods.data_models.datamodels import Tool
+from ..utilities.helpers import make_logger
+
+
+logger = make_logger(__name__)
 
 
 ########register custom task decorator########
@@ -17,9 +23,9 @@ def register_custom_task(task_type: str, chainable: bool = True):
     method to the Tasks class so that it can be called as tasks.<task_type>(**kwargs).
     """
 
-    def decorator(executor_fn: Callable):
+    def decorator(tool_fn: Callable):
         # Register the executor function for later task execution.
-        prefect_task = task(executor_fn, name=task_type, persist_result=False)
+        prefect_task = task(tool_fn, name=task_type, persist_result=False)
         TASK_EXECUTOR_REGISTRY[task_type] = prefect_task
 
         if chainable:
@@ -47,7 +53,7 @@ def register_custom_task(task_type: str, chainable: bool = True):
             # **Attach the chainable method directly to the Tasks class.**
             setattr(Workflow, task_type, chainable_method)
 
-        return executor_fn
+        return tool_fn
 
     return decorator
 
@@ -70,6 +76,54 @@ def register_custom_workflow(name: str):
 
 
 # decorator to register tools
-def register_tool(fn):
-    TOOLS_REGISTRY[fn.__name__] = fn
-    return fn
+def register_tool(_fn=None, name: Optional[str] = None):
+    """
+    Decorator that registers a tool function with the given name. If the name is not provided, the function name is used.
+    Can be used as a decorator or as a function. If used as a function, the name must be provided.
+    Can be used to register a method as a tool by passing the method as an argument.
+    Or can be used to register a function as a tool by using it as a decorator.
+
+    param _fn: The function to register as a tool.
+    param name: The name to register the tool with. If not provided, the function name is used.
+    return: The registered function or method.
+    """
+
+    def decorator(executor_fn: Callable):
+        tool_name = name or executor_fn.__name__
+
+        if tool_name in TOOLS_REGISTRY:
+            existing_tool = TOOLS_REGISTRY[tool_name]
+            if executor_fn.__code__.co_code != existing_tool.fn.__code__.co_code:
+                raise ValueError(
+                    f"Tool name '{tool_name}' already registered with a different function. Potential spoofing detected."
+                )
+            logger.debug(f"Tool '{tool_name}' is already safely registered.")
+            return executor_fn
+
+        if "self" in executor_fn.__code__.co_varnames:
+
+            @wraps(executor_fn)
+            def wrapper(self, *args, **kwargs):
+                return executor_fn(self, *args, **kwargs)
+
+            TOOLS_REGISTRY[tool_name] = Tool.from_function(wrapper)
+            logger.debug(f"Registered method tool '{tool_name}' safely.")
+            return wrapper
+
+        TOOLS_REGISTRY[tool_name] = Tool.from_function(executor_fn)
+        logger.debug(f"Registered tool '{tool_name}' safely.")
+        return executor_fn
+
+    if callable(_fn):
+        return decorator(_fn)
+
+    if isinstance(_fn, str):
+        # Handle case @register_tool("tool_name")
+        return register_tool(name=_fn)
+
+    if _fn is not None:
+        raise ValueError(
+            "Invalid usage of register_tool. Must provide a callable or use name='...'."
+        )
+
+    return decorator

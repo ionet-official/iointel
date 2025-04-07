@@ -85,43 +85,23 @@ def resolve_tools(params: AgentParams) -> List:
                 "Unexpected type for tool_data; expected dict, Tool instance, or callable."
             )
 
-        # Check if the tool is already in the registry.
-        if tool_obj.name in TOOLS_REGISTRY:
-            logger.debug(f"Tool '{tool_obj.name}' found in TOOLS_REGISTRY.")
-            candidate = TOOLS_REGISTRY[tool_obj.name]
-            if callable(candidate) and hasattr(candidate, "body") and candidate.body:
-                resolved_tools.append(candidate)
-                continue
-            else:
-                logger.debug(f"Rehydrating tool '{tool_obj.name}' from registry.")
-                rehydrated_fn = rehydrate_tool(tool_obj)
-                if not callable(rehydrated_fn):
-                    raise ValueError(
-                        f"Rehydrated tool for {tool_obj.name} is not callable!"
-                    )
-                # Create a new Tool instance that keeps the original body
-                new_tool = tool_obj.model_copy(update={"fn": rehydrated_fn})
-                TOOLS_REGISTRY[tool_obj.name] = new_tool
-                resolved_tools.append(new_tool)
-                continue
+        registered_tool_name, registered_tool = next(
+            (
+                (name, t)
+                for name, t in TOOLS_REGISTRY.items()
+                if t.body == tool_obj.body
+            ),
+            (None, None),
+        )
+        if registered_tool_name:
+            logger.debug(
+                f"Tool '{tool_obj.name}' found in TOOLS_REGISTRY under the custom name '{registered_tool_name}'."
+            )
+            resolved_tools.append(registered_tool)
+            continue
         else:
-            logger.debug(
-                f"Rehydrating tool '{tool_obj.name}' not found in TOOLS_REGISTRY."
+            logger.warning(
+                f"Tool '{tool_obj.name}' not found in TOOLS_REGISTRY, and rehydration is disabled for security."
             )
-            rehydrated_fn = rehydrate_tool(tool_obj)
-            if not callable(rehydrated_fn):
-                raise ValueError(
-                    f"Rehydrated tool for {tool_obj.name} is not callable!"
-                )
-            # Instead of model_copy(), explicitly copy the dictionary and update fn.
-            original_data = tool_obj.model_dump()
-            if "body" not in original_data or not original_data["body"]:
-                original_data["body"] = tool_obj.body
-            original_data["fn"] = rehydrated_fn
-            new_tool = Tool(**original_data)
-            TOOLS_REGISTRY[tool_obj.name] = new_tool
-            logger.debug(
-                f"Registered rehydrated tool '{tool_obj.name}' in TOOLS_REGISTRY with body: {new_tool.body}"
-            )
-            resolved_tools.append(new_tool)
+            continue
     return resolved_tools
