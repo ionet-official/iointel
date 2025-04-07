@@ -1,5 +1,5 @@
-from iointel.src.agent_methods.tools.duckduckgo import search_the_web
+from iointel.src.agent_methods.tools.duckduckgo import search_the_web_async
 
 
-def test_duckduckgo_tool():
-    assert search_the_web("When did people fly to the moon?", max_results=3)
+async def test_duckduckgo_tool():
+    assert await search_the_web_async("When did people fly to the moon?", max_results=3)

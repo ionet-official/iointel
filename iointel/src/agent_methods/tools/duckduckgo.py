@@ -61,7 +61,7 @@ class DuckDuckGoSearchAPIWrapper(BaseModel):
                 backend=self.backend,
             )
             if ddgs_gen:
-                return [r for r in ddgs_gen]
+                return list(ddgs_gen)
         return []
 
     def results(

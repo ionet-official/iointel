@@ -168,11 +168,17 @@ class SearxngClient:
         """
         return run_async(self.get_urls_async(query, pages))
 
-    async def close(self) -> None:
+    async def close_async(self) -> None:
         """
         Close the underlying asynchronous HTTP client.
         """
         await self.async_client.aclose()
+
+    def close(self) -> None:
+        """
+        Close the underlying asynchronous HTTP client.
+        """
+        run_async(self.close_async())
 
 
 def search_the_web(text: str, pages: int = 1):

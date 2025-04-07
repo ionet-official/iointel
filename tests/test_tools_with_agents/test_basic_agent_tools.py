@@ -1,4 +1,3 @@
-import asyncio
 from datetime import datetime
 
 import marvin
@@ -15,7 +14,7 @@ def get_current_datetime() -> str:
     return current_datetime
 
 
-def test_basic_tools():
+async def test_basic_tools():
     """
     LLama can't add such big numbers, so it must use the tool
     """
@@ -26,10 +25,8 @@ def test_basic_tools():
     )
     numbers = [22122837493142, 17268162387617, 159864395786239452]
 
-    result = asyncio.run(
-        marvin.run_async(
-            f"Add three numbers: {numbers[0]} and {numbers[1]} and {numbers[2]}. Return their sum",
-            agents=[agent],
-        )
+    result = await marvin.run_async(
+        f"Add three numbers: {numbers[0]} and {numbers[1]} and {numbers[2]}. Return their sum",
+        agents=[agent],
     )
     assert result == str(sum(numbers))

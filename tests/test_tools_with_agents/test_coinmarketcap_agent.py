@@ -1,5 +1,3 @@
-import asyncio
-
 import marvin
 
 from iointel import Agent
@@ -34,26 +32,22 @@ def get_coinmarketcap_agent():
     )
 
 
-def test_coinmarketcap_btc_year():
+async def test_coinmarketcap_btc_year():
     agent = get_coinmarketcap_agent()
-    result = asyncio.run(
-        marvin.run_async(
-            "What year was bitcoin established at? Return the date obtained from toolcall result",
-            agents=[agent],
-        )
+    result = await marvin.run_async(
+        "What year was bitcoin established at? Return the date obtained from toolcall result",
+        agents=[agent],
     )
     assert result is not None, "Expected a result from the agent run."
     assert "2010" in result or "2009" in result
 
 
-def test_top_10_currencies_by_capitalization():
+async def test_top_10_currencies_by_capitalization():
     agent = get_coinmarketcap_agent()
-    result = asyncio.run(
-        marvin.run_async(
-            "Return names of top 10 cryptocurrencies, sorted by capitalization. "
-            "Use the format: currency1,currency2,...,currencyX",
-            agents=[agent],
-        )
+    result = await marvin.run_async(
+        "Return names of top 10 cryptocurrencies, sorted by capitalization. "
+        "Use the format: currency1,currency2,...,currencyX",
+        agents=[agent],
     )
     assert result is not None, "Expected a result from the agent run."
     currencies = result.split(",")
@@ -62,13 +56,11 @@ def test_top_10_currencies_by_capitalization():
     assert "Ethereum" in currencies
 
 
-def test_coinmarketcap_different_crypto_for_same_symbol():
+async def test_coinmarketcap_different_crypto_for_same_symbol():
     agent = get_coinmarketcap_agent()
-    result = asyncio.run(
-        marvin.run_async(
-            "List some of the cryptocurrency names with a symbol BTC. Use get_coin_info function.",
-            agents=[agent],
-        )
+    result = await marvin.run_async(
+        "List some of the cryptocurrency names with a symbol BTC. Use get_coin_info function.",
+        agents=[agent],
     )
     assert result is not None, "Expected a result from the agent run."
     assert len(result) > 1
@@ -77,40 +69,34 @@ def test_coinmarketcap_different_crypto_for_same_symbol():
     assert "Bullish Trump Coin" in result
 
 
-def test_coinmarketcap_btc_capitalization():
+async def test_coinmarketcap_btc_capitalization():
     agent = get_coinmarketcap_agent()
-    result = asyncio.run(
-        marvin.run_async(
-            "What's bitcoin capitalization? Return a single number: capitalization in USD",
-            agents=[agent],
-            result_type=float,
-        )
+    result = await marvin.run_async(
+        "What's bitcoin capitalization? Return a single number: capitalization in USD",
+        agents=[agent],
+        result_type=float,
     )
     assert result is not None, "Expected a result from the agent run."
     assert float(result) > 10**9  # More than 1 billion dollars
 
 
-def test_coinmarketcap_get_current_price():
+async def test_coinmarketcap_get_current_price():
     agent = get_coinmarketcap_agent()
-    result = asyncio.run(
-        marvin.run_async(
-            "Get current price of bitcoin. Return a single number: price in USD.",
-            agents=[agent],
-            result_type=float,
-        )
+    result = await marvin.run_async(
+        "Get current price of bitcoin. Return a single number: price in USD.",
+        agents=[agent],
+        result_type=float,
     )
     assert result is not None, "Expected a result from the agent run."
     assert float(result) > 10000  # Price should be greater than 10k$
 
 
-def test_coinmarketcap_historical_price():
+async def test_coinmarketcap_historical_price():
     agent = get_coinmarketcap_agent()
-    result = asyncio.run(
-        marvin.run_async(
-            "Get price of bitcoin yesterday at 12:00. Return a single number: price in USD.",
-            agents=[agent],
-            result_type=float,
-        )
+    result = await marvin.run_async(
+        "Get price of bitcoin yesterday at 12:00. Return a single number: price in USD.",
+        agents=[agent],
+        result_type=float,
     )
     assert result is not None, "Expected a result from the agent run."
     assert float(result) > 10000  # Price should be greater than 10k$

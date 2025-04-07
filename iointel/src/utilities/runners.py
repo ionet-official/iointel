@@ -38,7 +38,7 @@ def run_agents(objective: str, **kwargs) -> LazyCaller:
     """
     Synchronous lazy wrapper around Task().run.
     """
-    return LazyCaller(_run_sync, objective, **kwargs).evaluate()
+    return LazyCaller(_run_sync, objective, **kwargs)
 
 
 @task(persist_result=False)
@@ -47,4 +47,4 @@ async def run_agents_async(objective: str, **kwargs) -> LazyCaller:
     Asynchronous lazy wrapper around Task().a_run.
     """
     # FIXME: could it break due to lambda returning awaitable? see if it needs fixes
-    return await LazyCaller(_run_async, objective, **kwargs).evaluate_async()
+    return await LazyCaller(_run_async, objective, **kwargs)

@@ -1,4 +1,3 @@
-import asyncio
 import json
 import os
 from typing import Any, Dict, List, Optional, Literal, Tuple, Annotated
@@ -16,13 +15,11 @@ SOLSCAN_API_URL = "https://pro-api.solscan.io"
 async def fetch_solscan(
     path, full_url: Optional[str] = None, params: Optional[dict] = None
 ) -> dict | str:
-    assert SOLSCAN_API_KEY
-    url = f"{SOLSCAN_API_URL}{path}"
-    if full_url:
-        url = full_url
+    if not SOLSCAN_API_KEY:
+        raise RuntimeError("Solscan API key is not set")
+    url = full_url if full_url else f"{SOLSCAN_API_URL}{path}"
     headers = {"token": SOLSCAN_API_KEY}
     async with httpx.AsyncClient() as client:
-        print(f"Get {url=}, {params=}, {headers=}")
         response = await client.get(url, params=params, headers=headers, timeout=10.0)
         response.raise_for_status()
         try:
@@ -59,44 +56,22 @@ NftActivityType = Literal[
     "ACTIVITY_NFT_LIST_AUCTION",
 ]
 
-PageSizeSmall = Literal[
-    10, 20, 30, 40
-]  # e.g., for smaller pagination sets&#8203;:contentReference[oaicite:0]{index=0}
-PageSizeMedium = Literal[
-    10, 20, 30, 40, 60, 100
-]  # e.g., for larger pagination sets&#8203;:contentReference[oaicite:1]{index=1}
-PageSizeNft = Literal[
-    12, 24, 36
-]  # e.g., for NFT item listings&#8203;:contentReference[oaicite:2]{index=2}
-PageSizeCollection = Literal[
-    10, 18, 20, 30, 40
-]  # e.g., for collection lists&#8203;:contentReference[oaicite:3]{index=3}
+PageSizeSmall = Literal[10, 20, 30, 40]
+PageSizeMedium = Literal[10, 20, 30, 40, 60, 100]
+PageSizeNft = Literal[12, 24, 36]
+PageSizeCollection = Literal[10, 18, 20, 30, 40]
 
-SortOrder = Literal[
-    "asc", "desc"
-]  # ascending or descending order&#8203;:contentReference[oaicite:4]{index=4}
-TokenAccountType = Literal[
-    "token", "nft"
-]  # type of token account&#8203;:contentReference[oaicite:5]{index=5}
-VoteFilter = Literal[
-    "exceptVote", "all"
-]  # filter to exclude vote transactions&#8203;:contentReference[oaicite:6]{index=6}
-BoolStr = Literal[
-    "true", "false"
-]  # 'true'/'false' string for certain flags&#8203;:contentReference[oaicite:7]{index=7}
+SortOrder = Literal["asc", "desc"]
+TokenAccountType = Literal["token", "nft"]
+VoteFilter = Literal["exceptVote", "all"]
+AddressList5 = Annotated[List[str], "max_length 5"]
 
-AddressList5 = Annotated[
-    List[str], "max_length 5"
-]  # up to 5 addresses (for filters like platform/source)&#8203;:contentReference[oaicite:8]{index=8}
-
-DateYYYYMMDD = Annotated[
-    int, "format YYYYMMDD"
-]  # date in YYYYMMDD format (e.g., 20240701)
+DateYYYYMMDD = Annotated[str, "format YYYYMMDD"]
 
 
 # Account APIs
 async def fetch_account_detail(address: str) -> dict | str:
-    """Get the details of an account&#8203;:contentReference[oaicite:9]{index=9}."""
+    """Get the details of an account."""
     params = {"address": address}
     return await fetch_solscan("/v2.0/account/detail", params=params)
 
@@ -113,7 +88,7 @@ async def fetch_account_transfer(
     to_time: Optional[int] = None,
     exclude_amount_zero: Optional[bool] = None,
 ) -> dict | str:
-    """Get transfer data of an account (with optional filters)&#8203;:contentReference[oaicite:10]{index=10}&#8203;:contentReference[oaicite:11]{index=11}."""
+    """Get transfer data of an account (with optional filters)."""
     params: Dict[str, Any] = {"address": address}
     if activity_type is not None:
         params["activity_type"] = activity_type
@@ -126,7 +101,7 @@ async def fetch_account_transfer(
     if token is not None:
         params["token"] = token
     if amount is not None:
-        # Expect tuple (min, max) amount range&#8203;:contentReference[oaicite:12]{index=12}
+        # Expect tuple (min, max) amount range
         params["amount"] = list(amount)
     if from_time is not None:
         params["from_time"] = from_time
@@ -149,7 +124,7 @@ async def fetch_account_defi_activities(
     page: Optional[int] = None,
     page_size: Optional[PageSizeMedium] = None,
 ) -> dict | str:
-    """Get DeFi activities involving an account&#8203;:contentReference[oaicite:13]{index=13}."""
+    """Get DeFi activities involving an account."""
     params: Dict[str, Any] = {"address": address}
     if activity_type is not None:
         params["activity_type"] = activity_type
@@ -180,11 +155,11 @@ async def fetch_account_balance_change_activities(
     to_time: Optional[int] = None,
     page_size: Optional[PageSizeMedium] = None,
     page: Optional[int] = None,
-    remove_spam: Optional[BoolStr] = None,
+    remove_spam: Optional[bool] = None,
     amount: Optional[Tuple[float, float]] = None,
     flow: Optional[Literal["in", "out"]] = None,
 ) -> dict | str:
-    """Get balance change activities (token inflows/outflows) for an account&#8203;:contentReference[oaicite:14]{index=14}."""
+    """Get balance change activities (token inflows/outflows) for an account."""
     params: Dict[str, Any] = {"address": address}
     if token_account is not None:
         params["token_account"] = token_account
@@ -199,9 +174,7 @@ async def fetch_account_balance_change_activities(
     if page is not None:
         params["page"] = page
     if remove_spam is not None:
-        params["remove_spam"] = (
-            remove_spam  # expects "true" or "false" string&#8203;:contentReference[oaicite:15]{index=15}
-        )
+        params["remove_spam"] = "true" if remove_spam else "false"
     if amount is not None:
         params["amount"] = list(amount)
     if flow is not None:
@@ -214,7 +187,7 @@ async def fetch_account_transactions(
     before: Optional[str] = None,
     limit: Optional[Literal[10, 20, 30, 40]] = None,
 ) -> dict | str:
-    """Get list of transactions for an account (with pagination)&#8203;:contentReference[oaicite:16]{index=16}&#8203;:contentReference[oaicite:17]{index=17}."""
+    """Get list of transactions for an account (with pagination)."""
     params: Dict[str, Any] = {"address": address}
     if before is not None:
         params["before"] = before
@@ -224,7 +197,7 @@ async def fetch_account_transactions(
 
 
 async def fetch_account_portfolio(address: str) -> dict | str:
-    """Get the portfolio (token balances and values) for a given address&#8203;:contentReference[oaicite:18]{index=18}."""
+    """Get the portfolio (token balances and values) for a given address."""
     params = {"address": address}
     return await fetch_solscan("/v2.0/account/portfolio", params=params)
 
@@ -236,7 +209,7 @@ async def fetch_account_token_accounts(
     page_size: Optional[PageSizeSmall] = None,
     hide_zero: Optional[bool] = None,
 ) -> dict | str:
-    """Get token accounts of an address (either SPL tokens or NFTs)&#8203;:contentReference[oaicite:19]{index=19}&#8203;:contentReference[oaicite:20]{index=20}."""
+    """Get token accounts of an address (either SPL tokens or NFTs)."""
     params: Dict[str, Any] = {"address": address, "type": account_type}
     if page is not None:
         params["page"] = page
@@ -250,7 +223,7 @@ async def fetch_account_token_accounts(
 async def fetch_account_stake(
     address: str, page: Optional[int] = None, page_size: Optional[PageSizeSmall] = None
 ) -> dict | str:
-    """Get the list of stake accounts for a given wallet address&#8203;:contentReference[oaicite:21]{index=21}."""
+    """Get the list of stake accounts for a given wallet address."""
     params: Dict[str, Any] = {"address": address}
     if page is not None:
         params["page"] = page
@@ -262,7 +235,7 @@ async def fetch_account_stake(
 async def fetch_stake_rewards_export(
     address: str, time_from: Optional[int] = None, time_to: Optional[int] = None
 ) -> dict | str:
-    """Export staking reward history for an account (up to 5000 records)&#8203;:contentReference[oaicite:22]{index=22}&#8203;:contentReference[oaicite:23]{index=23}."""
+    """Export staking reward history for an account (up to 5000 records)."""
     params: Dict[str, Any] = {"address": address}
     if time_from is not None:
         params["time_from"] = time_from
@@ -283,7 +256,7 @@ async def fetch_account_transfer_export(
     to_time: Optional[int] = None,
     exclude_amount_zero: Optional[bool] = None,
 ) -> dict | str:
-    """Export transfer history of an account (CSV or raw data)&#8203;:contentReference[oaicite:24]{index=24}."""
+    """Export transfer history of an account (CSV or raw data)."""
     params: Dict[str, Any] = {"address": address}
     if activity_type is not None:
         params["activity_type"] = activity_type
@@ -318,7 +291,7 @@ async def fetch_token_transfer(
     page: Optional[int] = None,
     page_size: Optional[PageSizeMedium] = None,
 ) -> dict | str:
-    """Get transfer data for a specific token (SPL asset), with optional filters&#8203;:contentReference[oaicite:25]{index=25}&#8203;:contentReference[oaicite:26]{index=26}."""
+    """Get transfer data for a specific token (SPL asset), with optional filters."""
     params: Dict[str, Any] = {"address": address}
     if activity_type is not None:
         params["activity_type"] = activity_type
@@ -329,7 +302,7 @@ async def fetch_token_transfer(
     if amount is not None:
         params["amount"] = list(amount)
     if block_time is not None:
-        # block_time expects [start, end] Unix timestamps (in seconds)&#8203;:contentReference[oaicite:27]{index=27}
+        # block_time expects [start, end] Unix timestamps (in seconds)
         params["block_time"] = list(block_time)
     if exclude_amount_zero is not None:
         params["exclude_amount_zero"] = exclude_amount_zero
@@ -352,7 +325,7 @@ async def fetch_token_defi_activities(
     page: Optional[int] = None,
     page_size: Optional[PageSizeMedium] = None,
 ) -> dict | str:
-    """Get DeFi activities involving a specific token (e.g. swaps, liquidity events)&#8203;:contentReference[oaicite:28]{index=28}."""
+    """Get DeFi activities involving a specific token (e.g. swaps, liquidity events)."""
     params: Dict[str, Any] = {"address": address}
     if from_address is not None:
         params["from"] = from_address
@@ -376,7 +349,7 @@ async def fetch_token_defi_activities(
 
 
 async def fetch_token_meta(address: str) -> dict | str:
-    """Get the on-chain metadata for a token (name, symbol, decimals, etc.)&#8203;:contentReference[oaicite:31]{index=31}."""
+    """Get the on-chain metadata for a token (name, symbol, decimals, etc.)."""
     params = {"address": address}
     return await fetch_solscan("/v2.0/token/meta", params=params)
 
@@ -386,7 +359,7 @@ async def fetch_token_price(
     from_time: Optional[DateYYYYMMDD] = None,
     to_time: Optional[DateYYYYMMDD] = None,
 ) -> dict | str:
-    """Get historical price data for a token (daily price points)&#8203;:contentReference[oaicite:32]{index=32}&#8203;:contentReference[oaicite:33]{index=33}."""
+    """Get historical price data for a token (daily price points)."""
     params: Dict[str, Any] = {"address": address}
     if from_time is not None:
         params["from_time"] = from_time
@@ -402,20 +375,16 @@ async def fetch_token_holders(
     from_amount: Optional[str] = None,
     to_amount: Optional[str] = None,
 ) -> dict | str:
-    """Get the list of holders for a token (with optional holding amount filters)&#8203;:contentReference[oaicite:34]{index=34}."""
+    """Get the list of holders for a token (with optional holding amount filters)."""
     params: Dict[str, Any] = {"address": address}
     if page is not None:
         params["page"] = page
     if page_size is not None:
         params["page_size"] = page_size
     if from_amount is not None:
-        params["from_amount"] = (
-            from_amount  # expects numeric value as string&#8203;:contentReference[oaicite:35]{index=35}
-        )
+        params["from_amount"] = from_amount  # expects numeric value as string
     if to_amount is not None:
-        params["to_amount"] = (
-            to_amount  # expects numeric value as string&#8203;:contentReference[oaicite:36]{index=36}
-        )
+        params["to_amount"] = to_amount  # expects numeric value as string
     return await fetch_solscan("/v2.0/token/holders", params=params)
 
 
@@ -425,7 +394,7 @@ async def fetch_token_list(
     page: Optional[int] = None,
     page_size: Optional[PageSizeMedium] = None,
 ) -> dict | str:
-    """Get a paginated list of tokens, optionally sorted by holders, market cap, or creation time&#8203;:contentReference[oaicite:37]{index=37}&#8203;:contentReference[oaicite:38]{index=38}."""
+    """Get a paginated list of tokens, optionally sorted by holders, market cap, or creation time."""
     params: Dict[str, Any] = {}
     if sort_by is not None:
         params["sort_by"] = sort_by
@@ -439,13 +408,13 @@ async def fetch_token_list(
 
 
 async def fetch_token_top() -> dict | str:
-    """Get the list of top tokens (by market cap)&#8203;:contentReference[oaicite:39]{index=39}."""
+    """Get the list of top tokens (by market cap)."""
     # No query params; returns a fixed set of top tokens.
     return await fetch_solscan("/v2.0/token/top")
 
 
 async def fetch_token_trending(limit: Optional[int] = None) -> dict | str:
-    """Get the list of trending tokens (most searched or active)&#8203;:contentReference[oaicite:40]{index=40}."""
+    """Get the list of trending tokens (most searched or active)."""
     params: Dict[str, Any] = {}
     if limit is not None:
         params["limit"] = limit
@@ -458,7 +427,7 @@ async def fetch_new_nft(
     page: Optional[int] = None,
     page_size: Optional[PageSizeNft] = None,
 ) -> dict | str:
-    """Get a list of newly created NFTs (sorted by creation time)&#8203;:contentReference[oaicite:41]{index=41}."""
+    """Get a list of newly created NFTs (sorted by creation time)."""
     params: Dict[str, Any] = {"filter": filter}
     if page is not None:
         params["page"] = page
@@ -481,7 +450,7 @@ async def fetch_nft_activities(
     page: Optional[int] = None,
     page_size: Optional[PageSizeMedium] = None,
 ) -> dict | str:
-    """Get NFT marketplace activities (sales, listings, bids, etc.), with various filters&#8203;:contentReference[oaicite:42]{index=42}&#8203;:contentReference[oaicite:43]{index=43}."""
+    """Get NFT marketplace activities (sales, listings, bids, etc.), with various filters."""
     params: Dict[str, Any] = {}
     if from_address is not None:
         params["from"] = from_address
@@ -518,7 +487,7 @@ async def fetch_nft_collection_lists(
     page_size: Optional[PageSizeCollection] = None,
     collection: Optional[str] = None,
 ) -> dict | str:
-    """Get a list of NFT collections, with optional sorting and filtering&#8203;:contentReference[oaicite:44]{index=44}."""
+    """Get a list of NFT collections, with optional sorting and filtering."""
     params: Dict[str, Any] = {}
     if range is not None:
         params["range"] = range
@@ -541,7 +510,7 @@ async def fetch_nft_collection_items(
     page: Optional[int] = 1,
     page_size: Optional[PageSizeNft] = 12,
 ) -> dict | str:
-    """Get items (NFTs) in a specific collection, optionally sorted by last trade or listing price&#8203;:contentReference[oaicite:45]{index=45}."""
+    """Get items (NFTs) in a specific collection, optionally sorted by last trade or listing price."""
     params: Dict[str, Any] = {"collection": collection}
     if sort_by is not None:
         params["sort_by"] = sort_by
@@ -556,7 +525,7 @@ async def fetch_nft_collection_items(
 async def fetch_transaction_last(
     limit: Optional[PageSizeMedium] = None, filter: Optional[VoteFilter] = None
 ) -> dict | str:
-    """Get the latest transactions across the chain (with optional vote-exclusion filter)&#8203;:contentReference[oaicite:46]{index=46}&#8203;:contentReference[oaicite:47]{index=47}."""
+    """Get the latest transactions across the chain (with optional vote-exclusion filter)."""
     params: Dict[str, Any] = {}
     if limit is not None:
         params["limit"] = limit
@@ -566,20 +535,20 @@ async def fetch_transaction_last(
 
 
 async def fetch_transaction_detail(tx: str) -> dict | str:
-    """Get detailed parsed info of a transaction by signature&#8203;:contentReference[oaicite:48]{index=48}."""
+    """Get detailed parsed info of a transaction by signature."""
     params = {"tx": tx}
     return await fetch_solscan("/v2.0/transaction/detail", params=params)
 
 
 async def fetch_transaction_actions(tx: str) -> dict | str:
-    """Get high-level actions (transfers, swaps, NFT events) extracted from a transaction&#8203;:contentReference[oaicite:49]{index=49}."""
+    """Get high-level actions (transfers, swaps, NFT events) extracted from a transaction."""
     params = {"tx": tx}
     return await fetch_solscan("/v2.0/transaction/actions", params=params)
 
 
 # Block APIs
-async def fetch_block_last(limit: Optional[PageSizeMedium] = None) -> dict | str:
-    """Get the latest blocks on the chain (summary info)&#8203;:contentReference[oaicite:50]{index=50}."""
+async def fetch_last_block(limit: Optional[PageSizeMedium] = None) -> dict | str:
+    """Get the latest blocks on the chain (summary info)."""
     params: Dict[str, Any] = {}
     if limit is not None:
         params["limit"] = limit
@@ -593,7 +562,7 @@ async def fetch_block_transactions(
     exclude_vote: Optional[bool] = None,
     program: Optional[str] = None,
 ) -> dict | str:
-    """Get transactions contained in a specific block (with optional filters)&#8203;:contentReference[oaicite:51]{index=51}."""
+    """Get transactions contained in a specific block (with optional filters)."""
     params: Dict[str, Any] = {"block": block}
     if page is not None:
         params["page"] = page
@@ -607,7 +576,7 @@ async def fetch_block_transactions(
 
 
 async def fetch_block_detail(block: int) -> dict | str:
-    """Get detailed information about a block by slot number&#8203;:contentReference[oaicite:52]{index=52}."""
+    """Get detailed information about a block by slot number."""
     params = {"block": block}
     return await fetch_solscan("/v2.0/block/detail", params=params)
 
@@ -618,7 +587,7 @@ async def fetch_market_list(
     page_size: Optional[PageSizeMedium] = None,
     program: Optional[str] = None,
 ) -> dict | str:
-    """Get a list of newly listed pools/markets (optionally filtered by program)&#8203;:contentReference[oaicite:53]{index=53}."""
+    """Get a list of newly listed pools/markets (optionally filtered by program)."""
     params: Dict[str, Any] = {}
     if page is not None:
         params["page"] = page
@@ -630,7 +599,7 @@ async def fetch_market_list(
 
 
 async def fetch_market_info(address: str) -> dict | str:
-    """Get market info for a given market (pool) address&#8203;:contentReference[oaicite:54]{index=54}."""
+    """Get market info for a given market (pool) address."""
     params = {"address": address}
     return await fetch_solscan("/v2.0/market/info", params=params)
 
@@ -638,104 +607,29 @@ async def fetch_market_info(address: str) -> dict | str:
 async def fetch_market_volume(
     address: str, time: Optional[Tuple[int, int]] = None
 ) -> dict | str:
-    """Get trading volume for a given market, optionally within a date range&#8203;:contentReference[oaicite:55]{index=55}&#8203;:contentReference[oaicite:56]{index=56}."""
+    """Get trading volume for a given market, optionally within a date range"""
     params = {"address": address}
     if time is not None:
-        # 'time' expects [start_date, end_date] in YYYYMMDD format&#8203;:contentReference[oaicite:57]{index=57}
+        # 'time' expects [start_date, end_date] in YYYYMMDD format
         params["time"] = list(time)
     return await fetch_solscan("/v2.0/market/volume", params=params)
 
 
 # Monitoring API
 async def fetch_monitor_usage() -> dict | str:
-    """Get the API usage and remaining compute units for the current API key (subscriber)&#8203;:contentReference[oaicite:58]{index=58}."""
+    """Get the API usage and remaining compute units for the current API key (subscriber)."""
     return await fetch_solscan("/v2.0/monitor/usage")
 
 
 # Chain Information
 async def fetch_chain_information() -> dict | str:
-    """Get overall Solana blockchain information (public endpoint)&#8203;:contentReference[oaicite:59]{index=59}."""
+    """Get overall Solana blockchain information (public endpoint)."""
     return await fetch_solscan("", full_url="https://public-api.solscan.io/chaininfo")
 
 
-async def validate_address(address: str) -> str:
+async def validate_address(address: str) -> dict:
     try:
         await fetch_account_detail(address=address)
-        return "Address is valid"
+        return {"valid": True, "reason": "Address is valid"}
     except httpx.HTTPStatusError as e:
-        return e.response.json()["errors"]["message"]
-
-
-# Define the dictionary of functions, and an invocation example
-tools_with_examples = {
-    validate_address: {"address": "abc"},
-    fetch_account_detail: {"address": "7ZjHeeYEesmBs4N6aDvCQimKdtJX2bs5boXpJmpG2bZJ"},
-    fetch_account_transfer: {"address": "7ZjHeeYEesmBs4N6aDvCQimKdtJX2bs5boXpJmpG2bZJ"},
-    fetch_account_defi_activities: {
-        "address": "7ZjHeeYEesmBs4N6aDvCQimKdtJX2bs5boXpJmpG2bZJ"
-    },
-    fetch_account_balance_change_activities: {
-        "address": "7ZjHeeYEesmBs4N6aDvCQimKdtJX2bs5boXpJmpG2bZJ"
-    },
-    fetch_account_transactions: {
-        "address": "7ZjHeeYEesmBs4N6aDvCQimKdtJX2bs5boXpJmpG2bZJ"
-    },
-    fetch_account_portfolio: {
-        "address": "7ZjHeeYEesmBs4N6aDvCQimKdtJX2bs5boXpJmpG2bZJ"
-    },
-    fetch_account_token_accounts: {
-        "address": "7ZjHeeYEesmBs4N6aDvCQimKdtJX2bs5boXpJmpG2bZJ",
-        "account_type": "token",
-    },
-    fetch_account_stake: {"address": "7ZjHeeYEesmBs4N6aDvCQimKdtJX2bs5boXpJmpG2bZJ"},
-    fetch_stake_rewards_export: {
-        "address": "7ZjHeeYEesmBs4N6aDvCQimKdtJX2bs5boXpJmpG2bZJ"
-    },
-    fetch_account_transfer_export: {
-        "address": "7ZjHeeYEesmBs4N6aDvCQimKdtJX2bs5boXpJmpG2bZJ"
-    },
-    fetch_token_transfer: {"address": "So11111111111111111111111111111111111111112"},
-    fetch_token_defi_activities: {
-        "address": "So11111111111111111111111111111111111111112"
-    },
-    fetch_token_meta: {"address": "So11111111111111111111111111111111111111112"},
-    fetch_token_price: {"address": "So11111111111111111111111111111111111111112"},
-    fetch_token_holders: {"address": "So11111111111111111111111111111111111111112"},
-    fetch_token_list: {},
-    fetch_token_top: {},
-    fetch_token_trending: {},
-    fetch_new_nft: {"filter": "created_time"},
-    fetch_nft_activities: {},
-    fetch_nft_collection_lists: {},
-    fetch_nft_collection_items: {
-        "collection": "4P9XKtSJBscScF5NfM8h4V6yjRf2g1eG3U9w4X8hW8Z2"
-    },
-    fetch_transaction_last: {},
-    fetch_transaction_detail: {
-        "tx": "4QJaroEcVhbQYZoLeX2oXyTToaKcY6GoFSBQNMne6jdiMEQ6k8mWE8TMXhH7W2X1stdFFXb9Yb3Ly6ojFc6cMv2c"
-    },
-    fetch_transaction_actions: {
-        "tx": "4QJaroEcVhbQYZoLeX2oXyTToaKcY6GoFSBQNMne6jdiMEQ6k8mWE8TMXhH7W2X1stdFFXb9Yb3Ly6ojFc6cMv2c"
-    },
-    fetch_block_last: {},
-    fetch_block_transactions: {"block": 327993245},
-    fetch_block_detail: {"block": 327993245},
-    fetch_market_list: {},
-    fetch_market_info: {"address": "EBHVuBXJrHQhxrXxduPPWTT9rRSrS42tLfU7eKi23sKE"},
-    fetch_market_volume: {"address": "EBHVuBXJrHQhxrXxduPPWTT9rRSrS42tLfU7eKi23sKE"},
-    fetch_monitor_usage: {},
-    fetch_chain_information: {},
-}
-
-
-def test_all():
-    for func, params in tools_with_examples.items():
-        result = asyncio.run(func(**params))
-        assert result  # Make sure it returns something
-
-
-def test_validate_address():
-    assert "Address is valid" in asyncio.run(
-        validate_address(address="7ZjHeeYEesmBs4N6aDvCQimKdtJX2bs5boXpJmpG2bZJ")
-    )
-    assert "Address [abc] is invalid" in asyncio.run(validate_address(address="abc"))
+        return {"valid": False, "reason": e.response.json()["errors"]["message"]}
