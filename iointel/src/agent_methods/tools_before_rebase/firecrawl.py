@@ -1,15 +1,14 @@
 import asyncio
 import os
-import uuid
 from firecrawl.firecrawl import FirecrawlApp
-from typing import List, Dict, Any, Optional, Callable
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import TypeVar, Type
+from typing import Dict, Any, Optional
+from typing import TypeVar
 from pydantic import BaseModel
 
 T = TypeVar("T", bound=BaseModel)
 
-FIRECRAWL_API_KEY = os.getenv('FIRECRAWL_API_KEY')
+FIRECRAWL_API_KEY = os.getenv("FIRECRAWL_API_KEY")
+
 
 class Crawler:
     """

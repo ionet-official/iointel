@@ -4,10 +4,9 @@ from typing import Any, Optional, Dict, Literal, Annotated
 import httpx
 import urllib.parse
 from pydantic import Field
-import urllib.parse
 
 COINMARKETCAP_API_BASE = "pro-api.coinmarketcap.com"
-COINMARKETCAP_API_KEY = os.getenv('COINMARKETCAP_API_KEY')
+COINMARKETCAP_API_KEY = os.getenv("COINMARKETCAP_API_KEY")
 
 
 def build_url(endpoint: str, params: Dict[str, Any]) -> str:
@@ -17,7 +16,10 @@ def build_url(endpoint: str, params: Dict[str, Any]) -> str:
     filtered_params = {k: v for k, v in params.items() if v is not None}
     return f"https://{COINMARKETCAP_API_BASE}/{endpoint}?{urllib.parse.urlencode(filtered_params)}"
 
-async def coinmarketcap_request(endpoint: str, params: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+
+async def coinmarketcap_request(
+    endpoint: str, params: Dict[str, Any]
+) -> Optional[Dict[str, Any]]:
     """
     Send a request to the specified CoinMarketCap API endpoint with the given parameters.
     """
@@ -25,13 +27,16 @@ async def coinmarketcap_request(endpoint: str, params: Dict[str, Any]) -> Option
     async with httpx.AsyncClient() as client:
         return await make_coinmarketcap_request(client, url)
 
-async def make_coinmarketcap_request(client: httpx.AsyncClient, url: str) -> dict[str, Any] | None:
+
+async def make_coinmarketcap_request(
+    client: httpx.AsyncClient, url: str
+) -> dict[str, Any] | None:
     """Make a request to the CoinMarketCap API with proper error handling."""
     if not COINMARKETCAP_API_KEY:
         raise RuntimeError("Coinmarketcap API key is not set")
     headers = {
-    'Accepts': 'application/json',
-    'X-CMC_PRO_API_KEY': COINMARKETCAP_API_KEY,
+        "Accepts": "application/json",
+        "X-CMC_PRO_API_KEY": COINMARKETCAP_API_KEY,
     }
     try:
         response = await client.get(url, headers=headers, timeout=10.0)
@@ -42,21 +47,22 @@ async def make_coinmarketcap_request(client: httpx.AsyncClient, url: str) -> dic
 
 
 async def listing_coins(
-        start: Annotated[Optional[int], Field(ge=1)] = None,
-        limit: Annotated[Optional[int], Field(ge=1, le=5000)] = None,
-        price_min: Annotated[Optional[float], Field(ge=0)] = None,
-        price_max: Annotated[Optional[float], Field(ge=0)] = None,
-        market_cap_min: Annotated[Optional[float], Field(ge=0)] = None,
-        market_cap_max: Annotated[Optional[float], Field(ge=0)] = None,
-        volume_24h_min: Annotated[Optional[float], Field(ge=0)] = None,
-        volume_24h_max: Annotated[Optional[float], Field(ge=0)] = None,
-        circulating_supply_min: Annotated[Optional[float], Field(ge=0)] = None,
-        circulating_supply_max: Annotated[Optional[float], Field(ge=0)] = None,
-        percent_change_24h_min: Annotated[Optional[float], Field(ge=-100)] = None,
-        percent_change_24h_max: Annotated[Optional[float], Field(ge=-100)] = None,
-        convert: Optional[list[str]] = None,
-        convert_id: Optional[list[str]] = None,
-        sort: Optional[Literal[
+    start: Annotated[Optional[int], Field(ge=1)] = None,
+    limit: Annotated[Optional[int], Field(ge=1, le=5000)] = None,
+    price_min: Annotated[Optional[float], Field(ge=0)] = None,
+    price_max: Annotated[Optional[float], Field(ge=0)] = None,
+    market_cap_min: Annotated[Optional[float], Field(ge=0)] = None,
+    market_cap_max: Annotated[Optional[float], Field(ge=0)] = None,
+    volume_24h_min: Annotated[Optional[float], Field(ge=0)] = None,
+    volume_24h_max: Annotated[Optional[float], Field(ge=0)] = None,
+    circulating_supply_min: Annotated[Optional[float], Field(ge=0)] = None,
+    circulating_supply_max: Annotated[Optional[float], Field(ge=0)] = None,
+    percent_change_24h_min: Annotated[Optional[float], Field(ge=-100)] = None,
+    percent_change_24h_max: Annotated[Optional[float], Field(ge=-100)] = None,
+    convert: Optional[list[str]] = None,
+    convert_id: Optional[list[str]] = None,
+    sort: Optional[
+        Literal[
             "market_cap",
             "name",
             "symbol",
@@ -74,11 +80,12 @@ async def listing_coins(
             "market_cap_by_total_supply_strict",
             "volume_7d",
             "volume_30d",
-        ]] = None,
-        sort_dir: Optional[Literal["asc", "desc"]] = None,
-        cryptocurrency_type: Optional[Literal["all", "coins", "tokens"]] = None,
-        tag: Optional[Literal["all", "defi", "filesharing"]] = None,
-        aux: Optional[list[str]] = None
+        ]
+    ] = None,
+    sort_dir: Optional[Literal["asc", "desc"]] = None,
+    cryptocurrency_type: Optional[Literal["all", "coins", "tokens"]] = None,
+    tag: Optional[Literal["all", "defi", "filesharing"]] = None,
+    aux: Optional[list[str]] = None,
 ) -> Optional[Dict[str, Any]]:
     """
     Retrieve a paginated list of active cryptocurrencies with the latest market data from CoinMarketCap.
@@ -121,24 +128,24 @@ async def listing_coins(
         "circulating_supply_max": circulating_supply_max,
         "percent_change_24h_min": percent_change_24h_min,
         "percent_change_24h_max": percent_change_24h_max,
-        "convert": ','.join(convert) if convert else None,
-        "convert_id": ','.join(convert_id) if convert_id else None,
+        "convert": ",".join(convert) if convert else None,
+        "convert_id": ",".join(convert_id) if convert_id else None,
         "sort": sort,
         "sort_dir": sort_dir,
         "cryptocurrency_type": cryptocurrency_type,
         "tag": tag,
-        "aux": ','.join(aux) if aux else None,
+        "aux": ",".join(aux) if aux else None,
     }
 
     return await coinmarketcap_request("v1/cryptocurrency/listings/latest", params)
 
 
 async def get_coin_info(
-        id: Optional[list[str]] = None,
-        slug: Optional[list[str]] = None,
-        symbol: Optional[list[str]] = None,
-        address: Optional[str] = None,
-        skip_invalid: bool = False
+    id: Optional[list[str]] = None,
+    slug: Optional[list[str]] = None,
+    symbol: Optional[list[str]] = None,
+    address: Optional[str] = None,
+    skip_invalid: bool = False,
 ) -> Optional[Dict[str, Any]]:
     """
     Retrieve coin information including details such as logo, description, official website URL,
@@ -155,9 +162,9 @@ async def get_coin_info(
         A dictionary containing the coin information if the request is successful, or None otherwise.
     """
     params = {
-        "id": ','.join(id) if id else None,
-        "slug": ','.join(slug) if slug else None,
-        "symbol": ','.join(symbol) if symbol else None,
+        "id": ",".join(id) if id else None,
+        "slug": ",".join(slug) if slug else None,
+        "symbol": ",".join(symbol) if symbol else None,
         "address": address,
         "skip_invalid": skip_invalid,
     }
@@ -192,12 +199,12 @@ async def get_coin_quotes(
         A dictionary containing the latest market quote data if the request is successful, or None otherwise.
     """
     params = {
-        "id": ','.join(id) if id else None,
-        "slug": ','.join(slug) if slug else None,
-        "symbol": ','.join(symbol) if symbol else None,
-        "convert": ','.join(convert) if convert else None,
-        "convert_id": ','.join(convert_id) if convert_id else None,
-        "aux": ','.join(aux) if aux else None,
+        "id": ",".join(id) if id else None,
+        "slug": ",".join(slug) if slug else None,
+        "symbol": ",".join(symbol) if symbol else None,
+        "convert": ",".join(convert) if convert else None,
+        "convert_id": ",".join(convert_id) if convert_id else None,
+        "aux": ",".join(aux) if aux else None,
         "skip_invalid": skip_invalid,
     }
     return await coinmarketcap_request("v2/cryptocurrency/quotes/latest", params)
@@ -247,12 +254,12 @@ async def get_coin_quotes_historical(
     time_start = time_start.replace(microsecond=0).isoformat() if time_start else None
     time_end = time_end.replace(microsecond=0).isoformat() if time_end else None
     params = {
-        "id": ','.join(id) if id else None,
-        "slug": ','.join(slug) if slug else None,
-        "symbol": ','.join(symbol) if symbol else None,
-        "convert": ','.join(convert) if convert else None,
-        "convert_id": ','.join(convert_id) if convert_id else None,
-        "aux": ','.join(aux) if aux else None,
+        "id": ",".join(id) if id else None,
+        "slug": ",".join(slug) if slug else None,
+        "symbol": ",".join(symbol) if symbol else None,
+        "convert": ",".join(convert) if convert else None,
+        "convert_id": ",".join(convert_id) if convert_id else None,
+        "aux": ",".join(aux) if aux else None,
         "skip_invalid": skip_invalid,
         "time_start": time_start,
         "time_end": time_end,

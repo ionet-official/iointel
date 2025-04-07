@@ -26,8 +26,8 @@ def test_wolframalpha():
             "Solutions: X1,X2,X3,... "
             "Only provide solutions in REAL numbers, do not provide complex numbers in solutions. "
             "Format each solution as a float number with 2 floating digits. ",
-            agents=[agent]
+            agents=[agent],
         )
     )
     assert result is not None, "Expected a result from the agent run."
-    assert 'Solutions: -0.48' == result
+    assert "Solutions: -0.48" == result

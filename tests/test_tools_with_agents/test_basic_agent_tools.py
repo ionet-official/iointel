@@ -9,9 +9,11 @@ from iointel import Agent
 def add_two_numbers(a: int, b: int) -> int:
     return a + b
 
+
 def get_current_datetime() -> str:
     current_datetime = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     return current_datetime
+
 
 def test_basic_tools():
     """

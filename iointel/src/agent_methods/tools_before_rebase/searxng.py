@@ -66,7 +66,9 @@ class SearxngClient:
         """
         self.base_url = base_url or os.getenv("SEARXNG_URL")
         if not self.base_url:
-            raise RuntimeError("Searxng base url is not set in SEARXNG_URL env variable")
+            raise RuntimeError(
+                "Searxng base url is not set in SEARXNG_URL env variable"
+            )
         self.timeout = timeout
         self.async_client = AsyncClient(base_url=self.base_url, timeout=self.timeout)
 
@@ -144,7 +146,9 @@ class SearxngClient:
         Raises:
             httpx.HTTPError: If any HTTP request fails.
         """
-        return [result.url for result in (await self.search_async(query, pages)).results]
+        return [
+            result.url for result in (await self.search_async(query, pages)).results
+        ]
 
     def get_urls(self, query: str, pages: int = 1) -> List[str]:
         """
@@ -178,6 +182,7 @@ def search_the_web(text: str, pages: int = 1):
     :return: The list of search responses
     """
     return SearxngClient().search(query=text, pages=pages)
+
 
 async def search_the_web_async(text: str, pages: int = 1):
     """
