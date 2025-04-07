@@ -1,4 +1,5 @@
 import marvin
+import pytest
 
 from iointel import Agent
 from iointel.src.agent_methods.tools.coinmarketcap import (
@@ -10,7 +11,8 @@ from iointel.src.agent_methods.tools.coinmarketcap import (
 from iointel.src.agent_methods.tools.utils import what_time_is_it
 
 
-def get_coinmarketcap_agent():
+@pytest.fixture
+def coinmarketcap_agent():
     return Agent(
         name="Agent",
         instructions="""
@@ -32,22 +34,20 @@ def get_coinmarketcap_agent():
     )
 
 
-async def test_coinmarketcap_btc_year():
-    agent = get_coinmarketcap_agent()
+async def test_coinmarketcap_btc_year(coinmarketcap_agent):
     result = await marvin.run_async(
         "What year was bitcoin established at? Return the date obtained from toolcall result",
-        agents=[agent],
+        agents=[coinmarketcap_agent],
     )
     assert result is not None, "Expected a result from the agent run."
     assert "2010" in result or "2009" in result
 
 
-async def test_top_10_currencies_by_capitalization():
-    agent = get_coinmarketcap_agent()
+async def test_top_10_currencies_by_capitalization(coinmarketcap_agent):
     result = await marvin.run_async(
         "Return names of top 10 cryptocurrencies, sorted by capitalization. "
         "Use the format: currency1,currency2,...,currencyX",
-        agents=[agent],
+        agents=[coinmarketcap_agent],
     )
     assert result is not None, "Expected a result from the agent run."
     currencies = result.split(",")
@@ -56,11 +56,10 @@ async def test_top_10_currencies_by_capitalization():
     assert "Ethereum" in currencies
 
 
-async def test_coinmarketcap_different_crypto_for_same_symbol():
-    agent = get_coinmarketcap_agent()
+async def test_coinmarketcap_different_crypto_for_same_symbol(coinmarketcap_agent):
     result = await marvin.run_async(
         "List some of the cryptocurrency names with a symbol BTC. Use get_coin_info function.",
-        agents=[agent],
+        agents=[coinmarketcap_agent],
     )
     assert result is not None, "Expected a result from the agent run."
     assert len(result) > 1
@@ -69,33 +68,30 @@ async def test_coinmarketcap_different_crypto_for_same_symbol():
     assert "Bullish Trump Coin" in result
 
 
-async def test_coinmarketcap_btc_capitalization():
-    agent = get_coinmarketcap_agent()
+async def test_coinmarketcap_btc_capitalization(coinmarketcap_agent):
     result = await marvin.run_async(
         "What's bitcoin capitalization? Return a single number: capitalization in USD",
-        agents=[agent],
+        agents=[coinmarketcap_agent],
         result_type=float,
     )
     assert result is not None, "Expected a result from the agent run."
     assert float(result) > 10**9  # More than 1 billion dollars
 
 
-async def test_coinmarketcap_get_current_price():
-    agent = get_coinmarketcap_agent()
+async def test_coinmarketcap_get_current_price(coinmarketcap_agent):
     result = await marvin.run_async(
         "Get current price of bitcoin. Return a single number: price in USD.",
-        agents=[agent],
+        agents=[coinmarketcap_agent],
         result_type=float,
     )
     assert result is not None, "Expected a result from the agent run."
     assert float(result) > 10000  # Price should be greater than 10k$
 
 
-async def test_coinmarketcap_historical_price():
-    agent = get_coinmarketcap_agent()
+async def test_coinmarketcap_historical_price(coinmarketcap_agent):
     result = await marvin.run_async(
         "Get price of bitcoin yesterday at 12:00. Return a single number: price in USD.",
-        agents=[agent],
+        agents=[coinmarketcap_agent],
         result_type=float,
     )
     assert result is not None, "Expected a result from the agent run."
