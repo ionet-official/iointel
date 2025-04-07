@@ -1,6 +1,6 @@
 import asyncio
 
-from iointel.src.agent_methods.tools_before_rebase.firecrawl import Crawler
+from iointel.src.agent_methods.tools.firecrawl import Crawler
 
 
 def test_crawl_the_page():

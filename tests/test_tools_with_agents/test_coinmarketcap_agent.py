@@ -3,13 +3,13 @@ import asyncio
 import marvin
 
 from iointel import Agent
-from iointel.src.agent_methods.tools_before_rebase.coinmarketcap import (
+from iointel.src.agent_methods.tools.coinmarketcap import (
     listing_coins,
     get_coin_info,
     get_coin_quotes,
     get_coin_quotes_historical,
 )
-from iointel.src.agent_methods.tools_before_rebase.utils import what_time_is_it
+from iointel.src.agent_methods.tools.utils import what_time_is_it
 
 
 def get_coinmarketcap_agent():

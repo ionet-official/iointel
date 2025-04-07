@@ -3,7 +3,7 @@ import asyncio
 import marvin
 
 from iointel import Agent
-from iointel.src.agent_methods.tools_before_rebase.firecrawl import Crawler
+from iointel.src.agent_methods.tools.firecrawl import Crawler
 
 
 def test_firecrawl():

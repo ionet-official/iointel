@@ -1,6 +1,6 @@
 import asyncio
 
-from iointel.src.agent_methods.tools_before_rebase.wolfram import query_wolfram_async
+from iointel.src.agent_methods.tools.wolfram import query_wolfram_async
 
 
 def test_wolfram_tool():

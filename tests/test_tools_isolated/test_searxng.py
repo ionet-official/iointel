@@ -1,6 +1,6 @@
 import pytest
 
-from iointel.src.agent_methods.tools_before_rebase.searxng import SearxngClient
+from iointel.src.agent_methods.tools.searxng import SearxngClient
 
 
 # Run searxng locally first

@@ -1,4 +1,4 @@
-from iointel.src.agent_methods.tools_before_rebase.duckduckgo import search_the_web
+from iointel.src.agent_methods.tools.duckduckgo import search_the_web
 
 
 def test_duckduckgo_tool():

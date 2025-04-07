@@ -2,7 +2,7 @@ import asyncio
 
 import marvin
 from iointel import Agent
-from iointel.src.agent_methods.tools_before_rebase.duckduckgo import (
+from iointel.src.agent_methods.tools.duckduckgo import (
     search_the_web_async,
 )
 

@@ -3,7 +3,7 @@ import asyncio
 import marvin
 
 from iointel import Agent
-from iointel.src.agent_methods.tools_before_rebase.wolfram import query_wolfram_async
+from iointel.src.agent_methods.tools.wolfram import query_wolfram_async
 
 
 def get_wolfram_agent():

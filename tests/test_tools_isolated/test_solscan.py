@@ -2,7 +2,7 @@ import asyncio
 
 import pytest
 
-from iointel.src.agent_methods.tools_before_rebase.solscan import (
+from iointel.src.agent_methods.tools.solscan import (
     tools_with_examples,
     validate_address,
 )

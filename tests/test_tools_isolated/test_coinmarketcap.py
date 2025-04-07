@@ -2,7 +2,7 @@ import asyncio
 import datetime
 import json
 
-from iointel.src.agent_methods.tools_before_rebase.coinmarketcap import (
+from iointel.src.agent_methods.tools.coinmarketcap import (
     get_coin_quotes_historical,
     get_coin_quotes,
     get_coin_info,

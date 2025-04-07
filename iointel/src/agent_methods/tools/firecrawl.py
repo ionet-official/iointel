@@ -1,6 +1,6 @@
 import asyncio
 import os
-from firecrawl.firecrawl import FirecrawlApp
+from iointel.src.agent_methods.tools.firecrawl import FirecrawlApp
 from typing import Dict, Any, Optional
 from typing import TypeVar
 from pydantic import BaseModel
