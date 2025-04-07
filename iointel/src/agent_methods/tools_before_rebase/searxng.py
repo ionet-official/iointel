@@ -1,28 +1,15 @@
 import os
-import traceback
 from typing import Optional, List, Dict, Any
-import httpx  # For synchronous requests
 from httpx import AsyncClient  # For asynchronous requests
 from pydantic import BaseModel
 
-
-# ---------------------------
-# Pydantic Models Definitions
-# ---------------------------
+from iointel.src.utilities.asyncio_utils import run_async
 
 
 class SearchResult(BaseModel):
     url: str
     title: str
     content: str
-
-
-class URL(BaseModel):
-    url: str
-
-
-class URLs(BaseModel):
-    urls: List[URL]
 
 
 class InfoboxUrl(BaseModel):
@@ -66,30 +53,6 @@ class SearxngClient:
     This client provides both asynchronous and synchronous search methods.
     Pagination is handled internally if the caller specifies more than one page
     via the 'pages' parameter.
-
-    Example usage (asynchronous):
-        import asyncio
-
-        async def main():
-            client = SearxngClient()
-            # Single-page search (pages=1 by default)
-            response = await client.search("python programming")
-            print("Single Page Response:", response)
-            # Paginated search: pages 1 to 3
-            paginated_response = await client.search("python programming", pages=3)
-            print("Paginated Response:", paginated_response)
-            await client.close()
-
-        asyncio.run(main())
-
-    Example usage (synchronous):
-        client = SearxngClient()
-        # Single-page search
-        response = client.search_sync("python programming")
-        print("Single Page Response:", response)
-        # Paginated search: pages 1 to 3
-        paginated_response = client.search_sync("python programming", pages=3)
-        print("Paginated Response:", paginated_response)
     """
 
     def __init__(self, base_url: Optional[str] = None, timeout: int = 10) -> None:
@@ -101,11 +64,13 @@ class SearxngClient:
                 Defaults to the environment variable 'SEARXNG_URL' or "http://localhost:8081".
             timeout (int): Timeout for HTTP requests in seconds.
         """
-        self.base_url = base_url or os.getenv("SEARXNG_URL", "http://localhost:8081")
+        self.base_url = base_url or os.getenv("SEARXNG_URL")
+        if not self.base_url:
+            raise RuntimeError("Searxng base url is not set in SEARXNG_URL env variable")
         self.timeout = timeout
         self.async_client = AsyncClient(base_url=self.base_url, timeout=self.timeout)
 
-    async def search(self, query: str, pages: int = 1) -> SearchResponse:
+    async def search_async(self, query: str, pages: int = 1) -> SearchResponse:
         """
         Asynchronously perform a search query using the SearxNG API.
         If 'pages' is greater than 1, the method iterates over pages 1..pages
@@ -145,7 +110,7 @@ class SearxngClient:
             infoboxes=combined_infoboxes,
         )
 
-    def search_sync(self, query: str, pages: int = 1) -> SearchResponse:
+    def search(self, query: str, pages: int = 1) -> SearchResponse:
         """
         Synchronously perform a search query using the SearxNG API.
         If 'pages' is greater than 1, the method iterates over pages 1..pages
@@ -161,56 +126,7 @@ class SearxngClient:
         Raises:
             httpx.HTTPError: If any HTTP request fails.
         """
-        combined_results: List[SearchResult] = []
-        combined_infoboxes: List[Infobox] = []
-        total_results = 0
-
-
-
-        with httpx.Client(base_url=self.base_url, timeout=self.timeout) as client:
-            for pageno in range(1, pages + 1):
-                params: Dict[str, Any] = {
-                    "q": query,
-                    "format": "json",
-                    "pageno": str(pageno),
-                }
-                try:
-                    response = client.get("/search", params=params)
-                    response.raise_for_status()
-                except Exception:
-                    traceback.print_exc()
-                page_data = SearchResponse.model_validate_json(response.text)
-                combined_results.extend(page_data.results)
-                combined_infoboxes.extend(page_data.infoboxes)
-                total_results += page_data.number_of_results
-
-        print('Combined results: ', combined_results)
-        return SearchResponse(
-            query=query,
-            number_of_results=total_results,
-            results=combined_results,
-            infoboxes=combined_infoboxes,
-        )
-
-    def get_urls(self, query: str, pages: int = 1) -> List[str]:
-        """
-        Synchronously perform a search query using the SearxNG API.
-        If 'pages' is greater than 1, the method iterates over pages 1..pages
-        and combines the results.
-
-        Args:
-            query (str): The search query.
-            pages (int): The number of pages to retrieve (default is 1).
-
-        Returns:
-            List[str]: A list of URLs from the combined search results.
-
-        Raises:
-            httpx.HTTPError: If any HTTP request fails.
-        """
-        response = self.search_sync(query, pages)
-        urls = URLs(urls=[URL(url=result.url) for result in response.results])
-        return [result.url for result in urls.urls]
+        return run_async(self.search_async(query, pages))
 
     async def get_urls_async(self, query: str, pages: int = 1) -> List[str]:
         """
@@ -228,9 +144,25 @@ class SearxngClient:
         Raises:
             httpx.HTTPError: If any HTTP request fails.
         """
-        response = await self.search(query, pages)
-        urls = URLs(urls=[URL(url=result.url) for result in response.results])
-        return [result.url for result in urls.urls]
+        return [result.url for result in (await self.search_async(query, pages)).results]
+
+    def get_urls(self, query: str, pages: int = 1) -> List[str]:
+        """
+        Synchronously perform a search query using the SearxNG API.
+        If 'pages' is greater than 1, the method iterates over pages 1..pages
+        and combines the results.
+
+        Args:
+            query (str): The search query.
+            pages (int): The number of pages to retrieve (default is 1).
+
+        Returns:
+            List[str]: A list of URLs from the combined search results.
+
+        Raises:
+            httpx.HTTPError: If any HTTP request fails.
+        """
+        return run_async(self.get_urls_async(query, pages))
 
     async def close(self) -> None:
         """
@@ -239,18 +171,18 @@ class SearxngClient:
         await self.async_client.aclose()
 
 
-def search_the_web(text: str, max_results: int = 10):
+def search_the_web(text: str, pages: int = 1):
     """
     :param text: Text to search
-    :param max_results: How many results to return (from 1 to 20)
-    :return: The list of snippets in json format
+    :param pages: How many pages to return
+    :return: The list of search responses
     """
-    return DuckDuckGoSearchAPIWrapper().results(text, max_results=max_results)
+    return SearxngClient().search(query=text, pages=pages)
 
-async def search_the_web_async(text: str, max_results: int = 10):
+async def search_the_web_async(text: str, pages: int = 1):
     """
     :param text: Text to search
-    :param max_results: How many results to return (from 1 to 20)
-    :return: The list of snippets in json format
+    :param pages: How many pages to return
+    :return: The list of search responses
     """
-    return await asyncio.to_thread(search_the_web, text=text, max_results=max_results)
+    return await SearxngClient().search_async(query=text, pages=pages)

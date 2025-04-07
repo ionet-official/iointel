@@ -27,14 +27,13 @@ async def coinmarketcap_request(endpoint: str, params: Dict[str, Any]) -> Option
 
 async def make_coinmarketcap_request(client: httpx.AsyncClient, url: str) -> dict[str, Any] | None:
     """Make a request to the CoinMarketCap API with proper error handling."""
-    assert COINMARKETCAP_API_KEY
+    if not COINMARKETCAP_API_KEY:
+        raise RuntimeError("Coinmarketcap API key is not set")
     headers = {
     'Accepts': 'application/json',
     'X-CMC_PRO_API_KEY': COINMARKETCAP_API_KEY,
     }
     try:
-        print('Requesting url: ', url)
-        print('Headers: ', headers)
         response = await client.get(url, headers=headers, timeout=10.0)
         response.raise_for_status()
         return response.json()
@@ -55,8 +54,8 @@ async def listing_coins(
         circulating_supply_max: Annotated[Optional[float], Field(ge=0)] = None,
         percent_change_24h_min: Annotated[Optional[float], Field(ge=-100)] = None,
         percent_change_24h_max: Annotated[Optional[float], Field(ge=-100)] = None,
-        convert: Optional[str] = None,
-        convert_id: Optional[str] = None,
+        convert: Optional[list[str]] = None,
+        convert_id: Optional[list[str]] = None,
         sort: Optional[Literal[
             "market_cap",
             "name",
@@ -79,7 +78,7 @@ async def listing_coins(
         sort_dir: Optional[Literal["asc", "desc"]] = None,
         cryptocurrency_type: Optional[Literal["all", "coins", "tokens"]] = None,
         tag: Optional[Literal["all", "defi", "filesharing"]] = None,
-        aux: Optional[str] = None
+        aux: Optional[list[str]] = None
 ) -> Optional[Dict[str, Any]]:
     """
     Retrieve a paginated list of active cryptocurrencies with the latest market data from CoinMarketCap.
@@ -97,13 +96,14 @@ async def listing_coins(
         circulating_supply_max: Filter results by maximum circulating supply.
         percent_change_24h_min: Filter results by minimum 24-hour percent change.
         percent_change_24h_max: Filter results by maximum 24-hour percent change.
-        convert: Calculate market quotes in multiple currencies using a comma-separated list of symbols.
+        convert: Calculate market quotes in multiple currencies using a list of symbols.
         convert_id: Calculate market quotes by CoinMarketCap ID.
         sort: Field to sort the list of cryptocurrencies.
         sort_dir: Direction to sort the results.
         cryptocurrency_type: Filter by cryptocurrency type.
         tag: Filter by cryptocurrency tag.
         aux: Specify supplemental data fields to return.
+             Valid values include ["num_market_pairs", "cmc_rank", "date_added", "tags", "platform", "max_supply", "circulating_supply", "total_supply", "is_active", "is_fiat"].
 
     Returns:
         A dictionary containing the cryptocurrency listing data if successful, or None otherwise.
@@ -121,22 +121,22 @@ async def listing_coins(
         "circulating_supply_max": circulating_supply_max,
         "percent_change_24h_min": percent_change_24h_min,
         "percent_change_24h_max": percent_change_24h_max,
-        "convert": convert,
-        "convert_id": convert_id,
+        "convert": ','.join(convert) if convert else None,
+        "convert_id": ','.join(convert_id) if convert_id else None,
         "sort": sort,
         "sort_dir": sort_dir,
         "cryptocurrency_type": cryptocurrency_type,
         "tag": tag,
-        "aux": aux,
+        "aux": ','.join(aux) if aux else None,
     }
 
     return await coinmarketcap_request("v1/cryptocurrency/listings/latest", params)
 
 
 async def get_coin_info(
-        id: Optional[str] = None,
-        slug: Optional[str] = None,
-        symbol: Optional[str] = None,
+        id: Optional[list[str]] = None,
+        slug: Optional[list[str]] = None,
+        symbol: Optional[list[str]] = None,
         address: Optional[str] = None,
         skip_invalid: bool = False
 ) -> Optional[Dict[str, Any]]:
@@ -145,9 +145,9 @@ async def get_coin_info(
     social links, and links to technical documentation.
 
     Parameters:
-        id: One or more comma-separated CoinMarketCap cryptocurrency IDs. Example: "1,2".
-        slug: A comma-separated list of cryptocurrency slugs. Example: "bitcoin,ethereum".
-        symbol: One or more comma-separated cryptocurrency symbols. Example: "BTC,ETH".
+        id: A list of cryptocurrency CoinMarketCap IDs. Example: ["1" , "2"].
+        slug: Alternatively pass a list of cryptocurrency slugs. Example: ["bitcoin", "ethereum"].
+        symbol: Alternatively pass a list of cryptocurrency symbols. Example: ["BTC", "ETH"].
         address: A contract address for the cryptocurrency. Example: "0xc40af1e4fecfa05ce6bab79dcd8b373d2e436c4e".
         skip_invalid: When True, invalid cryptocurrency lookups will be skipped instead of raising an error.
 
@@ -155,9 +155,9 @@ async def get_coin_info(
         A dictionary containing the coin information if the request is successful, or None otherwise.
     """
     params = {
-        "id": id,
-        "slug": slug,
-        "symbol": symbol,
+        "id": ','.join(id) if id else None,
+        "slug": ','.join(slug) if slug else None,
+        "symbol": ','.join(symbol) if symbol else None,
         "address": address,
         "skip_invalid": skip_invalid,
     }
@@ -166,12 +166,12 @@ async def get_coin_info(
 
 
 async def get_coin_quotes(
-    id: Optional[str] = None,
-    slug: Optional[str] = None,
-    symbol: Optional[str] = None,
-    convert: Optional[str] = None,
-    convert_id: Optional[str] = None,
-    aux: Optional[str] = None,
+    id: Optional[list[str]] = None,
+    slug: Optional[list[str]] = None,
+    symbol: Optional[list[str]] = None,
+    convert: Optional[list[str]] = None,
+    convert_id: Optional[list[str]] = None,
+    aux: Optional[list[str]] = None,
     skip_invalid: bool = False,
 ) -> Optional[Dict[str, Any]]:
     """
@@ -179,37 +179,37 @@ async def get_coin_quotes(
     Use the "convert" option to return market values in multiple fiat and cryptocurrency conversions in the same call.
 
     Parameters:
-        id: One or more comma-separated cryptocurrency CoinMarketCap IDs. Example: "1,2".
-        slug: Alternatively pass a comma-separated list of cryptocurrency slugs. Example: "bitcoin,ethereum".
-        symbol: Alternatively pass one or more comma-separated cryptocurrency symbols. Example: "BTC,ETH".
-        convert: Optionally calculate market quotes in up to 120 currencies at once by passing a comma-separated list of cryptocurrency or fiat currency symbols.
+        id: A list of cryptocurrency CoinMarketCap IDs. Example: ["1" , "2"].
+        slug: Alternatively pass a list of cryptocurrency slugs. Example: ["bitcoin", "ethereum"].
+        symbol: Alternatively pass a list of cryptocurrency symbols. Example: ["BTC", "ETH"].
+        convert: Optionally calculate market quotes in up to 120 currencies at once by passing a list of cryptocurrency or fiat currency symbols.
         convert_id: Optionally calculate market quotes by CoinMarketCap ID instead of symbol.
-        aux: Optionally specify a comma-separated list of supplemental data fields to return.
-             Valid values include "num_market_pairs,cmc_rank,date_added,tags,platform,max_supply,circulating_supply,total_supply,is_active,is_fiat".
+        aux: Optionally specify a list of supplemental data fields to return.
+             Valid values include ["num_market_pairs", "cmc_rank", "date_added", "tags", "platform", "max_supply", "circulating_supply", "total_supply", "is_active", "is_fiat"].
         skip_invalid: Pass true to relax request validation rules.
 
     Returns:
         A dictionary containing the latest market quote data if the request is successful, or None otherwise.
     """
     params = {
-        "id": id,
-        "slug": slug,
-        "symbol": symbol,
-        "convert": convert,
-        "convert_id": convert_id,
-        "aux": aux,
+        "id": ','.join(id) if id else None,
+        "slug": ','.join(slug) if slug else None,
+        "symbol": ','.join(symbol) if symbol else None,
+        "convert": ','.join(convert) if convert else None,
+        "convert_id": ','.join(convert_id) if convert_id else None,
+        "aux": ','.join(aux) if aux else None,
         "skip_invalid": skip_invalid,
     }
     return await coinmarketcap_request("v2/cryptocurrency/quotes/latest", params)
 
 
 async def get_coin_quotes_historical(
-    id: Optional[str] = None,
-    slug: Optional[str] = None,
-    symbol: Optional[str] = None,
-    convert: Optional[str] = None,
-    convert_id: Optional[str] = None,
-    aux: Optional[str] = None,
+    id: Optional[list[str]] = None,
+    slug: Optional[list[str]] = None,
+    symbol: Optional[list[str]] = None,
+    convert: Optional[list[str]] = None,
+    convert_id: Optional[list[str]] = None,
+    aux: Optional[list[str]] = None,
     skip_invalid: bool = False,
     time_start: Optional[datetime.datetime] = None,
     time_end: Optional[datetime.datetime] = None,
@@ -223,13 +223,13 @@ async def get_coin_quotes_historical(
     To get historical price at a particular point of time, provide time_end=<point-of-time> and count=1
 
     Parameters:
-        id: One or more comma-separated cryptocurrency CoinMarketCap IDs. Example: "1,2".
-        slug: Alternatively pass a comma-separated list of cryptocurrency slugs. Example: "bitcoin,ethereum".
-        symbol: Alternatively pass one or more comma-separated cryptocurrency symbols. Example: "BTC,ETH".
-        convert: Optionally calculate market quotes in up to 120 currencies at once by passing a comma-separated list of cryptocurrency or fiat currency symbols.
+        id: A list of cryptocurrency CoinMarketCap IDs. Example: ["1" , "2"].
+        slug: Alternatively pass a list of cryptocurrency slugs. Example: ["bitcoin", "ethereum"].
+        symbol: Alternatively pass a list of cryptocurrency symbols. Example: ["BTC", "ETH"].
+        convert: Optionally calculate market quotes in up to 120 currencies at once by passing a list of cryptocurrency or fiat currency symbols.
         convert_id: Optionally calculate market quotes by CoinMarketCap ID instead of symbol.
-        aux: Optionally specify a comma-separated list of supplemental data fields to return.
-             Valid values include "num_market_pairs,cmc_rank,date_added,tags,platform,max_supply,circulating_supply,total_supply,is_active,is_fiat".
+        aux: Optionally specify a list of supplemental data fields to return.
+             Valid values include ["num_market_pairs", "cmc_rank", "date_added", "tags", "platform", "max_supply", "circulating_supply", "total_supply", "is_active", "is_fiat"].
         skip_invalid: Pass true to relax request validation rules.
         time_start: timestamp to start returning quotes for.
                     Optional, if not passed, we'll return quotes calculated in reverse from "time_end".
@@ -247,12 +247,12 @@ async def get_coin_quotes_historical(
     time_start = time_start.replace(microsecond=0).isoformat() if time_start else None
     time_end = time_end.replace(microsecond=0).isoformat() if time_end else None
     params = {
-        "id": id,
-        "slug": slug,
-        "symbol": symbol,
-        "convert": convert,
-        "convert_id": convert_id,
-        "aux": aux,
+        "id": ','.join(id) if id else None,
+        "slug": ','.join(slug) if slug else None,
+        "symbol": ','.join(symbol) if symbol else None,
+        "convert": ','.join(convert) if convert else None,
+        "convert_id": ','.join(convert_id) if convert_id else None,
+        "aux": ','.join(aux) if aux else None,
         "skip_invalid": skip_invalid,
         "time_start": time_start,
         "time_end": time_end,

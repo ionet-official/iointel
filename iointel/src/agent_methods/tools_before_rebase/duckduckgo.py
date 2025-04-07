@@ -18,7 +18,7 @@ class DuckDuckGoSearchAPIWrapper(BaseModel):
     """
     Options: strict, moderate, off
     """
-    time: Optional[str] = "y"
+    timelimit: Optional[str] = "y"
     """
     Options: d, w, m, y
     """
@@ -38,11 +38,11 @@ class DuckDuckGoSearchAPIWrapper(BaseModel):
         """Validate that python package exists in environment."""
         try:
             from duckduckgo_search import DDGS  # noqa: F401
-        except ImportError:
+        except ImportError as e:
             raise ImportError(
                 "Could not import duckduckgo-search python package. "
                 "Please install it with `pip install -U duckduckgo-search`."
-            )
+            ) from e
         return values
 
     def _ddgs(
@@ -56,7 +56,7 @@ class DuckDuckGoSearchAPIWrapper(BaseModel):
                 query,
                 region=self.region,  # type: ignore[arg-type]
                 safesearch=self.safesearch,
-                timelimit=self.time,
+                timelimit=self.timelimit,
                 max_results=max_results or self.max_results,
                 backend=self.backend,
             )
@@ -64,16 +64,8 @@ class DuckDuckGoSearchAPIWrapper(BaseModel):
                 return [r for r in ddgs_gen]
         return []
 
-    def run(self, query: str) -> str:
-        """Run query through DuckDuckGo and return concatenated results."""
-        results = self._ddgs_text(query)
-
-        if not results:
-            return "No good DuckDuckGo Search Result was found"
-        return " ".join(r["body"] for r in results)
-
     def results(
-        self, query: str, max_results: int
+        self, query: str, max_results: Optional[int] = None
     ) -> List[Dict[str, str]]:
         """Run query through DuckDuckGo and return metadata.
 
@@ -93,7 +85,7 @@ class DuckDuckGoSearchAPIWrapper(BaseModel):
         ]
 
         if results is None:
-            results = [{"Result": "No good DuckDuckGo Search Result was found"}]
+            results = [{"error": "No good DuckDuckGo Search Result was found"}]
 
         return results
 
