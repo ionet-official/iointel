@@ -10,15 +10,15 @@ from iointel.src.agent_methods.tools.coinmarketcap import (
 
 
 async def test_listing_coins():
-    assert json.dumps(await listing_coins(), indent=4, sort_keys=True)
+    assert await listing_coins()
 
 
 async def test_get_coin_info():
-    assert json.dumps(await get_coin_info(symbol=["BTC"]), indent=4, sort_keys=True)
+    assert await get_coin_info(symbol=["BTC"])
 
 
 async def test_get_coin_price():
-    assert json.dumps(await get_coin_quotes(symbol=["BTC"]), indent=4, sort_keys=True)
+    assert await get_coin_quotes(symbol=["BTC"])
 
 
 async def test_get_coin_historical_price():

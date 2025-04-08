@@ -1,3 +1,5 @@
+import os
+
 import pytest
 
 from iointel.src.agent_methods.tools.solscan import (
@@ -99,11 +101,14 @@ tools_with_examples = {
 }
 
 
-@pytest.mark.skip(reason="Don't test all of them in CI, fails because of the limits")
-async def test_all_endpoints():
-    for func, params in tools_with_examples.items():
-        result = await func(**params)
-        assert result  # Make sure it returns something
+@pytest.mark.skipif(
+    os.getenv("CI") is not None,
+    reason="Don't test all of them in CI, fails because of the limits",
+)
+@pytest.mark.parametrize("tool,params", tools_with_examples.items())
+async def test_all_endpoints(tool, params):
+    result = await tool(**params)
+    assert result  # Make sure it returns something
 
 
 async def test_validate_address():
