@@ -38,7 +38,12 @@ jobs:
       IO_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       IO_API_BASE_URL: ${{ secrets.OPENAI_API_BASE_URL }}
       IO_API_MODEL: meta-llama/Llama-3.3-70B-Instruct
+      WOLFRAM_API_KEY: ${{ secrets.WOLFRAM_API_KEY }}
+      SOLSCAN_API_KEY: ${{ secrets.SOLSCAN_API_KEY }}
+      COINMARKETCAP_API_KEY: ${{ secrets.COINMARKETCAP_API_KEY }}
+      FIRECRAWL_API_KEY: ${{ secrets.FIRECRAWL_API_KEY }}
       SLOW_MODE_SLEEP: 10
+      LOGFIRE_IGNORE_NO_CONFIG: 1
 
     steps:
       - uses: actions/checkout@v4
@@ -54,8 +59,11 @@ jobs:
       - name: Install dependencies
         run: uv pip install --system -e . && uv pip install --system ".[tests,memory,tools]" && uv pip install -U httpcore --system 
 
+      - name: Prepare for tests
+        run: make prepare_for_tests
+
       - name: Run tests
-        run: pytest -vv tests/
+        run: pytest -vv tests/ --retries 2 --retry-delay 5
         if: ${{ !(github.event.pull_request.head.repo.fork) }}
 
       - name: Check readme anchors

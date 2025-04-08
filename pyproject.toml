@@ -10,8 +10,14 @@ dependencies = [
     "pytest>=8.3.4",
     "python-multipart>=0.0.20",
     "prefect>=3.2.2",
-    "pydantic-ai>=0.0.37",
+    "pydantic-ai==0.0.37",
     "marvin==3.0.1",
+    "firecrawl>=1.15.0",
+    "duckduckgo-search>=2025.4.1",
+    "pyyaml>=6.0.2",
+    "sqlalchemy-utils>=0.41.2",
+    "pytest-retry>=1.7.0",
+    "pytest-asyncio>=0.21.2",
 ]
 keywords = ["Agents", "LLM", "framework", "AI", "tools"]
 classifiers = [
