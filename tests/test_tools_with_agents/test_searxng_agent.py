@@ -1,10 +1,10 @@
 import os
 
-import marvin
 import pytest
 
 from iointel import Agent
 from iointel.src.agent_methods.tools.searxng import SearxngClient
+from iointel.src.utilities.runners import run_agents
 
 
 @pytest.mark.skipif(
@@ -19,9 +19,9 @@ async def test_searxng():
         tools=[client.search],
     )
 
-    result = await marvin.run_async(
+    result = await run_agents(
         "Search the web. How many models were released on the first version of io-intelligence product?",
         agents=[agent],
-    )
+    ).execute_async()
 
     assert "25" in result
