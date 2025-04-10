@@ -102,6 +102,6 @@ class AsyncLazyCaller(BaseModel):
         return run_async(self.execute_async())
 
     @model_serializer
-    def set_model(self) -> dict:
+    def serialize_model(self) -> dict:
         """Only serialize the name, not the problematic object"""
         return {"name": self.name}
