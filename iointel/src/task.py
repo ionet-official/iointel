@@ -3,7 +3,7 @@ import asyncio
 import marvin
 
 from .agents import Agent
-from .utilities.helpers import LazyCaller
+from .utilities.helpers import LazyCaller, AsyncLazyCaller
 
 
 class Task:
@@ -72,8 +72,7 @@ class Task:
         :return: The result of the marvin.run() call.
         """
         chosen_agents = agents if agents is not None else self.agents
-        # FIXME: could it break due to lambda returning awaitable? see if it needs fixes
-        return LazyCaller(
+        return AsyncLazyCaller(
             lambda: marvin.run_async(
                 objective,
                 agents=chosen_agents,
