@@ -3,7 +3,6 @@ import asyncio
 import marvin
 
 from .agents import Agent
-from .utilities.helpers import LazyCaller, AsyncLazyCaller
 
 
 class Task:
@@ -43,14 +42,12 @@ class Task:
         :return: The result of the marvin.run() call.
         """
         chosen_agents = agents if agents is not None else self.agents
-        return LazyCaller(
-            lambda: marvin.run(
-                objective,
-                agents=chosen_agents,
-                context=context or {},
-                result_type=result_type,
-                **kwargs,
-            )
+        return marvin.run(
+            objective,
+            agents=chosen_agents,
+            context=context or {},
+            result_type=result_type,
+            **kwargs,
         )
 
     async def a_run(
@@ -72,14 +69,12 @@ class Task:
         :return: The result of the marvin.run() call.
         """
         chosen_agents = agents if agents is not None else self.agents
-        return AsyncLazyCaller(
-            lambda: marvin.run_async(
-                objective,
-                agents=chosen_agents,
-                context=context or {},
-                result_type=result_type,
-                **kwargs,
-            )
+        return await marvin.run_async(
+            objective,
+            agents=chosen_agents,
+            context=context or {},
+            result_type=result_type,
+            **kwargs,
         )
 
     def chain_runs(
