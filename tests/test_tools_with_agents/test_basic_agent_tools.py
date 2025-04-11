@@ -1,8 +1,8 @@
 from datetime import datetime
 
-import marvin
 
 from iointel import Agent
+from iointel.src.utilities.runners import run_agents
 
 
 def add_two_numbers(a: int, b: int) -> int:
@@ -25,8 +25,8 @@ async def test_basic_tools():
     )
     numbers = [22122837493142, 17268162387617, 159864395786239452]
 
-    result = await marvin.run_async(
+    result = await run_agents(
         f"Add three numbers: {numbers[0]} and {numbers[1]} and {numbers[2]}. Return their sum",
         agents=[agent],
-    )
+    ).execute_async()
     assert result == str(sum(numbers))

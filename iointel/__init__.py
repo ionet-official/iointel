@@ -4,7 +4,7 @@ from .src.utilities.magic import (
 from .src.agents import Agent, Swarm
 from .src.memory import Memory
 from .src.workflow import Workflow
-from .src.utilities.runners import run_agents, run_agents_async
+from .src.utilities.runners import run_agents
 from .src.agent_methods.data_models.datamodels import PersonaConfig
 from .src.utilities.decorators import register_custom_task, register_tool
 
@@ -26,7 +26,6 @@ __all__ = [
     "register_custom_task",
     "register_tool",
     "run_agents",
-    "run_agents_async",
     "register_custom_task",
     "register_tool",
     "PersonaConfig",

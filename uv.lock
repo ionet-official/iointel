@@ -305,6 +305,15 @@ wheels = [
 ]
 
 [[package]]
+name = "cfgv"
+version = "3.4.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/11/74/539e56497d9bd1d484fd863dd69cbbfa653cd2aa27abfe35653494d85e94/cfgv-3.4.0.tar.gz", hash = "sha256:e52591d4c5f5dead8e0f673fb16db7949d2cfb3f7da4582893288f0ded8fe560", size = 7114 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/c5/55/51844dd50c4fc7a33b653bfaba4c2456f06955289ca770a5dbd5fd267374/cfgv-3.4.0-py2.py3-none-any.whl", hash = "sha256:b7265b1f29fd3316bfcd2b330d63d024f2bfd8bcb8b0272f8e19a504856c48f9", size = 7249 },
+]
+
+[[package]]
 name = "charset-normalizer"
 version = "3.4.1"
 source = { registry = "https://pypi.org/simple" }
@@ -507,6 +516,15 @@ wheels = [
 ]
 
 [[package]]
+name = "distlib"
+version = "0.3.9"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/0d/dd/1bec4c5ddb504ca60fc29472f3d27e8d4da1257a854e1d96742f15c1d02d/distlib-0.3.9.tar.gz", hash = "sha256:a60f20dea646b8a33f3e7772f74dc0b2d0772d2837ee1342a00645c81edf9403", size = 613923 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/91/a1/cf2472db20f7ce4a6be1253a81cfdf85ad9c7885ffbed7047fb72c24cf87/distlib-0.3.9-py2.py3-none-any.whl", hash = "sha256:47f8c22fd27c27e25a65601af709b38e4f0a45ea4fc2e710f65755fa8caaaf87", size = 468973 },
+]
+
+[[package]]
 name = "distro"
 version = "1.9.0"
 source = { registry = "https://pypi.org/simple" }
@@ -540,30 +558,16 @@ wheels = [
 
 [[package]]
 name = "duckduckgo-search"
-version = "2025.4.4"
+version = "8.0.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "click" },
     { name = "lxml" },
     { name = "primp" },
 ]
+sdist = { url = "https://files.pythonhosted.org/packages/25/aa/594674d0cfe45bdeb825b6383de2104c7320f3fb582eb97fb153dbdc8c71/duckduckgo_search-8.0.0.tar.gz", hash = "sha256:2a8e22092156e11d3c9195e1ce100fa0bce181d23d6f84b89228190498887736", size = 22253 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/91/a1/02fad7df6feb8c1ac1ec640c32275f5cdd02fe322b9bd5182fe1b7a72716/duckduckgo_search-2025.4.4-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:2ad6e748b16974d6eb95b3604ecad7a6c85337e34f7b7e0ec5ef8ba4b1f8b8e1", size = 78988 },
-    { url = "https://files.pythonhosted.org/packages/55/e6/a62ad4522e46a1dcf202e13fbd6ab585f0022f753c556738bdfeb36ab16e/duckduckgo_search-2025.4.4-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:85244f9791da37bbaf250f341c490db0005ca16f823bd75dd4734f6a833a48b1", size = 76705 },
-    { url = "https://files.pythonhosted.org/packages/b6/30/5527c1f3536c6b2678f18b4497b77f71bf2f9fca2d61e4382d76052cd641/duckduckgo_search-2025.4.4-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:b9dfba8734f8f6220d63777efaa7a70a180e77b91d414736e2b3c862041f8978", size = 96565 },
-    { url = "https://files.pythonhosted.org/packages/3e/89/73ccd75fbd54392d060b9b575dbef9614aaf42303f6b78b236575655f212/duckduckgo_search-2025.4.4-cp310-cp310-win_amd64.whl", hash = "sha256:e63e374508573813caf82694686d5f5aca5c28d97c51a4ce14acba1ced7b3ba1", size = 60503 },
-    { url = "https://files.pythonhosted.org/packages/2a/a0/d16e8573788ff073c57c02d065b21218a3a3b4c8f4193c3d6bfd3ba18c1b/duckduckgo_search-2025.4.4-cp311-cp311-macosx_10_9_x86_64.whl", hash = "sha256:c93136df7ab2356a2c72e4a5b12468b4211001966eaa0f7e916fec21c6a030a8", size = 77705 },
-    { url = "https://files.pythonhosted.org/packages/b8/1e/c5080229a0af6e521c4b96bc322521b6653ec78b1ce5a9e88ff32bea2be3/duckduckgo_search-2025.4.4-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:cba3328e3b445108eea2885a067d7940df9d4ac4a80896bf8cd0d20bb775b33a", size = 75141 },
-    { url = "https://files.pythonhosted.org/packages/5c/49/0cd13c7c74c1ff627a390127ed66a133a5a96fc98c20537996ced261f307/duckduckgo_search-2025.4.4-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:343a30ec5c8be287aad44e657e5ece2e10ef319642feac346ffe485704363a7c", size = 94924 },
-    { url = "https://files.pythonhosted.org/packages/c2/e9/f4233afcca57a239cc605171ec7b1ce0540088e48aa6e7bbbc00ecffe03d/duckduckgo_search-2025.4.4-cp311-cp311-win_amd64.whl", hash = "sha256:5ce7de2a211b012b2e761f937efe77151010cf97075262efe08811ed987fe92a", size = 60343 },
-    { url = "https://files.pythonhosted.org/packages/77/15/bea5add03f5028dba529ddd9090ec6bd545e90926bdaa5a80b122e265110/duckduckgo_search-2025.4.4-cp312-cp312-macosx_10_13_x86_64.whl", hash = "sha256:18f21c972613f96fba344e2186757e862b724d9e574c956193ebc4f7fdfdf0fa", size = 78319 },
-    { url = "https://files.pythonhosted.org/packages/4a/ee/6ce5a5db585af44e4a811d0fd61431fe13789e51ade1102e78dd4f610a55/duckduckgo_search-2025.4.4-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:8c6944fb74b77aaab5759c8806c23ed20aa96624d1c49a2caf2b9f3b50c07057", size = 75032 },
-    { url = "https://files.pythonhosted.org/packages/e2/2f/a899d28de2d46541b24d33b969fedda74f6b00a4317e16cf207cbb896292/duckduckgo_search-2025.4.4-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:2e52028aeaa6151514a3115cc6fe616883cf9614fba2966792a415b7d97935b6", size = 95875 },
-    { url = "https://files.pythonhosted.org/packages/58/f3/cf71d8a286325f8a2d969bc0bda9e4defb01f1df2142887c965fa03adebb/duckduckgo_search-2025.4.4-cp312-cp312-win_amd64.whl", hash = "sha256:f8a826f0d19eccba76d83d5034be8ae2e89f38263befd290c6ca613c8eed7ea2", size = 60488 },
-    { url = "https://files.pythonhosted.org/packages/85/d6/8d8775727dc18a38b5bbd5982383ff4d2a1b392afba4a998cac54e5c78f8/duckduckgo_search-2025.4.4-cp313-cp313-macosx_10_13_x86_64.whl", hash = "sha256:a34c01f397f843ea9e4d00520eadfee087f837c3be9d7c2817c6006ec634c057", size = 78209 },
-    { url = "https://files.pythonhosted.org/packages/97/72/e1d4db7ef67fe35fe996ad492b253cdfba79652d5ef03c1e0159b6d1a05e/duckduckgo_search-2025.4.4-cp313-cp313-macosx_11_0_arm64.whl", hash = "sha256:7fc5625842c14b0f80b955f448757976295f4242ade632b6982b5ae002fe3d81", size = 74936 },
-    { url = "https://files.pythonhosted.org/packages/0b/7c/dc478eea16f30270183a2d5a964352404c00b3fcc5df8ce64a1220a5a556/duckduckgo_search-2025.4.4-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:5434abee02b3d0c9759210a7d358aaa51214c1529ab1e6ddf374d94afa2a0e5e", size = 95537 },
-    { url = "https://files.pythonhosted.org/packages/75/eb/a16b1e6516c0156c04499367eb7b7bcaec1b69e91a25d449df2ee97f1377/duckduckgo_search-2025.4.4-cp313-cp313-win_amd64.whl", hash = "sha256:a2cf0c92deb868eeb0694d864aa922e054e3a87da81009757af6af56d700f681", size = 60237 },
+    { url = "https://files.pythonhosted.org/packages/db/39/8e01afdea1bf7e67eb191217ad958a5c691f7739c9dacd00e8d77a663e4d/duckduckgo_search-8.0.0-py3-none-any.whl", hash = "sha256:0026f2c6961d457b4c526cb840dbb28a7b24f67ce38589618a5021fdb3f0e8bc", size = 18687 },
 ]
 
 [[package]]
@@ -943,6 +947,15 @@ wheels = [
 ]
 
 [[package]]
+name = "identify"
+version = "2.6.9"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/9b/98/a71ab060daec766acc30fb47dfca219d03de34a70d616a79a38c6066c5bf/identify-2.6.9.tar.gz", hash = "sha256:d40dfe3142a1421d8518e3d3985ef5ac42890683e32306ad614a29490abeb6bf", size = 99249 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/07/ce/0845144ed1f0e25db5e7a79c2354c1da4b5ce392b8966449d5db8dca18f1/identify-2.6.9-py2.py3-none-any.whl", hash = "sha256:c98b4322da415a8e5a70ff6e51fbc2d2932c015532d77e9f8537b4ba7813b150", size = 99101 },
+]
+
+[[package]]
 name = "idna"
 version = "3.10"
 source = { registry = "https://pypi.org/simple" }
@@ -1016,6 +1029,9 @@ all = [
 api = [
     { name = "fastapi-cors" },
 ]
+dev = [
+    { name = "pre-commit" },
+]
 memory = [
     { name = "langchain-core" },
     { name = "langchain-openai" },
@@ -1039,7 +1055,7 @@ tools = [
 
 [package.metadata]
 requires-dist = [
-    { name = "duckduckgo-search", specifier = ">=2025.4.1" },
+    { name = "duckduckgo-search", specifier = "==8.0.0" },
     { name = "fastapi-cors", marker = "extra == 'api'", specifier = ">=0.0.6" },
     { name = "firecrawl", specifier = ">=1.15.0" },
     { name = "firecrawl-py", marker = "extra == 'all'", specifier = ">=1.11.0" },
@@ -1053,6 +1069,7 @@ requires-dist = [
     { name = "marvin", marker = "extra == 'all'" },
     { name = "pgvector", marker = "extra == 'all'", specifier = ">=0.3.6" },
     { name = "pgvector", marker = "extra == 'memory'", specifier = ">=0.3.6" },
+    { name = "pre-commit", marker = "extra == 'dev'", specifier = ">=4.1.0" },
     { name = "prefect", specifier = ">=3.2.2" },
     { name = "prefect", marker = "extra == 'all'", specifier = ">=3.2.2" },
     { name = "pydantic", specifier = ">=2.10.3" },
@@ -1087,7 +1104,7 @@ requires-dist = [
     { name = "sqlalchemy-utils", marker = "extra == 'memory'", specifier = ">=0.41.2" },
     { name = "wolframalpha", marker = "extra == 'all'", specifier = ">=5.1.3" },
 ]
-provides-extras = ["all", "api", "memory", "tests", "tools"]
+provides-extras = ["all", "api", "dev", "memory", "tests", "tools"]
 
 [[package]]
 name = "jaraco-context"
@@ -1672,6 +1689,15 @@ wheels = [
 ]
 
 [[package]]
+name = "nodeenv"
+version = "1.9.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/43/16/fc88b08840de0e0a72a2f9d8c6bae36be573e475a6326ae854bcc549fc45/nodeenv-1.9.1.tar.gz", hash = "sha256:6ec12890a2dab7946721edbfbcd91f3319c6ccc9aec47be7c7e6b7011ee6645f", size = 47437 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/d2/1d/1b658dbd2b9fa9c4c9f32accbfc0205d532c8c6194dc0f2a4c0428e7128a/nodeenv-1.9.1-py2.py3-none-any.whl", hash = "sha256:ba11c9782d29c27c70ffbdda2d7415098754709be8a7056d79a737cd901155c9", size = 22314 },
+]
+
+[[package]]
 name = "numpy"
 version = "1.26.4"
 source = { registry = "https://pypi.org/simple" }
@@ -1884,6 +1910,15 @@ wheels = [
 ]
 
 [[package]]
+name = "platformdirs"
+version = "4.3.7"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/b6/2d/7d512a3913d60623e7eb945c6d1b4f0bddf1d0b7ada5225274c87e5b53d1/platformdirs-4.3.7.tar.gz", hash = "sha256:eb437d586b6a0986388f0d6f74aa0cde27b48d0e3d66843640bfb6bdcdb6e351", size = 21291 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/6d/45/59578566b3275b8fd9157885918fcd0c4d74162928a5310926887b856a51/platformdirs-4.3.7-py3-none-any.whl", hash = "sha256:a03875334331946f13c549dbd8f4bac7a13a50a895a0eb1e8c6a8ace80d40a94", size = 18499 },
+]
+
+[[package]]
 name = "pluggy"
 version = "1.5.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1907,6 +1942,22 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/5a/dd/30f7d2e992f80fcaedc5b99761e006bbb0b954813243542c480b9576b4be/posthog-3.23.0.tar.gz", hash = "sha256:1ac0305ab6c54a80c4a82c137231f17616bef007bbf474d1a529cda032d808eb", size = 72077 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/17/1e/aa457f5b15c9a018434dd71567c4a8f09c1701607a1d4daf5f01d6eccb7a/posthog-3.23.0-py2.py3-none-any.whl", hash = "sha256:2b07d06670170ac2e21465dffa8d356722834cc877ab34e583da6e525c1037df", size = 84976 },
+]
+
+[[package]]
+name = "pre-commit"
+version = "4.2.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "cfgv" },
+    { name = "identify" },
+    { name = "nodeenv" },
+    { name = "pyyaml" },
+    { name = "virtualenv" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/08/39/679ca9b26c7bb2999ff122d50faa301e49af82ca9c066ec061cfbc0c6784/pre_commit-4.2.0.tar.gz", hash = "sha256:601283b9757afd87d40c4c4a9b2b5de9637a8ea02eaff7adc2d0fb4e04841146", size = 193424 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/88/74/a88bf1b1efeae488a0c0b7bdf71429c313722d1fc0f377537fbe554e6180/pre_commit-4.2.0-py2.py3-none-any.whl", hash = "sha256:a009ca7205f1eb497d10b845e52c838a98b6cdd2102a6c8e4540e94ee75c58bd", size = 220707 },
 ]
 
 [[package]]
@@ -3408,6 +3459,20 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/4b/4d/938bd85e5bf2edeec766267a5015ad969730bb91e31b44021dfe8b22df6c/uvicorn-0.34.0.tar.gz", hash = "sha256:404051050cd7e905de2c9a7e61790943440b3416f49cb409f965d9dcd0fa73e9", size = 76568 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/61/14/33a3a1352cfa71812a3a21e8c9bfb83f60b0011f5e36f2b1399d51928209/uvicorn-0.34.0-py3-none-any.whl", hash = "sha256:023dc038422502fa28a09c7a30bf2b6991512da7dcdb8fd35fe57cfc154126f4", size = 62315 },
+]
+
+[[package]]
+name = "virtualenv"
+version = "20.30.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "distlib" },
+    { name = "filelock" },
+    { name = "platformdirs" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/38/e0/633e369b91bbc664df47dcb5454b6c7cf441e8f5b9d0c250ce9f0546401e/virtualenv-20.30.0.tar.gz", hash = "sha256:800863162bcaa5450a6e4d721049730e7f2dae07720e0902b0e4040bd6f9ada8", size = 4346945 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/4c/ed/3cfeb48175f0671ec430ede81f628f9fb2b1084c9064ca67ebe8c0ed6a05/virtualenv-20.30.0-py3-none-any.whl", hash = "sha256:e34302959180fca3af42d1800df014b35019490b119eba981af27f2fa486e5d6", size = 4329461 },
 ]
 
 [[package]]

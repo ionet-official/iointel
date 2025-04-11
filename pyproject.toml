@@ -13,7 +13,7 @@ dependencies = [
     "pydantic-ai==0.0.37",
     "marvin==3.0.1",
     "firecrawl>=1.15.0",
-    "duckduckgo-search>=2025.4.1",
+    "duckduckgo-search==8.0.0",
     "pyyaml>=6.0.2",
     "sqlalchemy-utils>=0.41.2",
     "pytest-retry>=1.7.0",
