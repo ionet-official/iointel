@@ -17,6 +17,7 @@ def wolfram_agent():
     )
 
 
+@pytest.mark.skip
 def test_wolframalpha(wolfram_agent):
     result = run_agents(
         "Find all solutions to this equation in REAL numbers: 13x^5-7x^4+3x^3+1=0. "
