@@ -1,12 +1,9 @@
-import asyncio
 from typing import Any, Callable
 
 from pydantic import BaseModel, ConfigDict, model_serializer
 
 import logging
 import os
-
-from iointel.src.utilities.asyncio_utils import await_if_needed, run_async
 
 
 def make_logger(name: str, level: str = "INFO"):
@@ -20,7 +17,7 @@ def make_logger(name: str, level: str = "INFO"):
 logger = make_logger(__name__)
 
 
-class AsyncLazyCaller(BaseModel):
+class LazyCaller(BaseModel):
     func: Callable
     args: tuple[Any, ...] = ()
     kwargs: dict[str, Any] = {}
@@ -40,66 +37,44 @@ class AsyncLazyCaller(BaseModel):
         self._evaluated = False
         self._result = None
 
-    async def _resolve_nested(self, value: Any) -> Any:
+    def _resolve_nested(self, value: Any) -> Any:
         logger.debug("Resolving: %s", value)
-        if hasattr(value, "execute_async") and callable(value.execute_async):
+        if hasattr(value, "execute") and callable(value.execute):
             logger.debug("Resolving lazy object: %s", value)
-            result = await value.execute_async()
-            resolved = await self._resolve_nested(result)
+            resolved = self._resolve_nested(value.execute())
             logger.debug("Resolved lazy object to: %s", resolved)
             return resolved
         elif isinstance(value, dict):
             logger.debug("Resolving dict: %s", value)
-            resolved_values = await asyncio.gather(
-                *(self._resolve_nested(v) for v in value.values())
-            )
-            return {k: r for k, r in zip(value.keys(), resolved_values)}
+            return {k: self._resolve_nested(v) for k, v in value.items()}
         elif isinstance(value, (list, tuple, set)):
             logger.debug("Resolving collection: %s", value)
             if isinstance(value, list):
-                return await asyncio.gather(
-                    *(self._resolve_nested(item) for item in value)
-                )
+                return [self._resolve_nested(item) for item in value]
             elif isinstance(value, tuple):
-                return tuple(
-                    await asyncio.gather(
-                        *(self._resolve_nested(item) for item in value)
-                    )
-                )
+                return tuple(self._resolve_nested(item) for item in value)
             elif isinstance(value, set):
-                return set(
-                    await asyncio.gather(
-                        *(self._resolve_nested(item) for item in value)
-                    )
-                )
+                return {self._resolve_nested(item) for item in value}
         else:
             return value
 
-    async def evaluate(self) -> Any:
+    def evaluate(self) -> Any:
         if not self._evaluated:
-            resolved_args = await self._resolve_nested(self.args)
-            resolved_kwargs = await self._resolve_nested(self.kwargs)
+            resolved_args = self._resolve_nested(self.args)
+            resolved_kwargs = self._resolve_nested(self.kwargs)
             logger.debug("Resolved args: %s", resolved_args)
             logger.debug("Resolved kwargs: %s", resolved_kwargs)
-            result = await await_if_needed(self.func(*resolved_args, **resolved_kwargs))
-            logger.debug(f"Ran {self.name} func with a result {result}")
+            result = self.func(*resolved_args, **resolved_kwargs)
 
-            # Resolve if the entire result is lazy
-            while hasattr(result, "execute_async") and callable(result.execute_async):
-                result = await result.execute_async()
-            # Then recursively resolve nested lazy objects
-            result = await self._resolve_nested(result)
+            # Recursively resolve nested lazy objects, if part of the result is lazy
+            result = self._resolve_nested(result)
 
             self._result = result
-            # Potentially handle the case of result being lazy here. Not sure if it's necessary
             self._evaluated = True
         return self._result
 
-    async def execute_async(self) -> Any:
-        return await self.evaluate()
-
     def execute(self) -> Any:
-        return run_async(self.execute_async())
+        return self.evaluate()
 
     @model_serializer
     def serialize_model(self) -> dict:

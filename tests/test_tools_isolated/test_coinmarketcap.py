@@ -8,20 +8,20 @@ from iointel.src.agent_methods.tools.coinmarketcap import (
 )
 
 
-async def test_listing_coins():
-    assert await listing_coins()
+def test_listing_coins():
+    assert listing_coins()
 
 
-async def test_get_coin_info():
-    assert await get_coin_info(symbol=["BTC"])
+def test_get_coin_info():
+    assert get_coin_info(symbol=["BTC"])
 
 
-async def test_get_coin_price():
-    assert await get_coin_quotes(symbol=["BTC"])
+def test_get_coin_price():
+    assert get_coin_quotes(symbol=["BTC"])
 
 
-async def test_get_coin_historical_price():
-    assert await get_coin_quotes_historical(
+def test_get_coin_historical_price():
+    assert get_coin_quotes_historical(
         symbol=["BTC"],
         time_end=datetime.datetime(
             year=2025, month=3, day=17, hour=12, minute=0, second=0

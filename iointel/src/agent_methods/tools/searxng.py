@@ -1,9 +1,7 @@
 import os
 from typing import Optional, List, Dict, Any
-from httpx import AsyncClient  # For asynchronous requests
+import httpx
 from pydantic import BaseModel
-
-from iointel.src.utilities.asyncio_utils import run_async
 
 
 class SearchResult(BaseModel):
@@ -70,9 +68,9 @@ class SearxngClient:
                 "Searxng base url is not set in SEARXNG_URL env variable"
             )
         self.timeout = timeout
-        self.async_client = AsyncClient(base_url=self.base_url, timeout=self.timeout)
+        self.client = httpx.Client(base_url=self.base_url, timeout=self.timeout)
 
-    async def search_async(self, query: str, pages: int = 1) -> SearchResponse:
+    def search(self, query: str, pages: int = 1) -> SearchResponse:
         """
         Asynchronously perform a search query using the SearxNG API.
         If 'pages' is greater than 1, the method iterates over pages 1..pages
@@ -98,7 +96,7 @@ class SearxngClient:
                 "format": "json",
                 "pageno": str(pageno),
             }
-            response = await self.async_client.get("/search", params=params)
+            response = self.client.get("/search", params=params)
             response.raise_for_status()
             page_data = SearchResponse.model_validate_json(response.text)
             combined_results.extend(page_data.results)
@@ -111,44 +109,6 @@ class SearxngClient:
             results=combined_results,
             infoboxes=combined_infoboxes,
         )
-
-    def search(self, query: str, pages: int = 1) -> SearchResponse:
-        """
-        Synchronously perform a search query using the SearxNG API.
-        If 'pages' is greater than 1, the method iterates over pages 1..pages
-        and combines the results.
-
-        Args:
-            query (str): The search query.
-            pages (int): The number of pages to retrieve (default is 1).
-
-        Returns:
-            SearchResponse: A combined search response containing results and infoboxes from all pages.
-
-        Raises:
-            httpx.HTTPError: If any HTTP request fails.
-        """
-        return run_async(self.search_async(query, pages))
-
-    async def get_urls_async(self, query: str, pages: int = 1) -> List[str]:
-        """
-        Asynchronously perform a search query using the SearxNG API.
-        If 'pages' is greater than 1, the method iterates over pages 1..pages
-        and combines the results.
-
-        Args:
-            query (str): The search query.
-            pages (int): The number of pages to retrieve (default is 1).
-
-        Returns:
-            List[str]: A list of URLs from the combined search results.
-
-        Raises:
-            httpx.HTTPError: If any HTTP request fails.
-        """
-        return [
-            result.url for result in (await self.search_async(query, pages)).results
-        ]
 
     def get_urls(self, query: str, pages: int = 1) -> List[str]:
         """
@@ -166,19 +126,13 @@ class SearxngClient:
         Raises:
             httpx.HTTPError: If any HTTP request fails.
         """
-        return run_async(self.get_urls_async(query, pages))
-
-    async def close_async(self) -> None:
-        """
-        Close the underlying asynchronous HTTP client.
-        """
-        await self.async_client.aclose()
+        return [result.url for result in (self.search(query, pages)).results]
 
     def close(self) -> None:
         """
-        Close the underlying asynchronous HTTP client.
+        Close the underlying HTTP client.
         """
-        run_async(self.close_async())
+        self.client.close()
 
 
 def search_the_web(text: str, pages: int = 1):
@@ -188,12 +142,3 @@ def search_the_web(text: str, pages: int = 1):
     :return: The list of search responses
     """
     return SearxngClient().search(query=text, pages=pages)
-
-
-async def search_the_web_async(text: str, pages: int = 1):
-    """
-    :param text: Text to search
-    :param pages: How many pages to return
-    :return: The list of search responses
-    """
-    return await SearxngClient().search_async(query=text, pages=pages)

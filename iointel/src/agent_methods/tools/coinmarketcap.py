@@ -17,20 +17,18 @@ def build_url(endpoint: str, params: Dict[str, Any]) -> str:
     return f"https://{COINMARKETCAP_API_BASE}/{endpoint}?{urllib.parse.urlencode(filtered_params)}"
 
 
-async def coinmarketcap_request(
+def coinmarketcap_request(
     endpoint: str, params: Dict[str, Any]
 ) -> Optional[Dict[str, Any]]:
     """
     Send a request to the specified CoinMarketCap API endpoint with the given parameters.
     """
     url = build_url(endpoint, params)
-    async with httpx.AsyncClient() as client:
-        return await make_coinmarketcap_request(client, url)
+    with httpx.Client() as client:
+        return make_coinmarketcap_request(client, url)
 
 
-async def make_coinmarketcap_request(
-    client: httpx.AsyncClient, url: str
-) -> dict[str, Any] | None:
+def make_coinmarketcap_request(client: httpx.Client, url: str) -> dict[str, Any] | None:
     """Make a request to the CoinMarketCap API with proper error handling."""
     if not COINMARKETCAP_API_KEY:
         raise RuntimeError("Coinmarketcap API key is not set")
@@ -39,14 +37,14 @@ async def make_coinmarketcap_request(
         "X-CMC_PRO_API_KEY": COINMARKETCAP_API_KEY,
     }
     try:
-        response = await client.get(url, headers=headers, timeout=10.0)
+        response = client.get(url, headers=headers, timeout=10.0)
         response.raise_for_status()
         return response.json()
     except Exception:
         return None
 
 
-async def listing_coins(
+def listing_coins(
     start: Annotated[Optional[int], Field(ge=1)] = None,
     limit: Annotated[Optional[int], Field(ge=1, le=5000)] = None,
     price_min: Annotated[Optional[float], Field(ge=0)] = None,
@@ -137,10 +135,10 @@ async def listing_coins(
         "aux": ",".join(aux) if aux else None,
     }
 
-    return await coinmarketcap_request("v1/cryptocurrency/listings/latest", params)
+    return coinmarketcap_request("v1/cryptocurrency/listings/latest", params)
 
 
-async def get_coin_info(
+def get_coin_info(
     id: Optional[list[str]] = None,
     slug: Optional[list[str]] = None,
     symbol: Optional[list[str]] = None,
@@ -169,10 +167,10 @@ async def get_coin_info(
         "skip_invalid": skip_invalid,
     }
 
-    return await coinmarketcap_request("v2/cryptocurrency/info", params)
+    return coinmarketcap_request("v2/cryptocurrency/info", params)
 
 
-async def get_coin_quotes(
+def get_coin_quotes(
     id: Optional[list[str]] = None,
     slug: Optional[list[str]] = None,
     symbol: Optional[list[str]] = None,
@@ -207,10 +205,10 @@ async def get_coin_quotes(
         "aux": ",".join(aux) if aux else None,
         "skip_invalid": skip_invalid,
     }
-    return await coinmarketcap_request("v2/cryptocurrency/quotes/latest", params)
+    return coinmarketcap_request("v2/cryptocurrency/quotes/latest", params)
 
 
-async def get_coin_quotes_historical(
+def get_coin_quotes_historical(
     id: Optional[list[str]] = None,
     slug: Optional[list[str]] = None,
     symbol: Optional[list[str]] = None,
@@ -266,4 +264,4 @@ async def get_coin_quotes_historical(
         "count": count,
         "interval": interval,
     }
-    return await coinmarketcap_request("v2/cryptocurrency/quotes/historical", params)
+    return coinmarketcap_request("v2/cryptocurrency/quotes/historical", params)

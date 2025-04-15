@@ -1,10 +1,10 @@
-from .helpers import AsyncLazyCaller
+from .helpers import LazyCaller
 from ..task import Task
 from prefect import task
 
 
-async def _run_async(objective: str, **all_kwargs):
-    return await Task().a_run(
+def _run_agents(objective: str, **all_kwargs):
+    return Task().run(
         objective=objective,
         **all_kwargs,
     )
@@ -15,4 +15,4 @@ def run_agents(objective: str, **kwargs):
     """
     Synchronous lazy wrapper around Task().run.
     """
-    return AsyncLazyCaller(_run_async, objective, **kwargs)
+    return LazyCaller(_run_agents, objective, **kwargs)
