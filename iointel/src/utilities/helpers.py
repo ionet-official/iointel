@@ -58,7 +58,7 @@ class LazyCaller(BaseModel):
         else:
             return value
 
-    def evaluate(self) -> Any:
+    def execute(self) -> Any:
         if not self._evaluated:
             resolved_args = self._resolve_nested(self.args)
             resolved_kwargs = self._resolve_nested(self.kwargs)
@@ -72,9 +72,6 @@ class LazyCaller(BaseModel):
             self._result = result
             self._evaluated = True
         return self._result
-
-    def execute(self) -> Any:
-        return self.evaluate()
 
     @model_serializer
     def serialize_model(self) -> dict:
