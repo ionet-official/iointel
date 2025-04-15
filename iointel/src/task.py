@@ -1,9 +1,9 @@
 from typing import List, Dict, Any, Optional
 import asyncio
 import marvin
+from .utilities.helpers import LazyCaller
 
 from .agents import Agent
-from .utilities.helpers import LazyCaller
 
 
 class Task:
@@ -45,36 +45,6 @@ class Task:
         chosen_agents = agents if agents is not None else self.agents
         return LazyCaller(
             lambda: marvin.run(
-                objective,
-                agents=chosen_agents,
-                context=context or {},
-                result_type=result_type,
-                **kwargs,
-            )
-        )
-
-    async def a_run(
-        self,
-        objective: str,
-        agents: List[Agent] = None,
-        context: Dict[str, Any] = None,
-        result_type: Any = str,
-        **kwargs,
-    ) -> Any:
-        """
-        Wrap marvin.run() to execute a given objective
-
-        :param objective: The primary task or objective to run.
-        :param agents: A list of agents to use for this run. If None, uses self.agents.
-        :param context: A dictionary of context data passed to the run.
-        :param result_type: The expected return type (e.g. str, dict).
-        :param kwargs: Additional keyword arguments passed directly to marvin.run().
-        :return: The result of the marvin.run() call.
-        """
-        chosen_agents = agents if agents is not None else self.agents
-        # FIXME: could it break due to lambda returning awaitable? see if it needs fixes
-        return LazyCaller(
-            lambda: marvin.run_async(
                 objective,
                 agents=chosen_agents,
                 context=context or {},

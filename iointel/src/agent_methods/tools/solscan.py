@@ -12,15 +12,15 @@ SOLSCAN_API_KEY = os.getenv("SOLSCAN_API_KEY")
 SOLSCAN_API_URL = "https://pro-api.solscan.io"
 
 
-async def fetch_solscan(
+def fetch_solscan(
     path, full_url: Optional[str] = None, params: Optional[dict] = None
 ) -> dict | str:
     if not SOLSCAN_API_KEY:
         raise RuntimeError("Solscan API key is not set")
     url = full_url if full_url else f"{SOLSCAN_API_URL}{path}"
     headers = {"token": SOLSCAN_API_KEY}
-    async with httpx.AsyncClient() as client:
-        response = await client.get(url, params=params, headers=headers, timeout=10.0)
+    with httpx.Client() as client:
+        response = client.get(url, params=params, headers=headers, timeout=10.0)
         response.raise_for_status()
         try:
             return response.json()
@@ -70,13 +70,13 @@ DateYYYYMMDD = Annotated[str, "format YYYYMMDD"]
 
 
 # Account APIs
-async def fetch_account_detail(address: str) -> dict | str:
+def fetch_account_detail(address: str) -> dict | str:
     """Get the details of an account."""
     params = {"address": address}
-    return await fetch_solscan("/v2.0/account/detail", params=params)
+    return fetch_solscan("/v2.0/account/detail", params=params)
 
 
-async def fetch_account_transfer(
+def fetch_account_transfer(
     address: str,
     activity_type: Optional[List[TransferActivityType]] = None,
     token_account: Optional[str] = None,
@@ -109,10 +109,10 @@ async def fetch_account_transfer(
         params["to_time"] = to_time
     if exclude_amount_zero is not None:
         params["exclude_amount_zero"] = exclude_amount_zero
-    return await fetch_solscan("/v2.0/account/transfer", params=params)
+    return fetch_solscan("/v2.0/account/transfer", params=params)
 
 
-async def fetch_account_defi_activities(
+def fetch_account_defi_activities(
     address: str,
     activity_type: Optional[List[DefiActivityType]] = None,
     from_address: Optional[str] = None,
@@ -144,10 +144,10 @@ async def fetch_account_defi_activities(
         params["page"] = page
     if page_size is not None:
         params["page_size"] = page_size
-    return await fetch_solscan("/v2.0/account/defi/activities", params=params)
+    return fetch_solscan("/v2.0/account/defi/activities", params=params)
 
 
-async def fetch_account_balance_change_activities(
+def fetch_account_balance_change_activities(
     address: str,
     token_account: Optional[str] = None,
     token: Optional[str] = None,
@@ -179,10 +179,10 @@ async def fetch_account_balance_change_activities(
         params["amount"] = list(amount)
     if flow is not None:
         params["flow"] = flow
-    return await fetch_solscan("/v2.0/account/balance_change", params=params)
+    return fetch_solscan("/v2.0/account/balance_change", params=params)
 
 
-async def fetch_account_transactions(
+def fetch_account_transactions(
     address: str,
     before: Optional[str] = None,
     limit: Optional[Literal[10, 20, 30, 40]] = None,
@@ -193,16 +193,16 @@ async def fetch_account_transactions(
         params["before"] = before
     if limit is not None:
         params["limit"] = limit
-    return await fetch_solscan("/v2.0/account/transactions", params=params)
+    return fetch_solscan("/v2.0/account/transactions", params=params)
 
 
-async def fetch_account_portfolio(address: str) -> dict | str:
+def fetch_account_portfolio(address: str) -> dict | str:
     """Get the portfolio (token balances and values) for a given address."""
     params = {"address": address}
-    return await fetch_solscan("/v2.0/account/portfolio", params=params)
+    return fetch_solscan("/v2.0/account/portfolio", params=params)
 
 
-async def fetch_account_token_accounts(
+def fetch_account_token_accounts(
     address: str,
     account_type: TokenAccountType,
     page: Optional[int] = None,
@@ -217,10 +217,10 @@ async def fetch_account_token_accounts(
         params["page_size"] = page_size
     if hide_zero is not None:
         params["hide_zero"] = hide_zero
-    return await fetch_solscan("/v2.0/account/token-accounts", params=params)
+    return fetch_solscan("/v2.0/account/token-accounts", params=params)
 
 
-async def fetch_account_stake(
+def fetch_account_stake(
     address: str, page: Optional[int] = None, page_size: Optional[PageSizeSmall] = None
 ) -> dict | str:
     """Get the list of stake accounts for a given wallet address."""
@@ -229,10 +229,10 @@ async def fetch_account_stake(
         params["page"] = page
     if page_size is not None:
         params["page_size"] = page_size
-    return await fetch_solscan("/v2.0/account/stake", params=params)
+    return fetch_solscan("/v2.0/account/stake", params=params)
 
 
-async def fetch_stake_rewards_export(
+def fetch_stake_rewards_export(
     address: str, time_from: Optional[int] = None, time_to: Optional[int] = None
 ) -> dict | str:
     """Export staking reward history for an account (up to 5000 records)."""
@@ -241,10 +241,10 @@ async def fetch_stake_rewards_export(
         params["time_from"] = time_from
     if time_to is not None:
         params["time_to"] = time_to
-    return await fetch_solscan("/v2.0/account/reward/export", params=params)
+    return fetch_solscan("/v2.0/account/reward/export", params=params)
 
 
-async def fetch_account_transfer_export(
+def fetch_account_transfer_export(
     address: str,
     activity_type: Optional[List[TransferActivityType]] = None,
     token_account: Optional[str] = None,
@@ -276,11 +276,11 @@ async def fetch_account_transfer_export(
         params["to_time"] = to_time
     if exclude_amount_zero is not None:
         params["exclude_amount_zero"] = exclude_amount_zero
-    return await fetch_solscan("/v2.0/account/transfer/export", params=params)
+    return fetch_solscan("/v2.0/account/transfer/export", params=params)
 
 
 # Token APIs
-async def fetch_token_transfer(
+def fetch_token_transfer(
     address: str,
     activity_type: Optional[List[TransferActivityType]] = None,
     from_address: Optional[str] = None,
@@ -310,10 +310,10 @@ async def fetch_token_transfer(
         params["page"] = page
     if page_size is not None:
         params["page_size"] = page_size
-    return await fetch_solscan("/v2.0/token/transfer", params=params)
+    return fetch_solscan("/v2.0/token/transfer", params=params)
 
 
-async def fetch_token_defi_activities(
+def fetch_token_defi_activities(
     address: str,
     from_address: Optional[str] = None,
     platform: Optional[AddressList5] = None,
@@ -345,16 +345,16 @@ async def fetch_token_defi_activities(
         params["page"] = page
     if page_size is not None:
         params["page_size"] = page_size
-    return await fetch_solscan("/v2.0/token/defi/activities", params=params)
+    return fetch_solscan("/v2.0/token/defi/activities", params=params)
 
 
-async def fetch_token_meta(address: str) -> dict | str:
+def fetch_token_meta(address: str) -> dict | str:
     """Get the on-chain metadata for a token (name, symbol, decimals, etc.)."""
     params = {"address": address}
-    return await fetch_solscan("/v2.0/token/meta", params=params)
+    return fetch_solscan("/v2.0/token/meta", params=params)
 
 
-async def fetch_token_price(
+def fetch_token_price(
     address: str,
     from_time: Optional[DateYYYYMMDD] = None,
     to_time: Optional[DateYYYYMMDD] = None,
@@ -365,10 +365,10 @@ async def fetch_token_price(
         params["from_time"] = from_time
     if to_time is not None:
         params["to_time"] = to_time
-    return await fetch_solscan("/v2.0/token/price", params=params)
+    return fetch_solscan("/v2.0/token/price", params=params)
 
 
-async def fetch_token_holders(
+def fetch_token_holders(
     address: str,
     page: Optional[int] = None,
     page_size: Optional[PageSizeSmall] = None,
@@ -385,10 +385,10 @@ async def fetch_token_holders(
         params["from_amount"] = from_amount  # expects numeric value as string
     if to_amount is not None:
         params["to_amount"] = to_amount  # expects numeric value as string
-    return await fetch_solscan("/v2.0/token/holders", params=params)
+    return fetch_solscan("/v2.0/token/holders", params=params)
 
 
-async def fetch_token_list(
+def fetch_token_list(
     sort_by: Optional[Literal["holder", "market_cap", "created_time"]] = None,
     sort_order: Optional[SortOrder] = None,
     page: Optional[int] = None,
@@ -404,25 +404,25 @@ async def fetch_token_list(
         params["page"] = page
     if page_size is not None:
         params["page_size"] = page_size
-    return await fetch_solscan("/v2.0/token/list", params=params)
+    return fetch_solscan("/v2.0/token/list", params=params)
 
 
-async def fetch_token_top() -> dict | str:
+def fetch_token_top() -> dict | str:
     """Get the list of top tokens (by market cap)."""
     # No query params; returns a fixed set of top tokens.
-    return await fetch_solscan("/v2.0/token/top")
+    return fetch_solscan("/v2.0/token/top")
 
 
-async def fetch_token_trending(limit: Optional[int] = None) -> dict | str:
+def fetch_token_trending(limit: Optional[int] = None) -> dict | str:
     """Get the list of trending tokens (most searched or active)."""
     params: Dict[str, Any] = {}
     if limit is not None:
         params["limit"] = limit
-    return await fetch_solscan("/v2.0/token/trending", params=params)
+    return fetch_solscan("/v2.0/token/trending", params=params)
 
 
 # NFT APIs
-async def fetch_new_nft(
+def fetch_new_nft(
     filter: Literal["created_time"],
     page: Optional[int] = None,
     page_size: Optional[PageSizeNft] = None,
@@ -433,10 +433,10 @@ async def fetch_new_nft(
         params["page"] = page
     if page_size is not None:
         params["page_size"] = page_size
-    return await fetch_solscan("/v2.0/nft/news", params=params)
+    return fetch_solscan("/v2.0/nft/news", params=params)
 
 
-async def fetch_nft_activities(
+def fetch_nft_activities(
     from_address: Optional[str] = None,
     to_address: Optional[str] = None,
     source: Optional[AddressList5] = None,
@@ -476,10 +476,10 @@ async def fetch_nft_activities(
         params["page"] = page
     if page_size is not None:
         params["page_size"] = page_size
-    return await fetch_solscan("/v2.0/nft/activities", params=params)
+    return fetch_solscan("/v2.0/nft/activities", params=params)
 
 
-async def fetch_nft_collection_lists(
+def fetch_nft_collection_lists(
     range: Optional[Literal[1, 7, 30]] = None,
     sort_order: Optional[SortOrder] = None,
     sort_by: Optional[Literal["items", "floor_price", "volumes"]] = None,
@@ -501,10 +501,10 @@ async def fetch_nft_collection_lists(
         params["page_size"] = page_size
     if collection is not None:
         params["collection"] = collection
-    return await fetch_solscan("/v2.0/nft/collection/lists", params=params)
+    return fetch_solscan("/v2.0/nft/collection/lists", params=params)
 
 
-async def fetch_nft_collection_items(
+def fetch_nft_collection_items(
     collection: str,
     sort_by: Optional[Literal["last_trade", "listing_price"]] = "last_trade",
     page: Optional[int] = 1,
@@ -518,11 +518,11 @@ async def fetch_nft_collection_items(
         params["page"] = page
     if page_size is not None:
         params["page_size"] = page_size
-    return await fetch_solscan("/v2.0/nft/collection/items", params=params)
+    return fetch_solscan("/v2.0/nft/collection/items", params=params)
 
 
 # Transaction APIs
-async def fetch_transaction_last(
+def fetch_transaction_last(
     limit: Optional[PageSizeMedium] = None, filter: Optional[VoteFilter] = None
 ) -> dict | str:
     """Get the latest transactions across the chain (with optional vote-exclusion filter)."""
@@ -531,31 +531,31 @@ async def fetch_transaction_last(
         params["limit"] = limit
     if filter is not None:
         params["filter"] = filter
-    return await fetch_solscan("/v2.0/transaction/last", params=params)
+    return fetch_solscan("/v2.0/transaction/last", params=params)
 
 
-async def fetch_transaction_detail(tx: str) -> dict | str:
+def fetch_transaction_detail(tx: str) -> dict | str:
     """Get detailed parsed info of a transaction by signature."""
     params = {"tx": tx}
-    return await fetch_solscan("/v2.0/transaction/detail", params=params)
+    return fetch_solscan("/v2.0/transaction/detail", params=params)
 
 
-async def fetch_transaction_actions(tx: str) -> dict | str:
+def fetch_transaction_actions(tx: str) -> dict | str:
     """Get high-level actions (transfers, swaps, NFT events) extracted from a transaction."""
     params = {"tx": tx}
-    return await fetch_solscan("/v2.0/transaction/actions", params=params)
+    return fetch_solscan("/v2.0/transaction/actions", params=params)
 
 
 # Block APIs
-async def fetch_last_block(limit: Optional[PageSizeMedium] = None) -> dict | str:
+def fetch_last_block(limit: Optional[PageSizeMedium] = None) -> dict | str:
     """Get the latest blocks on the chain (summary info)."""
     params: Dict[str, Any] = {}
     if limit is not None:
         params["limit"] = limit
-    return await fetch_solscan("/v2.0/block/last", params=params)
+    return fetch_solscan("/v2.0/block/last", params=params)
 
 
-async def fetch_block_transactions(
+def fetch_block_transactions(
     block: int,
     page: Optional[int] = None,
     page_size: Optional[PageSizeMedium] = None,
@@ -572,17 +572,17 @@ async def fetch_block_transactions(
         params["exclude_vote"] = exclude_vote
     if program is not None:
         params["program"] = program
-    return await fetch_solscan("/v2.0/block/transactions", params=params)
+    return fetch_solscan("/v2.0/block/transactions", params=params)
 
 
-async def fetch_block_detail(block: int) -> dict | str:
+def fetch_block_detail(block: int) -> dict | str:
     """Get detailed information about a block by slot number."""
     params = {"block": block}
-    return await fetch_solscan("/v2.0/block/detail", params=params)
+    return fetch_solscan("/v2.0/block/detail", params=params)
 
 
 # Market APIs
-async def fetch_market_list(
+def fetch_market_list(
     page: Optional[int] = None,
     page_size: Optional[PageSizeMedium] = None,
     program: Optional[str] = None,
@@ -595,16 +595,16 @@ async def fetch_market_list(
         params["page_size"] = page_size
     if program is not None:
         params["program"] = program
-    return await fetch_solscan("/v2.0/market/list", params=params)
+    return fetch_solscan("/v2.0/market/list", params=params)
 
 
-async def fetch_market_info(address: str) -> dict | str:
+def fetch_market_info(address: str) -> dict | str:
     """Get market info for a given market (pool) address."""
     params = {"address": address}
-    return await fetch_solscan("/v2.0/market/info", params=params)
+    return fetch_solscan("/v2.0/market/info", params=params)
 
 
-async def fetch_market_volume(
+def fetch_market_volume(
     address: str, time: Optional[Tuple[int, int]] = None
 ) -> dict | str:
     """Get trading volume for a given market, optionally within a date range"""
@@ -612,24 +612,24 @@ async def fetch_market_volume(
     if time is not None:
         # 'time' expects [start_date, end_date] in YYYYMMDD format
         params["time"] = list(time)
-    return await fetch_solscan("/v2.0/market/volume", params=params)
+    return fetch_solscan("/v2.0/market/volume", params=params)
 
 
 # Monitoring API
-async def fetch_monitor_usage() -> dict | str:
+def fetch_monitor_usage() -> dict | str:
     """Get the API usage and remaining compute units for the current API key (subscriber)."""
-    return await fetch_solscan("/v2.0/monitor/usage")
+    return fetch_solscan("/v2.0/monitor/usage")
 
 
 # Chain Information
-async def fetch_chain_information() -> dict | str:
+def fetch_chain_information() -> dict | str:
     """Get overall Solana blockchain information (public endpoint)."""
-    return await fetch_solscan("", full_url="https://public-api.solscan.io/chaininfo")
+    return fetch_solscan("", full_url="https://public-api.solscan.io/chaininfo")
 
 
-async def validate_address(address: str) -> dict:
+def validate_address(address: str) -> dict:
     try:
-        await fetch_account_detail(address=address)
+        fetch_account_detail(address=address)
         return {"valid": True, "reason": "Address is valid"}
     except httpx.HTTPStatusError as e:
         return {"valid": False, "reason": e.response.json()["errors"]["message"]}

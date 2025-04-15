@@ -106,15 +106,13 @@ tools_with_examples = {
     reason="Don't test all of them in CI, fails because of the limits",
 )
 @pytest.mark.parametrize("tool,params", tools_with_examples.items())
-async def test_all_endpoints(tool, params):
-    result = await tool(**params)
+def test_all_endpoints(tool, params):
+    result = tool(**params)
     assert result  # Make sure it returns something
 
 
-async def test_validate_address():
-    valid = await validate_address(
-        address="7ZjHeeYEesmBs4N6aDvCQimKdtJX2bs5boXpJmpG2bZJ"
-    )
-    invalid = await validate_address(address="abc")
+def test_validate_address():
+    valid = validate_address(address="7ZjHeeYEesmBs4N6aDvCQimKdtJX2bs5boXpJmpG2bZJ")
+    invalid = validate_address(address="abc")
     assert valid["valid"] and "Address is valid" in valid["reason"]
     assert not invalid["valid"] and "Address [abc] is invalid" in invalid["reason"]

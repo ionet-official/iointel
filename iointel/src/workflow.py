@@ -1,10 +1,8 @@
 from typing import List, Optional, Any
 import uuid
-import inspect
 import marvin
 from .utilities.registries import TASK_EXECUTOR_REGISTRY
 
-from .utilities.asyncio_utils import run_async
 from .agents import Agent
 from .utilities.helpers import make_logger
 
@@ -56,20 +54,7 @@ class Workflow:
         self.tasks.append(task)
         return self
 
-    def run_task(self, task: dict, default_text: str, default_agents: list) -> Any:
-        return run_async(self.run_task_async(task, default_text, default_agents))
-
-    def run_tasks(self, **kwargs):
-        return run_async(self.run_tasks_async(**kwargs))
-
-    async def run_task_async(
-        self, task: dict, default_text: str, default_agents: list
-    ) -> any:
-        """
-        Async version of run_task. Mirrors the synchronous branch but awaits async results.
-        If a declarative multi-stage task is defined, offload the synchronous container.run() call
-        to the default executor.
-        """
+    def run_task(self, task: dict, default_text: str, default_agents: list) -> any:
         from .utilities.stages import execute_stage
         from .agent_methods.data_models.datamodels import (
             SimpleStage,
@@ -78,8 +63,6 @@ class Workflow:
             FallbackStage,
             SequentialStage,
         )
-
-        import asyncio
 
         if default_agents is None:
             default_agents = [Agent.make_default()]
@@ -157,11 +140,8 @@ class Workflow:
                 container = ParallelStage(stages=stage_objects)
             else:
                 container = SequentialStage(stages=stage_objects)
-            # Offload execute_stage(container) (a synchronous call) to the default executor.
-            loop = asyncio.get_event_loop()
-            result = await loop.run_in_executor(
-                None,
-                execute_stage,
+
+            result = execute_stage(
                 container,
                 agents_for_task,
                 task.get("task_metadata", {}),
@@ -169,7 +149,7 @@ class Workflow:
             )
             if isinstance(result, list):
                 base = _get_task_key(task)
-                result = {f"{base}_stage_{i+1}": val for i, val in enumerate(result)}
+                result = {f"{base}_stage_{i + 1}": val for i, val in enumerate(result)}
             return result
         else:
             task_type = task.get("type") or task.get("name")
@@ -182,13 +162,11 @@ class Workflow:
                 agents=agents_for_task,
                 execution_metadata=execution_metadata,
             )
-            if inspect.isawaitable(result):
-                result = await result
-            elif hasattr(result, "execute") and callable(result.execute):
+            if hasattr(result, "execute") and callable(result.execute):
                 result = result.execute()
             return result
 
-    async def run_tasks_async(self, conversation_id: Optional[str] = None, **kwargs):
+    def run_tasks(self, conversation_id: Optional[str] = None, **kwargs):
         if not conversation_id:
             conversation_id = str(uuid.uuid4())
         results_dict = {}
@@ -214,9 +192,7 @@ class Workflow:
                                 for tool in tools
                             ]
                 result_key = _get_task_key(t)
-                results_dict[result_key] = await self.run_task_async(
-                    t, self.text, self.agents
-                )
+                results_dict[result_key] = self.run_task(t, self.text, self.agents)
         self.tasks.clear()
         return {"conversation_id": conversation_id, "results": results_dict}
 
