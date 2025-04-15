@@ -1,6 +1,7 @@
 from typing import List, Dict, Any, Optional
 import asyncio
 import marvin
+from .utilities.helpers import LazyCaller
 
 from .agents import Agent
 
@@ -42,12 +43,14 @@ class Task:
         :return: The result of the marvin.run() call.
         """
         chosen_agents = agents if agents is not None else self.agents
-        return marvin.run(
-            objective,
-            agents=chosen_agents,
-            context=context or {},
-            result_type=result_type,
-            **kwargs,
+        return LazyCaller(
+            lambda: marvin.run(
+                objective,
+                agents=chosen_agents,
+                context=context or {},
+                result_type=result_type,
+                **kwargs,
+            )
         )
 
     def chain_runs(
