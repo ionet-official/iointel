@@ -1,5 +1,5 @@
 from ..data_models.datamodels import AgentParams
-from typing import Callable, List
+from typing import Callable, List, Optional
 import re
 from ...utilities.registries import TOOLS_REGISTRY
 from ...utilities.helpers import make_logger
@@ -52,7 +52,7 @@ def rehydrate_tool(tool_def: Tool) -> Callable:
     return fn
 
 
-def resolve_tools(params: AgentParams) -> List:
+def resolve_tools(params: AgentParams) -> List[Optional[Callable]]:
     """
     Resolve the tools in an AgentParams object.
     Each tool in params.tools is expected to be either:

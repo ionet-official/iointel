@@ -1,5 +1,5 @@
 from ...agents import Agent, Swarm
-from ..data_models.datamodels import AgentParams
+from ..data_models.datamodels import AgentParams, Tool
 from typing import List
 from .tool_factory import resolve_tools
 
@@ -23,7 +23,7 @@ def create_swarm(agents: List[Agent]) -> Swarm:
     return Swarm(agents)
 
 
-def agent_or_swarm(agent_obj, store_creds: bool) -> list:
+def agent_or_swarm(agent_obj: Agent, store_creds: bool) -> list[AgentParams]:
     """
     Serializes an agent object into a list of AgentParams.
 
@@ -32,16 +32,15 @@ def agent_or_swarm(agent_obj, store_creds: bool) -> list:
     - If the agent_obj is a swarm (has a 'members' attribute),
       returns a list of AgentParams for each member.
     """
-    from ...agent_methods.data_models.datamodels import AgentParams, Tool
 
-    def get_api_key(agent):
+    def get_api_key(agent: Agent) -> str:
         if (api_key := getattr(agent, "api_key", None)) is None:
             return None
         if store_creds and hasattr(api_key, "get_secret_value"):
             return api_key.get_secret_value()
         return api_key
 
-    def make_params(agent):
+    def make_params(agent: Agent) -> AgentParams:
         return AgentParams(
             name=agent.name,
             instructions=agent.instructions,
