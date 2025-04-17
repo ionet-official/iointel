@@ -242,7 +242,7 @@ def execute_custom(
 
     if name in CUSTOM_WORKFLOW_REGISTRY:
         custom_fn = CUSTOM_WORKFLOW_REGISTRY[name]
-        result = custom_fn(task_metadata, run_agents, text)
+        result = custom_fn(task_metadata, run_agents, objective)
         if hasattr(result, "execute") and callable(result.execute):
             result = result.execute()
         return result
@@ -254,7 +254,7 @@ def execute_custom(
                 name=name,
                 objective=task_metadata["objective"],
                 agents=agents,
-                context={**task_metadata.get("kwargs", {}), "text": text},
+                context={**task_metadata.get("kwargs", {}), "text": objective},
             )
         else:
             response = run_agents(
