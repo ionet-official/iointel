@@ -9,13 +9,11 @@ dependencies = [
     "httpx",
     "pytest>=8.3.4",
     "python-multipart>=0.0.20",
-    "prefect>=3.2.2",
-    "pydantic-ai==0.0.37",
-    "marvin==3.0.1",
-    "firecrawl>=1.15.0",
-    "duckduckgo-search==8.0.0",
+    "pydantic-ai>=0.1.0",
     "pyyaml>=6.0.2",
     "sqlalchemy-utils>=0.41.2",
+    "rich>=13.9.4",
+    "sqlalchemy>=2.0.36",
     "pytest-retry>=1.7.0",
     "pytest-asyncio>=0.21.2",
 ]
@@ -57,6 +55,9 @@ dev = [
 tools = [
     "solders>=0.23.0",
     "solana>=0.36.2",
+    "firecrawl>=1.15.0",
+    "duckduckgo-search==8.0.0",
+    "r2r>=3.4.4",
 ]
 
 memory = [
@@ -73,9 +74,7 @@ all = [
     "httpx",
     "pytest>=8.3.4",
     "python-multipart>=0.0.20",
-    "marvin",
-    "pydantic-ai>=0.0.37",
-    "prefect>=3.2.2",
+    "pydantic-ai>=0.1.0",
     "sqlalchemy>=2.0.36",
     "sqlalchemy-utils>=0.41.2",
     "pgvector>=0.3.6",
@@ -83,7 +82,7 @@ all = [
     "langchain-core>=0.3.28",
     "solders>=0.23.0",
     "solana>=0.36.2",
-    "r2r>=3.3.32",
+    "r2r>=3.4.4",
     "firecrawl-py>=1.11.0",
     "wolframalpha>=5.1.3",
 ]
