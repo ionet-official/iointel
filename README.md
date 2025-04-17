@@ -66,7 +66,7 @@ Users can define tasks (like `sentiment`, `translate_text`, etc.) in a **local**
     - `OPENAI_API_KEY` or `IO_API_KEY` for the default OpenAI-based `ChatOpenAI`.
 
 3. **Optional Environment Variables**:
-    - `LOGGING_LEVEL` (optional) to configure logging verbosity: `DEBUG`, `INFO`, etc.
+    - `AGENT_LOGGING_LEVEL` (optional) to configure logging verbosity: `DEBUG`, `INFO`, etc.
     - `OPENAI_API_BASE_URL` or `IO_API_BASE_URL` to point to OpenAI-compatible API implementation, like `https://api.intelligence.io.solutions/api/v1`
     - `OPENAI_API_MODEL` or `IO_API_MODEL` to pick specific LLM model as "agent brain", like `meta-llama/Llama-3.3-70B-Instruct`
 
@@ -76,7 +76,7 @@ Users can define tasks (like `sentiment`, `translate_text`, etc.) in a **local**
 
 ### Agents<a id="agents"></a>
 
-- They can have a custom model (e.g., `ChatOpenAI`, a Llama-based model, etc.).
+- They can have a custom model (e.g., `OpenAIModel`, a Llama-based model, etc.).
 - Agents can have tools attached, which are specialized functions accessible during execution.
 - Agents can have a custom Persona Profile configured.
 
@@ -117,8 +117,8 @@ from iointel import Agent
 my_agent = Agent(
     name="MyAgent",
     instructions="You are a helpful agent.",
-    # one can also pass custom model via `model=ChatOpenAI(some, args)`
-    # or pass args to ChatOpenAI() as kwargs to Agent()
+    # one can also pass custom model using pydantic_ai.models.openai.OpenAIModel
+    # or pass args to OpenAIModel() as kwargs to Agent()
 )
 ```
 
