@@ -53,7 +53,7 @@ class TaskNode(BaseNode[WorkflowState]):
         )
 
     async def run(self, context: GraphRunContext[WorkflowState]) -> "TaskNode" | End[WorkflowState]:
-        from framework.src.workflow import Workflow
+        from ..workflow import Workflow
         wf = Workflow()
         state = context.state 
 
@@ -76,7 +76,7 @@ class TaskNode(BaseNode[WorkflowState]):
         return self.next_task if self.next_task else End(state)
 
     def run_sync(self, context: GraphRunContext[WorkflowState]) -> "TaskNode" | End[WorkflowState]:
-        from framework.src.workflow import Workflow
+        from ..workflow import Workflow
         wf = Workflow()
         state = context.state 
 

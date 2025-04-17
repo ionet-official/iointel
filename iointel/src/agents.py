@@ -389,15 +389,3 @@ class Agent(PydanticAgent):
             description="Default agent for tasks without agents",
         )
 
-
-class Swarm(marvin.Swarm):
-    def __init__(self, agents: List[Agent] = None, **kwargs):
-        """
-        :param agents: Optional list of Agent instances that this runner can orchestrate.
-        """
-        self.members = agents or []
-        super().__init__(members=self.members, **kwargs)
-
-    def __call__(self, agents: List[Agent] = None, **kwargs):
-        self.members = agents or []
-        return self
