@@ -1,9 +1,9 @@
 from typing import List, Dict, Any, Optional
 import asyncio
-import marvin
-from .utilities.helpers import LazyCaller
 
 from .agents import Agent
+from .utilities.helpers import LazyCaller
+from .agent_methods.data_models.datamodels import TaskDefinition
 
 
 class Task:
@@ -16,7 +16,8 @@ class Task:
         """
         :param agents: Optional list of Agent instances that this runner can orchestrate.
         """
-        self.agents = agents
+        self.agents = agents or []
+        self.current_agent_idx = 0
 
     def add_agent(self, agent: Agent):
         """
@@ -24,31 +25,78 @@ class Task:
         """
         self.agents.append(agent)
 
-    def run(
-        self,
-        objective: str,
-        agents: List[Agent] = None,
-        context: Dict[str, Any] = None,
-        result_type: Any = str,
-        **kwargs,
-    ) -> Any:
-        """
-        Wrap marvin.run() to execute a given objective
+    def get_next_agent(self) -> Agent:
+        if not self.agents:
+            raise ValueError("No agents available to run the task")
+        agent = self.agents[self.current_agent_idx]
+        self.current_agent_idx = (self.current_agent_idx + 1) % len(self.agents)
+        return agent
 
-        :param objective: The primary task or objective to run.
-        :param agents: A list of agents to use for this run. If None, uses self.agents.
-        :param context: A dictionary of context data passed to the run.
-        :param result_type: The expected return type (e.g. str, dict).
-        :param kwargs: Additional keyword arguments passed directly to marvin.run().
-        :return: The result of the marvin.run() call.
-        """
-        chosen_agents = agents if agents is not None else self.agents
+    async def run_stream(self, definition: TaskDefinition, **kwargs) -> Any:
+        chosen_agents = definition.agents or self.agents
+        if not chosen_agents:
+            raise ValueError("No agents available for this task.")
+
+        # Do NOT assign to self.agents; instead select locally
+        active_agent = chosen_agents[0]
+
+        output_type = kwargs.pop("output_type", str)
+
         return LazyCaller(
-            lambda: marvin.run(
-                objective,
-                agents=chosen_agents,
-                context=context or {},
-                result_type=result_type,
+            lambda: active_agent.run_stream(
+                query=definition.objective,
+                conversation_id=definition.task_metadata.get("conversation_id")
+                if definition.task_metadata
+                else None,
+                output_type=output_type,
+                **kwargs,
+            )
+        )
+
+    def run(self, definition: TaskDefinition, **kwargs) -> Any:
+        """
+        Synchronous run. You might want to unify the parameters
+        so that you pass a single TaskDefinition instead of
+        separate objective/agents/etc.
+        """
+
+        chosen_agents = definition.agents or self.agents
+        if chosen_agents:
+            self.agents = chosen_agents
+
+        active_agent = self.get_next_agent()
+        # active_agent.output_type = (kwargs.get("output_type")
+        #                            or str)
+
+        output_type = kwargs.pop("output_type", str)
+
+        return LazyCaller(
+            lambda: active_agent.run_sync(
+                query=definition.objective,
+                conversation_id=definition.task_metadata.get("conversation_id")
+                if definition.task_metadata
+                else None,
+                output_type=output_type,
+                **kwargs,
+            )
+        )
+
+    async def a_run(self, definition: TaskDefinition, **kwargs) -> Any:
+        chosen_agents = definition.agents or self.agents
+        if chosen_agents:
+            self.agents = chosen_agents
+
+        active_agent = self.get_next_agent()
+        # active_agent.output_type = (kwargs.get("output_type")
+        #                            or str)
+        output_type = kwargs.pop("output_type", str)
+        return LazyCaller(
+            lambda: active_agent.run_async(
+                query=definition.objective,
+                conversation_id=definition.task_metadata.get("conversation_id")
+                if definition.task_metadata
+                else None,
+                output_type=output_type,
                 **kwargs,
             )
         )
@@ -65,7 +113,7 @@ class Task:
           {
             "objective": "Deliberate on task",
             "instructions": "...",
-            "result_type": str
+            "output_type": str
           },
           {
             "objective": "Use the result of the previous run to code a solution",
@@ -95,29 +143,31 @@ class Task:
             if not run_async:
                 # Execute the run
                 result = self.run(
-                    objective=spec["objective"],
+                    query=spec["objective"],
                     agents=spec.get("agents"),
                     context=spec.get("context"),
-                    result_type=spec.get("result_type", str),
+                    conversation_id=spec.get("conversation_id"),
                     **{
                         k: v
                         for k, v in spec.items()
-                        if k not in ["objective", "agents", "context", "result_type"]
+                        if k
+                        not in ["objective", "agents", "context", "conversation_id"]
                     },
                 )
                 results.append(result)
             else:
                 result = asyncio.run(
                     self.a_run(
-                        objective=spec["objective"],
+                        query=spec["objective"],
                         agents=spec.get("agents"),
                         context=spec.get("context"),
-                        result_type=spec.get("result_type", str),
+                        output_type=spec.get("output_type", str),
+                        conversation_id=spec.get("conversation_id"),
                         **{
                             k: v
                             for k, v in spec.items()
                             if k
-                            not in ["objective", "agents", "context", "result_type"]
+                            not in ["objective", "agents", "context", "output_type"]
                         },
                     )
                 )
