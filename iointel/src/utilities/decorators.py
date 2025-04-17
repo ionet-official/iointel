@@ -1,6 +1,6 @@
 from functools import wraps
 from typing import Callable, Optional
-from prefect import task
+#from prefect import task
 from .registries import (
     CHAINABLE_METHODS,
     TASK_EXECUTOR_REGISTRY,
@@ -25,18 +25,17 @@ def register_custom_task(task_type: str, chainable: bool = True):
 
     def decorator(tool_fn: Callable):
         # Register the executor function for later task execution.
-        prefect_task = task(tool_fn, name=task_type, persist_result=False)
-        TASK_EXECUTOR_REGISTRY[task_type] = prefect_task
+        #prefect_task = task(tool_fn, name=task_type, persist_result=False)
+        #TASK_EXECUTOR_REGISTRY[task_type] = prefect_task
+        TASK_EXECUTOR_REGISTRY[task_type] = tool_fn
 
         if chainable:
 
             def chainable_method(self, **kwargs):
                 # Create a task dictionary for this custom task.
-                task_dict = {
-                    "type": task_type,
-                    "text": self.text,
-                    "task_metadata": kwargs,
-                }
+                task_dict = {"type": task_type, "objective": self.objective}
+                # Merge in any extra parameters passed to the chainable method.
+                task_dict.update(kwargs)
                 # If agents weren't provided, use the Tasks instance default.
                 if not task_dict.get("agents"):
                     task_dict["agents"] = self.agents
