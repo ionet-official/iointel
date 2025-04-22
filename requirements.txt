@@ -2,6 +2,12 @@
 #    uv pip compile pyproject.toml --all-extras -o requirements.txt
 aiofiles==24.1.0
     # via r2r
+aiohappyeyeballs==2.6.1
+    # via aiohttp
+aiohttp==3.11.18
+    # via firecrawl
+aiosignal==1.3.2
+    # via aiohttp
 aiosqlite==0.21.0
     # via
     #   marvin
@@ -19,11 +25,8 @@ anyio==4.9.0
     #   anthropic
     #   groq
     #   httpx
-    #   mcp
     #   openai
     #   prefect
-    #   pydantic-evals
-    #   sse-starlette
     #   starlette
 apprise==1.9.3
     # via prefect
@@ -31,18 +34,13 @@ argcomplete==3.6.1
     # via pydantic-ai-slim
 asgi-lifespan==2.1.0
     # via prefect
-async-timeout==5.0.1
-    # via
-    #   asyncpg
-    #   python-socks
 asyncpg==0.30.0
     # via prefect
 attrs==25.3.0
     # via
+    #   aiohttp
     #   jsonschema
     #   referencing
-backports-tarfile==1.2.0
-    # via jaraco-context
 boto3==1.37.24
     # via pydantic-ai-slim
 botocore==1.37.24
@@ -61,11 +59,14 @@ certifi==2025.1.31
     #   requests
 cffi==1.17.1
     # via cryptography
+cfgv==3.4.0
+    # via pre-commit
 charset-normalizer==3.4.1
     # via requests
 click==8.1.8
     # via
     #   apprise
+    #   duckduckgo-search
     #   prefect
     #   typer
     #   uvicorn
@@ -87,6 +88,8 @@ dateparser==1.2.1
     # via prefect
 deprecated==1.2.18
     # via opentelemetry-api
+distlib==0.3.9
+    # via virtualenv
 distro==1.9.0
     # via
     #   anthropic
@@ -96,6 +99,8 @@ dnspython==2.7.0
     # via email-validator
 docker==7.1.0
     # via prefect
+duckduckgo-search==8.0.0
+    # via iointel (pyproject.toml)
 email-validator==2.2.0
     # via pydantic
 environs==14.1.1
@@ -104,13 +109,8 @@ eval-type-backport==0.2.2
     # via
     #   mistralai
     #   pydantic-ai-slim
-    #   pydantic-evals
 exceptiongroup==1.2.2
-    # via
-    #   anyio
-    #   prefect
-    #   pydantic-ai-slim
-    #   pytest
+    # via prefect
 execnet==2.1.1
     # via pytest-xdist
 fastapi==0.115.12
@@ -123,11 +123,19 @@ fastapi-cors==0.0.6
 fastavro==1.10.0
     # via cohere
 filelock==3.18.0
-    # via huggingface-hub
+    # via
+    #   huggingface-hub
+    #   virtualenv
 filetype==1.2.0
     # via r2r
+firecrawl==2.1.2
+    # via iointel (pyproject.toml)
 firecrawl-py==1.15.0
     # via iointel (pyproject.toml)
+frozenlist==1.6.0
+    # via
+    #   aiohttp
+    #   aiosignal
 fsspec==2025.3.2
     # via
     #   huggingface-hub
@@ -163,7 +171,6 @@ httpx==0.27.2
     #   cohere
     #   groq
     #   langsmith
-    #   mcp
     #   mistralai
     #   openai
     #   prefect
@@ -173,9 +180,7 @@ httpx==0.27.2
     #   solana
     #   wolframalpha
 httpx-sse==0.4.0
-    # via
-    #   cohere
-    #   mcp
+    # via cohere
 huggingface-hub==0.30.1
     # via tokenizers
 humanize==4.12.2
@@ -184,12 +189,15 @@ humanize==4.12.2
     #   prefect
 hyperframe==6.1.0
     # via h2
+identify==2.6.10
+    # via pre-commit
 idna==3.10
     # via
     #   anyio
     #   email-validator
     #   httpx
     #   requests
+    #   yarl
 importlib-metadata==8.6.1
     # via opentelemetry-api
 iniconfig==2.1.0
@@ -234,9 +242,9 @@ langchain-openai==0.3.11
 langsmith==0.3.21
     # via langchain-core
 logfire-api==3.12.0
-    # via
-    #   pydantic-evals
-    #   pydantic-graph
+    # via pydantic-graph
+lxml==5.3.2
+    # via duckduckgo-search
 mako==1.3.9
     # via alembic
 markdown==3.7
@@ -251,8 +259,6 @@ marshmallow==3.26.1
     # via environs
 marvin==3.0.1
     # via iointel (pyproject.toml)
-mcp==1.6.0
-    # via pydantic-ai-slim
 mdurl==0.1.2
     # via markdown-it-py
 mistralai==1.5.2
@@ -260,11 +266,18 @@ mistralai==1.5.2
 more-itertools==10.6.0
     # via wolframalpha
 multidict==6.3.0
-    # via wolframalpha
+    # via
+    #   aiohttp
+    #   wolframalpha
+    #   yarl
 mypy-extensions==1.0.0
     # via typing-inspect
 nest-asyncio==1.6.0
-    # via firecrawl-py
+    # via
+    #   firecrawl
+    #   firecrawl-py
+nodeenv==1.9.1
+    # via pre-commit
 numpy==2.2.4
     # via pgvector
 oauthlib==3.2.2
@@ -298,14 +311,24 @@ pendulum==3.0.0
     # via prefect
 pgvector==0.4.0
     # via iointel (pyproject.toml)
+platformdirs==4.3.7
+    # via virtualenv
 pluggy==1.5.0
     # via pytest
+pre-commit==4.2.0
+    # via iointel (pyproject.toml)
 prefect==3.3.1
     # via iointel (pyproject.toml)
+primp==0.15.0
+    # via duckduckgo-search
 prometheus-client==0.21.1
     # via prefect
 prompt-toolkit==3.0.50
     # via pydantic-ai-slim
+propcache==0.3.1
+    # via
+    #   aiohttp
+    #   yarl
 psycopg-binary==3.2.6
     # via r2r
 pyasn1==0.6.1
@@ -322,42 +345,38 @@ pydantic==2.11.1
     #   anthropic
     #   cohere
     #   fastapi
+    #   firecrawl
     #   firecrawl-py
     #   groq
     #   langchain-core
     #   langsmith
     #   marvin
-    #   mcp
     #   mistralai
     #   openai
     #   prefect
     #   pydantic-ai-slim
-    #   pydantic-evals
     #   pydantic-extra-types
     #   pydantic-graph
     #   pydantic-settings
     #   r2r
-pydantic-ai==0.0.48
+pydantic-ai==0.0.37
     # via
     #   iointel (pyproject.toml)
     #   marvin
-pydantic-ai-slim==0.0.48
+pydantic-ai-slim==0.0.37
     # via pydantic-ai
 pydantic-core==2.33.0
     # via
     #   cohere
     #   prefect
     #   pydantic
-pydantic-evals==0.0.48
-    # via pydantic-ai-slim
 pydantic-extra-types==2.10.3
     # via prefect
-pydantic-graph==0.0.48
+pydantic-graph==0.0.37
     # via pydantic-ai-slim
 pydantic-settings==2.8.1
     # via
     #   marvin
-    #   mcp
     #   prefect
 pygments==2.19.1
     # via rich
@@ -367,6 +386,7 @@ pytest==8.3.5
     #   pytest-asyncio
     #   pytest-dotenv
     #   pytest-rerunfailures
+    #   pytest-retry
     #   pytest-sugar
     #   pytest-timeout
     #   pytest-xdist
@@ -375,6 +395,8 @@ pytest-asyncio==0.21.2
 pytest-dotenv==0.5.2
     # via iointel (pyproject.toml)
 pytest-rerunfailures==13.0
+    # via iointel (pyproject.toml)
+pytest-retry==1.7.0
     # via iointel (pyproject.toml)
 pytest-sugar==1.0.0
     # via iointel (pyproject.toml)
@@ -394,6 +416,7 @@ python-dotenv==1.1.0
     # via
     #   iointel (pyproject.toml)
     #   environs
+    #   firecrawl
     #   firecrawl-py
     #   pydantic-settings
     #   pytest-dotenv
@@ -412,9 +435,11 @@ pytz==2025.2
     #   prefect
 pyyaml==6.0.2
     # via
+    #   iointel (pyproject.toml)
     #   apprise
     #   huggingface-hub
     #   langchain-core
+    #   pre-commit
     #   prefect
 r2r==3.5.5
     # via iointel (pyproject.toml)
@@ -433,6 +458,7 @@ requests==2.32.3
     #   apprise
     #   cohere
     #   docker
+    #   firecrawl
     #   firecrawl-py
     #   huggingface-hub
     #   langsmith
@@ -452,7 +478,6 @@ rich==14.0.0
     #   marvin
     #   prefect
     #   pydantic-ai-slim
-    #   pydantic-evals
     #   typer
 rpds-py==0.24.0
     # via
@@ -496,13 +521,8 @@ sqlalchemy==2.0.40
     #   sqlalchemy-utils
 sqlalchemy-utils==0.41.2
     # via iointel (pyproject.toml)
-sse-starlette==2.2.1
-    # via mcp
 starlette==0.46.1
-    # via
-    #   fastapi
-    #   mcp
-    #   sse-starlette
+    # via fastapi
 tenacity==9.0.0
     # via langchain-core
 termcolor==3.0.0
@@ -521,8 +541,6 @@ toml==0.10.2
     # via
     #   prefect
     #   r2r
-tomli==2.2.1
-    # via pytest
 tqdm==4.67.1
     # via
     #   huggingface-hub
@@ -544,12 +562,10 @@ typing-extensions==4.13.0
     #   anthropic
     #   anyio
     #   cohere
-    #   environs
     #   fastapi
     #   groq
     #   huggingface-hub
     #   langchain-core
-    #   multidict
     #   openai
     #   prefect
     #   pydantic
@@ -557,14 +573,12 @@ typing-extensions==4.13.0
     #   pydantic-extra-types
     #   r2r
     #   referencing
-    #   rich
     #   solana
     #   solders
     #   sqlalchemy
     #   typer
     #   typing-inspect
     #   typing-inspection
-    #   uvicorn
 typing-inspect==0.9.0
     # via mistralai
 typing-inspection==0.4.0
@@ -587,13 +601,14 @@ urllib3==2.3.0
 uv==0.6.11
     # via prefect
 uvicorn==0.34.0
-    # via
-    #   mcp
-    #   prefect
+    # via prefect
+virtualenv==20.30.0
+    # via pre-commit
 wcwidth==0.2.13
     # via prompt-toolkit
 websockets==15.0
     # via
+    #   firecrawl
     #   firecrawl-py
     #   prefect
     #   solana
@@ -603,6 +618,8 @@ wrapt==1.17.2
     # via deprecated
 xmltodict==0.14.2
     # via wolframalpha
+yarl==1.20.0
+    # via aiohttp
 zipp==3.21.0
     # via importlib-metadata
 zstandard==0.23.0
