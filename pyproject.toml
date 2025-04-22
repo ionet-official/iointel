@@ -18,6 +18,7 @@ dependencies = [
     "sqlalchemy-utils>=0.41.2",
     "pytest-retry>=1.7.0",
     "pytest-asyncio>=0.21.2",
+    "pgvector>=0.3.6",
 ]
 keywords = ["Agents", "LLM", "framework", "AI", "tools"]
 classifiers = [
