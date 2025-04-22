@@ -1,12 +1,14 @@
 from typing import List, Dict, Any, Optional
-from .agents import Agent
-import controlflow as cf
 import asyncio
+import marvin
+from .utilities.helpers import LazyCaller
+
+from .agents import Agent
 
 
 class Task:
     """
-    A class to manage and orchestrate runs using ControlFlow's cf.run().
+    A class to manage and orchestrate runs.
     It can store a set of agents and provide methods to run them with given instructions and context.
     """
 
@@ -26,66 +28,29 @@ class Task:
         self,
         objective: str,
         agents: List[Agent] = None,
-        completion_agents: List[Agent] = None,
-        instructions: str = "",
         context: Dict[str, Any] = None,
         result_type: Any = str,
         **kwargs,
     ) -> Any:
         """
-        Wrap cf.run() to execute a given objective with optional instructions, context, and agents.
+        Wrap marvin.run() to execute a given objective
 
         :param objective: The primary task or objective to run.
         :param agents: A list of agents to use for this run. If None, uses self.agents.
-        :param completion_agents: Agents that finalize the run (e.g., selecting a final answer).
-        :param instructions: Additional instructions or prompt details for the run.
         :param context: A dictionary of context data passed to the run.
         :param result_type: The expected return type (e.g. str, dict).
-        :param kwargs: Additional keyword arguments passed directly to cf.run().
-        :return: The result of the cf.run() call.
+        :param kwargs: Additional keyword arguments passed directly to marvin.run().
+        :return: The result of the marvin.run() call.
         """
         chosen_agents = agents if agents is not None else self.agents
-        return cf.run(
-            objective,
-            agents=chosen_agents,
-            completion_agents=completion_agents,
-            instructions=instructions,
-            context=context or {},
-            result_type=result_type,
-            **kwargs,
-        )
-
-    async def a_run(
-        self,
-        objective: str,
-        agents: List[Agent] = None,
-        completion_agents: List[Agent] = None,
-        instructions: str = "",
-        context: Dict[str, Any] = None,
-        result_type: Any = str,
-        **kwargs,
-    ) -> Any:
-        """
-        Wrap cf.run_async() to execute a given objective with optional instructions, context, and agents.
-
-        :param objective: The primary task or objective to run.
-        :param agents: A list of agents to use for this run. If None, uses self.agents.
-        :param completion_agents: Agents that finalize the run (e.g., selecting a final answer).
-        :param instructions: Additional instructions or prompt details for the run.
-        :param context: A dictionary of context data passed to the run.
-        :param result_type: The expected return type (e.g. str, dict).
-        :param kwargs: Additional keyword arguments passed directly to cf.run().
-        :return: The result of the cf.run_async() call.
-        """
-        chosen_agents = agents if agents is not None else self.agents
-        return await cf.run_async(
-            objective,
-            agents=chosen_agents,
-            completion_agents=completion_agents,
-            instructions=instructions,
-            context=context or {},
-            result_type=result_type,
-            **kwargs,
+        return LazyCaller(
+            lambda: marvin.run(
+                objective,
+                agents=chosen_agents,
+                context=context or {},
+                result_type=result_type,
+                **kwargs,
+            )
         )
 
     def chain_runs(
@@ -132,22 +97,12 @@ class Task:
                 result = self.run(
                     objective=spec["objective"],
                     agents=spec.get("agents"),
-                    completion_agents=spec.get("completion_agents"),
-                    instructions=spec.get("instructions", ""),
                     context=spec.get("context"),
                     result_type=spec.get("result_type", str),
                     **{
                         k: v
                         for k, v in spec.items()
-                        if k
-                        not in [
-                            "objective",
-                            "agents",
-                            "completion_agents",
-                            "instructions",
-                            "context",
-                            "result_type",
-                        ]
+                        if k not in ["objective", "agents", "context", "result_type"]
                     },
                 )
                 results.append(result)
@@ -156,36 +111,15 @@ class Task:
                     self.a_run(
                         objective=spec["objective"],
                         agents=spec.get("agents"),
-                        completion_agents=spec.get("completion_agents"),
-                        instructions=spec.get("instructions", ""),
                         context=spec.get("context"),
                         result_type=spec.get("result_type", str),
                         **{
                             k: v
                             for k, v in spec.items()
                             if k
-                            not in [
-                                "objective",
-                                "agents",
-                                "completion_agents",
-                                "instructions",
-                                "context",
-                                "result_type",
-                            ]
+                            not in ["objective", "agents", "context", "result_type"]
                         },
                     )
                 )
                 results.append(result)
         return results
-
-
-# A global or module-level registry of custom workflows
-CUSTOM_WORKFLOW_REGISTRY = {}
-
-
-def register_custom_workflow(name: str):
-    def decorator(func):
-        CUSTOM_WORKFLOW_REGISTRY[name] = func
-        return func
-
-    return decorator
