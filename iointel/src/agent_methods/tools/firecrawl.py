@@ -1,6 +1,6 @@
 import asyncio
 import os
-from typing import Dict, Any, Optional
+from typing import Optional
 from typing import TypeVar
 
 from firecrawl import FirecrawlApp
@@ -9,6 +9,11 @@ from pydantic import BaseModel
 T = TypeVar("T", bound=BaseModel)
 
 FIRECRAWL_API_KEY = os.getenv("FIRECRAWL_API_KEY")
+
+
+class FirecrawlResponse(BaseModel):
+    markdown: str
+    metadata: dict
 
 
 class Crawler:
@@ -33,7 +38,7 @@ class Crawler:
         else:
             self.app: FirecrawlApp = FirecrawlApp(api_key=api_key)
 
-    def scrape_url(self, url: str) -> Dict[str, Any]:
+    def scrape_url(self, url: str) -> FirecrawlResponse:
         """
         Scrape a single URL.
         Args:
@@ -41,9 +46,10 @@ class Crawler:
         Returns:
             Dict[str, Any]: The scraping result.
         """
-        return self.app.scrape_url(url)
+        response = self.app.scrape_url(url)
+        return FirecrawlResponse(markdown=response.markdown, metadata=response.metadata)
 
-    async def async_scrape_url(self, url: str) -> Dict[str, Any]:
+    async def async_scrape_url(self, url: str) -> FirecrawlResponse:
         """
         Scrape a single URL.
         Args:
