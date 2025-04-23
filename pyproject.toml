@@ -11,7 +11,7 @@ dependencies = [
     "prefect>=3.2.2",
     "pydantic-ai==0.0.37",
     "marvin==3.0.1",
-    "firecrawl>=1.15.0",
+    "firecrawl>=2.1.2",
     "duckduckgo-search==8.0.0",
     "langchain-core>=0.3.28",
     "langchain-openai>=0.2.14",

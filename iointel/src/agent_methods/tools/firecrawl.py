@@ -33,28 +33,22 @@ class Crawler:
         else:
             self.app: FirecrawlApp = FirecrawlApp(api_key=api_key)
 
-    def scrape_url(
-        self, url: str, options: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
+    def scrape_url(self, url: str) -> Dict[str, Any]:
         """
         Scrape a single URL.
         Args:
-            url (str): The URL to scrape.
-            options (Optional[Dict[str, Any]]): Optional scraping parameters.
+            url (str): The URL to scrape
         Returns:
             Dict[str, Any]: The scraping result.
         """
-        return self.app.scrape_url(url, options or {})
+        return self.app.scrape_url(url)
 
-    async def async_scrape_url(
-        self, url: str, options: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
+    async def async_scrape_url(self, url: str) -> Dict[str, Any]:
         """
         Scrape a single URL.
         Args:
             url (str): The URL to scrape.
-            options (Optional[Dict[str, Any]]): Optional scraping parameters.
         Returns:
             Dict[str, Any]: The scraping result.
         """
-        return await asyncio.to_thread(self.scrape_url, url, options or {})
+        return await asyncio.to_thread(self.scrape_url, url)
