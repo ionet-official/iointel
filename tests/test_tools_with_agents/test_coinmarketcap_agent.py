@@ -88,7 +88,7 @@ def test_coinmarketcap_get_current_price(coinmarketcap_agent):
     assert float(result) > 10000  # Price should be greater than 10k$
 
 
-@pytest.mark.skip  # Waiting to get a paid coinmarketcap API key
+@pytest.mark.skip(reason="Waiting to get a paid coinmarketcap API key")
 def test_coinmarketcap_historical_price(coinmarketcap_agent):
     result = run_agents(
         "Get price of bitcoin yesterday at 12:00. Return a single number: price in USD.",
