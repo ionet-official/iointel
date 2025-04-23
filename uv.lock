@@ -768,22 +768,6 @@ wheels = [
 ]
 
 [[package]]
-name = "firecrawl-py"
-version = "1.15.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "nest-asyncio" },
-    { name = "pydantic" },
-    { name = "python-dotenv" },
-    { name = "requests" },
-    { name = "websockets" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/cf/70/44798abbdba2e7d0a330ab31b32b27bf830bd47d1b6fdfa692f615482e96/firecrawl_py-1.15.0.tar.gz", hash = "sha256:8136968d51a43b40ba3114630997c3a0ca12cdd817855cd9332163327630fff0", size = 21120, upload_time = "2025-03-24T16:15:50.057Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/cd/af/7e0cde1ec66bac63e90e54f38675b0e71be02b6c6194705c425ec0c52b3e/firecrawl_py-1.15.0-py3-none-any.whl", hash = "sha256:a7e0496978b048316dba0e87a8c43dc39f36c6390c7b467a41a538fc65181a7c", size = 34859, upload_time = "2025-03-24T16:15:48.552Z" },
-]
-
-[[package]]
 name = "frozenlist"
 version = "1.6.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1144,7 +1128,6 @@ source = { editable = "." }
 dependencies = [
     { name = "duckduckgo-search" },
     { name = "firecrawl" },
-    { name = "firecrawl-py" },
     { name = "httpx" },
     { name = "langchain-core" },
     { name = "langchain-openai" },
@@ -1177,7 +1160,6 @@ dev = [
 requires-dist = [
     { name = "duckduckgo-search", specifier = "==8.0.0" },
     { name = "firecrawl", specifier = ">=2.1.2" },
-    { name = "firecrawl-py", specifier = ">=1.11.0" },
     { name = "httpx" },
     { name = "langchain-core", specifier = ">=0.3.28" },
     { name = "langchain-openai", specifier = ">=0.2.14" },

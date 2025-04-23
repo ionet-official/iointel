@@ -22,7 +22,7 @@ def test_get_coin_price():
     assert get_coin_quotes(symbol=["BTC"])
 
 
-@pytest.mark.skip  # Waiting to get a paid coinmarketcap API key
+@pytest.mark.skip(reason="Waiting to get a paid coinmarketcap API key")
 def test_get_coin_historical_price():
     assert get_coin_quotes_historical(
         symbol=["BTC"],
