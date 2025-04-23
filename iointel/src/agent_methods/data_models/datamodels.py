@@ -297,6 +297,10 @@ class AgentParams(BaseModel):
         None, description="Base URL for the model, if required."
     )
     tools: Optional[List[Tool]] = Field(default_factory=list)
+    context: Optional[Dict[str, Any]] = Field(
+        None,
+        description="Context to be passed to the agent.",
+    )
     #memories: Optional[list[Memory]] = Field(default_factory=list)
     memory: Optional[Union[Memory,AsyncMemory]] = Field(default_factory=list)
 

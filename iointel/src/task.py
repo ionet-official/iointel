@@ -40,6 +40,10 @@ class Task:
         # Do NOT assign to self.agents; instead select locally
         active_agent = chosen_agents[0]
 
+        context = definition.task_metadata.get("context", {})
+        if context:
+            active_agent.set_context(context)
+
         output_type = kwargs.pop("output_type", str)
 
         return LazyCaller(
@@ -68,6 +72,10 @@ class Task:
         # active_agent.output_type = (kwargs.get("output_type")
         #                            or str)
 
+        context = definition.task_metadata.get("context", {})
+        if context:
+            active_agent.set_context(context)
+            
         output_type = kwargs.pop("output_type", str)
 
         return LazyCaller(
@@ -89,6 +97,11 @@ class Task:
         active_agent = self.get_next_agent()
         # active_agent.output_type = (kwargs.get("output_type")
         #                            or str)
+
+        context = definition.task_metadata.get("context", {})
+        if context:
+            active_agent.set_context(context)
+            
         output_type = kwargs.pop("output_type", str)
         return LazyCaller(
             lambda: active_agent.run_async(

@@ -33,10 +33,11 @@ class Agent(PydanticAgent):
         name: str,
         instructions: str,
         persona: Optional[PersonaConfig] = None,
+        context: Optional[Any] = None,
         tools: Optional[list] = None,
         model: Optional[Union[OpenAIModel, str]] = None,
         memory: Optional[Union[Memory, AsyncMemory]] = None,
-        model_settings: Optional[Dict[str, Any]] = dict(tool_choice="auto"), # FIXME: mutable default value is a bad thing
+        model_settings: Optional[Dict[str, Any]] = None, #dict(extra_body=None), #can add json model schema here
         api_key: Optional[SecretStr | str] = None,
         base_url: Optional[str] = None,
         output_type: Optional[Any] = str,
@@ -93,6 +94,13 @@ class Agent(PydanticAgent):
         combined_instructions = instructions
         if persona_instructions.strip():
             combined_instructions += "\n\n" + persona_instructions
+
+        if context:
+            combined_instructions += f"""\n\n 
+            this is added context, 
+            perhaps a previous run, 
+            or anything else of value,
+            so you can understand whats going on: {context}""" 
 
         resolved_tools = []
         if tools:
@@ -181,7 +189,7 @@ class Agent(PydanticAgent):
                 f" Objective: {query} ", style="bold white on dark_green"
             )
             agent_info = Text(f"Agent(s): {self.name}", style="cyan bold")
-            result_info = Markdown(f"{result.data}", style="magenta")
+            result_info = Markdown(f"{result.output}", style="magenta")
 
             # Display the result beautifully using Rich panel
             panel = Panel(
@@ -193,7 +201,7 @@ class Agent(PydanticAgent):
             console.print(panel)
 
         return dict(
-            result=result.data, conversation_id=conversation_id or self.conversation_id
+            result=result.output, conversation_id=conversation_id or self.conversation_id, full_result=result
         )
 
     async def run_async(
@@ -255,7 +263,7 @@ class Agent(PydanticAgent):
                 f" Objective: {query} ", style="bold white on dark_green"
             )
             agent_info = Text(f"Agent(s): {self.name}", style="cyan bold")
-            result_info = Markdown(f"{result.data}", style="magenta")
+            result_info = Markdown(f"{result.output}", style="magenta")
 
             panel = Panel(
                 result_info,
@@ -266,7 +274,7 @@ class Agent(PydanticAgent):
             console.print(panel)
 
         return dict(
-            result=result.data, conversation_id=conversation_id or self.conversation_id
+            result=result.output, conversation_id=conversation_id or self.conversation_id, full_result=result
         )
 
     async def run_stream(
@@ -322,7 +330,7 @@ class Agent(PydanticAgent):
 
                 # Explicitly ensure final markdown is exactly right:
                 final_result = (
-                    agent_run.result.data if hasattr(agent_run.result, "data") else ""
+                    agent_run.result.output if hasattr(agent_run.result, "data") else ""
                 )
 
                 if not isinstance(final_result, str):
@@ -376,10 +384,19 @@ class Agent(PydanticAgent):
             )
             return result
         return dict(
-            result=agent_run.result.data,
+            result=agent_run.result.output,
             conversation_id=conversation_id or self.conversation_id,
+            full_result=result
         )
 
+    @classmethod
+    def set_context(cls, context: Any):
+        """
+        Set the context for the agent.
+        :param context: The context to set for the agent.
+        """
+
+        cls.context = context
 
     @classmethod
     def make_default(cls):
