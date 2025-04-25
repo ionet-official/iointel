@@ -53,6 +53,7 @@ def agent_or_swarm(agent_obj: Agent, store_creds: bool) -> list[AgentParams]:
             api_key=get_api_key(agent),
             base_url=agent.base_url,
             memories=agent.memories,
+            context=agent.context,
         )
 
     if hasattr(agent_obj, "api_key"):
