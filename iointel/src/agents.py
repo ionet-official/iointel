@@ -28,7 +28,7 @@ class Agent(marvin.Agent):
         tools: Optional[list] = None,
         model: Optional[Union[OpenAIModel, str]] = None,
         memories: Optional[list[Memory]] = None,
-        api_key: Optional[SecretStr] = None,
+        api_key: Optional[SecretStr | str] = None,
         base_url: Optional[str] = None,
         **model_kwargs,
     ):
@@ -48,7 +48,12 @@ class Agent(marvin.Agent):
         :param memories: A list of Memory instances to use for the agent. Each memory module can store and retrieve data, and share context between agents.
 
         """
-        self.api_key = SecretStr(api_key or get_api_key())
+
+        self.api_key = (
+            api_key
+            if isinstance(api_key, SecretStr)
+            else SecretStr(api_key or get_api_key())
+        )
         self.base_url = base_url or get_api_url()
 
         if isinstance(model, OpenAIModel):
