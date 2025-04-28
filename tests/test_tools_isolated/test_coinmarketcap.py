@@ -26,8 +26,6 @@ def test_get_coin_price():
 def test_get_coin_historical_price():
     assert get_coin_quotes_historical(
         symbol=["BTC"],
-        time_end=datetime.datetime(
-            year=2025, month=3, day=17, hour=12, minute=0, second=0
-        ),
+        time_end=datetime.datetime.now() - datetime.timedelta(days=1),
         count=1,
     )
