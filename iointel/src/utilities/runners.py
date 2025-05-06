@@ -1,7 +1,10 @@
+from typing import Sequence
+
+from ..agents import Agent
 from .helpers import LazyCaller
 from ..task import Task
 from ..agent_methods.data_models.datamodels import TaskDefinition
-
+from ..agent_methods.agents.agents_factory import agent_or_swarm
 
 def _to_task_definition(
     objective: str, agents=None, conversation_id=None, **kwargs
@@ -11,6 +14,8 @@ def _to_task_definition(
     If your code doesn’t revolve around TaskDefinition yet,
     you can keep this minimal.
     """
+    if isinstance(agents, Sequence):
+        agents = agent_or_swarm(agents, store_creds=True)
     return TaskDefinition(
         task_id=kwargs.get("task_id", "some-default"),
         name=kwargs.get("name", objective),
@@ -25,20 +30,20 @@ def _to_task_definition(
 
 async def _run_stream(objective: str, **all_kwargs):
     definition = _to_task_definition(objective, **all_kwargs)
-    output_type = all_kwargs.pop("output_type", None)
+    result_type = all_kwargs.pop("result_type", None)
 
     agents = definition.agents or []
     return await Task(agents=agents).run_stream(
-        definition=definition, output_type=output_type
+        definition=definition, result_type=result_type
     )
 
 
 async def _run(objective: str, **all_kwargs):
     definition = _to_task_definition(objective, **all_kwargs)
-    output_type = all_kwargs.pop("output_type", None)
+    result_type = all_kwargs.pop("result_type", None)
     agents = definition.agents or []
     return await Task(agents=agents).run(
-        definition=definition, output_type=output_type
+        definition=definition, result_type=result_type
     )
 
 
@@ -50,7 +55,7 @@ def run_agents_stream(objective: str, **kwargs) -> LazyCaller:
 
 
 # @task(persist_result=False)
-async def run_agents(objective: str, **kwargs) -> LazyCaller:
+def run_agents(objective: str, **kwargs) -> LazyCaller:
     """
     Asynchronous lazy wrapper around Task().a_run.
     """

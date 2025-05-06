@@ -38,12 +38,12 @@ async def _run_simple(stage: SimpleStage, agents, task_metadata, default_text) -
     if "input" not in merged_context:
         merged_context["input"] = default_text
     # Pass result_stage if provided.
-    return (await run_agents(
+    return await run_agents(
         objective=stage.objective,
         agents=agents or stage.agents,
         context=merged_context,
-        output_type=stage.output_type,
-    )).execute()
+        result_type=stage.result_type,
+    ).execute()
 
 
 @register_stage_runner

@@ -30,7 +30,7 @@ def custom_hi_task():
         return run_agents(
             objective=text,
             agents=agents,
-            output_type=str,
+            result_type=str,
         ).execute()
 
     yield

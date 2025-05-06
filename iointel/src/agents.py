@@ -28,6 +28,8 @@ class Agent(PydanticAgent):
     instructions, and tools. By default, it uses the pydantic OpenAIModel.
     """
 
+    # args must stay in sync with AgentParams, because we use that model
+    # to reconstruct agents
     def __init__(
         self,
         name: str,
@@ -40,7 +42,7 @@ class Agent(PydanticAgent):
         model_settings: Optional[Dict[str, Any]] = None, #dict(extra_body=None), #can add json model schema here
         api_key: Optional[SecretStr | str] = None,
         base_url: Optional[str] = None,
-        output_type: Optional[Any] = str,
+        result_type: Optional[Any] = str,
         **model_kwargs,
     ):
         """
@@ -56,9 +58,13 @@ class Agent(PydanticAgent):
         If model_provider is given, you rely entirely on it for the model and ignore other model-related kwargs.
         If not, you fall back to ChatOpenAI with model_kwargs such as model="gpt-4o-mini", api_key="..."
 
-        :param memories: A list of Memory instances to use for the agent. Each memory module can store and retrieve data, and share context between agents.
+        :param memory: A Memory instance to use for the agent. Memory module can store and retrieve data, and share context between agents.
 
         """
+        # save some parameters for later dumping to AgentParams
+        self._instructions = instructions
+        self._context = context
+        self._persona = persona
 
         self.api_key = (
             api_key
@@ -84,24 +90,6 @@ class Agent(PydanticAgent):
 
         self.memory = memory
 
-        # Build a persona snippet if provided
-        if isinstance(persona, PersonaConfig):
-            persona_instructions = persona.to_system_instructions()
-        else:
-            persona_instructions = ""
-
-        # Combine user instructions with persona content
-        combined_instructions = instructions
-        if persona_instructions.strip():
-            combined_instructions += "\n\n" + persona_instructions
-
-        if context:
-            combined_instructions += f"""\n\n 
-            this is added context, 
-            perhaps a previous run, 
-            or anything else of value,
-            so you can understand whats going on: {context}""" 
-
         resolved_tools = []
         if tools:
             for tool in tools:
@@ -120,21 +108,41 @@ class Agent(PydanticAgent):
         self.tools = resolved_tools
         super().__init__(
             name=name,
-            system_prompt=combined_instructions,
             tools=resolved_tools,
             model=model_instance,
             model_settings=model_settings,
-            result_type=output_type,
+            result_type=result_type,
         )
+
+        self.system_prompt(dynamic=True)(self._make_init_prompt)
+
+
+    def _make_init_prompt(self) -> str:
+        # Build a persona snippet if provided
+        if isinstance(self._persona, PersonaConfig):
+            persona_instructions = self._persona.to_system_instructions().strip()
+        else:
+            persona_instructions = ""
+        # Combine user instructions with persona content
+        combined_instructions = self._instructions
+        if persona_instructions:
+            combined_instructions += "\n\n" + persona_instructions
+
+        if self._context:
+            combined_instructions += f"""\n\n 
+            this is added context, 
+            perhaps a previous run, 
+            or anything else of value,
+            so you can understand whats going on: {self._context}"""
+        return combined_instructions
 
     @property
     def instructions(self):
-        return self._system_prompts[0]
+        return self._instructions
 
     def add_tool(self, tool):
         updated_tools = self.tools + [tool]
         self.tools = updated_tools
-
 
     async def run(
         self,
@@ -175,12 +183,14 @@ class Agent(PydanticAgent):
                 await self.memory.store_run_history(conversation_id, result)
             except Exception as e:
                 print("Error storing run history:", e)
+        # pydantic is planning to rename a field, try both for compatibility
+        result_output = getattr(result, "output", None) or getattr(result, "data", None)
         if pretty:
             task_header = Text(
                 f" Objective: {query} ", style="bold white on dark_green"
             )
             agent_info = Text(f"Agent(s): {self.name}", style="cyan bold")
-            result_info = Markdown(f"{result.output}", style="magenta")
+            result_info = Markdown(result_output, style="magenta")
 
             panel = Panel(
                 result_info,
@@ -191,7 +201,7 @@ class Agent(PydanticAgent):
             console.print(panel)
 
         return dict(
-            result=result.output, conversation_id=conversation_id or self.conversation_id, full_result=result
+            result=result_output, conversation_id=conversation_id or self.conversation_id, full_result=result
         )
 
     async def run_stream(
@@ -290,20 +300,18 @@ class Agent(PydanticAgent):
             full_result=result
         )
 
-    @classmethod
-    def set_context(cls, context: Any):
+    def set_context(self, context: Any):
         """
         Set the context for the agent.
         :param context: The context to set for the agent.
         """
 
-        cls.context = context
+        self._context = context
 
     @classmethod
     def make_default(cls):
         return cls(
             name="default-agent",
             instructions="you are a generalist who is good at everything.",
-            description="Default agent for tasks without agents",
         )
 

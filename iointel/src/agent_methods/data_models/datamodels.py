@@ -284,8 +284,7 @@ class AgentParams(BaseModel):
     )
     name: Optional[str] = None
     instructions: Optional[str] = None
-    description: Optional[str] = None
-    swarm_name: Optional[str] = None
+    persona: Optional[PersonaConfig] = None
     model: Optional[Union[OpenAIModel, str]] = Field(
         default="meta-llama/Llama-3.3-70B-Instruct",
         description="Model or model name for the agent",
@@ -305,6 +304,7 @@ class AgentParams(BaseModel):
     memory: Optional[AsyncMemory] = Field(default_factory=list)
 
     model_settings: Optional[Dict[str, Any]] = Field(default_factory=dict)
+    result_type: Optional[Any] = str
 
 
 # reasoning agent
@@ -322,7 +322,7 @@ class ReasoningStep(BaseModel):
     proposed_solution: str = Field(description="The proposed solution for the problem.")
 
 
-class Swarm(BaseModel):
+class AgentSwarm(BaseModel):
     members: List[AgentParams]
 
 
@@ -367,8 +367,8 @@ class BaseStage(BaseModel):
 class SimpleStage(BaseStage):
     stage_type: Literal["simple"] = "simple"
     objective: str
-    output_type: Any = None
-    agents: List[Union[AgentParams, Swarm]] = Field(default_factory=list)
+    result_type: Any = None
+    agents: List[Union[AgentParams, AgentSwarm]] = Field(default_factory=list)
     context: Optional[Dict[str, Any]] = Field(default_factory=dict)
 
 
@@ -425,8 +425,8 @@ class TaskDefinition(BaseModel):
     task_id: str
     name: str
     # description: Optional[str] = None
-    text: Optional[str] = None
-    agents: Optional[Union[List[AgentParams], Swarm]] = None
+    objective: Optional[str] = None
+    agents: Optional[Union[List[AgentParams], AgentSwarm]] = None
     task_metadata: Optional[Dict[str, Any]] = None
     # metadata: Optional[Dict[str, Any]] = Field(default_factory=dict)
     execution_metadata: Optional[Dict[str, Any]] = None
@@ -445,6 +445,6 @@ class WorkflowDefinition(BaseModel):
     name: str
     objective: Optional[str] = None  # Main text/prompt for the workflow
     client_mode: Optional[bool] = None
-    agents: Optional[Union[List[AgentParams], Swarm]] = None
+    agents: Optional[Union[List[AgentParams], AgentSwarm]] = None
     tasks: List[TaskDefinition] = Field(default_factory=list)
 

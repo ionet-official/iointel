@@ -38,7 +38,7 @@ def execute_schedule_reminder(
             instructions="Schedule a reminder and track the time.",
             agents=agents,
             context={"command": objective},
-            output_type=str,
+            result_type=str,
         )
         return response.execute()
 
@@ -60,7 +60,7 @@ def execute_solve_with_reasoning(
         while True:
             response: ReasoningStep = run_agents(
                 objective=REASONING_INSTRUCTIONS,
-                output_type=ReasoningStep,
+                result_type=ReasoningStep,
                 agents=agents,
                 context={"goal": objective},
             ).execute()
@@ -70,7 +70,7 @@ def execute_solve_with_reasoning(
                     objective="""
                             Check your solution to be absolutely sure that it is correct and meets all requirements of the goal. Return True if it does.
                             """,
-                    output_type=bool,
+                    result_type=bool,
                     context={"goal": objective},
                     agents=agents,
                 ).execute():
@@ -91,7 +91,7 @@ def execute_summarize_text(
     else:
         summary = run_agents(
             objective=f"Summarize the given text: {objective}\n into no more than {max_words} words and list key points",
-            output_type=SummaryResult,
+            result_type=SummaryResult,
             # context={"text": text},
             agents=agents,
         )
@@ -111,7 +111,7 @@ def execute_sentiment(
         sentiment_val = run_agents(
             objective="Classify the sentiment of the text as a value between 0 and 1",
             agents=agents,
-            output_type=float,
+            result_type=float,
             # result_validator=between(0, 1),
             # context={"text": text},
         )
@@ -140,7 +140,7 @@ def execute_extract_entities(
                             Only include keys if entities of that type are found in the text.
                             """,
             agents=agents,
-            output_type=Dict[str, List[str]],
+            result_type=Dict[str, List[str]],
             # context={"text": text},
         )
         return extracted.execute()
@@ -161,7 +161,7 @@ def execute_translate_text(
     else:
         translated = run_agents(
             objective=f"Translate the given text:{objective} into {target_lang}",
-            # output_type=TranslationResult,
+            # result_type=TranslationResult,
             # context={"text": text, "target_language": target_lang},
             agents=agents,
         )
@@ -186,7 +186,7 @@ def execute_classify(
         classification = run_agents(
             objective=f"from this text: {objective}\n, Classify into the appropriate category",
             agents=agents,
-            output_type=classify_by,
+            result_type=classify_by,
             # context={"text": text},
         )
         return classification.execute()
@@ -213,7 +213,7 @@ def execute_moderation(
         result: ViolationActivation = run_agents(
             objective=f" from the text: {objective}:\n Check the text for violations and return activation levels",
             agents=agents,
-            output_type=ViolationActivation,
+            result_type=ViolationActivation,
             # context={"text": text},
         ).execute()
 
@@ -262,7 +262,7 @@ def execute_custom(
                 objective=task_metadata["objective"],
                 agents=agents,
                 context={"text": objective, **task_metadata.get("kwargs", {})},
-                output_type=str,
+                result_type=str,
             )
             return response.execute()
 

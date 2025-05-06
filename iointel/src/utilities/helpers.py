@@ -1,4 +1,5 @@
 from typing import Any, Callable
+import inspect
 
 from pydantic import BaseModel, ConfigDict, model_serializer
 
@@ -16,7 +17,6 @@ def make_logger(name: str, level: str = "INFO"):
 
 logger = make_logger(__name__)
 
-# FIXME: make LazyCaller async
 class LazyCaller(BaseModel):
     func: Callable
     args: tuple[Any, ...] = ()
@@ -37,37 +37,36 @@ class LazyCaller(BaseModel):
         self._evaluated = False
         self._result = None
 
-    def _resolve_nested(self, value: Any) -> Any:
+    async def _resolve_nested(self, value: Any) -> Any:
         logger.debug("Resolving: %s", value)
+        if inspect.isawaitable(value):
+            value = await value
         if hasattr(value, "execute") and callable(value.execute):
             logger.debug("Resolving lazy object: %s", value)
-            resolved = self._resolve_nested(value.execute())
+            resolved = await self._resolve_nested(value.execute())
             logger.debug("Resolved lazy object to: %s", resolved)
             return resolved
-        elif isinstance(value, dict):
+        if isinstance(value, dict):
             logger.debug("Resolving dict: %s", value)
-            return {k: self._resolve_nested(v) for k, v in value.items()}
-        elif isinstance(value, (list, tuple, set)):
+            return {k: (await self._resolve_nested(v)) for k, v in value.items()}
+        if isinstance(value, (list, tuple, set)):
             logger.debug("Resolving collection: %s", value)
-            if isinstance(value, list):
-                return [self._resolve_nested(item) for item in value]
-            elif isinstance(value, tuple):
-                return tuple(self._resolve_nested(item) for item in value)
-            elif isinstance(value, set):
-                return {self._resolve_nested(item) for item in value}
-        else:
-            return value
+            result = []
+            for item in value:
+                result.append(await self._resolve_nested(item))
+            return type(value)(result)
+        return value
 
-    def execute(self) -> Any:
+    async def execute(self) -> Any:
         if not self._evaluated:
-            resolved_args = self._resolve_nested(self.args)
-            resolved_kwargs = self._resolve_nested(self.kwargs)
+            resolved_args = await self._resolve_nested(self.args)
+            resolved_kwargs = await self._resolve_nested(self.kwargs)
             logger.debug("Resolved args: %s", resolved_args)
             logger.debug("Resolved kwargs: %s", resolved_kwargs)
             result = self.func(*resolved_args, **resolved_kwargs)
 
             # Recursively resolve nested lazy objects, if part of the result is lazy
-            result = self._resolve_nested(result)
+            result = await self._resolve_nested(result)
 
             self._result = result
             self._evaluated = True

@@ -4,6 +4,7 @@ import asyncio
 from .agents import Agent
 from .utilities.helpers import LazyCaller
 from .agent_methods.data_models.datamodels import TaskDefinition
+from .agent_methods.agents.agents_factory import create_agent
 
 
 class Task:
@@ -44,7 +45,7 @@ class Task:
         if context:
             active_agent.set_context(context)
 
-        output_type = kwargs.pop("output_type", str)
+        result_type = kwargs.pop("result_type", str)
 
         return LazyCaller(
             lambda: active_agent.run_stream(
@@ -52,32 +53,35 @@ class Task:
                 conversation_id=definition.task_metadata.get("conversation_id")
                 if definition.task_metadata
                 else None,
-                output_type=output_type,
+                result_type=result_type,
                 **kwargs,
             )
         )
 
     async def run(self, definition: TaskDefinition, **kwargs) -> Any:
-        chosen_agents = definition.agents or self.agents
-        if chosen_agents:
-            self.agents = chosen_agents
+        if definition.agents:
+            chosen_agents = [create_agent(agent) for agent in definition.agents]
+            if chosen_agents:
+                self.agents = chosen_agents
+        else:
+            chosen_agents = self.agents
 
         active_agent = self.get_next_agent()
-        # active_agent.output_type = (kwargs.get("output_type")
+        # active_agent.result_type = (kwargs.get("result_type")
         #                            or str)
 
         context = definition.task_metadata.get("context", {})
         if context:
             active_agent.set_context(context)
             
-        output_type = kwargs.pop("output_type", str)
+        result_type = kwargs.pop("result_type", str)
         return LazyCaller(
             lambda: active_agent.run(
                 query=definition.objective,
                 conversation_id=definition.task_metadata.get("conversation_id")
                 if definition.task_metadata
                 else None,
-                output_type=output_type,
+                result_type=result_type,
                 **kwargs,
             )
         )
@@ -94,7 +98,7 @@ class Task:
           {
             "objective": "Deliberate on task",
             "instructions": "...",
-            "output_type": str
+            "result_type": str
           },
           {
             "objective": "Use the result of the previous run to code a solution",

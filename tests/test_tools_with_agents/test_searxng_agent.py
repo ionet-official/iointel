@@ -19,9 +19,9 @@ async def test_searxng():
         tools=[client.search],
     )
 
-    result = (await run_agents(
+    result = await run_agents(
         "Search the web. How many models were released on the first version of io-intelligence product?",
         agents=[agent],
-    )).execute()
+    ).execute()
 
     assert "25" in result

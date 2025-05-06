@@ -11,6 +11,7 @@ from .agent_methods.data_models.datamodels import (
     TaskDefinition,
     AgentParams,
 )
+from .agents import Agent
 
 from .utilities.runners import run_agents_stream
 from .utilities.registries import TASK_EXECUTOR_REGISTRY
@@ -124,25 +125,25 @@ class Workflow:
             stage_objects = []
             for stage_def in stage_defs:
                 stage_type = stage_def.get("stage_type", "simple")
-                rtype = stage_def.get("output_type", None)
+                rtype = stage_def.get("result_type", None)
                 context = stage_def.get("context", {})
                 if stage_type == "simple":
                     stage_objects.append(
                         SimpleStage(
                             objective=stage_def["objective"],
                             context=context,
-                            output_type=rtype,
+                            result_type=rtype,
                         )
                     )
                 elif stage_type == "while":
                     condition = stage_def["condition"]
                     nested_stage_def = stage_def["stage"]
                     nested_context = nested_stage_def.get("context", {})
-                    nested_rtype = nested_stage_def.get("output_type", None)
+                    nested_rtype = nested_stage_def.get("result_type", None)
                     nested_stage = SimpleStage(
                         objective=nested_stage_def["objective"],
                         context=nested_context,
-                        output_type=nested_rtype,
+                        result_type=nested_rtype,
                     )
                     stage_objects.append(
                         WhileStage(
@@ -157,7 +158,7 @@ class Workflow:
                         SimpleStage(
                             objective=nd["objective"],
                             context=nd.get("context", {}),
-                            output_type=nd.get("output_type", None),
+                            result_type=nd.get("result_type", None),
                         )
                         for nd in nested_defs
                     ]
@@ -166,12 +167,12 @@ class Workflow:
                     primary_obj = SimpleStage(
                         objective=stage_def["primary"]["objective"],
                         context=stage_def["primary"].get("context", {}),
-                        output_type=stage_def["primary"].get("output_type", None),
+                        result_type=stage_def["primary"].get("result_type", None),
                     )
                     fallback_obj = SimpleStage(
                         objective=stage_def["fallback"]["objective"],
                         context=stage_def["fallback"].get("context", {}),
-                        output_type=stage_def["fallback"].get("output_type", None),
+                        result_type=stage_def["fallback"].get("result_type", None),
                     )
                     stage_objects.append(
                         FallbackStage(primary=primary_obj, fallback=fallback_obj)
@@ -181,7 +182,7 @@ class Workflow:
                         SimpleStage(
                             objective=stage_def["objective"],
                             context=context,
-                            output_type=rtype,
+                            result_type=rtype,
                         )
                     )
             container_mode = execution_metadata.get("execution_mode", "sequential")
