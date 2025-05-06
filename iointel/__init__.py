@@ -4,7 +4,7 @@ from .src.utilities.magic import (
 from .src.agents import Agent
 from .src.memory import AsyncMemory
 from .src.workflow import Workflow
-from .src.utilities.runners import run_agents, run_agents_async, run_agents_stream
+from .src.utilities.runners import run_agents, run_agents_stream
 from .src.agent_methods.tools.wolfram import query_wolfram
 from .src.agent_methods.data_models.datamodels import PersonaConfig
 from .src.utilities.decorators import register_custom_task, register_tool
@@ -27,7 +27,6 @@ __all__ = [
     "Workflow",
     ###runners###
     "run_agents",
-    "run_agents_async",
     "run_agents_stream",
     ###decorators###
     "register_custom_task",

@@ -1,4 +1,4 @@
-from ...agents import Agent, Swarm
+from ...agents import Agent
 from ..data_models.datamodels import AgentParams, Tool
 from typing import List
 from .tool_factory import resolve_tools
@@ -19,8 +19,8 @@ def create_agent(params: AgentParams) -> Agent:
     return Agent(**agent_data)
 
 
-def create_swarm(agents: List[Agent]) -> Swarm:
-    return Swarm(agents)
+def create_swarm(agents: List[Agent]):
+    raise NotImplementedError()
 
 
 def agent_or_swarm(agent_obj: Agent, store_creds: bool) -> list[AgentParams]:

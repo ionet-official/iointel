@@ -42,7 +42,7 @@ async def _run_simple(stage: SimpleStage, agents, task_metadata, default_text) -
         objective=stage.objective,
         agents=agents or stage.agents,
         context=merged_context,
-        result_type=stage.result_type,
+        output_type=stage.output_type,
     )).execute()
 
 

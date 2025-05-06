@@ -14,7 +14,7 @@ def get_current_datetime() -> str:
     return current_datetime
 
 
-def test_basic_tools():
+async def test_basic_tools():
     """
     LLama can't add such big numbers, so it must use the tool
     """
@@ -25,8 +25,8 @@ def test_basic_tools():
     )
     numbers = [22122837493142, 17268162387617, 159864395786239452]
 
-    result = run_agents(
+    result = (await run_agents(
         f"Add three numbers: {numbers[0]} and {numbers[1]} and {numbers[2]}. Return their sum",
         agents=[agent],
-    ).execute()
+    )).execute()
     assert result == str(sum(numbers))

@@ -4,8 +4,6 @@ from typing import Any, Dict, Optional
 import uuid
 from dataclasses import dataclass, field, make_dataclass
 
-from ..workflow import Workflow
-
 
 @dataclass
 class WorkflowState:
@@ -52,6 +50,8 @@ class TaskNode(BaseNode[WorkflowState]):
         )
 
     async def run(self, context: GraphRunContext[WorkflowState]) -> "TaskNode" | End[WorkflowState]:
+        from ..workflow import Workflow  # import must happen here, or circular issue occurs
+
         wf = Workflow()
         state = context.state 
 

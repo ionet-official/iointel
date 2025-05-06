@@ -118,18 +118,18 @@ class Agent(PydanticAgent):
                     )
 
         self.tools = resolved_tools
-        self.system_prompt = combined_instructions
         super().__init__(
             name=name,
             system_prompt=combined_instructions,
             tools=resolved_tools,
             model=model_instance,
             model_settings=model_settings,
-            output_type=output_type,
+            result_type=output_type,
         )
 
-    def set_instructions(self, new_instructions: str):
-        self.instructions = new_instructions
+    @property
+    def instructions(self):
+        return self._system_prompts[0]
 
     def add_tool(self, tool):
         updated_tools = self.tools + [tool]

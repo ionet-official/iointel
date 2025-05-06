@@ -53,7 +53,7 @@ class Workflow:
     Example usage:
         workflow = Workflow(text="Some input text", client_mode=False, agents=[swarm])
         workflow.summarize_text(max_words=50).custom(name="do-fancy-thing", objective="Fancy step", agents=[my_agent])
-        results = workflow.run_tasks()
+        results = await workflow.run_tasks()
     """
 
     def __init__(
@@ -348,7 +348,7 @@ class Workflow:
             run_end_type = WorkflowState,
         )
 
-    async def run_tasks_graph(
+    async def run_tasks(
         self, conversation_id: Optional[str] = None, **kwargs
     ) -> dict:
         if not conversation_id:
@@ -364,7 +364,7 @@ class Workflow:
 
         return dict(conversation_id=conversation_id, results=final_state.results)
 
-    async def run_tasks_graph_streaming(
+    async def run_tasks_streaming(
         self, conversation_id: Optional[str] = None, **kwargs
     ) -> dict:
         if not conversation_id:

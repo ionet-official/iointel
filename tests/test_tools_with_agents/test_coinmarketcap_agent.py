@@ -34,21 +34,21 @@ def coinmarketcap_agent():
     )
 
 
-def test_coinmarketcap_btc_year(coinmarketcap_agent):
-    result = run_agents(
+async def test_coinmarketcap_btc_year(coinmarketcap_agent):
+    result = (await run_agents(
         "What year was bitcoin established at? Return the date obtained from toolcall result",
         agents=[coinmarketcap_agent],
-    ).execute()
+    )).execute()
     assert result is not None, "Expected a result from the agent run."
     assert "2010" in result or "2009" in result
 
 
-def test_top_10_currencies_by_capitalization(coinmarketcap_agent):
-    result = run_agents(
+async def test_top_10_currencies_by_capitalization(coinmarketcap_agent):
+    result = (await run_agents(
         "Return names of top 10 cryptocurrencies, sorted by capitalization. "
         "Use the format: currency1,currency2,...,currencyX",
         agents=[coinmarketcap_agent],
-    ).execute()
+    )).execute()
     assert result is not None, "Expected a result from the agent run."
     currencies = result.split(",")
     assert len(currencies) == 10
@@ -56,11 +56,11 @@ def test_top_10_currencies_by_capitalization(coinmarketcap_agent):
     assert "Ethereum" in currencies
 
 
-def test_coinmarketcap_different_crypto_for_same_symbol(coinmarketcap_agent):
-    result = run_agents(
+async def test_coinmarketcap_different_crypto_for_same_symbol(coinmarketcap_agent):
+    result = (await run_agents(
         "List some of the cryptocurrency names with a symbol BTC. Use get_coin_info function.",
         agents=[coinmarketcap_agent],
-    ).execute()
+    )).execute()
     assert result is not None, "Expected a result from the agent run."
     assert len(result) > 1
     assert "Boost Trump Campaign" in result
@@ -68,33 +68,33 @@ def test_coinmarketcap_different_crypto_for_same_symbol(coinmarketcap_agent):
     assert "Bullish Trump Coin" in result
 
 
-def test_coinmarketcap_btc_capitalization(coinmarketcap_agent):
-    result = run_agents(
+async def test_coinmarketcap_btc_capitalization(coinmarketcap_agent):
+    result = (await run_agents(
         "What's bitcoin capitalization? Return a single number: capitalization in USD",
         agents=[coinmarketcap_agent],
-        result_type=float,
-    ).execute()
+        output_type=float,
+    )).execute()
     assert result is not None, "Expected a result from the agent run."
     assert float(result) > 10**9  # More than 1 billion dollars
 
 
-def test_coinmarketcap_get_current_price(coinmarketcap_agent):
-    result = run_agents(
+async def test_coinmarketcap_get_current_price(coinmarketcap_agent):
+    result = (await run_agents(
         "Get current price of bitcoin. Return a single number: price in USD.",
         agents=[coinmarketcap_agent],
-        result_type=float,
-    ).execute()
+        output_type=float,
+    )).execute()
     assert result is not None, "Expected a result from the agent run."
     assert float(result) > 10000  # Price should be greater than 10k$
 
 
 # Looks like it fails to pass an array into function params
 # Maybe we can wait for LLama 4 to fix things
-def test_coinmarketcap_historical_price(coinmarketcap_agent):
-    result = run_agents(
+async def test_coinmarketcap_historical_price(coinmarketcap_agent):
+    result = (await run_agents(
         "Get price of bitcoin yesterday at 12:00. Return a single number: price in USD.",
         agents=[coinmarketcap_agent],
-        result_type=float,
-    ).execute()
+        output_type=float,
+    )).execute()
     assert result is not None, "Expected a result from the agent run."
     assert float(result) > 10000  # Price should be greater than 10k$

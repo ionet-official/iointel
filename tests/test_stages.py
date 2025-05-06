@@ -11,7 +11,7 @@ def custom_hi_task():
         return run_agents(
             objective=text,
             agents=agents,
-            result_type=str,
+            output_type=str,
         ).execute()
 
     yield
@@ -35,17 +35,17 @@ def greeter_agent():
 def test_custom_chainable(custom_hi_task, wolfram_agent):
     # Create a workflow using the new paradigm.
     tasks_list = Workflow(
-        text="what is my name", client_mode=False, agents=[wolfram_agent]
+        objective="what is my name", client_mode=False, agents=[wolfram_agent]
     )
     tasks_list.hi(
-        text="use your history to get my name and i want you greet me like a walmart greeter "
+        objective="use your history to get my name and i want you greet me like a walmart greeter "
     )
     assert tasks_list.tasks
 
 
-def test_multistage_workflow(wolfram_agent, greeter_agent):
+async def test_multistage_workflow(wolfram_agent, greeter_agent):
     tasks_list = Workflow(
-        text="what is my name", client_mode=False, agents=[wolfram_agent]
+        objective="what is my name", client_mode=False, agents=[wolfram_agent]
     )
     tasks_list.add_task(
         {
@@ -72,5 +72,5 @@ def test_multistage_workflow(wolfram_agent, greeter_agent):
             "agents": [greeter_agent],
         }
     )
-    result = tasks_list.run_tasks()
+    result = await tasks_list.run_tasks()
     assert "_stage_2" in str(result["results"])

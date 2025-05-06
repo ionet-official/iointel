@@ -38,7 +38,7 @@ def execute_schedule_reminder(
             instructions="Schedule a reminder and track the time.",
             agents=agents,
             context={"command": objective},
-            result_type=str,
+            output_type=str,
         )
         return response.execute()
 
@@ -60,7 +60,7 @@ def execute_solve_with_reasoning(
         while True:
             response: ReasoningStep = run_agents(
                 objective=REASONING_INSTRUCTIONS,
-                result_type=ReasoningStep,
+                output_type=ReasoningStep,
                 agents=agents,
                 context={"goal": objective},
             ).execute()
@@ -70,7 +70,7 @@ def execute_solve_with_reasoning(
                     objective="""
                             Check your solution to be absolutely sure that it is correct and meets all requirements of the goal. Return True if it does.
                             """,
-                    result_type=bool,
+                    output_type=bool,
                     context={"goal": objective},
                     agents=agents,
                 ).execute():

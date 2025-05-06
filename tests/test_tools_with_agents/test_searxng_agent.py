@@ -10,7 +10,7 @@ from iointel.src.utilities.runners import run_agents
 @pytest.mark.skipif(
     os.getenv("CI") is not None, reason="Coudn't run searxng in github CI"
 )
-def test_searxng():
+async def test_searxng():
     client = SearxngClient(base_url="http://localhost:8080")
 
     agent = Agent(
@@ -19,9 +19,9 @@ def test_searxng():
         tools=[client.search],
     )
 
-    result = run_agents(
+    result = (await run_agents(
         "Search the web. How many models were released on the first version of io-intelligence product?",
         agents=[agent],
-    ).execute()
+    )).execute()
 
     assert "25" in result
