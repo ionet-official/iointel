@@ -16,7 +16,7 @@ def make_logger(name: str, level: str = "INFO"):
 
 logger = make_logger(__name__)
 
-
+# FIXME: make LazyCaller async
 class LazyCaller(BaseModel):
     func: Callable
     args: tuple[Any, ...] = ()

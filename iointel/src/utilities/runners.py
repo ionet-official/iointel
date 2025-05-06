@@ -3,11 +3,6 @@ from ..task import Task
 from ..agent_methods.data_models.datamodels import TaskDefinition
 
 
-from .helpers import LazyCaller
-from ..task import Task
-from ..agent_methods.data_models.datamodels import TaskDefinition
-
-
 def _to_task_definition(
     objective: str, agents=None, conversation_id=None, **kwargs
 ) -> TaskDefinition:
@@ -38,18 +33,11 @@ async def _run_stream(objective: str, **all_kwargs):
     )
 
 
-def _run_sync(objective: str, **all_kwargs):
+async def _run(objective: str, **all_kwargs):
     definition = _to_task_definition(objective, **all_kwargs)
     output_type = all_kwargs.pop("output_type", None)
     agents = definition.agents or []
-    return Task(agents=agents).run(definition=definition, output_type=output_type)
-
-
-async def _run_async(objective: str, **all_kwargs):
-    definition = _to_task_definition(objective, **all_kwargs)
-    output_type = all_kwargs.pop("output_type", None)
-    agents = definition.agents or []
-    return await Task(agents=agents).a_run(
+    return await Task(agents=agents).run(
         definition=definition, output_type=output_type
     )
 
@@ -62,16 +50,8 @@ def run_agents_stream(objective: str, **kwargs) -> LazyCaller:
 
 
 # @task(persist_result=False)
-def run_agents(objective: str, **kwargs) -> LazyCaller:
-    """
-    Synchronous lazy wrapper around Task().run.
-    """
-    return LazyCaller(_run_sync, objective, **kwargs)
-
-
-# @task(persist_result=False)
-async def run_agents_async(objective: str, **kwargs) -> LazyCaller:
+async def run_agents(objective: str, **kwargs) -> LazyCaller:
     """
     Asynchronous lazy wrapper around Task().a_run.
     """
-    return LazyCaller(_run_async, objective, **kwargs)
+    return LazyCaller(_run, objective, **kwargs)

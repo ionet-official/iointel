@@ -2,7 +2,7 @@ from .src.utilities.magic import (
     UNUSED as UNUSED,
 )  # this performs some magic to stop prefect mucking with logging setup
 from .src.agents import Agent
-from .src.memory import Memory, AsyncMemory
+from .src.memory import AsyncMemory
 from .src.workflow import Workflow
 from .src.utilities.runners import run_agents, run_agents_async, run_agents_stream
 from .src.agent_methods.tools.wolfram import query_wolfram
@@ -22,7 +22,6 @@ __all__ = [
     ###agents###
     "Agent",
     ###memory###
-    "Memory",
     "AsyncMemory",
     ###workflow###
     "Workflow",

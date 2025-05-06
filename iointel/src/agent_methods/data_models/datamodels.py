@@ -21,7 +21,7 @@ else:
 
 
 #from marvin.memory.memory import Memory
-from ...memory import Memory, AsyncMemory
+from ...memory import AsyncMemory
 from ...utilities.func_metadata import func_metadata, FuncMetadata
 from ...utilities.exceptions import ToolError
 import inspect
@@ -302,7 +302,7 @@ class AgentParams(BaseModel):
         description="Context to be passed to the agent.",
     )
     #memories: Optional[list[Memory]] = Field(default_factory=list)
-    memory: Optional[Union[Memory,AsyncMemory]] = Field(default_factory=list)
+    memory: Optional[AsyncMemory] = Field(default_factory=list)
 
     model_settings: Optional[Dict[str, Any]] = Field(default_factory=dict)
 
@@ -367,7 +367,7 @@ class BaseStage(BaseModel):
 class SimpleStage(BaseStage):
     stage_type: Literal["simple"] = "simple"
     objective: str
-    result_type: Any = None
+    output_type: Any = None
     agents: List[Union[AgentParams, Swarm]] = Field(default_factory=list)
     context: Optional[Dict[str, Any]] = Field(default_factory=dict)
 

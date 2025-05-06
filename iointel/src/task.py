@@ -57,39 +57,7 @@ class Task:
             )
         )
 
-    def run(self, definition: TaskDefinition, **kwargs) -> Any:
-        """
-        Synchronous run. You might want to unify the parameters
-        so that you pass a single TaskDefinition instead of
-        separate objective/agents/etc.
-        """
-
-        chosen_agents = definition.agents or self.agents
-        if chosen_agents:
-            self.agents = chosen_agents
-
-        active_agent = self.get_next_agent()
-        # active_agent.output_type = (kwargs.get("output_type")
-        #                            or str)
-
-        context = definition.task_metadata.get("context", {})
-        if context:
-            active_agent.set_context(context)
-            
-        output_type = kwargs.pop("output_type", str)
-
-        return LazyCaller(
-            lambda: active_agent.run_sync(
-                query=definition.objective,
-                conversation_id=definition.task_metadata.get("conversation_id")
-                if definition.task_metadata
-                else None,
-                output_type=output_type,
-                **kwargs,
-            )
-        )
-
-    async def a_run(self, definition: TaskDefinition, **kwargs) -> Any:
+    async def run(self, definition: TaskDefinition, **kwargs) -> Any:
         chosen_agents = definition.agents or self.agents
         if chosen_agents:
             self.agents = chosen_agents
@@ -104,7 +72,7 @@ class Task:
             
         output_type = kwargs.pop("output_type", str)
         return LazyCaller(
-            lambda: active_agent.run_async(
+            lambda: active_agent.run(
                 query=definition.objective,
                 conversation_id=definition.task_metadata.get("conversation_id")
                 if definition.task_metadata
@@ -114,8 +82,8 @@ class Task:
             )
         )
 
-    def chain_runs(
-        self, run_specs: List[Dict[str, Any]], run_async: Optional[bool] = False
+    async def chain_runs(
+        self, run_specs: List[Dict[str, Any]]
     ) -> List[Any]:
         """
         Execute multiple runs in sequence. Each element in run_specs is a dict containing parameters for `self.run`.
@@ -153,36 +121,18 @@ class Task:
                         resolved_context[k] = v
                 spec["context"] = resolved_context
 
-            if not run_async:
-                # Execute the run
-                result = self.run(
-                    query=spec["objective"],
-                    agents=spec.get("agents"),
-                    context=spec.get("context"),
-                    conversation_id=spec.get("conversation_id"),
-                    **{
-                        k: v
-                        for k, v in spec.items()
-                        if k
-                        not in ["objective", "agents", "context", "conversation_id"]
-                    },
-                )
-                results.append(result)
-            else:
-                result = asyncio.run(
-                    self.a_run(
-                        query=spec["objective"],
-                        agents=spec.get("agents"),
-                        context=spec.get("context"),
-                        output_type=spec.get("output_type", str),
-                        conversation_id=spec.get("conversation_id"),
-                        **{
-                            k: v
-                            for k, v in spec.items()
-                            if k
-                            not in ["objective", "agents", "context", "output_type"]
-                        },
-                    )
-                )
-                results.append(result)
+            # Execute the run
+            result = await self.run(
+                query=spec["objective"],
+                agents=spec.get("agents"),
+                context=spec.get("context"),
+                conversation_id=spec.get("conversation_id"),
+                **{
+                    k: v
+                    for k, v in spec.items()
+                    if k
+                    not in ["objective", "agents", "context", "conversation_id"]
+                },
+            )
+            results.append(result)
         return results

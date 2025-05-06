@@ -1,5 +1,5 @@
 
-from .memory import Memory, AsyncMemory
+from .memory import AsyncMemory
 from .agent_methods.data_models.datamodels import PersonaConfig
 from .utilities.rich import console
 from .utilities.constants import get_api_url, get_base_model, get_api_key
@@ -36,7 +36,7 @@ class Agent(PydanticAgent):
         context: Optional[Any] = None,
         tools: Optional[list] = None,
         model: Optional[Union[OpenAIModel, str]] = None,
-        memory: Optional[Union[Memory, AsyncMemory]] = None,
+        memory: Optional[AsyncMemory] = None,
         model_settings: Optional[Dict[str, Any]] = None, #dict(extra_body=None), #can add json model schema here
         api_key: Optional[SecretStr | str] = None,
         base_url: Optional[str] = None,
@@ -136,75 +136,7 @@ class Agent(PydanticAgent):
         self.tools = updated_tools
 
 
-    def run_sync(
-        self,
-        query: str,
-        conversation_id: Optional[str] = None,
-        pretty=True,
-        message_history_limit=100,
-        **kwargs,
-    ):
-        """
-        Run the agent synchronously.
-        :param query: The query to run the agent on.
-        :param conversation_id: The conversation ID to use for the agent.
-        :param kwargs: Additional keyword arguments to pass to the agent.
-        :return: The result of the agent run.
-        """
-        self.conversation_id = conversation_id
-
-        if self.memory and conversation_id:
-            try:
-                if isinstance(self.memory, AsyncMemory):
-                    stored_messages = asyncio.run(
-                        self.memory.get_message_history(
-                            conversation_id, message_history_limit
-                        )
-                    )
-                else:
-                    stored_messages = self.memory.get_message_history(
-                        conversation_id, message_history_limit
-                    )
-                if stored_messages:
-                    kwargs["message_history"] = stored_messages
-            except Exception as e:
-                console.print(f"[red]Error loading message history:[/red] {e}")
-
-        result = super().run_sync(query, **kwargs)
-
-        if self.memory:
-            conversation_id = (
-                conversation_id or self.conversation_id or str(uuid.uuid4())
-            )
-            try:
-                if isinstance(self.memory, AsyncMemory):
-                    asyncio.run(self.memory.store_run_history(conversation_id, result))
-                else:
-                    self.memory.store_run_history(conversation_id, result)
-            except Exception as e:
-                console.print(f"[red]Error storing run history:[/red] {e}")
-
-        if pretty:
-            task_header = Text(
-                f" Objective: {query} ", style="bold white on dark_green"
-            )
-            agent_info = Text(f"Agent(s): {self.name}", style="cyan bold")
-            result_info = Markdown(f"{result.output}", style="magenta")
-
-            # Display the result beautifully using Rich panel
-            panel = Panel(
-                result_info,
-                title=task_header,
-                subtitle=agent_info,
-                border_style="electric_blue",
-            )
-            console.print(panel)
-
-        return dict(
-            result=result.output, conversation_id=conversation_id or self.conversation_id, full_result=result
-        )
-
-    async def run_async(
+    async def run(
         self,
         query: str,
         conversation_id: Optional[str] = None,
@@ -223,19 +155,9 @@ class Agent(PydanticAgent):
 
         if self.memory and conversation_id:
             try:
-                if isinstance(self.memory, AsyncMemory):
-                    stored_messages_json = await self.memory.get_message_history(
-                        conversation_id, message_history_limit
-                    )
-                else:
-                    stored_messages_json = (
-                        await asyncio.get_running_loop().run_in_executor(
-                            None,
-                            self.memory.get_message_history,
-                            conversation_id,
-                            message_history_limit,
-                        )
-                    )
+                stored_messages_json = await self.memory.get_message_history(
+                    conversation_id, message_history_limit
+                )
                 if stored_messages_json:
                     message_history = stored_messages_json
                     kwargs["message_history"] = message_history
@@ -250,12 +172,7 @@ class Agent(PydanticAgent):
             )
 
             try:
-                if isinstance(self.memory, AsyncMemory):
-                    await self.memory.store_run_history(conversation_id, result)
-                else:
-                    await asyncio.get_running_loop().run_in_executor(
-                        None, self.memory.store_run_history, conversation_id, result
-                    )
+                await self.memory.store_run_history(conversation_id, result)
             except Exception as e:
                 print("Error storing run history:", e)
         if pretty:
@@ -291,17 +208,9 @@ class Agent(PydanticAgent):
 
         if self.memory and conversation_id:
             try:
-                if isinstance(self.memory, AsyncMemory):
-                    stored_messages = await self.memory.get_message_history(
-                        conversation_id, message_history_limit
-                    )
-                else:
-                    stored_messages = await asyncio.get_running_loop().run_in_executor(
-                        None,
-                        self.memory.get_message_history,
-                        conversation_id,
-                        message_history_limit,
-                    )
+                stored_messages = await self.memory.get_message_history(
+                    conversation_id, message_history_limit
+                )
                 if stored_messages:
                     kwargs["message_history"] = stored_messages
             except Exception as e:
@@ -363,17 +272,9 @@ class Agent(PydanticAgent):
                 conversation_id or self.conversation_id or str(uuid.uuid4())
             )
             try:
-                if isinstance(self.memory, AsyncMemory):
-                    await self.memory.store_run_history(
-                        conversation_id, agent_run.result
-                    )
-                else:
-                    await asyncio.get_running_loop().run_in_executor(
-                        None,
-                        self.memory.store_run_history,
-                        conversation_id,
-                        agent_run.result,
-                    )
+                await self.memory.store_run_history(
+                    conversation_id, agent_run.result
+                )
             except Exception as e:
                 console.print(f"[red]Error storing run history:[/red] {e}")
 

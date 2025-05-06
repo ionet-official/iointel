@@ -1,7 +1,10 @@
 from pydantic_graph import BaseNode, End, GraphRunContext
+from pydantic_graph.nodes import NodeDef
 from typing import Any, Dict, Optional
 import uuid
 from dataclasses import dataclass, field, make_dataclass
+
+from ..workflow import Workflow
 
 
 @dataclass
@@ -17,7 +20,6 @@ class WorkflowState:
 
 @dataclass
 class TaskNode(BaseNode[WorkflowState]):
-
     task: dict
     default_text: str
     default_agents: list
@@ -26,7 +28,6 @@ class TaskNode(BaseNode[WorkflowState]):
     next_task: Optional['TaskNode'] = None
 
     def __post_init__(self):
-
         self.unique_id = (
             self.task.get("task_id")
             or self.task.get("name")
@@ -34,11 +35,9 @@ class TaskNode(BaseNode[WorkflowState]):
         )
 
         self.conversation_id = self.conversation_id
-
         
     @classmethod
     def get_node_def(cls, local_ns: Optional[Dict[str, Any]] = None):
-        from pydantic_graph.nodes import NodeDef
         next_edges: dict[str, Any] = {}
         next_cls = getattr(cls, "next_task", None)
         if next_cls is not None:
@@ -53,7 +52,6 @@ class TaskNode(BaseNode[WorkflowState]):
         )
 
     async def run(self, context: GraphRunContext[WorkflowState]) -> "TaskNode" | End[WorkflowState]:
-        from ..workflow import Workflow
         wf = Workflow()
         state = context.state 
 
@@ -65,30 +63,7 @@ class TaskNode(BaseNode[WorkflowState]):
 
         task_key = self.task.get("name") or self.task.get("task_id") or self.task.get("type") or "task"
 
-        result = await wf.run_task_async(
-            self.task,
-            self.default_text,
-            self.default_agents,
-            self.conversation_id
-        )
-
-        state.results[task_key] = result.get("data", result)
-        return self.next_task if self.next_task else End(state)
-
-    def run_sync(self, context: GraphRunContext[WorkflowState]) -> "TaskNode" | End[WorkflowState]:
-        from ..workflow import Workflow
-        wf = Workflow()
-        state = context.state 
-
-        if not state.conversation_id:
-            state.conversation_id = self.conversation_id or str(uuid.uuid4())
-            self.conversation_id = state.conversation_id
-
-        self.task["conversation_id"] = state.conversation_id
-
-        task_key = self.task.get("name") or self.task.get("task_id") or self.task.get("type") or "task"
-
-        result = wf.run_task(
+        result = await wf.run_task(
             self.task,
             self.default_text,
             self.default_agents,
