@@ -44,7 +44,7 @@ def execute_schedule_reminder(
 
 
 @register_custom_task("solve_with_reasoning")
-def execute_solve_with_reasoning(
+async def execute_solve_with_reasoning(
     task_metadata: dict, objective: str, agents: List[Agent], execution_metadata: dict
 ):
     from .agent_methods.prompts.instructions import REASONING_INSTRUCTIONS
@@ -58,7 +58,7 @@ def execute_solve_with_reasoning(
     else:
         # For example, loop until a validated solution is found.
         while True:
-            response: ReasoningStep = run_agents(
+            response: ReasoningStep = await run_agents(
                 objective=REASONING_INSTRUCTIONS,
                 output_type=ReasoningStep,
                 agents=agents,
@@ -193,7 +193,7 @@ def execute_classify(
 
 
 @register_custom_task("moderation")
-def execute_moderation(
+async def execute_moderation(
     task_metadata: dict, objective: str, agents: List[Agent], execution_metadata: dict
 ):
     from .agent_methods.data_models.datamodels import (
@@ -210,7 +210,7 @@ def execute_moderation(
         # Raise exceptions based on result thresholds if necessary.
         return result
     else:
-        result: ViolationActivation = run_agents(
+        result: ViolationActivation = await run_agents(
             objective=f" from the text: {objective}:\n Check the text for violations and return activation levels",
             agents=agents,
             output_type=ViolationActivation,

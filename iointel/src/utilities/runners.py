@@ -44,17 +44,21 @@ async def _run(objective: str, output_type=None, **all_kwargs):
         definition=definition, output_type=output_type
     )
 
+async def _unpack(func, *args, **kwargs):
+    result = await (await func(*args, **kwargs)).execute()
+    return result["result"]
+
 
 def run_agents_stream(objective: str, **kwargs) -> LazyCaller:
     """
     Asynchronous lazy wrapper around Task().run_stream.
     """
-    return LazyCaller(_run_stream, objective, **kwargs)
+    return LazyCaller(_unpack, _run_stream, objective, **kwargs)
 
 
 # @task(persist_result=False)
 def run_agents(objective: str, **kwargs) -> LazyCaller:
     """
-    Asynchronous lazy wrapper around Task().a_run.
+    Asynchronous lazy wrapper around Task().run.
     """
-    return LazyCaller(_run, objective, **kwargs)
+    return LazyCaller(_unpack, _run, objective, **kwargs)

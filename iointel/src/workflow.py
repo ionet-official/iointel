@@ -212,8 +212,10 @@ class Workflow:
                 agents=agents_for_task,
                 execution_metadata=execution_metadata,
             )
+            if inspect.isawaitable(result):
+                result = await result
             if hasattr(result, "execute") and callable(result.execute):
-                result = result.execute()
+                result = await result.execute()
             return result
 
     async def execute_graph_streaming(self, graph, initial_state):
@@ -261,14 +263,11 @@ class Workflow:
                         agents=agents_to_use,
                         execution_metadata={"conversation_id": conversation_id},
                     )
-                    final_result = (
-                        await result
-                        if inspect.isawaitable(result)
-                        else result.execute()
-                        if hasattr(result, "execute")
-                        else result
-                    )
-
+                    if inspect.isawaitable(result):
+                        result = await result
+                    if callable(getattr(result, "execute", None)):
+                        result = await result.execute()
+                    final_result = result
                 else:
                     final_result = await run_agents_stream(
                         objective=current_node.task["objective"],
