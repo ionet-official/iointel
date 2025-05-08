@@ -68,12 +68,13 @@ class Workflow:
         self.client_mode = client_mode
         self.agents = agents
 
-    def _instantiate_node(self, node_cls):
+    def _instantiate_node(self, node_cls: type[TaskNode]) -> TaskNode:
         return node_cls(
             task=node_cls.task,
             default_text=node_cls.default_text,
             default_agents=node_cls.default_agents,
             conversation_id=node_cls.conversation_id,
+            next_task=node_cls.next_task,
         )
 
     def __call__(

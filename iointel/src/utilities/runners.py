@@ -7,7 +7,7 @@ from ..agent_methods.data_models.datamodels import TaskDefinition
 from ..agent_methods.agents.agents_factory import agent_or_swarm
 
 def _to_task_definition(
-    objective: str, agents=None, conversation_id=None, **kwargs
+    objective: str, agents=None, conversation_id=None, name=None, task_id="some_default", context=None, **kwargs
 ) -> TaskDefinition:
     """
     Helper that merges the user’s provided fields into a TaskDefinition.
@@ -17,11 +17,14 @@ def _to_task_definition(
     if isinstance(agents, Sequence):
         agents = agent_or_swarm(agents, store_creds=True)
     return TaskDefinition(
-        task_id=kwargs.get("task_id", "some-default"),
-        name=kwargs.get("name", objective),
+        task_id=task_id,
+        name=name or objective,
         objective=objective,
         agents=agents,
-        task_metadata={"conversation_id": conversation_id},
+        task_metadata={
+            "conversation_id": conversation_id,
+            "context": context,
+        },
         # put any other relevant fields here
         # text=kwargs.get("text"),
         # execution_metadata=kwargs.get("execution_metadata"),

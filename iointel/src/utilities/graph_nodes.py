@@ -50,7 +50,7 @@ class TaskNode(BaseNode[WorkflowState]):
         )
 
     async def run(self, context: GraphRunContext[WorkflowState]) -> "TaskNode" | End[WorkflowState]:
-        from ..workflow import Workflow  # import must happen here, or circular issue occurs
+        from ..workflow import Workflow, _get_task_key  # import must happen here, or circular issue occurs
 
         wf = Workflow()
         state = context.state 
@@ -61,7 +61,7 @@ class TaskNode(BaseNode[WorkflowState]):
 
         self.task["conversation_id"] = state.conversation_id
 
-        task_key = self.task.get("name") or self.task.get("task_id") or self.task.get("type") or "task"
+        task_key = _get_task_key(self.task)
 
         result = await wf.run_task(
             self.task,
@@ -70,7 +70,7 @@ class TaskNode(BaseNode[WorkflowState]):
             self.conversation_id
         )
 
-        state.results[task_key] = result.get("data", result)
+        state.results[task_key] = result.get("data", result) if isinstance(result, dict) else result
         return self.next_task if self.next_task else End(state)
 
 
