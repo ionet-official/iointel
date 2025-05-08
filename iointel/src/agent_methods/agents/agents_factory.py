@@ -37,7 +37,7 @@ def agent_or_swarm(agent_obj: Agent|Sequence[Agent], store_creds: bool) -> list[
     """
 
     def get_api_key(agent: Agent) -> str:
-        if (api_key := getattr(agent, "api_key", None)) is None:
+        if not (api_key := agent.api_key):
             return None
         if store_creds and hasattr(api_key, "get_secret_value"):
             return api_key.get_secret_value()
@@ -46,8 +46,8 @@ def agent_or_swarm(agent_obj: Agent|Sequence[Agent], store_creds: bool) -> list[
     def make_params(agent: Agent) -> AgentParams:
         return AgentParams(
             name=agent.name,
-            instructions=agent._instructions,
-            persona=agent._persona,
+            instructions=agent.instructions,
+            persona=agent.persona,
             tools=[
                 Tool.from_function(t).model_dump(exclude={"fn", "fn_metadata"})
                 for t in agent.tools
@@ -57,7 +57,7 @@ def agent_or_swarm(agent_obj: Agent|Sequence[Agent], store_creds: bool) -> list[
             api_key=get_api_key(agent),
             base_url=agent.base_url,
             memory=agent.memory,
-            context=agent._context,
+            context=agent.context,
             output_type=agent.output_type,
         )
 

@@ -44,7 +44,6 @@ def poet() -> Agent:
         instructions="You are an assistant specialized in arcane knowledge.",
         model=llm,
     )
-    agent.id = "test-id"  # Temporary patch for the test fixture
     return agent
 
 

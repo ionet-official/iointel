@@ -283,7 +283,7 @@ class AgentParams(BaseModel):
         serializers={SecretStr: lambda s: s.get_secret_value()},
     )
     name: Optional[str] = None
-    instructions: Optional[str] = None
+    instructions: str = Field(..., description="Instructions for the agent")
     persona: Optional[PersonaConfig] = None
     model: Optional[Union[OpenAIModel, str]] = Field(
         default="meta-llama/Llama-3.3-70B-Instruct",
