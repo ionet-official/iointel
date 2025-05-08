@@ -4,6 +4,7 @@ from typing import Optional
 from typing import TypeVar
 
 from firecrawl import FirecrawlApp
+from iointel.src.utilities.decorators import register_tool
 from pydantic import BaseModel
 
 T = TypeVar("T", bound=BaseModel)
@@ -38,6 +39,7 @@ class Crawler:
         else:
             self.app: FirecrawlApp = FirecrawlApp(api_key=api_key)
 
+    @register_tool
     def scrape_url(self, url: str) -> FirecrawlResponse:
         """
         Scrape a single URL.
@@ -49,6 +51,7 @@ class Crawler:
         response = self.app.scrape_url(url)
         return FirecrawlResponse(markdown=response.markdown, metadata=response.metadata)
 
+    @register_tool
     async def async_scrape_url(self, url: str) -> FirecrawlResponse:
         """
         Scrape a single URL.

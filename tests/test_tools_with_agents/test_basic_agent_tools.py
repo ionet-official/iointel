@@ -2,13 +2,15 @@ from datetime import datetime
 
 
 from iointel import Agent
+from iointel.src.utilities.decorators import register_tool
 from iointel.src.utilities.runners import run_agents
 
 
+@register_tool
 def add_two_numbers(a: int, b: int) -> int:
     return a + b
 
-
+@register_tool
 def get_current_datetime() -> str:
     current_datetime = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     return current_datetime

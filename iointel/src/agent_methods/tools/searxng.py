@@ -1,6 +1,7 @@
 import os
 from typing import Optional, List, Dict, Any
 import httpx
+from iointel.src.utilities.decorators import register_tool
 from pydantic import BaseModel
 
 
@@ -70,6 +71,7 @@ class SearxngClient:
         self.timeout = timeout
         self.client = httpx.Client(base_url=self.base_url, timeout=self.timeout)
 
+    @register_tool
     def search(self, query: str, pages: int = 1) -> SearchResponse:
         """
         Asynchronously perform a search query using the SearxNG API.
@@ -110,6 +112,7 @@ class SearxngClient:
             infoboxes=combined_infoboxes,
         )
 
+    @register_tool
     def get_urls(self, query: str, pages: int = 1) -> List[str]:
         """
         Synchronously perform a search query using the SearxNG API.
@@ -134,7 +137,7 @@ class SearxngClient:
         """
         self.client.close()
 
-
+@register_tool
 def search_the_web(text: str, pages: int = 1):
     """
     :param text: Text to search
