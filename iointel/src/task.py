@@ -45,7 +45,7 @@ class Task:
         if context:
             active_agent.set_context(context)
 
-        result_type = kwargs.pop("result_type", str)
+        output_type = kwargs.pop("output_type", str)
 
         return LazyCaller(
             lambda: active_agent.run_stream(
@@ -53,7 +53,7 @@ class Task:
                 conversation_id=definition.task_metadata.get("conversation_id")
                 if definition.task_metadata
                 else None,
-                result_type=result_type,
+                output_type=output_type,
                 **kwargs,
             )
         )
@@ -67,21 +67,21 @@ class Task:
             chosen_agents = self.agents
 
         active_agent = self.get_next_agent()
-        # active_agent.result_type = (kwargs.get("result_type")
+        # active_agent.output_type = (kwargs.get("output_type")
         #                            or str)
 
         context = definition.task_metadata.get("context", {})
         if context:
             active_agent.set_context(context)
-            
-        result_type = kwargs.pop("result_type", str)
+
+        output_type = kwargs.pop("output_type", str)
         return LazyCaller(
             lambda: active_agent.run(
                 query=definition.objective,
                 conversation_id=definition.task_metadata.get("conversation_id")
                 if definition.task_metadata
                 else None,
-                result_type=result_type,
+                output_type=output_type,
                 **kwargs,
             )
         )
@@ -98,7 +98,7 @@ class Task:
           {
             "objective": "Deliberate on task",
             "instructions": "...",
-            "result_type": str
+            "output_type": str
           },
           {
             "objective": "Use the result of the previous run to code a solution",

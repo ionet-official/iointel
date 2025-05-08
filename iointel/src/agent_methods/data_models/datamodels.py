@@ -304,7 +304,7 @@ class AgentParams(BaseModel):
     memory: Optional[AsyncMemory] = Field(default_factory=list)
 
     model_settings: Optional[Dict[str, Any]] = Field(default_factory=dict)
-    result_type: Optional[Any] = str
+    output_type: Optional[Any] = str
 
 
 # reasoning agent
@@ -367,7 +367,7 @@ class BaseStage(BaseModel):
 class SimpleStage(BaseStage):
     stage_type: Literal["simple"] = "simple"
     objective: str
-    result_type: Any = None
+    output_type: Any = None
     agents: List[Union[AgentParams, AgentSwarm]] = Field(default_factory=list)
     context: Optional[Dict[str, Any]] = Field(default_factory=dict)
 

@@ -11,7 +11,7 @@ def custom_hi_task():
         return run_agents(
             objective=text,
             agents=agents,
-            result_type=str,
+            output_type=str,
         ).execute()
 
     yield
@@ -59,13 +59,13 @@ async def test_multistage_workflow(wolfram_agent, greeter_agent):
                         "stage_type": "parallel",
                         "objective": "ask if the user wants fries with that..",
                         "context": {"greeting": "Hi"},
-                        "result_type": "str",
+                        "output_type": "str",
                     },
                     {
                         "stage_type": "simple",
                         "objective": "Calculate 2+2.",
                         "context": {"calculation": "2+2"},
-                        "result_type": "int",
+                        "output_type": "int",
                     },
                 ],
             },

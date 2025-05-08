@@ -28,22 +28,20 @@ def _to_task_definition(
     )
 
 
-async def _run_stream(objective: str, **all_kwargs):
+async def _run_stream(objective: str, output_type=None, **all_kwargs):
     definition = _to_task_definition(objective, **all_kwargs)
-    result_type = all_kwargs.pop("result_type", None)
 
     agents = definition.agents or []
     return await Task(agents=agents).run_stream(
-        definition=definition, result_type=result_type
+        definition=definition, output_type=output_type
     )
 
 
-async def _run(objective: str, **all_kwargs):
+async def _run(objective: str, output_type=None, **all_kwargs):
     definition = _to_task_definition(objective, **all_kwargs)
-    result_type = all_kwargs.pop("result_type", None)
     agents = definition.agents or []
     return await Task(agents=agents).run(
-        definition=definition, result_type=result_type
+        definition=definition, output_type=output_type
     )
 
 

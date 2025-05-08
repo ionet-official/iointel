@@ -16,9 +16,9 @@ def create_agent(params: AgentParams) -> Agent:
     # Dump the rest of the agent data (excluding tools) then reinsert our resolved tools.
     agent_data = params.model_dump(exclude={"tools"})
     agent_data["tools"] = resolve_tools(params)
-    if result_type := agent_data.get("result_type"):
-        if isinstance(result_type, str):
-            agent_data["result_type"] = globals().get(result_type) or getattr(__builtins__, result_type, None)
+    if output_type := agent_data.get("output_type"):
+        if isinstance(output_type, str):
+            agent_data["output_type"] = globals().get(output_type) or getattr(__builtins__, output_type, output_type)
     return Agent(**agent_data)
 
 
@@ -58,7 +58,7 @@ def agent_or_swarm(agent_obj: Agent|Sequence[Agent], store_creds: bool) -> list[
             base_url=agent.base_url,
             memory=agent.memory,
             context=agent._context,
-            result_type=agent.result_type,
+            output_type=agent.output_type,
         )
 
     if isinstance(agent_obj, Sequence):

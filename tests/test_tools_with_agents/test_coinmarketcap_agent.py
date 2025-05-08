@@ -72,7 +72,7 @@ async def test_coinmarketcap_btc_capitalization(coinmarketcap_agent):
     result = await run_agents(
         "What's bitcoin capitalization? Return a single number: capitalization in USD",
         agents=[coinmarketcap_agent],
-        result_type=float,
+        output_type=float,
     ).execute()
     assert result is not None, "Expected a result from the agent run."
     assert float(result) > 10**9  # More than 1 billion dollars
@@ -82,7 +82,7 @@ async def test_coinmarketcap_get_current_price(coinmarketcap_agent):
     result = await run_agents(
         "Get current price of bitcoin. Return a single number: price in USD.",
         agents=[coinmarketcap_agent],
-        result_type=float,
+        output_type=float,
     ).execute()
     assert result is not None, "Expected a result from the agent run."
     assert float(result) > 10000  # Price should be greater than 10k$
@@ -94,7 +94,7 @@ async def test_coinmarketcap_historical_price(coinmarketcap_agent):
     result = await run_agents(
         "Get price of bitcoin yesterday at 12:00. Return a single number: price in USD.",
         agents=[coinmarketcap_agent],
-        result_type=float,
+        output_type=float,
     ).execute()
     assert result is not None, "Expected a result from the agent run."
     assert float(result) > 10000  # Price should be greater than 10k$

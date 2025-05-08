@@ -42,7 +42,7 @@ class Agent(PydanticAgent):
         model_settings: Optional[Dict[str, Any]] = None, #dict(extra_body=None), #can add json model schema here
         api_key: Optional[SecretStr | str] = None,
         base_url: Optional[str] = None,
-        result_type: Optional[Any] = str,
+        output_type: Optional[Any] = str,
         **model_kwargs,
     ):
         """
@@ -111,7 +111,8 @@ class Agent(PydanticAgent):
             tools=resolved_tools,
             model=model_instance,
             model_settings=model_settings,
-            result_type=result_type,
+            output_type=output_type,
+            end_strategy='exhaustive'
         )
 
         self.system_prompt(dynamic=True)(self._make_init_prompt)
