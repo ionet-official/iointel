@@ -109,7 +109,7 @@ def execute_sentiment(
         return sentiment_analysis(text=objective)
     else:
         sentiment_val = run_agents(
-            objective="Classify the sentiment of the text as a value between 0 and 1",
+            objective=f"Classify the sentiment of the text as a value between 0 and 1.\nText: {objective}",
             agents=agents,
             output_type=float,
             # result_validator=between(0, 1),
@@ -129,9 +129,10 @@ def execute_extract_entities(
         return extract_entities(text=objective)
     else:
         extracted = run_agents(
-            objective=f""" from this text:{objective},
-                        Extract named entities from the text and categorize them,
-                            Return a dictionary with the following keys:
+            objective=f"""from this text: {objective}
+
+                        Extract named entities from the text above and categorize them,
+                            Return a JSON dictionary with the following keys:
                             - 'persons': List of person names
                             - 'organizations': List of organization names
                             - 'locations': List of location names
@@ -184,9 +185,13 @@ def execute_classify(
         return classify_text(text=objective, classify_by=classify_by)
     else:
         classification = run_agents(
-            objective=f"from this text: {objective}\n, Classify into the appropriate category",
+            objective=f"""Take this text: {objective}
+
+            Classify it into the appropriate category.
+            Category must be one of: {', '.join(classify_by)}.
+            Return only the determined category, omit the thoughts.""",
             agents=agents,
-            output_type=classify_by,
+            output_type=str,
             # context={"text": text},
         )
         return classification.execute()

@@ -17,12 +17,14 @@ def coinmarketcap_agent():
         name="Agent",
         instructions="""
             You are the coinmarketcap AI agent.
-            You are given functions, which call coinmarketcap API.
+            Complete tasks to the best of your ability by using the appropriate tool. Follow all instructions carefully.
+
+            You are given functions which call coinmarketcap API.
             Try to satisfy user's request by figuring out the right endpoint.
-            - For requests about particular crypto use 'get_coin_info'
+            - For requests about particular crypto call 'get_coin_info' function.
             - When asked calling listing_coins, don't request for more than 10 results.
               - If you need more, split into several requests, aggregate results after each call
-            - When asked about yestarday, today, ... all the relative dates. First use the tool to get the current date.
+            - When asked about yesterday, today, ... all the relative dates, first use the tool to get the current date.
             """,
         tools=[
             listing_coins,
