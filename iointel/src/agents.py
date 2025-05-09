@@ -1,9 +1,9 @@
-
 from .memory import AsyncMemory
 from .agent_methods.data_models.datamodels import PersonaConfig, Tool
 from .utilities.rich import console
 from .utilities.constants import get_api_url, get_base_model, get_api_key
 from .utilities.registries import TOOLS_REGISTRY
+from .utilities.helpers import supports_tool_choice_required
 
 from pydantic_ai.models.openai import OpenAIModel
 from pydantic_ai.providers.openai import OpenAIProvider
@@ -121,6 +121,15 @@ class Agent(BaseModel):
                 ):
                     raise ValueError(f"Tool '{tool}' not found in registry, did you forget to @register_tool?")
                 resolved_tools.append(registered_tool.fn)
+
+        if isinstance(model, str):
+            model_supports_tool_choice = supports_tool_choice_required(model)
+        else:
+            model_supports_tool_choice = supports_tool_choice_required(getattr(model, "model_name", ""))
+
+        if model_settings is None:
+            model_settings = {}
+        model_settings["supports_tool_choice_required"] = model_supports_tool_choice
 
         super().__init__(name=name, 
                          instructions=instructions, 
