@@ -1,6 +1,27 @@
+import pytest
+from iointel import Agent
 from iointel.src.agent_methods.tools.firecrawl import Crawler
+from iointel.src.utilities.runners import run_agents
+from iointel.src.utilities.decorators import register_tool
 
+crawler = Crawler()
 
-def test_crawl_the_page():
-    crawler = Crawler()
-    assert crawler.scrape_url(url="https://firecrawl.dev/")
+@register_tool
+def test_scrape_url(url: str):
+    return crawler.scrape_url(url)
+
+@pytest.mark.asyncio
+async def test_firecrawl():
+    agent = Agent(
+        name="Agent",
+        instructions="You are a crawler agent. Crawl web pages, retrieve information, do what user asks.",
+        tools=[test_scrape_url],
+    )
+    result = await run_agents(
+        "Crawl this page: https://decrypt.co/306329/io-net-launches-generative-intelligence-platform-for-developers. "
+        "What is the exact date of the io-intelligence first release? "
+        "Provide the response in a format: dd-mm-yyyy",
+        agents=[agent],
+    ).execute()
+    assert result is not None, "Expected a result from the agent run."
+    assert "17-02-2025" in result

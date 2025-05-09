@@ -1,6 +1,7 @@
 import asyncio
 from typing import Any, Dict, List, Optional
 
+from iointel.src.utilities.decorators import register_tool
 from pydantic import BaseModel, ConfigDict, model_validator
 
 
@@ -89,7 +90,7 @@ class DuckDuckGoSearchAPIWrapper(BaseModel):
 
         return results
 
-
+@register_tool
 def search_the_web(text: str, max_results: int = 10):
     """
     :param text: Text to search
@@ -98,7 +99,7 @@ def search_the_web(text: str, max_results: int = 10):
     """
     return DuckDuckGoSearchAPIWrapper().results(text, max_results=max_results)
 
-
+@register_tool
 async def search_the_web_async(text: str, max_results: int = 10):
     """
     :param text: Text to search

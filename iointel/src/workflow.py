@@ -1,13 +1,43 @@
 from typing import List, Optional, Any
 import uuid
-import marvin
-from .utilities.registries import TASK_EXECUTOR_REGISTRY
+import inspect
+import yaml
+from pathlib import Path
+from collections import defaultdict
 
+from .agent_methods.agents.agents_factory import agent_or_swarm, create_agent, create_swarm
+from .agent_methods.data_models.datamodels import (
+    WorkflowDefinition,
+    TaskDefinition,
+    AgentParams,
+)
 from .agents import Agent
+
+from .utilities.runners import run_agents_stream
+from .utilities.registries import TASK_EXECUTOR_REGISTRY
+from .utilities.stages import execute_stage
 from .utilities.helpers import make_logger
+from .utilities.stages import (
+    SimpleStage,
+    SequentialStage,
+    ParallelStage,
+    WhileStage,
+    FallbackStage,
+)
+
+from .utilities.graph_nodes import WorkflowState, TaskNode, make_task_node
+from pydantic_graph import Graph, End, GraphRunContext
+
+from rich.progress import (
+    Progress,
+    SpinnerColumn,
+    BarColumn,
+    TaskProgressColumn,
+    TimeElapsedColumn,
+)
+
 
 logger = make_logger(__name__)
-
 
 def _get_task_key(task: dict) -> str:
     return (
@@ -17,7 +47,6 @@ def _get_task_key(task: dict) -> str:
         or "task"
     )
 
-
 class Workflow:
     """
     Manages a chain of tasks and runs them sequentially.
@@ -25,75 +54,97 @@ class Workflow:
     Example usage:
         workflow = Workflow(text="Some input text", client_mode=False, agents=[swarm])
         workflow.summarize_text(max_words=50).custom(name="do-fancy-thing", objective="Fancy step", agents=[my_agent])
-        results = workflow.run_tasks()
+        results = await workflow.run_tasks()
     """
 
     def __init__(
         self,
-        text: str = "",
+        objective: str = "",
         client_mode: bool = True,
         agents: Optional[List[Any]] = None,
     ):
         self.tasks: List[dict] = []
-        self.text = text
+        self.objective = objective
         self.client_mode = client_mode
-        self.agents = agents or [Agent.make_default()]
+        self.agents = agents
+
+    def _instantiate_node(self, node_cls: type[TaskNode]) -> TaskNode:
+        return node_cls(
+            task=node_cls.task,
+            default_text=node_cls.default_text,
+            default_agents=node_cls.default_agents,
+            conversation_id=node_cls.conversation_id,
+            next_task=node_cls.next_task,
+        )
 
     def __call__(
-        self, text: str, client_mode: bool = True, agents: Optional[List[Any]] = None
+        self,
+        objective: str,
+        client_mode: bool = True,
+        agents: Optional[List[Any]] = None,
     ):
-        self.text = text
+        self.objective = objective
         self.client_mode = client_mode
         self.agents = agents
         return self
 
     def add_task(self, task: dict):
-        # If 'agents' is not provided or is None, use self.agents
         if not task.get("agents"):
             task = dict(task, agents=self.agents)
         self.tasks.append(task)
         return self
 
-    def run_task(self, task: dict, default_text: str, default_agents: list) -> any:
-        from .utilities.stages import execute_stage
-        from .agent_methods.data_models.datamodels import (
-            SimpleStage,
-            WhileStage,
-            ParallelStage,
-            FallbackStage,
-            SequentialStage,
-        )
+    async def run_task(
+        self,
+        task: dict,
+        default_text: str,
+        default_agents: list,
+        conversation_id: Optional[str] = None,
+    ) -> Any:
+        """
+        Execute a single task.
+        - If the task's execution_metadata contains declarative stage definitions,
+        create the corresponding stage objects, run them, and then convert the result
+        list into a dictionary keyed by the parent task's name plus stage order.
+        - Otherwise, look up the custom executor from TASK_EXECUTOR_REGISTRY and call it.
+        """
 
         if default_agents is None:
             default_agents = [Agent.make_default()]
 
-        text_for_task = task.get("text", default_text)
+        text_for_task = task.get("objective", default_text)
         agents_for_task = task.get("agents") or default_agents
         execution_metadata = task.get("execution_metadata", {})
+        # Ensure conversation_id is in metadata
+        if task.get("conversation_id"):
+            execution_metadata["conversation_id"] = task["conversation_id"]
+        if conversation_id:
+            execution_metadata["conversation_id"] = conversation_id
+        client_mode = execution_metadata.get("client_mode", self.client_mode)
 
         if stage_defs := execution_metadata.get("stages"):
             stage_objects = []
             for stage_def in stage_defs:
                 stage_type = stage_def.get("stage_type", "simple")
-                rtype = stage_def.get("result_type", None)
+                rtype = stage_def.get("output_type", None)
                 context = stage_def.get("context", {})
                 if stage_type == "simple":
                     stage_objects.append(
                         SimpleStage(
                             objective=stage_def["objective"],
                             context=context,
-                            result_type=rtype,
+                            output_type=rtype,
                         )
                     )
                 elif stage_type == "while":
                     condition = stage_def["condition"]
                     nested_stage_def = stage_def["stage"]
                     nested_context = nested_stage_def.get("context", {})
-                    nested_rtype = nested_stage_def.get("result_type", None)
+                    nested_rtype = nested_stage_def.get("output_type", None)
                     nested_stage = SimpleStage(
                         objective=nested_stage_def["objective"],
                         context=nested_context,
-                        result_type=nested_rtype,
+                        output_type=nested_rtype,
                     )
                     stage_objects.append(
                         WhileStage(
@@ -108,7 +159,7 @@ class Workflow:
                         SimpleStage(
                             objective=nd["objective"],
                             context=nd.get("context", {}),
-                            result_type=nd.get("result_type", None),
+                            output_type=nd.get("output_type", None),
                         )
                         for nd in nested_defs
                     ]
@@ -117,12 +168,12 @@ class Workflow:
                     primary_obj = SimpleStage(
                         objective=stage_def["primary"]["objective"],
                         context=stage_def["primary"].get("context", {}),
-                        result_type=stage_def["primary"].get("result_type", None),
+                        output_type=stage_def["primary"].get("output_type", None),
                     )
                     fallback_obj = SimpleStage(
                         objective=stage_def["fallback"]["objective"],
                         context=stage_def["fallback"].get("context", {}),
-                        result_type=stage_def["fallback"].get("result_type", None),
+                        output_type=stage_def["fallback"].get("output_type", None),
                     )
                     stage_objects.append(
                         FallbackStage(primary=primary_obj, fallback=fallback_obj)
@@ -132,7 +183,7 @@ class Workflow:
                         SimpleStage(
                             objective=stage_def["objective"],
                             context=context,
-                            result_type=rtype,
+                            output_type=rtype,
                         )
                     )
             container_mode = execution_metadata.get("execution_mode", "sequential")
@@ -141,7 +192,7 @@ class Workflow:
             else:
                 container = SequentialStage(stages=stage_objects)
 
-            result = execute_stage(
+            result = await execute_stage(
                 container,
                 agents_for_task,
                 task.get("task_metadata", {}),
@@ -158,43 +209,177 @@ class Workflow:
                 raise ValueError(f"No executor registered for task type: {task_type}")
             result = executor(
                 task_metadata=task.get("task_metadata", {}),
-                text=text_for_task,
+                objective=text_for_task,
                 agents=agents_for_task,
                 execution_metadata=execution_metadata,
             )
+            if inspect.isawaitable(result):
+                result = await result
             if hasattr(result, "execute") and callable(result.execute):
-                result = result.execute()
+                result = await result.execute()
             return result
 
-    def run_tasks(self, conversation_id: Optional[str] = None, **kwargs):
+    async def execute_graph_streaming(self, graph, initial_state):
+        nodes = list(graph.node_defs.values())
+        total_tasks = len(nodes)
+
+        state = initial_state
+
+        completed_tasks = 0
+
+        with Progress(
+            SpinnerColumn(),
+            "[progress.description]{task.description}",
+            BarColumn(),
+            TaskProgressColumn(),
+            TimeElapsedColumn(),
+            transient=True,
+        ) as progress:
+            task_progress = progress.add_task(
+                "[cyan]Executing Tasks...", total=total_tasks
+            )
+
+            current_node_cls = nodes[0].node  # class object
+            current_node = self._instantiate_node(current_node_cls)
+
+            while current_node:
+                task_type = current_node.task.get("type") or current_node.task.get(
+                    "name"
+                )
+                conversation_id = (
+                    current_node.task.get("conversation_id")
+                    or state.conversation_id
+                    or str(uuid.uuid4())
+                )
+
+                agents_to_use = (
+                    current_node.task.get("agents") or current_node.default_agents
+                )
+
+                if task_type in TASK_EXECUTOR_REGISTRY:
+                    executor = TASK_EXECUTOR_REGISTRY[task_type]
+                    result = executor(
+                        task_metadata=current_node.task.get("task_metadata", {}),
+                        objective=current_node.task["objective"],
+                        agents=agents_to_use,
+                        execution_metadata={"conversation_id": conversation_id},
+                    )
+                    if inspect.isawaitable(result):
+                        result = await result
+                    if callable(getattr(result, "execute", None)):
+                        result = await result.execute()
+                    final_result = result
+                else:
+                    final_result = await run_agents_stream(
+                        objective=current_node.task["objective"],
+                        agents=agents_to_use,
+                        conversation_id=conversation_id,
+                    ).execute()
+
+                task_key = _get_task_key(current_node.task)
+                state.results[task_key] = final_result.get("result", final_result)
+
+                progress.advance(task_progress, 1)
+                completed_tasks += 1
+                next_node = current_node.next_task
+                if isinstance(next_node, type) and issubclass(next_node, TaskNode):
+                    current_node = self._instantiate_node(next_node)
+                else:
+                    current_node = next_node
+
+        return state
+
+    async def execute_graph(self, graph: Graph, initial_state: WorkflowState):
+        nodes = list(graph.node_defs.values())
+        total_tasks = len(nodes)
+
+        with Progress(
+            SpinnerColumn(),
+            "[progress.description]{task.description}",
+            BarColumn(),
+            TaskProgressColumn(),
+            TimeElapsedColumn(),
+            transient=True,
+        ) as progress:
+            task_progress = progress.add_task(
+                "[cyan]Executing Tasks...", total=total_tasks
+            )
+
+            current_node_cls = nodes[0].node  # class object
+            current_node = self._instantiate_node(current_node_cls)
+            state = initial_state
+            completed_tasks = 0
+
+            while current_node:
+                result = await current_node.run(GraphRunContext(state=state, deps={}))
+
+                progress.advance(task_progress, 1)
+                completed_tasks += 1
+
+                if isinstance(result, End):
+                    break
+                elif isinstance(result, type) and issubclass(result, TaskNode):
+                    current_node = self._instantiate_node(result)
+                else:
+                    raise ValueError(f"Unexpected node result type: {type(result)}")
+
+            if completed_tasks < total_tasks:
+                progress.update(task_progress, completed=total_tasks)
+
+        return state
+
+    def build_workflow_graph(self, conversation_id: Optional[str] = None) -> Graph:
+        conversation_id = conversation_id or str(uuid.uuid4())
+        node_classes = []
+        prev_node_cls = None
+
+        for task in self.tasks:
+            NodeCls = make_task_node(task, self.objective, self.agents, conversation_id)
+            node_classes.append(NodeCls)
+
+            # chain the classes, not instances
+            if prev_node_cls:
+                prev_node_cls.next_task = NodeCls
+            prev_node_cls = NodeCls
+
+        # pass the class objects to Graph
+        return Graph(
+            nodes      = tuple(node_classes),
+            state_type = WorkflowState,
+            run_end_type = WorkflowState,
+        )
+
+    async def run_tasks(
+        self, conversation_id: Optional[str] = None, **kwargs
+    ) -> dict:
         if not conversation_id:
             conversation_id = str(uuid.uuid4())
-        results_dict = {}
-        with marvin.Thread(id=conversation_id):
-            for t in self.tasks:
-                if t.get("agents"):
-                    for agent in t["agents"]:
-                        if hasattr(agent, "members"):
-                            for member in agent.members:
-                                tools = getattr(member, "tools", []) or []
-                                member.tools = [
-                                    tool.fn
-                                    if hasattr(tool, "fn") and callable(tool.fn)
-                                    else tool
-                                    for tool in tools
-                                ]
-                        else:
-                            tools = getattr(agent, "tools", []) or []
-                            agent.tools = [
-                                tool.fn
-                                if hasattr(tool, "fn") and callable(tool.fn)
-                                else tool
-                                for tool in tools
-                            ]
-                result_key = _get_task_key(t)
-                results_dict[result_key] = self.run_task(t, self.text, self.agents)
-        self.tasks.clear()
-        return {"conversation_id": conversation_id, "results": results_dict}
+
+        initial_state = WorkflowState(
+            conversation_id=conversation_id, initial_text=self.objective, results={}
+        )
+
+        self.graph = self.build_workflow_graph(conversation_id)
+
+        final_state = await self.execute_graph(self.graph, initial_state)
+
+        return dict(conversation_id=conversation_id, results=final_state.results)
+
+    async def run_tasks_streaming(
+        self, conversation_id: Optional[str] = None, **kwargs
+    ) -> dict:
+        if not conversation_id:
+            conversation_id = str(uuid.uuid4())
+
+        initial_state = WorkflowState(
+            conversation_id=conversation_id, initial_text=self.objective, results={}
+        )
+
+        self.graph = self.build_workflow_graph(conversation_id)
+
+        final_state = await self.execute_graph_streaming(self.graph, initial_state)
+
+        return dict(conversation_id=conversation_id, results=final_state.results)
 
     def to_yaml(
         self,
@@ -202,16 +387,6 @@ class Workflow:
         file_path: Optional[str] = None,
         store_creds: bool = False,
     ) -> str:
-        import yaml
-        from pathlib import Path
-        from .agent_methods.data_models.datamodels import (
-            WorkflowDefinition,
-            TaskDefinition,
-        )
-        from .agent_methods.agents.agents_factory import agent_or_swarm
-        import uuid
-
-        # top
         agent_params_list = []
         if self.agents:
             for agent_obj in self.agents:
@@ -225,7 +400,7 @@ class Workflow:
             task_model = TaskDefinition(
                 task_id=t.get("task_id", t.get("type", str(uuid.uuid4()))),
                 name=t.get("name", t.get("type", "Unnamed Task")),
-                text=t.get("text"),
+                objective=t.get("objective"),
                 task_metadata=task_metadata,
                 execution_metadata=t.get("execution_metadata") or {},
             )
@@ -240,27 +415,26 @@ class Workflow:
         # Build the WorkflowDefinition.
         wf_def = WorkflowDefinition(
             name=workflow_name,
-            text=self.text,
+            objective=self.objective,
             client_mode=self.client_mode,
             agents=agent_params_list,
             tasks=task_models,
         )
-        wf_dict = wf_def.model_dump(mode="json")
+        wf_dict = wf_def.model_dump(
+            mode="json",
+            exclude={
+                "memory": True,
+                "memories": True,
+                "agents": {"__all__": {"memory": True}},
+                "tasks": {"__all__": {"agents": {"__all__": {"memory": True}}}}
+            }
+        )
         yaml_str = yaml.safe_dump(wf_dict, sort_keys=False)
         if file_path:
             Path(file_path).write_text(yaml_str, encoding="utf-8")
         return yaml_str
 
     def from_yaml(self, yaml_str: str = None, file_path: str = None) -> "Workflow":
-        import yaml
-        from pathlib import Path
-        from collections import defaultdict
-        from .agent_methods.data_models.datamodels import (
-            WorkflowDefinition,
-            AgentParams,
-        )
-        from .agent_methods.agents.agents_factory import create_agent, create_swarm
-
         if not yaml_str and not file_path:
             raise ValueError("Either yaml_str or file_path must be provided.")
         if yaml_str:
@@ -269,7 +443,7 @@ class Workflow:
             data = yaml.safe_load(Path(file_path).read_text(encoding="utf-8"))
 
         wf_def = WorkflowDefinition(**data)
-        self.text = wf_def.text or ""
+        self.objective = wf_def.objective or ""
 
         # --- Rehydrate Top-Level Agents ---
         swarm_lookup = {}  # key: swarm_name, value: list of AgentParams objects
@@ -315,7 +489,8 @@ class Workflow:
         for task in wf_def.tasks:
             new_task = {
                 "task_id": task.task_id,
-                "text": task.text,
+                "name": task.name,
+                "objective": task.objective,
                 "task_metadata": dict(task.task_metadata or {}, name=task.name),
                 "execution_metadata": task.execution_metadata or {},
             }

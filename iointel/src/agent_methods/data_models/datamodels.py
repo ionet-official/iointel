@@ -20,7 +20,8 @@ else:
     from typing import TypedDict
 
 
-from marvin.memory.memory import Memory
+#from marvin.memory.memory import Memory
+from ...memory import AsyncMemory
 from ...utilities.func_metadata import func_metadata, FuncMetadata
 from ...utilities.exceptions import ToolError
 import inspect
@@ -282,9 +283,8 @@ class AgentParams(BaseModel):
         serializers={SecretStr: lambda s: s.get_secret_value()},
     )
     name: Optional[str] = None
-    instructions: Optional[str] = None
-    description: Optional[str] = None
-    swarm_name: Optional[str] = None
+    instructions: str = Field(..., description="Instructions for the agent")
+    persona: Optional[PersonaConfig] = None
     model: Optional[Union[OpenAIModel, str]] = Field(
         default="meta-llama/Llama-3.3-70B-Instruct",
         description="Model or model name for the agent",
@@ -296,8 +296,15 @@ class AgentParams(BaseModel):
         None, description="Base URL for the model, if required."
     )
     tools: Optional[List[Tool]] = Field(default_factory=list)
-    memories: Optional[list[Memory]] = Field(default_factory=list)
+    context: Optional[Dict[str, Any]] = Field(
+        None,
+        description="Context to be passed to the agent.",
+    )
+    #memories: Optional[list[Memory]] = Field(default_factory=list)
+    memory: Optional[AsyncMemory] = Field(default_factory=list)
+
     model_settings: Optional[Dict[str, Any]] = Field(default_factory=dict)
+    output_type: Optional[Any] = str
 
 
 # reasoning agent
@@ -315,7 +322,7 @@ class ReasoningStep(BaseModel):
     proposed_solution: str = Field(description="The proposed solution for the problem.")
 
 
-class Swarm(BaseModel):
+class AgentSwarm(BaseModel):
     members: List[AgentParams]
 
 
@@ -360,8 +367,8 @@ class BaseStage(BaseModel):
 class SimpleStage(BaseStage):
     stage_type: Literal["simple"] = "simple"
     objective: str
-    result_type: Any = None
-    agents: List[Union[AgentParams, Swarm]] = Field(default_factory=list)
+    output_type: Any = None
+    agents: List[Union[AgentParams, AgentSwarm]] = Field(default_factory=list)
     context: Optional[Dict[str, Any]] = Field(default_factory=dict)
 
 
@@ -418,8 +425,8 @@ class TaskDefinition(BaseModel):
     task_id: str
     name: str
     # description: Optional[str] = None
-    text: Optional[str] = None
-    agents: Optional[Union[List[AgentParams], Swarm]] = None
+    objective: Optional[str] = None
+    agents: Optional[Union[List[AgentParams], AgentSwarm]] = None
     task_metadata: Optional[Dict[str, Any]] = None
     # metadata: Optional[Dict[str, Any]] = Field(default_factory=dict)
     execution_metadata: Optional[Dict[str, Any]] = None
@@ -436,96 +443,8 @@ class WorkflowDefinition(BaseModel):
     """
 
     name: str
-    text: Optional[str] = None  # Main text/prompt for the workflow
+    objective: Optional[str] = None  # Main text/prompt for the workflow
     client_mode: Optional[bool] = None
-    agents: Optional[Union[List[AgentParams], Swarm]] = None
+    agents: Optional[Union[List[AgentParams], AgentSwarm]] = None
     tasks: List[TaskDefinition] = Field(default_factory=list)
 
-
-### logging handlers
-
-
-class BaseEventModel(BaseModel):
-    """
-    A base model to capture common fields or structure for all events.
-    """
-
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
-
-
-class AgentMessageEvent(BaseEventModel):
-    event_type: str = "agent_message"
-    agent_name: str
-    content: str
-
-
-class UserMessageEvent(BaseEventModel):
-    event_type: str = "user_message"
-    content: str
-
-
-class OrchestratorMessageEvent(BaseEventModel):
-    event_type: str = "orchestrator_message"
-    content: str
-
-
-class ToolCallEvent(BaseEventModel):
-    event_type: str = "tool_call"
-    tool_name: str
-
-
-class ToolResultEvent(BaseEventModel):
-    event_type: str = "tool_result"
-    tool_name: str
-    result: str
-
-
-class OrchestratorStartEvent(BaseEventModel):
-    event_type: str = "orchestrator_start"
-
-
-class OrchestratorEndEvent(BaseEventModel):
-    event_type: str = "orchestrator_end"
-
-
-class AgentMessageDeltaEvent(BaseEventModel):
-    event_type: str = "agent_message_delta"
-    delta: str
-
-
-class OrchestratorErrorEvent(BaseEventModel):
-    event_type: str = "orchestrator_error"
-    error: str
-
-
-class EndTurnEvent(BaseEventModel):
-    event_type: str = "end_turn"
-
-
-class CatchallEvent(BaseEventModel):
-    event_type: str = "catch-all"
-    details: dict = {}
-
-
-# Union of all event models
-EventModelUnion = Union[
-    AgentMessageEvent,
-    UserMessageEvent,
-    OrchestratorMessageEvent,
-    ToolCallEvent,
-    ToolResultEvent,
-    OrchestratorStartEvent,
-    OrchestratorEndEvent,
-    AgentMessageDeltaEvent,
-    OrchestratorErrorEvent,
-    EndTurnEvent,
-    CatchallEvent,
-]
-
-
-class EventsLog(BaseModel):
-    """
-    Main aggregator for all events.
-    """
-
-    events: List[EventModelUnion] = []

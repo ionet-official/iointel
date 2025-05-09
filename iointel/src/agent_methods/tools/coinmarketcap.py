@@ -5,6 +5,8 @@ import httpx
 import urllib.parse
 from pydantic import Field
 
+from iointel.src.utilities.decorators import register_tool
+
 COINMARKETCAP_API_BASE = "pro-api.coinmarketcap.com"
 COINMARKETCAP_API_KEY = os.getenv("COINMARKETCAP_API_KEY")
 
@@ -43,7 +45,7 @@ def make_coinmarketcap_request(client: httpx.Client, url: str) -> dict[str, Any]
     except Exception:
         return None
 
-
+@register_tool
 def listing_coins(
     start: Annotated[Optional[int], Field(ge=1)] = None,
     limit: Annotated[Optional[int], Field(ge=1, le=5000)] = None,
@@ -137,7 +139,7 @@ def listing_coins(
 
     return coinmarketcap_request("v1/cryptocurrency/listings/latest", params)
 
-
+@register_tool
 def get_coin_info(
     id: Optional[list[str]] = None,
     slug: Optional[list[str]] = None,
@@ -169,7 +171,7 @@ def get_coin_info(
 
     return coinmarketcap_request("v2/cryptocurrency/info", params)
 
-
+@register_tool
 def get_coin_quotes(
     id: Optional[list[str]] = None,
     slug: Optional[list[str]] = None,
@@ -207,7 +209,7 @@ def get_coin_quotes(
     }
     return coinmarketcap_request("v2/cryptocurrency/quotes/latest", params)
 
-
+@register_tool
 def get_coin_quotes_historical(
     id: Optional[list[str]] = None,
     slug: Optional[list[str]] = None,

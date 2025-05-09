@@ -84,7 +84,7 @@ Users can define tasks (like `sentiment`, `translate_text`, etc.) in a **local**
 
 - A **task** is a single step in a workflow, e.g.,  `schedule_reminder`, `sentiment`, `translate_text`, etc.
 - Tasks are managed by the `Workflow` class in `workflow.py`.
-- Tasks can be chained for multi-step logic into a workflow (e.g., `Workflow(text="...").translate_text().sentiment().run_tasks()`).
+- Tasks can be chained for multi-step logic into a workflow (e.g., `await Workflow(text="...").translate_text().sentiment().run_tasks()`).
 
 ### Client Mode vs Local Mode<a id="client-mode-vs-local-mode"></a>
 
@@ -173,7 +173,7 @@ tasks = Workflow(text="This is the text to analyze", client_mode=False)
     .translate_text(target_language="french")   # a second step
 )
 
-results = tasks.run_tasks()
+results = await tasks.run_tasks()
 print(results)
 ```
 Because client_mode=False, everything runs locally.
@@ -182,14 +182,14 @@ Because client_mode=False, everything runs locally.
 
 ```python
 tasks = Workflow(text="Breaking news: local sports team wins!", client_mode=False)
-tasks.summarize_text(max_words=50).run_tasks()
+await tasks.summarize_text(max_words=50).run_tasks()
 ```
 
 ### Running a Remote Workflow (Client Mode)<a id="running-a-remote-workflow-client-mode"></a>
 
 ```python
 tasks = Workflow(text="Breaking news: local sports team wins!", client_mode=True)
-tasks.summarize_text(max_words=50).run_tasks()
+await tasks.summarize_text(max_words=50).run_tasks()
 ```
 Now, summarize_text calls the client function (e.g., summarize_task(...)) instead of local logic.
 
@@ -224,7 +224,7 @@ The server reads it as JSON or YAML and runs the tasks sequentially in local mod
 
 ```python
 tasks = Workflow("Breaking news: new Python release!", client_mode=False)
-tasks.summarize_text(max_words=30).run_tasks()
+await tasks.summarize_text(max_words=30).run_tasks()
 ```
 
 Returns a summarized result.
@@ -237,7 +237,7 @@ tasks = Workflow("Tech giant acquires startup for $2B", client_mode=False)
    .translate_text(target_language="spanish")
    .sentiment()
 )
-results = tasks.run_tasks()
+await results = tasks.run_tasks()
 ```
 
 	1.	Translate to Spanish,
@@ -253,7 +253,7 @@ tasks.custom(
     agents=[my_agent],
     **{"extra_context": "some_val"}
 )
-results = tasks.run_tasks()
+await results = tasks.run_tasks()
 ```
 
 A "custom" task can reference a custom function in the CUSTOM_WORKFLOW_REGISTRY or fall back to a default behavior.

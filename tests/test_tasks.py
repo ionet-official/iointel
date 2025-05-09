@@ -6,7 +6,7 @@ def test_tasks_chain_basic():
     """
     Ensure that calling chainable methods appends tasks correctly.
     """
-    f = Workflow(text="Sample text", client_mode=False)
+    f = Workflow(objective="Sample text", client_mode=False)
     f.schedule_reminder(delay=10).sentiment()
     assert len(f.tasks) == 2
 
@@ -21,7 +21,7 @@ def test_tasks_custom():
     """
     Test that adding a custom step sets the correct fields.
     """
-    flows = Workflow(text="Analyze this text", client_mode=True)
+    flows = Workflow(objective="Analyze this text", client_mode=True)
     flows.custom(
         name="my-custom-step",
         objective="Custom objective",
