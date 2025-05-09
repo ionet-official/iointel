@@ -2,14 +2,20 @@ import pytest
 from iointel import Agent
 from iointel.src.agent_methods.tools.firecrawl import Crawler
 from iointel.src.utilities.runners import run_agents
+from iointel.src.utilities.decorators import register_tool
+
+crawler = Crawler()
+
+@register_tool
+def test_scrape_url(url: str):
+    return crawler.scrape_url(url)
 
 @pytest.mark.asyncio
 async def test_firecrawl():
-    crawler = Crawler()
     agent = Agent(
         name="Agent",
         instructions="You are a crawler agent. Crawl web pages, retrieve information, do what user asks.",
-        tools=[crawler.scrape_url],
+        tools=[test_scrape_url],
     )
     result = await run_agents(
         "Crawl this page: https://decrypt.co/306329/io-net-launches-generative-intelligence-platform-for-developers. "
