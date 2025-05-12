@@ -84,5 +84,6 @@ def supports_tool_choice_required(model_name: str) -> bool:
     return (
         model_name.startswith("gpt-") or
         model_name.startswith("openai/") or
-        "gpt" in model_name
+        "gpt" in model_name or
+        model_name == "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8"
     )
