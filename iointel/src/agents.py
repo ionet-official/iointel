@@ -73,7 +73,9 @@ class Agent(BaseModel):
     tools: Optional[list] = None
     model: Optional[Union[OpenAIModel, str]] = None
     memory: Optional[AsyncMemory] = None
-    model_settings: Optional[Dict[str, Any]] = None #dict(extra_body=None), #can add json model schema here
+    model_settings: Optional[Dict[str, Any]] = (
+        None  # dict(extra_body=None), #can add json model schema here
+    )
     api_key: Optional[SecretStr | str] = None
     base_url: Optional[str] = None
     output_type: Optional[Any] = str
@@ -91,7 +93,9 @@ class Agent(BaseModel):
         tools: Optional[list] = None,
         model: Optional[Union[OpenAIModel, str]] = None,
         memory: Optional[AsyncMemory] = None,
-        model_settings: Optional[Dict[str, Any]] = None, #dict(extra_body=None), #can add json model schema here
+        model_settings: Optional[
+            Dict[str, Any]
+        ] = None,  # dict(extra_body=None), #can add json model schema here
         api_key: Optional[SecretStr | str] = None,
         base_url: Optional[str] = None,
         output_type: Optional[Any] = str,
@@ -160,7 +164,9 @@ class Agent(BaseModel):
         if isinstance(model, str):
             model_supports_tool_choice = supports_tool_choice_required(model)
         else:
-            model_supports_tool_choice = supports_tool_choice_required(getattr(model, "model_name", ""))
+            model_supports_tool_choice = supports_tool_choice_required(
+                getattr(model, "model_name", "")
+            )
 
         if model_settings is None:
             model_settings = {}
@@ -235,6 +241,22 @@ class Agent(BaseModel):
             except Exception as e:
                 print("Error loading message history:", e)
 
+        if not self.model_settings.get("supports_tool_choice_required"):
+            if (output_type := kwargs.get("output_type")) is not None:
+                if output_type is not str:
+                    from pydantic_ai._output import (
+                        get_union_args,
+                        extract_str_from_union,
+                    )
+
+                    if union_args := get_union_args(output_type):
+                        if not extract_str_from_union(output_type):
+                            # if output_type is a Union but with no `str`, insert it there
+                            output_type = Union[tuple(str, *union_args)]
+                    else:
+                        # it's not a Union and doesn't mention `str`, turn it into union with it
+                        output_type = Union[str, output_type]
+                    kwargs["output_type"] = output_type
         result = await self._runner.run(query, **kwargs)
 
         if self.memory:
