@@ -62,10 +62,11 @@ class Agent(BaseModel):
     A configurable agent that allows you to plug in different chat models,
     instructions, and tools. By default, it uses the pydantic OpenAIModel.
     """
+
     model_config = ConfigDict(
         arbitrary_types_allowed=True,
     )
-    
+
     name: str
     instructions: str
     persona: Optional[PersonaConfig] = None
@@ -132,7 +133,8 @@ class Agent(BaseModel):
             kwargs = dict(
                 model_kwargs,
                 provider=OpenAIProvider(
-                    base_url=resolved_base_url, api_key=resolved_api_key.get_secret_value()
+                    base_url=resolved_base_url,
+                    api_key=resolved_api_key.get_secret_value(),
                 ),
             )
             resolved_model = OpenAIModel(
@@ -153,17 +155,19 @@ class Agent(BaseModel):
             model_settings = {}
         model_settings["supports_tool_choice_required"] = model_supports_tool_choice
 
-        super().__init__(name=name, 
-                         instructions=instructions, 
-                         persona=persona, 
-                         context=context, 
-                         tools=resolved_tools, 
-                         model=resolved_model, 
-                         memory=memory, 
-                         model_settings=model_settings, 
-                         api_key=resolved_api_key, 
-                         base_url=resolved_base_url, 
-                         output_type=output_type)
+        super().__init__(
+            name=name,
+            instructions=instructions,
+            persona=persona,
+            context=context,
+            tools=resolved_tools,
+            model=resolved_model,
+            memory=memory,
+            model_settings=model_settings,
+            api_key=resolved_api_key,
+            base_url=resolved_base_url,
+            output_type=output_type,
+        )
         self._runner = PydanticAgent(
             name=name,
             tools=[PatchedValidatorTool(fn) for fn in resolved_tools],
@@ -291,7 +295,9 @@ class Agent(BaseModel):
             console.print(panel)
 
         return dict(
-            result=result.output, conversation_id=conversation_id or self.conversation_id, full_result=result
+            result=result.output,
+            conversation_id=conversation_id or self.conversation_id,
+            full_result=result,
         )
 
     async def run_stream(
@@ -372,9 +378,7 @@ class Agent(BaseModel):
                 conversation_id or self.conversation_id or str(uuid.uuid4())
             )
             try:
-                await self.memory.store_run_history(
-                    conversation_id, agent_run.result
-                )
+                await self.memory.store_run_history(conversation_id, agent_run.result)
             except Exception as e:
                 console.print(f"[red]Error storing run history:[/red] {e}")
 
@@ -387,7 +391,7 @@ class Agent(BaseModel):
         return dict(
             result=agent_run.result.output,
             conversation_id=conversation_id or self.conversation_id,
-            full_result=result
+            full_result=result,
         )
 
     def set_context(self, context: Any):
@@ -403,4 +407,3 @@ class Agent(BaseModel):
             name="default-agent",
             instructions="you are a generalist who is good at everything.",
         )
-
