@@ -138,28 +138,7 @@ class Agent(BaseModel):
                 **kwargs,
             )
 
-        resolved_tools = []
-        if tools:
-            for tool in tools:
-                if isinstance(tool, str):
-                    registered_tool = TOOLS_REGISTRY.get(tool)
-                elif isinstance(tool, Tool):
-                    registered_tool = tool
-                elif callable(tool):
-                    registered_tool = Tool.from_function(tool)
-                else:
-                    raise ValueError(
-                        f"Tool '{tool}' is neither a registered name nor a callable."
-                    )
-                if not registered_tool or not next(
-                    (
-                        name for name, t in TOOLS_REGISTRY.items()
-                        if t.body == registered_tool.body
-                    ),
-                    None
-                ):
-                    raise ValueError(f"Tool '{tool}' not found in registry, did you forget to @register_tool?")
-                resolved_tools.append(registered_tool.fn)
+        resolved_tools = [self._get_registered_tool(tool) for tool in (tools or ())]
 
         if isinstance(model, str):
             model_supports_tool_choice = supports_tool_choice_required(model)
@@ -185,7 +164,7 @@ class Agent(BaseModel):
                          output_type=output_type)
         self._runner = PydanticAgent(
             name=name,
-            tools=resolved_tools,
+            tools=[PatchedValidatorTool(fn) for fn in resolved_tools],
             model=resolved_model,
             model_settings=model_settings,
             output_type=output_type,
@@ -194,6 +173,31 @@ class Agent(BaseModel):
             output_retries=5,
         )
         self._runner.system_prompt(dynamic=True)(self._make_init_prompt)
+
+    @classmethod
+    def _get_registered_tool(cls, tool: str | Tool | Callable) -> Callable:
+        if isinstance(tool, str):
+            registered_tool = TOOLS_REGISTRY.get(tool)
+        elif isinstance(tool, Tool):
+            registered_tool = tool
+        elif callable(tool):
+            registered_tool = Tool.from_function(tool)
+        else:
+            raise ValueError(
+                f"Tool '{tool}' is neither a registered name nor a callable."
+            )
+        if not registered_tool or not next(
+            (
+                name
+                for name, t in TOOLS_REGISTRY.items()
+                if t.body == registered_tool.body
+            ),
+            None,
+        ):
+            raise ValueError(
+                f"Tool '{tool}' not found in registry, did you forget to @register_tool?"
+            )
+        return registered_tool.fn
 
     def _make_init_prompt(self) -> str:
         # Combine user instructions with persona content
@@ -210,8 +214,9 @@ class Agent(BaseModel):
         return combined_instructions
 
     def add_tool(self, tool):
-        updated_tools = self.tools + [tool]
-        self.tools = updated_tools
+        registered_tool = self._get_registered_tool(tool)
+        self.tools += [registered_tool]
+        self._runner._register_tool(PatchedValidatorTool(registered_tool))
 
     async def run(
         self,
