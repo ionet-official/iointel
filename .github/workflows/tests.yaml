@@ -63,6 +63,8 @@ jobs:
         run: make prepare_for_tests
 
       - name: Run tests
+        env:
+          PYTHONASYNCIODEBUG: 1  # for showing traces when a coroutine wasn't awaited
         run: pytest -vv tests/ --retries 2 --retry-delay 5
         if: ${{ !(github.event.pull_request.head.repo.fork) }}
 

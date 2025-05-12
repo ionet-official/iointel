@@ -98,7 +98,7 @@ def execute_summarize_text(
         return summary.execute()
 
 @register_custom_task("sentiment")
-def execute_sentiment(
+async def execute_sentiment(
     task_metadata: dict, objective: str, agents: List[Agent], execution_metadata: dict
 ):
     from ..client.client import sentiment_analysis
@@ -108,14 +108,19 @@ def execute_sentiment(
     if client_mode:
         return sentiment_analysis(text=objective)
     else:
-        sentiment_val = run_agents(
+        sentiment_val = await run_agents(
             objective=f"Classify the sentiment of the text as a value between 0 and 1.\nText: {objective}",
             agents=agents,
             output_type=float,
             # result_validator=between(0, 1),
             # context={"text": text},
-        )
-        return sentiment_val.execute()
+        ).execute()
+        if not isinstance(sentiment_val, float):
+            try:
+                return float(sentiment_val)
+            except ValueError:
+                pass
+        return sentiment_val
 
 
 @register_custom_task("extract_categorized_entities")
