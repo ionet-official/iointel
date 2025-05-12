@@ -7,11 +7,13 @@ from .utilities.helpers import supports_tool_choice_required
 
 from pydantic_ai.models.openai import OpenAIModel
 from pydantic_ai.providers.openai import OpenAIProvider
-from pydantic_ai import Agent as PydanticAgent
+from pydantic_ai import Agent as PydanticAgent, Tool as PydanticTool
 
-from pydantic import ConfigDict, SecretStr, BaseModel
-from pydantic_ai.messages import PartDeltaEvent, TextPartDelta
-from typing import Dict, Any, Optional, Union
+from pydantic import ConfigDict, SecretStr, BaseModel, ValidationError
+from pydantic_ai.messages import PartDeltaEvent, TextPartDelta, ToolCallPart
+from typing import Callable, Dict, Any, Optional, Union
+import json
+import dataclasses
 
 import uuid
 import asyncio
@@ -20,6 +22,39 @@ from rich.panel import Panel
 from rich.text import Text
 from rich.markdown import Markdown
 from rich.live import Live
+
+
+class PatchedValidatorTool(PydanticTool):
+    _PATCH_ERR_TYPES = ("list_type",)
+
+    async def run(self, message: ToolCallPart, *args, **kw):
+        if (margs := message.args) and isinstance(margs, str):
+            try:
+                self._validator.validate_json(margs)
+            except ValidationError as e:
+                try:
+                    margs_dict = json.loads(margs)
+                except json.JSONDecodeError:
+                    pass
+                else:
+                    patched = False
+                    for err in e.errors():
+                        if (
+                            err["type"] in self._PATCH_ERR_TYPES
+                            and len(err["loc"]) == 1
+                            and err["loc"][0] in margs_dict
+                            and isinstance(err["input"], str)
+                        ):
+                            try:
+                                margs_dict[err["loc"][0]] = json.loads(err["input"])
+                                patched = True
+                            except json.JSONDecodeError:
+                                pass
+                    if patched:
+                        message = dataclasses.replace(
+                            message, args=json.dumps(margs_dict)
+                        )
+        return await super().run(message, *args, **kw)
 
 
 class Agent(BaseModel):
