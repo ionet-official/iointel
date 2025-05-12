@@ -148,7 +148,9 @@ class Agent(BaseModel):
             model=resolved_model,
             model_settings=model_settings,
             output_type=output_type,
-            end_strategy='exhaustive'
+            end_strategy='exhaustive',
+            retries=3,
+            output_retries=5,
         )
         self._runner.system_prompt(dynamic=True)(self._make_init_prompt)
 

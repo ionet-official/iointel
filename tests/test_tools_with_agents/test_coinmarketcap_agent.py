@@ -1,5 +1,6 @@
 import pytest
 from typing import List, Any
+import re
 
 from iointel import Agent
 from iointel.src.agent_methods.tools.coinmarketcap import (
@@ -47,22 +48,24 @@ async def run_and_format(query: str, agents: List[Agent], **kwargs: Any) -> str:
 
 
 async def test_coinmarketcap_btc_year(coinmarketcap_agent: Agent) -> None:
-    result: str = await run_and_format(
-        "What year was bitcoin established at? Return the date obtained from toolcall result",
+    result: str = await run_agents(
+        "When was bitcoin launched?",
         agents=[coinmarketcap_agent],
-    )
+    ).execute()
     assert result is not None, "Expected a result from the agent run."
     assert "2010" in result or "2009" in result
 
 
 async def test_top_10_currencies_by_capitalization(coinmarketcap_agent: Agent) -> None:
-    result: str = await run_and_format(
-        "Return names of top 10 cryptocurrencies, sorted by capitalization. "
-        "Use the format: currency1,currency2,...,currencyX",
+    result: str = await run_agents(
+        "Return names of top 10 cryptocurrencies, sorted by capitalization. Surround the names with <BEGIN> and <END>. "
+        "Use the format: <BEGIN>currency1,currency2,...,currencyX<END>",
         agents=[coinmarketcap_agent],
-    )
+    ).execute()
     assert result is not None, "Expected a result from the agent run."
-    currencies: List[str] = result.split(",")
+    answers: List[str] = re.findall(r'<BEGIN>(.*?)<END>', result, re.DOTALL)
+    assert answers, "Begin and end markers are missing"
+    currencies: List[str] = max(answers, key=lambda e: e.count(",")).split(",")
     assert len(currencies) == 10
     assert "Bitcoin" in currencies
     assert "Ethereum" in currencies
