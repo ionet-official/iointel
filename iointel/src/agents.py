@@ -99,6 +99,8 @@ class Agent(BaseModel):
         api_key: Optional[SecretStr | str] = None,
         base_url: Optional[str] = None,
         output_type: Optional[Any] = str,
+        retries: int = 3,
+        output_retries: int | None = None,
         **model_kwargs,
     ):
         """
@@ -168,9 +170,9 @@ class Agent(BaseModel):
             model=resolved_model,
             model_settings=model_settings,
             output_type=output_type,
-            end_strategy='exhaustive',
-            retries=3,
-            output_retries=5,
+            end_strategy="exhaustive",
+            retries=retries,
+            output_retries=output_retries,
         )
         self._runner.system_prompt(dynamic=True)(self._make_init_prompt)
 
