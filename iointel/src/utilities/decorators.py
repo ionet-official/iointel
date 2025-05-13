@@ -1,6 +1,6 @@
-from functools import wraps
 from typing import Callable, Optional
-#from prefect import task
+
+
 from .registries import (
     CHAINABLE_METHODS,
     TASK_EXECUTOR_REGISTRY,
@@ -25,8 +25,6 @@ def register_custom_task(task_type: str, chainable: bool = True):
 
     def decorator(tool_fn: Callable):
         # Register the executor function for later task execution.
-        #prefect_task = task(tool_fn, name=task_type, persist_result=False)
-        #TASK_EXECUTOR_REGISTRY[task_type] = prefect_task
         TASK_EXECUTOR_REGISTRY[task_type] = tool_fn
 
         if chainable:
@@ -98,16 +96,6 @@ def register_tool(_fn=None, name: Optional[str] = None):
                 )
             logger.debug(f"Tool '{tool_name}' is already safely registered.")
             return executor_fn
-
-        if "self" in executor_fn.__code__.co_varnames:
-
-            @wraps(executor_fn)
-            def wrapper(self, *args, **kwargs):
-                return executor_fn(self, *args, **kwargs)
-
-            TOOLS_REGISTRY[tool_name] = Tool.from_function(wrapper)
-            logger.debug(f"Registered method tool '{tool_name}' safely.")
-            return wrapper
 
         TOOLS_REGISTRY[tool_name] = Tool.from_function(executor_fn)
         logger.debug(f"Registered tool '{tool_name}' safely.")

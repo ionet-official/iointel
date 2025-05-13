@@ -1,4 +1,9 @@
-from typing import Dict, Callable
+from typing import Dict, Callable, TYPE_CHECKING
+
+
+if TYPE_CHECKING:
+    from pydantic import BaseModel
+    from ..agent_methods.data_models.datamodels import Tool
 
 # A global registry mapping task types to executor functions.
 TASK_EXECUTOR_REGISTRY: Dict[str, Callable] = {}
@@ -10,4 +15,7 @@ CHAINABLE_METHODS: Dict[str, Callable] = {}
 CUSTOM_WORKFLOW_REGISTRY: Dict[str, Callable] = {}
 
 # A global or module-level registry of custom tools
-TOOLS_REGISTRY: Dict[str, Callable] = {}
+TOOLS_REGISTRY: "Dict[str, Tool]" = {}
+
+# A global registry of classes which instance methods are registered as tools
+TOOL_SELF_REGISTRY: "Dict[str, type[BaseModel]]" = {}

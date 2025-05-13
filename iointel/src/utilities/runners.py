@@ -33,7 +33,6 @@ def _to_task_definition(
 
 async def _run_stream(objective: str, output_type=None, **all_kwargs):
     definition = _to_task_definition(objective, **all_kwargs)
-
     agents = definition.agents or []
     return await Task(agents=agents).run_stream(
         definition=definition, output_type=output_type

@@ -109,7 +109,7 @@ class Agent(BaseModel):
         :param instructions: The instruction prompt for the agent.
         :param description: A description of the agent. Visible to other agents.
         :param persona: A PersonaConfig instance to use for the agent. Used to set persona instructions.
-        :param tools: A list of marvin.Tool instances or @marvin.fn decorated functions.
+        :param tools: A list of Tool instances or @register_tool decorated functions.
         :param model: A callable that returns a configured model instance.
                               If provided, it should handle all model-related configuration.
         :param model_kwargs: Additional keyword arguments passed to the model factory or ChatOpenAI if no factory is provided.
@@ -170,7 +170,7 @@ class Agent(BaseModel):
         )
         self._runner = PydanticAgent(
             name=name,
-            tools=[PatchedValidatorTool(fn) for fn in resolved_tools],
+            tools=[PatchedValidatorTool(fn.get_wrapped_fn()) for fn in resolved_tools],
             model=resolved_model,
             model_settings=model_settings,
             output_type=output_type,
@@ -181,7 +181,7 @@ class Agent(BaseModel):
         self._runner.system_prompt(dynamic=True)(self._make_init_prompt)
 
     @classmethod
-    def _get_registered_tool(cls, tool: str | Tool | Callable) -> Callable:
+    def _get_registered_tool(cls, tool: str | Tool | Callable) -> Tool:
         if isinstance(tool, str):
             registered_tool = TOOLS_REGISTRY.get(tool)
         elif isinstance(tool, Tool):
@@ -203,7 +203,7 @@ class Agent(BaseModel):
             raise ValueError(
                 f"Tool '{tool}' not found in registry, did you forget to @register_tool?"
             )
-        return registered_tool.fn
+        return registered_tool
 
     def _make_init_prompt(self) -> str:
         # Combine user instructions with persona content
@@ -222,7 +222,7 @@ class Agent(BaseModel):
     def add_tool(self, tool):
         registered_tool = self._get_registered_tool(tool)
         self.tools += [registered_tool]
-        self._runner._register_tool(PatchedValidatorTool(registered_tool))
+        self._runner._register_tool(PatchedValidatorTool(registered_tool.get_wrapped_fn()))
 
     async def run(
         self,
