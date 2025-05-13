@@ -45,7 +45,7 @@ class SearchResponse(BaseModel):
 #    searxng/searxng
 
 
-class SearxngClient:
+class SearxngClient(BaseModel):
     """
     A client for interacting with the SearxNG search API.
 
@@ -53,6 +53,10 @@ class SearxngClient:
     Pagination is handled internally if the caller specifies more than one page
     via the 'pages' parameter.
     """
+
+    base_url: str
+    timeout: int
+    _client: httpx.Client
 
     def __init__(self, base_url: Optional[str] = None, timeout: int = 10) -> None:
         """
@@ -63,13 +67,13 @@ class SearxngClient:
                 Defaults to the environment variable 'SEARXNG_URL' or "http://localhost:8081".
             timeout (int): Timeout for HTTP requests in seconds.
         """
-        self.base_url = base_url or os.getenv("SEARXNG_URL")
-        if not self.base_url:
+        base_url = base_url or os.getenv("SEARXNG_URL")
+        if not base_url:
             raise RuntimeError(
                 "Searxng base url is not set in SEARXNG_URL env variable"
             )
-        self.timeout = timeout
-        self.client = httpx.Client(base_url=self.base_url, timeout=self.timeout)
+        super().__init__(base_url=base_url, timeout=timeout)
+        self._client = httpx.Client(base_url=base_url, timeout=timeout)
 
     @register_tool
     def search(self, query: str, pages: int = 1) -> SearchResponse:
@@ -98,7 +102,7 @@ class SearxngClient:
                 "format": "json",
                 "pageno": str(pageno),
             }
-            response = self.client.get("/search", params=params)
+            response = self._client.get("/search", params=params)
             response.raise_for_status()
             page_data = SearchResponse.model_validate_json(response.text)
             combined_results.extend(page_data.results)
@@ -136,6 +140,7 @@ class SearxngClient:
         Close the underlying HTTP client.
         """
         self.client.close()
+
 
 @register_tool
 def search_the_web(text: str, pages: int = 1):

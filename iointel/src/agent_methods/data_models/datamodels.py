@@ -313,7 +313,7 @@ class Tool(BaseModel):
                 new_args = dict(sig.parameters)
                 new_args.pop("self", None)
                 sig = inspect.Signature(
-                    new_args, return_annotation=sig.return_annotation
+                    new_args.values(), return_annotation=sig.return_annotation
                 )
             if self.is_async:
 

@@ -17,13 +17,16 @@ class FirecrawlResponse(BaseModel):
     metadata: dict
 
 
-class Crawler:
+class Crawler(BaseModel):
     """
     A wrapper class for the FirecrawlApp that provides methods for scraping,
     crawling, mapping, extracting, and watching crawl jobs.
     """
 
-    def __init__(self, api_key: str = None, version: Optional[str] = None) -> None:
+    api_key: str
+    _app: FirecrawlApp | None = None
+
+    def __init__(self, api_key: Optional[str] = None) -> None:
         """
         Initialize the Firecrawl app.
         Args:
@@ -34,10 +37,8 @@ class Crawler:
             api_key = FIRECRAWL_API_KEY
         if not FIRECRAWL_API_KEY:
             raise RuntimeError("Firecrawl API key is not set")
-        if version:
-            self.app: FirecrawlApp = FirecrawlApp(api_key=api_key, version=version)
-        else:
-            self.app: FirecrawlApp = FirecrawlApp(api_key=api_key)
+        super().__init__(api_key=api_key)
+        self._app = FirecrawlApp(api_key=api_key)
 
     @register_tool
     def scrape_url(self, url: str) -> FirecrawlResponse:
@@ -48,7 +49,7 @@ class Crawler:
         Returns:
             Dict[str, Any]: The scraping result.
         """
-        response = self.app.scrape_url(url)
+        response = self._app.scrape_url(url)
         return FirecrawlResponse(markdown=response.markdown, metadata=response.metadata)
 
     @register_tool
