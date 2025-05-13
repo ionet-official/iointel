@@ -4,7 +4,7 @@ from iointel.src.utilities.runners import run_agents
 
 
 async def test_firecrawl():
-    crawler = Crawler()
+    crawler = Crawler(timeout=120)
     agent = Agent(
         name="Agent",
         instructions="You are a crawler agent. Crawl web pages, retrieve information, do what user asks.",

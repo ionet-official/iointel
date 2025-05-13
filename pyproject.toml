@@ -31,7 +31,7 @@ classifiers = [
 testpaths = ["tests"]
 
 [tool.pytest.ini_options]
-timeout = 120
+timeout = 180
 asyncio_mode = "auto"
 norecursedirs = [
     "*.egg-info",

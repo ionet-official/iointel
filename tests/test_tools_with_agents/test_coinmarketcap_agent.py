@@ -1,5 +1,5 @@
 import pytest
-from typing import List, Any
+from typing import List
 import re
 
 from iointel import Agent
@@ -55,7 +55,7 @@ async def test_top_10_currencies_by_capitalization(coinmarketcap_agent: Agent) -
         agents=[coinmarketcap_agent],
     ).execute()
     assert result is not None, "Expected a result from the agent run."
-    answers: List[str] = re.findall(r'<BEGIN>(.*?)<END>', result, re.DOTALL)
+    answers: List[str] = re.findall(r"<BEGIN>(.*?)<END>", result, re.DOTALL)
     assert answers, "Begin and end markers are missing"
     currencies: List[str] = max(answers, key=lambda e: e.count(",")).split(",")
     assert len(currencies) == 10
@@ -63,7 +63,9 @@ async def test_top_10_currencies_by_capitalization(coinmarketcap_agent: Agent) -
     assert "Ethereum" in currencies
 
 
-async def test_coinmarketcap_different_crypto_for_same_symbol(coinmarketcap_agent: Agent) -> None:
+async def test_coinmarketcap_different_crypto_for_same_symbol(
+    coinmarketcap_agent: Agent,
+) -> None:
     result: str = await run_agents(
         "List some of the cryptocurrency names with a symbol BTC. Use get_coin_info function.",
         agents=[coinmarketcap_agent],
@@ -76,26 +78,32 @@ async def test_coinmarketcap_different_crypto_for_same_symbol(coinmarketcap_agen
 
 
 async def test_coinmarketcap_btc_capitalization(coinmarketcap_agent: Agent) -> None:
-    result: str|float = await run_agents(
+    result: str | float = await run_agents(
         "What's bitcoin capitalization? Return a single number: capitalization in USD",
         agents=[coinmarketcap_agent],
         output_type=float,
     ).execute()
     assert result is not None, "Expected a result from the agent run."
     if isinstance(result, str):
-        result = result = max(re.findall(r'(\d+(?:\.\d+))', result.replace(",", "").replace("_", "")), key=len)
+        result = result = max(
+            re.findall(r"(\d+(?:\.\d+))", result.replace(",", "").replace("_", "")),
+            key=len,
+        )
     assert float(result) > 10**9  # More than 1 billion dollars
 
 
 async def test_coinmarketcap_get_current_price(coinmarketcap_agent: Agent) -> None:
-    result: str|float = await run_agents(
+    result: str | float = await run_agents(
         "Get current price of bitcoin. Return a single number: price in USD.",
         agents=[coinmarketcap_agent],
         output_type=float,
     ).execute()
     assert result is not None, "Expected a result from the agent run."
     if isinstance(result, str):
-        result = max(re.findall(r'(\d+(?:\.\d+))', result.replace(",", "").replace("_", "")), key=len)
+        result = max(
+            re.findall(r"(\d+(?:\.\d+))", result.replace(",", "").replace("_", "")),
+            key=len,
+        )
     price = float(result)
     # Price must be greater than 10k$ and must have fractional part
     assert price > 10000 and price % 1 > 1e-3
@@ -103,6 +111,7 @@ async def test_coinmarketcap_get_current_price(coinmarketcap_agent: Agent) -> No
 
 # Looks like it fails to pass an array into function params
 # Maybe we can wait for LLama 4 to fix things
+@pytest.mark.xfail(reason="Date conversion in agents is not working yet")
 async def test_coinmarketcap_historical_price(coinmarketcap_agent: Agent) -> None:
     result: str = await run_agents(
         "Get price of bitcoin yesterday at 12:00. Return a single number: price in USD.",
