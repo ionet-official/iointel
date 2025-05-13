@@ -1,5 +1,5 @@
 import pytest
-from duckduckgo_search.exceptions import RatelimitException
+from duckduckgo_search.exceptions import DuckDuckGoSearchException
 
 from iointel import Agent
 from iointel.src.agent_methods.tools.duckduckgo import (
@@ -19,6 +19,8 @@ async def test_duckduckgo():
             "Search the web. How many models were released on the first version of io-intelligence product?",
             agents=[agent],
         ).execute()
-    except RatelimitException:
-        raise pytest.xfail(reason="DDG rate limited us :(")
+    except DuckDuckGoSearchException as err:
+        if "202 Ratelimit" in str(err):
+            raise pytest.xfail(reason="DDG rate limited us :(")
+        raise
     assert "25" in result

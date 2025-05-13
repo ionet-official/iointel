@@ -1,6 +1,5 @@
 import datetime
 
-import pytest
 
 from iointel.src.agent_methods.tools.coinmarketcap import (
     get_coin_quotes_historical,
@@ -22,7 +21,6 @@ def test_get_coin_price():
     assert get_coin_quotes(symbol=["BTC"])
 
 
-@pytest.mark.skip(reason="Waiting to get a paid coinmarketcap API key")
 def test_get_coin_historical_price():
     assert get_coin_quotes_historical(
         symbol=["BTC"],
