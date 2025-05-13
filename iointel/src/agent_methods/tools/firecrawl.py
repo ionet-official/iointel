@@ -41,24 +41,27 @@ class Crawler(BaseModel):
         self._app = FirecrawlApp(api_key=api_key)
 
     @register_tool
-    def scrape_url(self, url: str) -> FirecrawlResponse:
+    def scrape_url(self, url: str, timeout: int = 60) -> FirecrawlResponse:
         """
         Scrape a single URL.
         Args:
             url (str): The URL to scrape
+            timeout (int): How many seconds to wait while scraping
         Returns:
             Dict[str, Any]: The scraping result.
         """
-        response = self._app.scrape_url(url)
+        # firecrawl uses ms for timeout units
+        response = self._app.scrape_url(url, timeout=timeout * 1000)
         return FirecrawlResponse(markdown=response.markdown, metadata=response.metadata)
 
     @register_tool
-    async def async_scrape_url(self, url: str) -> FirecrawlResponse:
+    async def async_scrape_url(self, url: str, timeout: int = 60) -> FirecrawlResponse:
         """
         Scrape a single URL.
         Args:
             url (str): The URL to scrape.
+            timeout (int): How many seconds to wait while scraping
         Returns:
             Dict[str, Any]: The scraping result.
         """
-        return await asyncio.to_thread(self.scrape_url, url)
+        return await asyncio.to_thread(self.scrape_url, url, timeout)
