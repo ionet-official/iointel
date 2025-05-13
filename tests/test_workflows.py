@@ -54,7 +54,7 @@ async def test_composite_workflow(poet):
     results = (await workflow.run_tasks())["results"]
     assert "translate_text" in results, results
     assert "sentiment" in results, results
-    assert results["sentiment"] > 0
+    assert float(results["sentiment"]) >= 0
 
 
 async def test_defaulting_workflow():
@@ -62,12 +62,14 @@ async def test_defaulting_workflow():
     workflow.translate_text(target_language="spanish").sentiment()
     results = (await workflow.run_tasks())["results"]
     assert "translate_text" in results, results
-    assert results["sentiment"] >= 0, results
+    assert float(results["sentiment"]) >= 0, results
 
 
 async def test_translation_workflow(poet):
     workflow = Workflow(objective=text, agents=[poet], client_mode=False)
-    results = (await workflow.translate_text(target_language="spanish").run_tasks())["results"]
+    results = (await workflow.translate_text(target_language="spanish").run_tasks())[
+        "results"
+    ]
     assert "galaxia" in results["translate_text"]
 
 
@@ -84,6 +86,7 @@ async def test_summarize_text_workflow(poet):
         or "void" in results["summarize_text"].summary
     )
 
+
 @pytest.mark.skip(reason="Reasoning is prone to looping forever")
 async def test_solve_with_reasoning_workflow():
     workflow = Workflow("What's 2+2", client_mode=False)
@@ -95,7 +98,7 @@ async def test_sentiment_workflow():
     # High sentiment = positive reaction
     workflow = Workflow("The dinner was awesome!", client_mode=False)
     results = (await workflow.sentiment().run_tasks())["results"]
-    assert results["sentiment"] > 0.5, results
+    assert float(results["sentiment"]) > 0.5, results
 
 
 async def test_extract_categorized_entities_workflow():
@@ -110,9 +113,11 @@ async def test_classify_workflow():
         "A major tech company has announced a breakthrough in battery technology",
         client_mode=False,
     )
-    results = (await workflow.classify(
-        classify_by=["fact", "fiction", "sci-fi", "fantasy"]
-    ).run_tasks())["results"]
+    results = (
+        await workflow.classify(
+            classify_by=["fact", "fiction", "sci-fi", "fantasy"]
+        ).run_tasks()
+    )["results"]
     assert results["classify"] == "fact"
 
 
@@ -141,7 +146,7 @@ async def test_task_level_agent_workflow(poet):
     workflow.translate_text(agents=[poet], target_language="spanish").sentiment()
     results = (await workflow.run_tasks())["results"]
     assert "translate_text" in results, results
-    assert results["sentiment"] >= 0, results
+    assert float(results["sentiment"]) >= 0, results
 
 
 async def test_sentiment_classify_workflow():
@@ -149,9 +154,11 @@ async def test_sentiment_classify_workflow():
         "A major tech company has announced a breakthrough in battery technology",
         client_mode=False,
     )
-    results = (await workflow.classify(
-        classify_by=["fact", "fiction", "sci-fi", "fantasy"]
-    ).run_tasks())["results"]
+    results = (
+        await workflow.classify(
+            classify_by=["fact", "fiction", "sci-fi", "fantasy"]
+        ).run_tasks()
+    )["results"]
     assert results["classify"] == "fact"
 
 

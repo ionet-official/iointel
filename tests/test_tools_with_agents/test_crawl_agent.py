@@ -20,7 +20,7 @@ async def test_firecrawl():
             agents=[agent],
         ).execute()
     except Exception as err:
-        if "Request timed out" in err:
+        if "Request timed out" in str(err):
             pytest.xfail(reason=f"Timed out: {err}")
         raise
     assert result is not None, "Expected a result from the agent run."
