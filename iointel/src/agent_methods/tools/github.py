@@ -12,7 +12,9 @@ logger = logging.getLogger(__name__)
 try:
     from github import Auth, Github, GithubException
 except ImportError:
-    raise ImportError("`PyGithub` not installed. Please install using `pip install pygithub`")
+    raise ImportError(
+        "`PyGithub` not installed. Please install using `pip install pygithub`"
+    )
 
 
 class GithubTools:
@@ -20,13 +22,11 @@ class GithubTools:
         self,
         access_token: Optional[str] = None,
         base_url: Optional[str] = None,
-
     ):
         self.access_token = access_token or os.getenv("GITHUB_ACCESS_TOKEN")
         self.base_url = base_url
 
         self.g = self.authenticate()
-
 
     @register_tool(name="github_auth")
     def authenticate(self):
@@ -44,7 +44,12 @@ class GithubTools:
 
     @register_tool(name="github_search_repositories")
     def search_repositories(
-        self, query: str, sort: str = "stars", order: str = "desc", page: int = 1, per_page: int = 30
+        self,
+        query: str,
+        sort: str = "stars",
+        order: str = "desc",
+        page: int = 1,
+        per_page: int = 30,
     ) -> str:
         """Search for repositories on GitHub.
 
@@ -59,12 +64,16 @@ class GithubTools:
         Returns:
             A JSON-formatted string containing a list of repositories matching the search query.
         """
-        logger.debug(f"Searching repositories with query: '{query}', page: {page}, per_page: {per_page}")
+        logger.debug(
+            f"Searching repositories with query: '{query}', page: {page}, per_page: {per_page}"
+        )
         try:
             # Ensure per_page doesn't exceed GitHub's max of 100
             per_page = min(per_page, 100)
 
-            repositories = self.g.search_repositories(query=query, sort=sort, order=order)
+            repositories = self.g.search_repositories(
+                query=query, sort=sort, order=order
+            )
 
             # Get the specified page of results
             repo_list = []
@@ -216,7 +225,9 @@ class GithubTools:
         Returns:
             A JSON-formatted string containing a list of pull requests.
         """
-        logger.debug(f"Listing pull requests for repository: {repo_name} with state: {state}")
+        logger.debug(
+            f"Listing pull requests for repository: {repo_name} with state: {state}"
+        )
         try:
             repo = self.g.get_repo(repo_name)
             pulls = repo.get_pulls(state=state)
@@ -279,7 +290,9 @@ class GithubTools:
         Returns:
             A JSON-formatted string containing the list of changed files.
         """
-        logger.debug(f"Getting changes for pull request #{pr_number} in repository: {repo_name}")
+        logger.debug(
+            f"Getting changes for pull request #{pr_number} in repository: {repo_name}"
+        )
         try:
             repo = self.g.get_repo(repo_name)
             pr = repo.get_pull(pr_number)
@@ -303,7 +316,9 @@ class GithubTools:
             return json.dumps({"error": str(e)})
 
     @register_tool(name="github_create_issue")
-    def create_issue(self, repo_name: str, title: str, body: Optional[str] = None) -> str:
+    def create_issue(
+        self, repo_name: str, title: str, body: Optional[str] = None
+    ) -> str:
         """Create an issue in a repository.
 
         Args:
@@ -399,7 +414,9 @@ class GithubTools:
             return json.dumps({"error": str(e)})
 
     @register_tool(name="github_comment_on_issue")
-    def comment_on_issue(self, repo_name: str, issue_number: int, comment_body: str) -> str:
+    def comment_on_issue(
+        self, repo_name: str, issue_number: int, comment_body: str
+    ) -> str:
         """Add a comment to an issue.
 
         Args:
@@ -410,7 +427,9 @@ class GithubTools:
         Returns:
             A JSON-formatted string containing the comment details.
         """
-        logger.debug(f"Adding comment to issue #{issue_number} in repository: {repo_name}")
+        logger.debug(
+            f"Adding comment to issue #{issue_number} in repository: {repo_name}"
+        )
         try:
             repo = self.g.get_repo(repo_name)
             issue = repo.get_issue(number=issue_number)
@@ -470,7 +489,9 @@ class GithubTools:
             return json.dumps({"error": str(e)})
 
     @register_tool(name="github_assign_issue")
-    def assign_issue(self, repo_name: str, issue_number: int, assignees: List[str]) -> str:
+    def assign_issue(
+        self, repo_name: str, issue_number: int, assignees: List[str]
+    ) -> str:
         """Assign users to an issue.
 
         Args:
@@ -481,12 +502,16 @@ class GithubTools:
         Returns:
             A JSON-formatted string confirming the assignees.
         """
-        logger.debug(f"Assigning users to issue #{issue_number} in repository: {repo_name}")
+        logger.debug(
+            f"Assigning users to issue #{issue_number} in repository: {repo_name}"
+        )
         try:
             repo = self.g.get_repo(repo_name)
             issue = repo.get_issue(number=issue_number)
             issue.edit(assignees=assignees)
-            return json.dumps({"message": f"Issue #{issue_number} assigned to {assignees}."}, indent=2)
+            return json.dumps(
+                {"message": f"Issue #{issue_number} assigned to {assignees}."}, indent=2
+            )
         except GithubException as e:
             logger.error(f"Error assigning issue: {e}")
             return json.dumps({"error": str(e)})
@@ -508,7 +533,10 @@ class GithubTools:
             repo = self.g.get_repo(repo_name)
             issue = repo.get_issue(number=issue_number)
             issue.edit(labels=labels)
-            return json.dumps({"message": f"Labels {labels} added to issue #{issue_number}."}, indent=2)
+            return json.dumps(
+                {"message": f"Labels {labels} added to issue #{issue_number}."},
+                indent=2,
+            )
         except GithubException as e:
             logger.error(f"Error labeling issue: {e}")
             return json.dumps({"error": str(e)})
@@ -524,7 +552,9 @@ class GithubTools:
         Returns:
             A JSON-formatted string containing a list of comments.
         """
-        logger.debug(f"Listing comments for issue #{issue_number} in repository: {repo_name}")
+        logger.debug(
+            f"Listing comments for issue #{issue_number} in repository: {repo_name}"
+        )
         try:
             repo = self.g.get_repo(repo_name)
             issue = repo.get_issue(number=issue_number)
@@ -546,7 +576,11 @@ class GithubTools:
 
     @register_tool(name="github_edit_issue")
     def edit_issue(
-        self, repo_name: str, issue_number: int, title: Optional[str] = None, body: Optional[str] = None
+        self,
+        repo_name: str,
+        issue_number: int,
+        title: Optional[str] = None,
+        body: Optional[str] = None,
     ) -> str:
         """Edit the title or body of an issue.
 

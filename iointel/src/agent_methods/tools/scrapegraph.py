@@ -10,7 +10,9 @@ logger = logging.getLogger(__name__)
 try:
     from scrapegraph_py import Client
 except ImportError:
-    raise ImportError("`scrapegraph-py` not installed. Please install using `pip install scrapegraph-py`")
+    raise ImportError(
+        "`scrapegraph-py` not installed. Please install using `pip install scrapegraph-py`"
+    )
 
 
 class ScrapeGraphTools:
@@ -20,8 +22,6 @@ class ScrapeGraphTools:
         smartscraper: bool = True,
         markdownify: bool = False,
     ):
-
-
         self.api_key: Optional[str] = api_key or os.getenv("SGAI_API_KEY")
         self.client = Client(api_key=self.api_key)
 
@@ -29,7 +29,6 @@ class ScrapeGraphTools:
         # Only enable markdownify if smartscraper is False
         if not smartscraper:
             markdownify = True
-
 
     @register_tool(name="scrapegraph_smartscraper")
     def smartscraper(self, url: str, prompt: str) -> str:

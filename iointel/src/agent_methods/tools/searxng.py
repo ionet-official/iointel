@@ -6,6 +6,7 @@ from pydantic import BaseModel
 
 from ...utilities.decorators import register_tool
 
+
 class SearchResult(BaseModel):
     url: str
     title: str

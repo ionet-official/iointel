@@ -30,7 +30,6 @@ class ZoomTools:
             name (str): The name of the tool. Defaults to "zoom_tool".
         """
 
-
         # Get credentials from env vars if not provided
         self.account_id = account_id or getenv("ZOOM_ACCOUNT_ID")
         self.client_id = client_id or getenv("ZOOM_CLIENT_ID")
@@ -43,7 +42,6 @@ class ZoomTools:
                 "ZOOM_ACCOUNT_ID, ZOOM_CLIENT_ID, and ZOOM_CLIENT_SECRET must be set either through parameters or environment variables."
             )
 
-
     def get_access_token(self) -> str:
         """
         Get a valid access token, refreshing if necessary using Zoom's Server-to-Server OAuth.
@@ -52,7 +50,11 @@ class ZoomTools:
             str: The current access token or empty string if token generation fails.
         """
         # Check if we have a valid token
-        if self.__access_token and self.__token_expiry and datetime.now() < self.__token_expiry:
+        if (
+            self.__access_token
+            and self.__token_expiry
+            and datetime.now() < self.__token_expiry
+        ):
             return self.__access_token
 
         # Generate new token
@@ -62,7 +64,9 @@ class ZoomTools:
             }
 
             # Create base64 encoded auth string
-            auth_string = b64encode(f"{self.client_id}:{self.client_secret}".encode()).decode()
+            auth_string = b64encode(
+                f"{self.client_id}:{self.client_secret}".encode()
+            ).decode()
             headers["Authorization"] = f"Basic {auth_string}"
 
             data = {
@@ -70,13 +74,17 @@ class ZoomTools:
                 "account_id": self.account_id,
             }
 
-            response = requests.post("https://zoom.us/oauth/token", headers=headers, data=data)
+            response = requests.post(
+                "https://zoom.us/oauth/token", headers=headers, data=data
+            )
             response.raise_for_status()
 
             token_data = response.json()
             self.__access_token = token_data["access_token"]
             # Set expiry time slightly before actual expiry to ensure token validity
-            self.__token_expiry = datetime.now() + timedelta(seconds=token_data["expires_in"] - 60)  # type: ignore
+            self.__token_expiry = datetime.now() + timedelta(
+                seconds=token_data["expires_in"] - 60
+            )  # type: ignore
 
             logger.debug("Successfully generated new Zoom access token")
             return self.__access_token  # type: ignore
@@ -88,7 +96,9 @@ class ZoomTools:
             return ""
 
     @register_tool(name="zoom_schedule_meeting")
-    def schedule_meeting(self, topic: str, start_time: str, duration: int, timezone: str = "UTC") -> str:
+    def schedule_meeting(
+        self, topic: str, start_time: str, duration: int, timezone: str = "UTC"
+    ) -> str:
         """
         Schedule a new Zoom meeting.
 
@@ -109,7 +119,10 @@ class ZoomTools:
             return json.dumps({"error": "Failed to obtain access token"})
 
         url = "https://api.zoom.us/v2/users/me/meetings"
-        headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+        headers = {
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json",
+        }
         data = {
             "topic": topic,
             "type": 2,
@@ -173,7 +186,10 @@ class ZoomTools:
             response.raise_for_status()
             meetings = response.json()
 
-            result = {"message": "Upcoming meetings retrieved successfully", "meetings": meetings.get("meetings", [])}
+            result = {
+                "message": "Upcoming meetings retrieved successfully",
+                "meetings": meetings.get("meetings", []),
+            }
             logger.info(f"Retrieved {len(result['meetings'])} upcoming meetings")
             return json.dumps(result, indent=2)
         except requests.RequestException as e:
@@ -229,7 +245,10 @@ class ZoomTools:
 
     @register_tool(name="zoom_get_meeting_recordings")
     def get_meeting_recordings(
-        self, meeting_id: str, include_download_token: bool = False, token_ttl: Optional[int] = None
+        self,
+        meeting_id: str,
+        include_download_token: bool = False,
+        token_ttl: Optional[int] = None,
     ) -> str:
         """
         Get all recordings for a specific meeting.
@@ -260,7 +279,9 @@ class ZoomTools:
                 if 0 <= token_ttl <= 604800:
                     params["ttl"] = str(token_ttl)  # Convert to string if necessary
                 else:
-                    logger.warning("Invalid TTL value. Must be between 0 and 604800 seconds.")
+                    logger.warning(
+                        "Invalid TTL value. Must be between 0 and 604800 seconds."
+                    )
 
         try:
             response = requests.get(url, headers=headers, params=params)
@@ -287,7 +308,9 @@ class ZoomTools:
             return json.dumps({"error": str(e)})
 
     @register_tool(name="zoom_delete_meeting")
-    def delete_meeting(self, meeting_id: str, schedule_for_reminder: bool = True) -> str:
+    def delete_meeting(
+        self, meeting_id: str, schedule_for_reminder: bool = True
+    ) -> str:
         """
         Delete a scheduled Zoom meeting.
 
@@ -316,7 +339,10 @@ class ZoomTools:
 
             # Zoom returns 204 No Content for successful deletion
             if response.status_code == 204:
-                result = {"message": "Meeting deleted successfully!", "meeting_id": meeting_id}
+                result = {
+                    "message": "Meeting deleted successfully!",
+                    "meeting_id": meeting_id,
+                }
                 logger.info(f"Meeting {meeting_id} deleted successfully")
             else:
                 result = response.json()

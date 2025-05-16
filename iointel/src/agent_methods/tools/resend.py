@@ -11,7 +11,9 @@ logger = logging.getLogger(__name__)
 try:
     import resend  # type: ignore
 except ImportError:
-    raise ImportError("`resend` not installed. Please install using `pip install resend`.")
+    raise ImportError(
+        "`resend` not installed. Please install using `pip install resend`."
+    )
 
 
 class ResendTools:
@@ -20,13 +22,10 @@ class ResendTools:
         api_key: Optional[str] = None,
         from_email: Optional[str] = None,
     ):
-
-
         self.from_email = from_email
         self.api_key = api_key or getenv("RESEND_API_KEY")
         if not self.api_key:
             logger.error("No Resend API key provided")
-
 
     @register_tool(name="resend_send_email")
     def send_email(self, to_email: str, subject: str, body: str) -> str:

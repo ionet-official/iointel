@@ -9,7 +9,7 @@ from dataclasses import dataclass, field, make_dataclass
 class WorkflowState:
     initial_text: str = ""
     conversation_id: str = ""
-    results: Dict[str, Any] = field(default_factory=dict) 
+    results: Dict[str, Any] = field(default_factory=dict)
 
     @classmethod
     def get_id(cls) -> str:
@@ -23,17 +23,15 @@ class TaskNode(BaseNode[WorkflowState]):
     default_agents: list
     conversation_id: str
     unique_id: str = field(init=False)
-    next_task: Optional['TaskNode'] = None
+    next_task: Optional["TaskNode"] = None
 
     def __post_init__(self):
         self.unique_id = (
-            self.task.get("task_id")
-            or self.task.get("name")
-            or str(uuid.uuid4())
+            self.task.get("task_id") or self.task.get("name") or str(uuid.uuid4())
         )
 
         self.conversation_id = self.conversation_id
-        
+
     @classmethod
     def get_node_def(cls, local_ns: Optional[Dict[str, Any]] = None):
         next_edges: dict[str, Any] = {}
@@ -49,11 +47,16 @@ class TaskNode(BaseNode[WorkflowState]):
             returns_base_node=True,
         )
 
-    async def run(self, context: GraphRunContext[WorkflowState]) -> "TaskNode" | End[WorkflowState]:
-        from ..workflow import Workflow, _get_task_key  # import must happen here, or circular issue occurs
+    async def run(
+        self, context: GraphRunContext[WorkflowState]
+    ) -> "TaskNode" | End[WorkflowState]:
+        from ..workflow import (
+            Workflow,
+            _get_task_key,
+        )  # import must happen here, or circular issue occurs
 
         wf = Workflow()
-        state = context.state 
+        state = context.state
 
         if not state.conversation_id:
             state.conversation_id = self.conversation_id or str(uuid.uuid4())
@@ -64,27 +67,25 @@ class TaskNode(BaseNode[WorkflowState]):
         task_key = _get_task_key(self.task)
 
         result = await wf.run_task(
-            self.task,
-            self.default_text,
-            self.default_agents,
-            self.conversation_id
+            self.task, self.default_text, self.default_agents, self.conversation_id
         )
 
-        state.results[task_key] = result.get("data", result) if isinstance(result, dict) else result
+        state.results[task_key] = (
+            result.get("data", result) if isinstance(result, dict) else result
+        )
         return self.next_task if self.next_task else End(state)
 
 
-def make_task_node(task: dict,
-                   default_text: str,
-                   default_agents: list,
-                   conv_id: str) -> type[BaseNode]:
+def make_task_node(
+    task: dict, default_text: str, default_agents: list, conv_id: str
+) -> type[BaseNode]:
     """
     Return a brand‑new subclass of TaskNode whose `get_id()` is unique.
     The task parameters are stored on the *class* so the graph can later
     instantiate it.
     """
-    uid       = task.get("task_id") or task.get("name") or str(uuid.uuid4())
-    cls_name  = f'{task.get("name","task")}_{uid}'.replace('-', '_')
+    uid = task.get("task_id") or task.get("name") or str(uuid.uuid4())
+    cls_name = f"{task.get('name', 'task')}_{uid}".replace("-", "_")
 
     # Every field you’d pass to TaskNode’s __init__ becomes a *class*
     # attribute; pydantic‑graph will pass them to the generated __init__.
@@ -92,19 +93,18 @@ def make_task_node(task: dict,
     # data‑carrying fields are already inherited from the base ``TaskNode``
     # we can simply pass an **empty list**.  (Leaving it out raises the
     # ``TypeError: make_dataclass() missing 1 required positional argument: 'fields'``)
-    
+
     NewNode = make_dataclass(
         cls_name,
-        [],                       # <‑‑ empty ``fields`` list satisfies the API
+        [],  # <‑‑ empty ``fields`` list satisfies the API
         bases=(TaskNode,),
         namespace={
             # class‑level constants → become default values for the subclass
-            "task"          : task,
-            "default_text"  : default_text,
+            "task": task,
+            "default_text": default_text,
             "default_agents": default_agents,
             "conversation_id": conv_id,
-            "_node_id"      : cls_name,  # used by the custom ``get_id`` below
-    
+            "_node_id": cls_name,  # used by the custom ``get_id`` below
             # Provide a per‑class ``get_id`` so every generated subclass
             # advertises a unique node‑ID to pydantic‑graph
             "get_id": classmethod(lambda cls: cls._node_id),

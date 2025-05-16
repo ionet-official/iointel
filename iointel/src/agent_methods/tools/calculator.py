@@ -71,7 +71,9 @@ class CalculatorTools:
         """
         if b == 0:
             logger.error("Attempt to divide by zero")
-            return json.dumps({"operation": "division", "error": "Division by zero is undefined"})
+            return json.dumps(
+                {"operation": "division", "error": "Division by zero is undefined"}
+            )
         try:
             result = a / b
         except Exception as e:
@@ -106,7 +108,12 @@ class CalculatorTools:
         """
         if n < 0:
             logger.error("Attempt to calculate factorial of a negative number")
-            return json.dumps({"operation": "factorial", "error": "Factorial of a negative number is undefined"})
+            return json.dumps(
+                {
+                    "operation": "factorial",
+                    "error": "Factorial of a negative number is undefined",
+                }
+            )
         result = math.factorial(n)
         logger.info(f"Calculating factorial of {n} to get {result}")
         return json.dumps({"operation": "factorial", "result": result})
@@ -140,7 +147,12 @@ class CalculatorTools:
         """
         if n < 0:
             logger.error("Attempt to calculate square root of a negative number")
-            return json.dumps({"operation": "square_root", "error": "Square root of a negative number is undefined"})
+            return json.dumps(
+                {
+                    "operation": "square_root",
+                    "error": "Square root of a negative number is undefined",
+                }
+            )
 
         result = math.sqrt(n)
         logger.info(f"Calculating square root of {n} to get {result}")

@@ -12,7 +12,9 @@ try:
     from twilio.base.exceptions import TwilioRestException
     from twilio.rest import Client
 except ImportError:
-    raise ImportError("`twilio` not installed. Please install it using `pip install twilio`.")
+    raise ImportError(
+        "`twilio` not installed. Please install it using `pip install twilio`."
+    )
 
 
 class TwilioTools:
@@ -42,7 +44,6 @@ class TwilioTools:
             debug: Enable debug logging
         """
 
-
         # Get credentials from environment if not provided
         self.account_sid = account_sid or getenv("TWILIO_ACCOUNT_SID")
         self.auth_token = auth_token or getenv("TWILIO_AUTH_TOKEN")
@@ -55,7 +56,9 @@ class TwilioTools:
 
         # Validate required credentials
         if not self.account_sid:
-            logger.error("TWILIO_ACCOUNT_SID not set. Please set the TWILIO_ACCOUNT_SID environment variable.")
+            logger.error(
+                "TWILIO_ACCOUNT_SID not set. Please set the TWILIO_ACCOUNT_SID environment variable."
+            )
 
         # Initialize client based on provided authentication method
         if self.api_key and self.api_secret:
@@ -87,7 +90,6 @@ class TwilioTools:
             logging.basicConfig()
             self.client.http_client.logger.setLevel(logging.INFO)
 
-
     @staticmethod
     def validate_phone_number(phone: str) -> bool:
         """Validate E.164 phone number format"""
@@ -110,7 +112,9 @@ class TwilioTools:
             if not self.validate_phone_number(to):
                 return "Error: 'to' number must be in E.164 format (e.g., +1234567890)"
             if not self.validate_phone_number(from_):
-                return "Error: 'from_' number must be in E.164 format (e.g., +1234567890)"
+                return (
+                    "Error: 'from_' number must be in E.164 format (e.g., +1234567890)"
+                )
             if not body or len(body.strip()) == 0:
                 return "Error: Message body cannot be empty"
 

@@ -133,8 +133,12 @@ class GoogleSheetsTools:
         else:
             self.scopes = scopes
             # Validate that required scopes are present for requested operations
-            if (create or update or duplicate) and self.DEFAULT_SCOPES["write"] not in self.scopes:
-                raise ValueError(f"The scope {self.DEFAULT_SCOPES['write']} is required for write operations")
+            if (create or update or duplicate) and self.DEFAULT_SCOPES[
+                "write"
+            ] not in self.scopes:
+                raise ValueError(
+                    f"The scope {self.DEFAULT_SCOPES['write']} is required for write operations"
+                )
             if (
                 read
                 and self.DEFAULT_SCOPES["read"] not in self.scopes
@@ -143,7 +147,6 @@ class GoogleSheetsTools:
                 raise ValueError(
                     f"Either {self.DEFAULT_SCOPES['read']} or {self.DEFAULT_SCOPES['write']} is required for read operations"
                 )
-
 
     def _auth(self) -> None:
         """
@@ -156,7 +159,9 @@ class GoogleSheetsTools:
         creds_file = Path(self.credentials_path or "credentials.json")
 
         if token_file.exists():
-            self.creds = Credentials.from_authorized_user_file(str(token_file), self.scopes)
+            self.creds = Credentials.from_authorized_user_file(
+                str(token_file), self.scopes
+            )
 
         if not self.creds or not self.creds.valid:
             if self.creds and self.creds.expired and self.creds.refresh_token:
@@ -170,19 +175,29 @@ class GoogleSheetsTools:
                         "auth_uri": "https://accounts.google.com/o/oauth2/auth",
                         "token_uri": "https://oauth2.googleapis.com/token",
                         "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
-                        "redirect_uris": [getenv("GOOGLE_REDIRECT_URI", "http://localhost")],
+                        "redirect_uris": [
+                            getenv("GOOGLE_REDIRECT_URI", "http://localhost")
+                        ],
                     }
                 }
                 if creds_file.exists():
-                    flow = InstalledAppFlow.from_client_secrets_file(str(creds_file), self.scopes)
+                    flow = InstalledAppFlow.from_client_secrets_file(
+                        str(creds_file), self.scopes
+                    )
                 else:
-                    flow = InstalledAppFlow.from_client_config(client_config, self.scopes)
+                    flow = InstalledAppFlow.from_client_config(
+                        client_config, self.scopes
+                    )
                 self.creds = flow.run_local_server(port=0)
             token_file.write_text(self.creds.to_json()) if self.creds else None
 
     @authenticate
     @register_tool(name="google_sheets_read")
-    def read_sheet(self, spreadsheet_id: Optional[str] = None, spreadsheet_range: Optional[str] = None) -> str:
+    def read_sheet(
+        self,
+        spreadsheet_id: Optional[str] = None,
+        spreadsheet_range: Optional[str] = None,
+    ) -> str:
         """
         Read values from a Google Sheet. Prioritizes instance attributes over method parameters.
 
@@ -204,7 +219,12 @@ class GoogleSheetsTools:
             return "Spreadsheet ID and range must be provided either in constructor or method call"
 
         try:
-            result = self.service.spreadsheets().values().get(spreadsheetId=sheet_id, range=sheet_range).execute()  # type: ignore
+            result = (
+                self.service.spreadsheets()
+                .values()
+                .get(spreadsheetId=sheet_id, range=sheet_range)
+                .execute()
+            )  # type: ignore
             return json.dumps(result.get("values", []))
 
         except Exception as e:
@@ -228,7 +248,11 @@ class GoogleSheetsTools:
         try:
             spreadsheet = {"properties": {"title": title}}
 
-            spreadsheet = self.service.spreadsheets().create(body=spreadsheet, fields="spreadsheetId").execute()  # type: ignore
+            spreadsheet = (
+                self.service.spreadsheets()
+                .create(body=spreadsheet, fields="spreadsheetId")
+                .execute()
+            )  # type: ignore
             spreadsheet_id = spreadsheet.get("spreadsheetId")
 
             return f"Spreadsheet created: https://docs.google.com/spreadsheets/d/{spreadsheet_id}"
@@ -239,7 +263,10 @@ class GoogleSheetsTools:
     @authenticate
     @register_tool(name="google_sheets_update")
     def update_sheet(
-        self, data: List[List[Any]], spreadsheet_id: Optional[str] = None, range_name: Optional[str] = None
+        self,
+        data: List[List[Any]],
+        spreadsheet_id: Optional[str] = None,
+        range_name: Optional[str] = None,
     ) -> str:
         """Updates a Google Sheet with the provided data.
 
@@ -277,7 +304,10 @@ class GoogleSheetsTools:
     @authenticate
     @register_tool(name="google_sheets_duplicate")
     def create_duplicate_sheet(
-        self, source_id: str, new_title: Optional[str] = None, copy_permissions: bool = True
+        self,
+        source_id: str,
+        new_title: Optional[str] = None,
+        copy_permissions: bool = True,
     ) -> str:
         """Duplicate a Google Spreadsheet using the Google Drive API's copy feature.
         This ensures an exact duplicate including formatting and data.
@@ -308,7 +338,9 @@ class GoogleSheetsTools:
 
             # Use new_title if provided, otherwise fetch the title from the source spreadsheet
             if not new_title:
-                source_sheet = self.service.spreadsheets().get(spreadsheetId=source_id).execute()
+                source_sheet = (
+                    self.service.spreadsheets().get(spreadsheetId=source_id).execute()
+                )
                 new_title = source_sheet["properties"]["title"]
 
             body = {"name": new_title}
@@ -320,7 +352,9 @@ class GoogleSheetsTools:
                 # Get permissions from source file
                 source_permissions = (
                     drive_service.permissions()
-                    .list(fileId=source_id, fields="permissions(emailAddress,role,type)")
+                    .list(
+                        fileId=source_id, fields="permissions(emailAddress,role,type)"
+                    )
                     .execute()
                     .get("permissions", [])
                 )

@@ -12,16 +12,19 @@ try:
     from webexpythonsdk import WebexAPI
     from webexpythonsdk.exceptions import ApiError
 except ImportError:
-    logger.error("Webex tools require the `webexpythonsdk` package. Run `pip install webexpythonsdk` to install it.")
+    logger.error(
+        "Webex tools require the `webexpythonsdk` package. Run `pip install webexpythonsdk` to install it."
+    )
 
 
 class WebexTools:
     def __init__(self, access_token: Optional[str] = None):
-
         if access_token is None:
             access_token = os.getenv("WEBEX_ACCESS_TOKEN")
         if access_token is None:
-            raise ValueError("Webex access token is not set. Please set the WEBEX_ACCESS_TOKEN environment variable.")
+            raise ValueError(
+                "Webex access token is not set. Please set the WEBEX_ACCESS_TOKEN environment variable."
+            )
 
         self.client = WebexAPI(access_token=access_token)
 

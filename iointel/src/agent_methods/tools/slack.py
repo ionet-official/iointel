@@ -13,16 +13,16 @@ try:
     from slack_sdk import WebClient
     from slack_sdk.errors import SlackApiError
 except ImportError:
-    raise ImportError("Slack tools require the `slack_sdk` package. Run `pip install slack-sdk` to install it.")
+    raise ImportError(
+        "Slack tools require the `slack_sdk` package. Run `pip install slack-sdk` to install it."
+    )
 
 
 class SlackTools:
     def __init__(
         self,
         token: Optional[str] = None,
-
     ):
-
         self.token: Optional[str] = token or os.getenv("SLACK_TOKEN")
         if self.token is None or self.token == "":
             raise ValueError("SLACK_TOKEN is not set")
@@ -57,7 +57,10 @@ class SlackTools:
         """
         try:
             response = self.client.conversations_list()
-            channels = [{"id": channel["id"], "name": channel["name"]} for channel in response["channels"]]
+            channels = [
+                {"id": channel["id"], "name": channel["name"]}
+                for channel in response["channels"]
+            ]
             return json.dumps(channels)
         except SlackApiError as e:
             logger.error(f"Error listing channels: {e}")
@@ -80,10 +83,14 @@ class SlackTools:
             messages: List[Dict[str, Any]] = [  # type: ignore
                 {
                     "text": msg.get("text", ""),
-                    "user": "webhook" if msg.get("subtype") == "bot_message" else msg.get("user", "unknown"),
+                    "user": "webhook"
+                    if msg.get("subtype") == "bot_message"
+                    else msg.get("user", "unknown"),
                     "ts": msg.get("ts", ""),
                     "sub_type": msg.get("subtype", "unknown"),
-                    "attachments": msg.get("attachments", []) if msg.get("subtype") == "bot_message" else "n/a",
+                    "attachments": msg.get("attachments", [])
+                    if msg.get("subtype") == "bot_message"
+                    else "n/a",
                 }
                 for msg in response.get("messages", [])
             ]

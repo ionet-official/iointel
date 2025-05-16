@@ -3,7 +3,6 @@ from ...utilities.decorators import register_tool
 
 
 class Wolfram:
-
     def __init__(self, api_key: str = None):
         if api_key is None:
             raise ValueError("please set the api_key")
@@ -18,4 +17,3 @@ class Wolfram:
     async def query_async(self, query):
         res = await self.client.aquery(query)
         return next(res.results).text
-    

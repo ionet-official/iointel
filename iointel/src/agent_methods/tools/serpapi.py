@@ -15,15 +15,10 @@ except ImportError:
 
 
 class SerpApiTools:
-    def __init__(
-        self,
-        api_key: Optional[str] = None
-    ):
-
+    def __init__(self, api_key: Optional[str] = None):
         self.api_key = api_key or getenv("SERP_API_KEY")
         if not self.api_key:
             logger.warning("No Serpapi API key provided")
-
 
     @register_tool(name="serpapi_search_google")
     def search_google(self, query: str, num_results: int = 10) -> str:

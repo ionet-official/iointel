@@ -90,6 +90,7 @@ class DuckDuckGoSearchAPIWrapper(BaseModel):
 
         return results
 
+
 @register_tool(name="ddg_search_the_web")
 def search_the_web(text: str, max_results: int = 10):
     """
@@ -98,6 +99,7 @@ def search_the_web(text: str, max_results: int = 10):
     :return: The list of snippets in json format
     """
     return DuckDuckGoSearchAPIWrapper().results(text, max_results=max_results)
+
 
 @register_tool(name="ddg_search_the_web_async")
 async def search_the_web_async(text: str, max_results: int = 10):

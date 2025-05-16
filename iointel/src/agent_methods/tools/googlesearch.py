@@ -10,12 +10,16 @@ logger = logging.getLogger(__name__)
 try:
     from googlesearch import search
 except ImportError:
-    raise ImportError("`googlesearch-python` not installed. Please install using `pip install googlesearch-python`")
+    raise ImportError(
+        "`googlesearch-python` not installed. Please install using `pip install googlesearch-python`"
+    )
 
 try:
     from pycountry import pycountry
 except ImportError:
-    raise ImportError("`pycountry` not installed. Please install using `pip install pycountry`")
+    raise ImportError(
+        "`pycountry` not installed. Please install using `pip install pycountry`"
+    )
 
 
 class GoogleSearchTools:
@@ -39,16 +43,16 @@ class GoogleSearchTools:
         proxy: Optional[str] = None,
         timeout: Optional[int] = 10,
     ):
-
         self.fixed_max_results: Optional[int] = fixed_max_results
         self.fixed_language: Optional[str] = fixed_language
         self.headers: Optional[Any] = headers
         self.proxy: Optional[str] = proxy
         self.timeout: Optional[int] = timeout
 
-
     @register_tool(name="google_search")
-    def google_search(self, query: str, max_results: int = 5, language: str = "en") -> str:
+    def google_search(
+        self, query: str, max_results: int = 5, language: str = "en"
+    ) -> str:
         """
         Use this function to search Google for a specified query.
 
@@ -74,7 +78,15 @@ class GoogleSearchTools:
         logger.debug(f"Searching Google [{language}] for: {query}")
 
         # Perform Google search using the googlesearch-python package
-        results = list(search(query, num_results=max_results, lang=language, proxy=self.proxy, advanced=True))
+        results = list(
+            search(
+                query,
+                num_results=max_results,
+                lang=language,
+                proxy=self.proxy,
+                advanced=True,
+            )
+        )
 
         # Collect the search results
         res: List[Dict[str, str]] = []

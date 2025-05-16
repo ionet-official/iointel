@@ -23,7 +23,6 @@ class LocalFileSystemTools:
             default_extension (str): Default file extension to use if none specified.
         """
 
-
         self.target_directory = target_directory or os.getcwd()
         self.default_extension = default_extension.lstrip(".")
 

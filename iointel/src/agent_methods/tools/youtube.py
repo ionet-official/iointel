@@ -72,7 +72,10 @@ class YouTubeTools:
             return "Error getting video ID from URL, please provide a valid YouTube url"
 
         try:
-            params = {"format": "json", "url": f"https://www.youtube.com/watch?v={video_id}"}
+            params = {
+                "format": "json",
+                "url": f"https://www.youtube.com/watch?v={video_id}",
+            }
             url = "https://www.youtube.com/oembed"
             query_string = urlencode(params)
             url = url + "?" + query_string

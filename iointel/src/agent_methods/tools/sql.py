@@ -29,14 +29,15 @@ class SQLTools:
         dialect: Optional[str] = None,
         tables: Optional[Dict[str, Any]] = None,
     ):
-
         # Get the database engine
         _engine: Optional[Engine] = db_engine
         if _engine is None and db_url is not None:
             _engine = create_engine(db_url)
         elif user and password and host and port and dialect:
             if schema is not None:
-                _engine = create_engine(f"{dialect}://{user}:{password}@{host}:{port}/{schema}")
+                _engine = create_engine(
+                    f"{dialect}://{user}:{password}@{host}:{port}/{schema}"
+                )
             else:
                 _engine = create_engine(f"{dialect}://{user}:{password}@{host}:{port}")
 
@@ -49,7 +50,6 @@ class SQLTools:
 
         # Tables this toolkit can access
         self.tables: Optional[Dict[str, Any]] = tables
-
 
     @register_tool(name="sql_list_tables")
     def list_tables(self) -> str:

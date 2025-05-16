@@ -29,7 +29,9 @@ logger = logging.getLogger(__name__)
 try:
     import mlx_whisper
 except ImportError:
-    raise ImportError("`mlx_whisper` not installed. Please install using `pip install mlx-whisper`")
+    raise ImportError(
+        "`mlx_whisper` not installed. Please install using `pip install mlx-whisper`"
+    )
 
 
 class MLXTranscribeTools:
@@ -51,8 +53,6 @@ class MLXTranscribeTools:
         hallucination_silence_threshold: Optional[float] = None,
         decode_options: Optional[dict] = None,
     ):
-
-
         self.base_dir: Path = base_dir or Path.cwd()
         self.path_or_hf_repo: str = path_or_hf_repo
         self.verbose: Optional[bool] = verbose
@@ -66,7 +66,9 @@ class MLXTranscribeTools:
         self.prepend_punctuations: Optional[str] = prepend_punctuations
         self.append_punctuations: Optional[str] = append_punctuations
         self.clip_timestamps: Optional[Union[str, List[float]]] = clip_timestamps
-        self.hallucination_silence_threshold: Optional[float] = hallucination_silence_threshold
+        self.hallucination_silence_threshold: Optional[float] = (
+            hallucination_silence_threshold
+        )
         self.decode_options: Optional[dict] = decode_options
 
     @register_tool(name="mlx_transcribe")
@@ -94,13 +96,17 @@ class MLXTranscribeTools:
             if self.temperature is not None:
                 transcription_kwargs["temperature"] = self.temperature
             if self.compression_ratio_threshold is not None:
-                transcription_kwargs["compression_ratio_threshold"] = self.compression_ratio_threshold
+                transcription_kwargs["compression_ratio_threshold"] = (
+                    self.compression_ratio_threshold
+                )
             if self.logprob_threshold is not None:
                 transcription_kwargs["logprob_threshold"] = self.logprob_threshold
             if self.no_speech_threshold is not None:
                 transcription_kwargs["no_speech_threshold"] = self.no_speech_threshold
             if self.condition_on_previous_text is not None:
-                transcription_kwargs["condition_on_previous_text"] = self.condition_on_previous_text
+                transcription_kwargs["condition_on_previous_text"] = (
+                    self.condition_on_previous_text
+                )
             if self.initial_prompt is not None:
                 transcription_kwargs["initial_prompt"] = self.initial_prompt
             if self.word_timestamps is not None:
@@ -112,11 +118,15 @@ class MLXTranscribeTools:
             if self.clip_timestamps is not None:
                 transcription_kwargs["clip_timestamps"] = self.clip_timestamps
             if self.hallucination_silence_threshold is not None:
-                transcription_kwargs["hallucination_silence_threshold"] = self.hallucination_silence_threshold
+                transcription_kwargs["hallucination_silence_threshold"] = (
+                    self.hallucination_silence_threshold
+                )
             if self.decode_options is not None:
                 transcription_kwargs.update(self.decode_options)
 
-            transcription = mlx_whisper.transcribe(audio_file_path, **transcription_kwargs)
+            transcription = mlx_whisper.transcribe(
+                audio_file_path, **transcription_kwargs
+            )
             return transcription.get("text", "")
         except Exception as e:
             _e = f"Failed to transcribe audio file {e}"
@@ -132,7 +142,9 @@ class MLXTranscribeTools:
         """
         try:
             logger.info(f"Reading files in : {self.base_dir}")
-            return json.dumps([str(file_name) for file_name in self.base_dir.iterdir()], indent=4)
+            return json.dumps(
+                [str(file_name) for file_name in self.base_dir.iterdir()], indent=4
+            )
         except Exception as e:
             logger.error(f"Error reading files: {e}")
             return f"Error reading files: {e}"

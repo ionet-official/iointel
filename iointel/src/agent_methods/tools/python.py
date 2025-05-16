@@ -10,9 +10,12 @@ from ...utilities.decorators import register_tool
 
 logger = logging.getLogger(__name__)
 
+
 @functools.lru_cache(maxsize=None)
 def warn() -> None:
-    logger.warning("PythonTools can run arbitrary code, please provide human supervision.")
+    logger.warning(
+        "PythonTools can run arbitrary code, please provide human supervision."
+    )
 
 
 class PythonTools:
@@ -22,18 +25,19 @@ class PythonTools:
         safe_globals: Optional[dict] = None,
         safe_locals: Optional[dict] = None,
     ):
-
-
         self.base_dir: Path = base_dir or Path.cwd()
 
         # Restricted global and local scope
         self.safe_globals: dict = safe_globals or globals()
         self.safe_locals: dict = safe_locals or locals()
 
-
     @register_tool(name="python_save_and_run")
     def save_to_file_and_run(
-        self, file_name: str, code: str, variable_to_return: Optional[str] = None, overwrite: bool = True
+        self,
+        file_name: str,
+        code: str,
+        variable_to_return: Optional[str] = None,
+        overwrite: bool = True,
     ) -> str:
         """This function saves Python code to a file called `file_name` and then runs it.
         If successful, returns the value of `variable_to_return` if provided otherwise returns a success message.
@@ -58,7 +62,9 @@ class PythonTools:
             file_path.write_text(code, encoding="utf-8")
             logger.info(f"Saved: {file_path}")
             logger.info(f"Running {file_path}")
-            globals_after_run = runpy.run_path(str(file_path), init_globals=self.safe_globals, run_name="__main__")
+            globals_after_run = runpy.run_path(
+                str(file_path), init_globals=self.safe_globals, run_name="__main__"
+            )
 
             if variable_to_return:
                 variable_value = globals_after_run.get(variable_to_return)
@@ -73,7 +79,9 @@ class PythonTools:
             return f"Error saving and running code: {e}"
 
     @register_tool(name="python_run_file")
-    def run_python_file_return_variable(self, file_name: str, variable_to_return: Optional[str] = None) -> str:
+    def run_python_file_return_variable(
+        self, file_name: str, variable_to_return: Optional[str] = None
+    ) -> str:
         """This function runs code in a Python file.
         If successful, returns the value of `variable_to_return` if provided otherwise returns a success message.
         If failed, returns an error message.
@@ -87,7 +95,9 @@ class PythonTools:
             file_path = self.base_dir.joinpath(file_name)
 
             logger.info(f"Running {file_path}")
-            globals_after_run = runpy.run_path(str(file_path), init_globals=self.safe_globals, run_name="__main__")
+            globals_after_run = runpy.run_path(
+                str(file_path), init_globals=self.safe_globals, run_name="__main__"
+            )
             if variable_to_return:
                 variable_value = globals_after_run.get(variable_to_return)
                 if variable_value is None:
@@ -130,7 +140,9 @@ class PythonTools:
             logger.error(f"Error reading files: {e}")
             return f"Error reading files: {e}"
 
-    def run_python_code(self, code: str, variable_to_return: Optional[str] = None) -> str:
+    def run_python_code(
+        self, code: str, variable_to_return: Optional[str] = None
+    ) -> str:
         """This function to runs Python code in the current environment.
         If successful, returns the value of `variable_to_return` if provided otherwise returns a success message.
         If failed, returns an error message.
@@ -175,7 +187,9 @@ class PythonTools:
             import subprocess
             import sys
 
-            subprocess.check_call([sys.executable, "-m", "pip", "install", package_name])
+            subprocess.check_call(
+                [sys.executable, "-m", "pip", "install", package_name]
+            )
             return f"successfully installed package {package_name}"
         except Exception as e:
             logger.error(f"Error installing package {package_name}: {e}")

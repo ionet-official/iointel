@@ -11,7 +11,9 @@ logger = logging.getLogger(__name__)
 try:
     import requests
 except ImportError:
-    raise ImportError("`requests` not installed. Please install using `pip install requests`.")
+    raise ImportError(
+        "`requests` not installed. Please install using `pip install requests`."
+    )
 
 
 class ZendeskTools:
@@ -43,7 +45,6 @@ class ZendeskTools:
         if not self.username or not self.password or not self.company_name:
             logger.error("Username, password, or company name not provided.")
 
-
     @register_tool(name="zendesk_search")
     def search_zendesk(self, search_string: str) -> str:
         """
@@ -70,7 +71,10 @@ class ZendeskTools:
             response = requests.get(url, auth=auth)
             response.raise_for_status()
             clean = re.compile("<.*?>")
-            articles = [re.sub(clean, "", article["body"]) for article in response.json()["results"]]
+            articles = [
+                re.sub(clean, "", article["body"])
+                for article in response.json()["results"]
+            ]
             return json.dumps(articles)
         except requests.RequestException as e:
             raise ConnectionError(f"API request failed: {e}")

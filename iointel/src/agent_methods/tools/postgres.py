@@ -28,7 +28,6 @@ class PostgresTools:
         port: Optional[int] = None,
         table_schema: str = "public",
     ):
-
         self._connection: Optional[psycopg2.extensions.connection] = connection
         self.db_name: Optional[str] = db_name
         self.user: Optional[str] = user
@@ -36,7 +35,6 @@ class PostgresTools:
         self.host: Optional[str] = host
         self.port: Optional[int] = port
         self.table_schema: str = table_schema
-
 
     @property
     def connection(self) -> psycopg2.extensions.connection:
@@ -189,7 +187,9 @@ class PostgresTools:
         else:
             path = f"{path}/{table}.csv"
 
-        export_statement = f"COPY {self.table_schema}.{table} TO '{path}' DELIMITER ',' CSV HEADER;"
+        export_statement = (
+            f"COPY {self.table_schema}.{table} TO '{path}' DELIMITER ',' CSV HEADER;"
+        )
         result = self.run_query(export_statement)
         logger.debug(f"Exported {table} to {path}/{table}")
 

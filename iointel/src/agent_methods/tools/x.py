@@ -5,12 +5,15 @@ from typing import Optional
 import logging
 
 from ...utilities.decorators import register_tool
+
 logger = logging.getLogger(__name__)
 
 try:
     import tweepy
 except ImportError:
-    raise ImportError("`tweepy` not installed. Please install using `pip install tweepy`.")
+    raise ImportError(
+        "`tweepy` not installed. Please install using `pip install tweepy`."
+    )
 
 
 class XTools:
@@ -33,12 +36,13 @@ class XTools:
             access_token_secret Optional[str]: The access token secret for Twitter API.
         """
 
-
         self.bearer_token = bearer_token or os.getenv("X_BEARER_TOKEN")
         self.consumer_key = consumer_key or os.getenv("X_CONSUMER_KEY")
         self.consumer_secret = consumer_secret or os.getenv("X_CONSUMER_SECRET")
         self.access_token = access_token or os.getenv("X_ACCESS_TOKEN")
-        self.access_token_secret = access_token_secret or os.getenv("X_ACCESS_TOKEN_SECRET")
+        self.access_token_secret = access_token_secret or os.getenv(
+            "X_ACCESS_TOKEN_SECRET"
+        )
 
         self.client = tweepy.Client(
             bearer_token=self.bearer_token,
@@ -47,7 +51,6 @@ class XTools:
             access_token=self.access_token,
             access_token_secret=self.access_token_secret,
         )
-
 
     @register_tool(name="x_create_post")
     def create_post(self, text: str) -> str:
@@ -124,7 +127,9 @@ class XTools:
                 recipient_id = recipient
 
             logger.debug(f"Attempting to send DM to user's id {recipient_id}")
-            response = self.client.create_direct_message(participant_id=recipient_id, text=text)
+            response = self.client.create_direct_message(
+                participant_id=recipient_id, text=text
+            )
             result = {
                 "message": "Direct message sent successfully!",
                 "dm_id": response.data["id"],
@@ -138,13 +143,13 @@ class XTools:
             if "User not found" in error_message:
                 error_message = f"User '{recipient}' not found. Please check the username or user ID."
             elif "You cannot send messages to this user" in error_message:
-                error_message = (
-                    f"Unable to send message to '{recipient}'. The user may have restricted who can send them messages."
-                )
+                error_message = f"Unable to send message to '{recipient}'. The user may have restricted who can send them messages."
             return json.dumps({"error": error_message}, indent=2)
         except Exception as e:
             logger.error(f"Unexpected error sending DM: {e}")
-            return json.dumps({"error": f"An unexpected error occurred: {str(e)}"}, indent=2)
+            return json.dumps(
+                {"error": f"An unexpected error occurred: {str(e)}"}, indent=2
+            )
 
     @register_tool(name="x_get_my_info")
     def get_my_info(self) -> str:
@@ -189,7 +194,9 @@ class XTools:
         """
         logger.debug(f"Fetching information about user {username}")
         try:
-            user = self.client.get_user(username=username, user_fields=["description", "public_metrics"])
+            user = self.client.get_user(
+                username=username, user_fields=["description", "public_metrics"]
+            )
             user_info = user.data.data
             result = {
                 "id": user_info["id"],

@@ -9,9 +9,11 @@ from ...utilities.decorators import register_tool
 
 try:
     from apify_client import ApifyClient
-    
+
 except ImportError:
-    raise ImportError("`apify_client` not installed. Please install using `pip install apify-client`")
+    raise ImportError(
+        "`apify_client` not installed. Please install using `pip install apify-client`"
+    )
 
 
 class ApifyTools:
@@ -19,13 +21,14 @@ class ApifyTools:
         self,
         api_key: Optional[str] = None,
     ):
-
         self.api_key = api_key or getenv("MY_APIFY_TOKEN")
         if not self.api_key:
             logger.error("No Apify API key provided")
 
     @register_tool(name="apify_website_content_crawler")
-    def website_content_crawler(self, urls: List[str], timeout: Optional[int] = 60) -> str:
+    def website_content_crawler(
+        self, urls: List[str], timeout: Optional[int] = 60
+    ) -> str:
         """
         Crawls a website using Apify's website-content-crawler actor.
 
@@ -48,7 +51,9 @@ class ApifyTools:
 
         run_input = {"startUrls": formatted_urls}
 
-        run = client.actor("apify/website-content-crawler").call(run_input=run_input, timeout_secs=timeout)
+        run = client.actor("apify/website-content-crawler").call(
+            run_input=run_input, timeout_secs=timeout
+        )
 
         results: str = ""
 
@@ -105,7 +110,9 @@ class ApifyTools:
             "startUrls": formatted_urls,
         }
 
-        run = client.actor("apify/web-scraper").call(run_input=run_input, timeout_secs=timeout)
+        run = client.actor("apify/web-scraper").call(
+            run_input=run_input, timeout_secs=timeout
+        )
 
         results: str = ""
 

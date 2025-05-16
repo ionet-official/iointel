@@ -11,7 +11,9 @@ logger = logging.getLogger(__name__)
 try:
     from atlassian import Confluence
 except (ModuleNotFoundError, ImportError):
-    raise ImportError("atlassian-python-api not install . Please install using `pip install atlassian-python-api`")
+    raise ImportError(
+        "atlassian-python-api not install . Please install using `pip install atlassian-python-api`"
+    )
 
 
 class ConfluenceTools:
@@ -39,7 +41,12 @@ class ConfluenceTools:
 
         self.url = url or getenv("CONFLUENCE_URL")
         self.username = username or getenv("CONFLUENCE_USERNAME")
-        self.password = api_key or getenv("CONFLUENCE_API_KEY") or password or getenv("CONFLUENCE_PASSWORD")
+        self.password = (
+            api_key
+            or getenv("CONFLUENCE_API_KEY")
+            or password
+            or getenv("CONFLUENCE_PASSWORD")
+        )
 
         if not self.url:
             logger.error(
@@ -54,10 +61,14 @@ class ConfluenceTools:
         if not self.password:
             logger.error("Confluence API KEY or password not provided")
 
-        self.confluence = Confluence(url=self.url, username=self.username, password=self.password)
+        self.confluence = Confluence(
+            url=self.url, username=self.username, password=self.password
+        )
 
     @register_tool(name="confluence_get_page_content")
-    def get_page_content(self, space_name: str, page_title: str, expand: Optional[str] = "body.storage"):
+    def get_page_content(
+        self, space_name: str, page_title: str, expand: Optional[str] = "body.storage"
+    ):
         """Retrieve the content of a specific page in a Confluence space.
 
         Args:
@@ -73,11 +84,15 @@ class ConfluenceTools:
             key = self.get_space_key(space_name=space_name)
             page = self.confluence.get_page_by_title(key, page_title, expand=expand)
             if page:
-                logger.info(f"Successfully retrieved page '{page_title}' from space '{space_name}'")
+                logger.info(
+                    f"Successfully retrieved page '{page_title}' from space '{space_name}'"
+                )
                 return json.dumps(page)
 
             logger.warning(f"Page '{page_title}' not found in space '{space_name}'")
-            return json.dumps({"error": f"Page '{page_title}' not found in space '{space_name}'"})
+            return json.dumps(
+                {"error": f"Page '{page_title}' not found in space '{space_name}'"}
+            )
 
         except Exception as e:
             logger.error(f"Error retrieving page '{page_title}': {e}")
@@ -130,11 +145,15 @@ class ConfluenceTools:
         page_details = self.confluence.get_all_pages_from_space(
             space_key, status=None, expand=None, content_type="page"
         )
-        page_details = str([{"id": page["id"], "title": page["title"]} for page in page_details])
+        page_details = str(
+            [{"id": page["id"], "title": page["title"]} for page in page_details]
+        )
         return page_details
 
     @register_tool(name="confluence_create_page")
-    def create_page(self, space_name: str, title: str, body: str, parent_id: Optional[str] = None) -> str:
+    def create_page(
+        self, space_name: str, title: str, body: str, parent_id: Optional[str] = None
+    ) -> str:
         """Create a new page in Confluence.
 
         Args:
@@ -148,7 +167,9 @@ class ConfluenceTools:
         """
         try:
             space_key = self.get_space_key(space_name=space_name)
-            page = self.confluence.create_page(space_key, title, body, parent_id=parent_id)
+            page = self.confluence.create_page(
+                space_key, title, body, parent_id=parent_id
+            )
             logger.info(f"Page created: {title} with ID {page['id']}")
             return json.dumps({"id": page["id"], "title": title})
         except Exception as e:

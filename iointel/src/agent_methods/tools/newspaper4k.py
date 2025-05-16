@@ -11,7 +11,9 @@ logger = logging.getLogger(__name__)
 try:
     import newspaper
 except ImportError:
-    raise ImportError("`newspaper4k` not installed. Please run `pip install newspaper4k lxml_html_clean`.")
+    raise ImportError(
+        "`newspaper4k` not installed. Please run `pip install newspaper4k lxml_html_clean`."
+    )
 
 
 class Newspaper4kTools:
@@ -20,7 +22,6 @@ class Newspaper4kTools:
         include_summary: bool = False,
         article_length: Optional[int] = None,
     ):
-
         self.include_summary: bool = include_summary
         self.article_length: Optional[int] = article_length
 
@@ -49,7 +50,11 @@ class Newspaper4kTools:
 
             try:
                 if article.publish_date:
-                    article_data["publish_date"] = article.publish_date.isoformat() if article.publish_date else None
+                    article_data["publish_date"] = (
+                        article.publish_date.isoformat()
+                        if article.publish_date
+                        else None
+                    )
             except Exception:
                 pass
 

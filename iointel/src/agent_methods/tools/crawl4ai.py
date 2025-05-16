@@ -10,7 +10,9 @@ logger = logging.getLogger(__name__)
 try:
     from crawl4ai import AsyncWebCrawler, CacheMode
 except ImportError:
-    raise ImportError("`crawl4ai` not installed. Please install using `pip install crawl4ai`")
+    raise ImportError(
+        "`crawl4ai` not installed. Please install using `pip install crawl4ai`"
+    )
 
 
 class Crawl4aiTools:
@@ -18,7 +20,6 @@ class Crawl4aiTools:
         self,
         max_length: Optional[int] = 1000,
     ):
-
         self.max_length = max_length
 
     @register_tool(name="crawl4ai_web_crawler")
@@ -37,7 +38,9 @@ class Crawl4aiTools:
         # Run the async crawler function synchronously
         return asyncio.run(self._async_web_crawler(url, max_length))
 
-    async def _async_web_crawler(self, url: str, max_length: Optional[int] = None) -> str:
+    async def _async_web_crawler(
+        self, url: str, max_length: Optional[int] = None
+    ) -> str:
         """
         Asynchronous method to crawl a website using AsyncWebCrawler.
 

@@ -19,10 +19,7 @@ class TrelloTools:
         api_key: Optional[str] = None,
         api_secret: Optional[str] = None,
         token: Optional[str] = None,
-
     ):
-
-
         self.api_key = api_key or getenv("TRELLO_API_KEY")
         self.api_secret = api_secret or getenv("TRELLO_API_SECRET")
         self.token = token or getenv("TRELLO_TOKEN")
@@ -31,14 +28,17 @@ class TrelloTools:
             logger.warning("Missing Trello credentials")
 
         try:
-            self.client = TrelloClient(api_key=self.api_key, api_secret=self.api_secret, token=self.token)
+            self.client = TrelloClient(
+                api_key=self.api_key, api_secret=self.api_secret, token=self.token
+            )
         except Exception as e:
             logger.error(f"Error initializing Trello client: {e}")
             self.client = None
 
-
     @register_tool(name="trello_create_card")
-    def create_card(self, board_id: str, list_name: str, card_title: str, description: str = "") -> str:
+    def create_card(
+        self, board_id: str, list_name: str, card_title: str, description: str = ""
+    ) -> str:
         """
         Create a new card in the specified board and list.
 
@@ -70,7 +70,9 @@ class TrelloTools:
 
             card = target_list.add_card(name=card_title, desc=description)
 
-            return json.dumps({"id": card.id, "name": card.name, "url": card.url, "list": list_name})
+            return json.dumps(
+                {"id": card.id, "name": card.name, "url": card.url, "list": list_name}
+            )
 
         except Exception as e:
             return f"Error creating card: {e}"
@@ -95,7 +97,10 @@ class TrelloTools:
             board = self.client.get_board(board_id)
             lists = board.list_lists()
 
-            lists_info = [{"id": lst.id, "name": lst.name, "cards_count": len(lst.list_cards())} for lst in lists]
+            lists_info = [
+                {"id": lst.id, "name": lst.name, "cards_count": len(lst.list_cards())}
+                for lst in lists
+            ]
 
             return json.dumps({"lists": lists_info})
 
@@ -123,7 +128,9 @@ class TrelloTools:
             card = self.client.get_card(card_id)
             card.change_list(list_id)
 
-            return json.dumps({"success": True, "card_id": card_id, "new_list_id": list_id})
+            return json.dumps(
+                {"success": True, "card_id": card_id, "new_list_id": list_id}
+            )
 
         except Exception as e:
             return f"Error moving card: {e}"

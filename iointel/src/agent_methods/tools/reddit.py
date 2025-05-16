@@ -23,10 +23,7 @@ class RedditTools:
         user_agent: Optional[str] = None,
         username: Optional[str] = None,
         password: Optional[str] = None,
-
     ):
-
-
         if reddit_instance is not None:
             logger.info("Using provided Reddit instance")
             self.reddit = reddit_instance
@@ -34,7 +31,9 @@ class RedditTools:
             # Get credentials from environment variables if not provided
             self.client_id = client_id or getenv("REDDIT_CLIENT_ID")
             self.client_secret = client_secret or getenv("REDDIT_CLIENT_SECRET")
-            self.user_agent = user_agent or getenv("REDDIT_USER_AGENT", "RedditTools v1.0")
+            self.user_agent = user_agent or getenv(
+                "REDDIT_USER_AGENT", "RedditTools v1.0"
+            )
             self.username = username or getenv("REDDIT_USERNAME")
             self.password = password or getenv("REDDIT_PASSWORD")
 
@@ -51,7 +50,9 @@ class RedditTools:
                     )
                 # Initialize with user authentication if credentials provided
                 else:
-                    logger.info(f"Initializing Reddit client with user authentication for u/{self.username}")
+                    logger.info(
+                        f"Initializing Reddit client with user authentication for u/{self.username}"
+                    )
                     self.reddit = praw.Reddit(
                         client_id=self.client_id,
                         client_secret=self.client_secret,
@@ -61,7 +62,6 @@ class RedditTools:
                     )
             else:
                 logger.warning("Missing Reddit API credentials")
-
 
     def _check_user_auth(self) -> bool:
         """
@@ -74,7 +74,9 @@ class RedditTools:
             return False
 
         if not all([self.username, self.password]):
-            logger.error("User authentication required. Please provide username and password.")
+            logger.error(
+                "User authentication required. Please provide username and password."
+            )
             return False
 
         try:
@@ -111,7 +113,9 @@ class RedditTools:
             return f"Error getting user info: {e}"
 
     @register_tool(name="reddit_get_top_posts")
-    def get_top_posts(self, subreddit: str, time_filter: str = "week", limit: int = 10) -> str:
+    def get_top_posts(
+        self, subreddit: str, time_filter: str = "week", limit: int = 10
+    ) -> str:
         """
         Get top posts from a subreddit for a specific time period.
         Args:
@@ -126,7 +130,9 @@ class RedditTools:
 
         try:
             logger.debug(f"Getting top posts from r/{subreddit}")
-            posts = self.reddit.subreddit(subreddit).top(time_filter=time_filter, limit=limit)
+            posts = self.reddit.subreddit(subreddit).top(
+                time_filter=time_filter, limit=limit
+            )
             top_posts: List[Dict[str, Union[str, int, float]]] = [
                 {
                     "id": post.id,
@@ -189,7 +195,9 @@ class RedditTools:
         try:
             logger.debug("Getting trending subreddits")
             popular_subreddits = self.reddit.subreddits.popular(limit=5)
-            trending: List[str] = [subreddit.display_name for subreddit in popular_subreddits]
+            trending: List[str] = [
+                subreddit.display_name for subreddit in popular_subreddits
+            ]
             return json.dumps({"trending_subreddits": trending})
         except Exception as e:
             return f"Error getting trending subreddits: {e}"
@@ -254,7 +262,9 @@ class RedditTools:
             subreddit_obj = self.reddit.subreddit(subreddit)
 
             if flair:
-                available_flairs = [f["text"] for f in subreddit_obj.flair.link_templates]
+                available_flairs = [
+                    f["text"] for f in subreddit_obj.flair.link_templates
+                ]
                 if flair not in available_flairs:
                     return f"Invalid flair. Available flairs: {', '.join(available_flairs)}"
 

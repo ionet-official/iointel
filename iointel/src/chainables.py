@@ -1,7 +1,6 @@
 from typing import List, Optional, Dict
 
 # from .task import CUSTOM_WORKFLOW_REGISTRY
-from .agent_methods.tools.tools import between
 from .utilities.runners import run_agents
 from .utilities.decorators import register_custom_task
 from .utilities.registries import CHAINABLE_METHODS, CUSTOM_WORKFLOW_REGISTRY
@@ -97,6 +96,7 @@ def execute_summarize_text(
         )
         return summary.execute()
 
+
 @register_custom_task("sentiment")
 async def execute_sentiment(
     task_metadata: dict, objective: str, agents: List[Agent], execution_metadata: dict
@@ -152,14 +152,12 @@ def execute_extract_entities(
         return extracted.execute()
 
 
-
 @register_custom_task("translate_text")
 def execute_translate_text(
     task_metadata: dict, objective: str, agents: List[Agent], execution_metadata: dict
 ):
     target_lang = task_metadata["target_language"]
     from ..client.client import translate_text_task
-    from .agent_methods.data_models.datamodels import TranslationResult
 
     client_mode = execution_metadata.get("client_mode", False)
     if client_mode:
@@ -174,7 +172,6 @@ def execute_translate_text(
         result = translated.execute()
         # Assuming the model has an attribute 'translated'
         return result
-
 
 
 @register_custom_task("classify")
@@ -193,7 +190,7 @@ def execute_classify(
             objective=f"""Take this text: {objective}
 
             Classify it into the appropriate category.
-            Category must be one of: {', '.join(classify_by)}.
+            Category must be one of: {", ".join(classify_by)}.
             Return only the determined category, omit the thoughts.""",
             agents=agents,
             output_type=str,

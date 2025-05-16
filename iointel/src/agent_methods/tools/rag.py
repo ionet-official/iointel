@@ -369,10 +369,10 @@ class RAG:
             Dict[str, Any]: RAG query response.
         """
         response = self.client.retrieval.rag(
-            query=query, 
-            rag_generation_config=rag_generation_config, 
-            search_settings=search_settings, 
-            task_prompt_override=task_prompt_override
+            query=query,
+            rag_generation_config=rag_generation_config,
+            search_settings=search_settings,
+            task_prompt_override=task_prompt_override,
         )
         return response["results"]["completion"]["choices"][0]["message"]["content"]
 
@@ -395,7 +395,7 @@ class RAG:
     # -----------------------------
     # System Settings - TODO NOT SURE  BOUT ADDING THESE TO REGISTRY
     # -----------------------------
-    
+
     def get_system_settings(self) -> Dict[str, Any]:
         """
         Retrieve system settings.

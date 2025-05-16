@@ -6,6 +6,7 @@ from ...utilities.decorators import register_tool
 
 logger = logging.getLogger(__name__)
 
+
 class SleepTools:
     def __init__(self):
         pass

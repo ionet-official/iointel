@@ -12,7 +12,9 @@ try:
     from exa_py import Exa
     from exa_py.api import SearchResponse
 except ImportError:
-    raise ImportError("`exa_py` not installed. Please install using `pip install exa_py`")
+    raise ImportError(
+        "`exa_py` not installed. Please install using `pip install exa_py`"
+    )
 
 
 class ExaTools:
@@ -61,10 +63,11 @@ class ExaTools:
         show_results: bool = False,
         model: Optional[str] = None,
     ):
-
         self.api_key = api_key or getenv("EXA_API_KEY")
         if not self.api_key:
-            logger.error("EXA_API_KEY not set. Please set the EXA_API_KEY environment variable.")
+            logger.error(
+                "EXA_API_KEY not set. Please set the EXA_API_KEY environment variable."
+            )
 
         self.exa = Exa(self.api_key)
         self.show_results = show_results
@@ -112,7 +115,9 @@ class ExaTools:
         return json.dumps(exa_results_parsed, indent=4)
 
     @register_tool(name="exa_search")
-    def search_exa(self, query: str, num_results: int = 5, category: Optional[str] = None) -> str:
+    def search_exa(
+        self, query: str, num_results: int = 5, category: Optional[str] = None
+    ) -> str:
         """Use this function to search Exa (a web search engine) for a query.
 
         Args:

@@ -16,7 +16,6 @@ class LinearTools:
         self,
         api_token: Optional[str] = getenv("LINEAR_API_KEY"),
     ):
-
         self.api_token = api_token or getenv("LINEAR_API_KEY")
 
         if not self.api_token:
@@ -26,12 +25,15 @@ class LinearTools:
         self.endpoint = "https://api.linear.app/graphql"
         self.headers = {"Authorization": f"{self.api_token}"}
 
-
     def _execute_query(self, query, variables=None):
         """Helper method to execute GraphQL queries with optional variables."""
 
         try:
-            response = requests.post(self.endpoint, json={"query": query, "variables": variables}, headers=self.headers)
+            response = requests.post(
+                self.endpoint,
+                json={"query": query, "variables": variables},
+                headers=self.headers,
+            )
             response.raise_for_status()
 
             data = response.json()
@@ -122,7 +124,9 @@ class LinearTools:
 
             if response.get("issue"):
                 issue = response["issue"]
-                logger.info(f"Issue '{issue['title']}' retrieved successfully with ID {issue['id']}.")
+                logger.info(
+                    f"Issue '{issue['title']}' retrieved successfully with ID {issue['id']}."
+                )
                 return str(issue)
             else:
                 logger.error(f"Failed to retrieve issue with ID {issue_id}.")
@@ -134,7 +138,12 @@ class LinearTools:
 
     @register_tool(name="linear_create_issue")
     def create_issue(
-        self, title: str, description: str, team_id: str, project_id: str, assignee_id: str
+        self,
+        title: str,
+        description: str,
+        team_id: str,
+        project_id: str,
+        assignee_id: str,
     ) -> Optional[str]:
         """
         Create a new issue within a specific project and team.
@@ -180,7 +189,9 @@ class LinearTools:
 
             if response["issueCreate"]["success"]:
                 issue = response["issueCreate"]["issue"]
-                logger.info(f"Issue '{issue['title']}' created successfully with ID {issue['id']}")
+                logger.info(
+                    f"Issue '{issue['title']}' created successfully with ID {issue['id']}"
+                )
                 return str(issue)
             else:
                 logger.error("Issue creation failed.")
@@ -235,7 +246,9 @@ class LinearTools:
                 logger.info(f"Issue ID {issue_id} updated successfully.")
                 return str(issue)
             else:
-                logger.error(f"Failed to update issue ID {issue_id}. Success flag was false.")
+                logger.error(
+                    f"Failed to update issue ID {issue_id}. Success flag was false."
+                )
                 return None
 
         except Exception as e:
@@ -281,7 +294,9 @@ class LinearTools:
             if response.get("user"):
                 user = response["user"]
                 issues = user["assignedIssues"]["nodes"]
-                logger.info(f"Retrieved {len(issues)} issues assigned to user '{user['name']}' (ID: {user['id']}).")
+                logger.info(
+                    f"Retrieved {len(issues)} issues assigned to user '{user['name']}' (ID: {user['id']})."
+                )
                 return str(issues)
             else:
                 logger.error("Failed to retrieve user or issues.")
@@ -325,14 +340,20 @@ class LinearTools:
 
             if response.get("workflowState"):
                 issues = response["workflowState"]["issues"]["nodes"]
-                logger.info(f"Retrieved {len(issues)} issues in workflow state ID {workflow_id}.")
+                logger.info(
+                    f"Retrieved {len(issues)} issues in workflow state ID {workflow_id}."
+                )
                 return str(issues)
             else:
-                logger.error("Failed to retrieve issues for the specified workflow state.")
+                logger.error(
+                    "Failed to retrieve issues for the specified workflow state."
+                )
                 return None
 
         except Exception as e:
-            logger.error(f"Error retrieving issues for workflow state ID {workflow_id}: {e}")
+            logger.error(
+                f"Error retrieving issues for workflow state ID {workflow_id}: {e}"
+            )
             raise
 
     @register_tool(name="linear_get_high_priority_issues")
@@ -367,7 +388,9 @@ class LinearTools:
 
             if response.get("issues"):
                 high_priority_issues = response["issues"]["nodes"]
-                logger.info(f"Retrieved {len(high_priority_issues)} high-priority issues.")
+                logger.info(
+                    f"Retrieved {len(high_priority_issues)} high-priority issues."
+                )
                 return str(high_priority_issues)
             else:
                 logger.error("Failed to retrieve high-priority issues.")

@@ -36,7 +36,9 @@ def authenticated(func):
             if self.creds and self.creds.expired and self.creds.refresh_token:
                 self.creds.refresh(Request())
             else:
-                flow = InstalledAppFlow.from_client_secrets_file(self.creds_path, SCOPES)
+                flow = InstalledAppFlow.from_client_secrets_file(
+                    self.creds_path, SCOPES
+                )
                 self.creds = flow.run_local_server(port=0)
                 # Save the credentials for future use
             with open(self.token_path, "w") as token:
@@ -59,7 +61,9 @@ def authenticated(func):
 
 
 class GoogleCalendarTools:
-    def __init__(self, credentials_path: Optional[str] = None, token_path: Optional[str] = None):
+    def __init__(
+        self, credentials_path: Optional[str] = None, token_path: Optional[str] = None
+    ):
         """
         Google Calendar Tool.
 
@@ -67,7 +71,6 @@ class GoogleCalendarTools:
         :param token_path: Path of the file token.json which stores the user's access and refresh tokens, and is created automatically when the authorization flow completes for the first time.
 
         """
-
 
         if not credentials_path:
             logger.error(
@@ -91,10 +94,11 @@ class GoogleCalendarTools:
         self.token_path = token_path
         self.creds_path = credentials_path
 
-
     @authenticated
     @register_tool(name="google_calendar_list_events")
-    def list_events(self, limit: int = 10, date_from: str = datetime.date.today().isoformat()) -> str:
+    def list_events(
+        self, limit: int = 10, date_from: str = datetime.date.today().isoformat()
+    ) -> str:
         """
         List events from the user's primary calendar.
 
@@ -106,7 +110,9 @@ class GoogleCalendarTools:
         if date_from is None:
             date_from = datetime.datetime.now(datetime.timezone.utc).isoformat()
         elif isinstance(date_from, str):
-            date_from = datetime.datetime.fromisoformat(date_from).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+            date_from = datetime.datetime.fromisoformat(date_from).strftime(
+                "%Y-%m-%dT%H:%M:%S.%fZ"
+            )
 
         try:
             if self.service:
@@ -154,11 +160,17 @@ class GoogleCalendarTools:
             attendees (Optional[List[str]]) : List of emails of the attendees
         """
 
-        attendees_list = [{"email": attendee} for attendee in attendees] if attendees else []
+        attendees_list = (
+            [{"email": attendee} for attendee in attendees] if attendees else []
+        )
 
-        start_time = datetime.datetime.fromisoformat(start_datetime).strftime("%Y-%m-%dT%H:%M:%S")
+        start_time = datetime.datetime.fromisoformat(start_datetime).strftime(
+            "%Y-%m-%dT%H:%M:%S"
+        )
 
-        end_time = datetime.datetime.fromisoformat(end_datetime).strftime("%Y-%m-%dT%H:%M:%S")
+        end_time = datetime.datetime.fromisoformat(end_datetime).strftime(
+            "%Y-%m-%dT%H:%M:%S"
+        )
         try:
             event = {
                 "summary": title,
@@ -169,7 +181,11 @@ class GoogleCalendarTools:
                 "attendees": attendees_list,
             }
             if self.service:
-                event_result = self.service.events().insert(calendarId="primary", body=event).execute()
+                event_result = (
+                    self.service.events()
+                    .insert(calendarId="primary", body=event)
+                    .execute()
+                )
                 return json.dumps(event_result)
             else:
                 return json.dumps({"error": "authentication issue"})

@@ -12,7 +12,9 @@ logger = logging.getLogger(__name__)
 try:
     from tavily import TavilyClient
 except ImportError:
-    raise ImportError("`tavily-python` not installed. Please install using `pip install tavily-python`")
+    raise ImportError(
+        "`tavily-python` not installed. Please install using `pip install tavily-python`"
+    )
 
 
 class TavilyTools:
@@ -25,8 +27,6 @@ class TavilyTools:
         format: Literal["json", "markdown"] = "markdown",
         use_search_context: bool = False,
     ):
-
-
         self.api_key = api_key or getenv("TAVILY_API_KEY")
         if not self.api_key:
             logger.error("TAVILY_API_KEY not provided")
@@ -51,7 +51,10 @@ class TavilyTools:
         """
 
         response = self.client.search(
-            query=query, search_depth=self.search_depth, include_answer=self.include_answer, max_results=max_results
+            query=query,
+            search_depth=self.search_depth,
+            include_answer=self.include_answer,
+            max_results=max_results,
         )
 
         clean_response: Dict[str, Any] = {"query": query}
@@ -99,5 +102,8 @@ class TavilyTools:
         """
 
         return self.client.get_search_context(
-            query=query, search_depth=self.search_depth, max_tokens=self.max_tokens, include_answer=self.include_answer
+            query=query,
+            search_depth=self.search_depth,
+            max_tokens=self.max_tokens,
+            include_answer=self.include_answer,
         )

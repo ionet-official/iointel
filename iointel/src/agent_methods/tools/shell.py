@@ -11,12 +11,9 @@ logger = logging.getLogger(__name__)
 
 class ShellTools:
     def __init__(self, base_dir: Optional[Union[Path, str]] = None):
-
-
         self.base_dir: Optional[Path] = None
         if base_dir is not None:
             self.base_dir = Path(base_dir) if isinstance(base_dir, str) else base_dir
-
 
     @register_tool(name="shell_run_command")
     def run_shell_command(self, args: List[str], tail: int = 100) -> str:

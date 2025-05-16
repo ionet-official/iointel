@@ -12,7 +12,9 @@ logger = logging.getLogger(__name__)
 try:
     from openbb import obb as openbb_app
 except ImportError:
-    raise ImportError("`openbb` not installed. Please install using `pip install 'openbb'`.")
+    raise ImportError(
+        "`openbb` not installed. Please install using `pip install 'openbb'`."
+    )
 
 
 class OpenBBTools:
@@ -20,10 +22,10 @@ class OpenBBTools:
         self,
         obb: Optional[Any] = None,
         openbb_pat: Optional[str] = None,
-        provider: Literal["benzinga", "fmp", "intrinio", "polygon", "tiingo", "tmx", "yfinance"] = "yfinance",
-
+        provider: Literal[
+            "benzinga", "fmp", "intrinio", "polygon", "tiingo", "tmx", "yfinance"
+        ] = "yfinance",
     ):
-
         self.obb = obb or openbb_app
         try:
             if openbb_pat or getenv("OPENBB_PAT"):
@@ -31,8 +33,9 @@ class OpenBBTools:
         except Exception as e:
             logger.error(f"Error logging into OpenBB: {e}")
 
-        self.provider: Literal["benzinga", "fmp", "intrinio", "polygon", "tiingo", "tmx", "yfinance"] = provider
-
+        self.provider: Literal[
+            "benzinga", "fmp", "intrinio", "polygon", "tiingo", "tmx", "yfinance"
+        ] = provider
 
     @register_tool(name="openbb_get_stock_price")
     def get_stock_price(self, symbol: str) -> str:
@@ -47,7 +50,9 @@ class OpenBBTools:
         """
         try:
             logger.debug(f"Fetching current price for {symbol}")
-            result = self.obb.equity.price.quote(symbol=symbol, provider=self.provider).to_polars()  # type: ignore
+            result = self.obb.equity.price.quote(
+                symbol=symbol, provider=self.provider
+            ).to_polars()  # type: ignore
             clean_results = []
             for row in result.to_dicts():
                 clean_results.append(
@@ -86,7 +91,9 @@ class OpenBBTools:
         clean_results = []
         if len(result) > 0:
             for row in result.to_dicts():
-                clean_results.append({"symbol": row.get("symbol"), "name": row.get("name")})
+                clean_results.append(
+                    {"symbol": row.get("symbol"), "name": row.get("name")}
+                )
 
         return json.dumps(clean_results, indent=2, default=str)
 
@@ -103,7 +110,9 @@ class OpenBBTools:
         """
         try:
             logger.debug(f"Fetching price targets for {symbol}")
-            result = self.obb.equity.estimates.consensus(symbol=symbol, provider=self.provider).to_polars()  # type: ignore
+            result = self.obb.equity.estimates.consensus(
+                symbol=symbol, provider=self.provider
+            ).to_polars()  # type: ignore
             return json.dumps(result.to_dicts(), indent=2, default=str)
         except Exception as e:
             return f"Error fetching company news for {symbol}: {e}"
@@ -122,7 +131,9 @@ class OpenBBTools:
         """
         try:
             logger.debug(f"Fetching news for {symbol}")
-            result = self.obb.news.company(symbol=symbol, provider=self.provider, limit=num_stories).to_polars()  # type: ignore
+            result = self.obb.news.company(
+                symbol=symbol, provider=self.provider, limit=num_stories
+            ).to_polars()  # type: ignore
             clean_results = []
             if len(result) > 0:
                 for row in result.to_dicts():
@@ -145,7 +156,9 @@ class OpenBBTools:
         """
         try:
             logger.debug(f"Fetching company profile for {symbol}")
-            result = self.obb.equity.profile(symbol=symbol, provider=self.provider).to_polars()  # type: ignore
+            result = self.obb.equity.profile(
+                symbol=symbol, provider=self.provider
+            ).to_polars()  # type: ignore
             return json.dumps(result.to_dicts(), indent=2, default=str)
         except Exception as e:
             return f"Error fetching company profile for {symbol}: {e}"

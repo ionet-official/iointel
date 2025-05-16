@@ -11,12 +11,16 @@ from ...utilities.decorators import register_tool
 try:
     from baidusearch.baidusearch import search  # type: ignore
 except ImportError:
-    raise ImportError("`baidusearch` not installed. Please install using `pip install baidusearch`")
+    raise ImportError(
+        "`baidusearch` not installed. Please install using `pip install baidusearch`"
+    )
 
 try:
     from pycountry import pycountry
 except ImportError:
-    raise ImportError("`pycountry` not installed. Please install using `pip install pycountry`")
+    raise ImportError(
+        "`pycountry` not installed. Please install using `pip install pycountry`"
+    )
 
 
 class BaiduSearchTools:
@@ -48,7 +52,9 @@ class BaiduSearchTools:
         self.debug = debug
 
     @register_tool(name="baidu_search")
-    def baidu_search(self, query: str, max_results: int = 5, language: str = "zh") -> str:
+    def baidu_search(
+        self, query: str, max_results: int = 5, language: str = "zh"
+    ) -> str:
         """Execute Baidu search and return results
 
         Args:

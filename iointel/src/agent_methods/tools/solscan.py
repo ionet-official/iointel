@@ -79,6 +79,7 @@ def fetch_account_detail(address: str) -> dict | str:
     params = {"address": address}
     return fetch_solscan("/v2.0/account/detail", params=params)
 
+
 @register_tool(name="solscan_account_transfer")
 def fetch_account_transfer(
     address: str,
@@ -115,6 +116,7 @@ def fetch_account_transfer(
         params["exclude_amount_zero"] = exclude_amount_zero
     return fetch_solscan("/v2.0/account/transfer", params=params)
 
+
 @register_tool(name="solscan_account_defi_activities")
 def fetch_account_defi_activities(
     address: str,
@@ -149,6 +151,7 @@ def fetch_account_defi_activities(
     if page_size is not None:
         params["page_size"] = page_size
     return fetch_solscan("/v2.0/account/defi/activities", params=params)
+
 
 @register_tool(name="solscan_account_balance_activities")
 def fetch_account_balance_change_activities(
@@ -207,6 +210,7 @@ def fetch_account_portfolio(address: str) -> dict | str:
     params = {"address": address}
     return fetch_solscan("/v2.0/account/portfolio", params=params)
 
+
 @register_tool(name="solscan_account_token_accounts")
 def fetch_account_token_accounts(
     address: str,
@@ -225,6 +229,7 @@ def fetch_account_token_accounts(
         params["hide_zero"] = hide_zero
     return fetch_solscan("/v2.0/account/token-accounts", params=params)
 
+
 @register_tool(name="solscan_account_stake")
 def fetch_account_stake(
     address: str, page: Optional[int] = None, page_size: Optional[PageSizeSmall] = None
@@ -237,6 +242,7 @@ def fetch_account_stake(
         params["page_size"] = page_size
     return fetch_solscan("/v2.0/account/stake", params=params)
 
+
 @register_tool(name="solscan_account_stake_rewards")
 def fetch_stake_rewards_export(
     address: str, time_from: Optional[int] = None, time_to: Optional[int] = None
@@ -248,6 +254,7 @@ def fetch_stake_rewards_export(
     if time_to is not None:
         params["time_to"] = time_to
     return fetch_solscan("/v2.0/account/reward/export", params=params)
+
 
 @register_tool(name="solscan_account_transfer_export")
 def fetch_account_transfer_export(
@@ -319,6 +326,7 @@ def fetch_token_transfer(
         params["page_size"] = page_size
     return fetch_solscan("/v2.0/token/transfer", params=params)
 
+
 @register_tool(name="solscan_token_defi_activities")
 def fetch_token_defi_activities(
     address: str,
@@ -354,11 +362,13 @@ def fetch_token_defi_activities(
         params["page_size"] = page_size
     return fetch_solscan("/v2.0/token/defi/activities", params=params)
 
+
 @register_tool(name="solscan_token_metadata")
 def fetch_token_meta(address: str) -> dict | str:
     """Get the on-chain metadata for a token (name, symbol, decimals, etc.)."""
     params = {"address": address}
     return fetch_solscan("/v2.0/token/meta", params=params)
+
 
 @register_tool(name="solscan_token_price")
 def fetch_token_price(
@@ -373,6 +383,7 @@ def fetch_token_price(
     if to_time is not None:
         params["to_time"] = to_time
     return fetch_solscan("/v2.0/token/price", params=params)
+
 
 @register_tool(name="solscan_token_holders")
 def fetch_token_holders(
@@ -394,6 +405,7 @@ def fetch_token_holders(
         params["to_amount"] = to_amount  # expects numeric value as string
     return fetch_solscan("/v2.0/token/holders", params=params)
 
+
 @register_tool(name="solscan_token_list")
 def fetch_token_list(
     sort_by: Optional[Literal["holder", "market_cap", "created_time"]] = None,
@@ -413,11 +425,13 @@ def fetch_token_list(
         params["page_size"] = page_size
     return fetch_solscan("/v2.0/token/list", params=params)
 
+
 @register_tool(name="solscan_token_top")
 def fetch_token_top() -> dict | str:
     """Get the list of top tokens (by market cap)."""
     # No query params; returns a fixed set of top tokens.
     return fetch_solscan("/v2.0/token/top")
+
 
 @register_tool(name="solscan_token_trending")
 def fetch_token_trending(limit: Optional[int] = None) -> dict | str:
@@ -442,6 +456,7 @@ def fetch_new_nft(
     if page_size is not None:
         params["page_size"] = page_size
     return fetch_solscan("/v2.0/nft/news", params=params)
+
 
 @register_tool(name="solscan_get_nft_activities")
 def fetch_nft_activities(
@@ -486,6 +501,7 @@ def fetch_nft_activities(
         params["page_size"] = page_size
     return fetch_solscan("/v2.0/nft/activities", params=params)
 
+
 @register_tool(name="solscan_get_nft_collection_list")
 def fetch_nft_collection_lists(
     range: Optional[Literal[1, 7, 30]] = None,
@@ -510,6 +526,7 @@ def fetch_nft_collection_lists(
     if collection is not None:
         params["collection"] = collection
     return fetch_solscan("/v2.0/nft/collection/lists", params=params)
+
 
 @register_tool(name="solscan_get_nft_collection_items")
 def fetch_nft_collection_items(
@@ -542,11 +559,13 @@ def fetch_transaction_last(
         params["filter"] = filter
     return fetch_solscan("/v2.0/transaction/last", params=params)
 
+
 @register_tool(name="solscan_transaction_detail")
 def fetch_transaction_detail(tx: str) -> dict | str:
     """Get detailed parsed info of a transaction by signature."""
     params = {"tx": tx}
     return fetch_solscan("/v2.0/transaction/detail", params=params)
+
 
 @register_tool(name="solscan_transaction_actions")
 def fetch_transaction_actions(tx: str) -> dict | str:
@@ -563,6 +582,7 @@ def fetch_last_block(limit: Optional[PageSizeMedium] = None) -> dict | str:
     if limit is not None:
         params["limit"] = limit
     return fetch_solscan("/v2.0/block/last", params=params)
+
 
 @register_tool(name="solscan_block_transactions")
 def fetch_block_transactions(
@@ -583,6 +603,7 @@ def fetch_block_transactions(
     if program is not None:
         params["program"] = program
     return fetch_solscan("/v2.0/block/transactions", params=params)
+
 
 @register_tool(name="solscan_block_detail")
 def fetch_block_detail(block: int) -> dict | str:
@@ -608,11 +629,13 @@ def fetch_market_list(
         params["program"] = program
     return fetch_solscan("/v2.0/market/list", params=params)
 
+
 @register_tool(name="solscan_market_detail")
 def fetch_market_info(address: str) -> dict | str:
     """Get market info for a given market (pool) address."""
     params = {"address": address}
     return fetch_solscan("/v2.0/market/info", params=params)
+
 
 @register_tool(name="solscan_market_volume")
 def fetch_market_volume(
@@ -637,6 +660,7 @@ def fetch_monitor_usage() -> dict | str:
 def fetch_chain_information() -> dict | str:
     """Get overall Solana blockchain information (public endpoint)."""
     return fetch_solscan("", full_url="https://public-api.solscan.io/chaininfo")
+
 
 @register_tool(name="solscan_validate_address")
 def validate_address(address: str) -> dict:

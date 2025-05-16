@@ -7,7 +7,9 @@ from ...utilities.decorators import register_tool
 try:
     import boto3
 except ImportError:
-    raise ImportError("boto3 is required for AWSLambdaTool. Please install it using `pip install boto3`.")
+    raise ImportError(
+        "boto3 is required for AWSLambdaTool. Please install it using `pip install boto3`."
+    )
 
 
 class AWSLambdaTools:

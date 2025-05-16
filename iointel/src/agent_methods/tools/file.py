@@ -7,12 +7,9 @@ from ...utilities.decorators import register_tool
 
 logger = logging.getLogger(__name__)
 
-class FileTools:
-    def __init__(
-        self,
-        base_dir: Optional[Path] = None
-    ):
 
+class FileTools:
+    def __init__(self, base_dir: Optional[Path] = None):
         self.base_dir: Path = base_dir or Path.cwd()
 
     @register_tool(name="file_save")
@@ -62,7 +59,9 @@ class FileTools:
         """
         try:
             logger.info(f"Reading files in : {self.base_dir}")
-            return json.dumps([str(file_path) for file_path in self.base_dir.iterdir()], indent=4)
+            return json.dumps(
+                [str(file_path) for file_path in self.base_dir.iterdir()], indent=4
+            )
         except Exception as e:
             logger.error(f"Error reading files: {e}")
             return f"Error reading files: {e}"

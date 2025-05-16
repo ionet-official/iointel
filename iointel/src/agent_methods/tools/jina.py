@@ -14,10 +14,18 @@ logger = logging.getLogger(__name__)
 
 class JinaReaderToolsConfig(BaseModel):
     api_key: Optional[str] = Field(None, description="API key for Jina Reader")
-    base_url: HttpUrl = Field("https://r.jina.ai/", description="Base URL for Jina Reader API")  # type: ignore
-    search_url: HttpUrl = Field("https://s.jina.ai/", description="Search URL for Jina Reader API")  # type: ignore
-    max_content_length: int = Field(10000, description="Maximum content length in characters")
-    timeout: Optional[int] = Field(None, description="Timeout for Jina Reader API requests")
+    base_url: HttpUrl = Field(
+        "https://r.jina.ai/", description="Base URL for Jina Reader API"
+    )  # type: ignore
+    search_url: HttpUrl = Field(
+        "https://s.jina.ai/", description="Search URL for Jina Reader API"
+    )  # type: ignore
+    max_content_length: int = Field(
+        10000, description="Maximum content length in characters"
+    )
+    timeout: Optional[int] = Field(
+        None, description="Timeout for Jina Reader API requests"
+    )
 
 
 class JinaReaderTools:
@@ -28,9 +36,7 @@ class JinaReaderTools:
         search_url: str = "https://s.jina.ai/",
         max_content_length: int = 10000,
         timeout: Optional[int] = None,
-
     ):
-
         self.config: JinaReaderToolsConfig = JinaReaderToolsConfig(
             api_key=api_key,
             base_url=base_url,
@@ -38,7 +44,6 @@ class JinaReaderTools:
             max_content_length=max_content_length,
             timeout=timeout,
         )
-
 
     @register_tool(name="jina_read_url")
     def read_url(self, url: str) -> str:

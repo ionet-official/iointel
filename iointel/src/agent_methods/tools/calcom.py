@@ -12,7 +12,9 @@ try:
     import pytz
     import requests
 except ImportError:
-    raise ImportError("`requests` and `pytz` not installed. Please install using `pip install requests pytz`")
+    raise ImportError(
+        "`requests` and `pytz` not installed. Please install using `pip install requests pytz`"
+    )
 
 
 class CalComTools:
@@ -20,7 +22,7 @@ class CalComTools:
         self,
         api_key: Optional[str] = None,
         event_type_id: Optional[int] = None,
-        user_timezone: Optional[str] = None
+        user_timezone: Optional[str] = None,
     ):
         """Initialize the Cal.com toolkit.
 
@@ -33,12 +35,18 @@ class CalComTools:
         # Get credentials from environment if not provided
         self.api_key = api_key or getenv("CALCOM_API_KEY")
         event_type_str = getenv("CALCOM_EVENT_TYPE_ID")
-        self.event_type_id = event_type_id or int(event_type_str) if event_type_str is not None else 0
+        self.event_type_id = (
+            event_type_id or int(event_type_str) if event_type_str is not None else 0
+        )
 
         if not self.api_key:
-            logger.error("CALCOM_API_KEY not set. Please set the CALCOM_API_KEY environment variable.")
+            logger.error(
+                "CALCOM_API_KEY not set. Please set the CALCOM_API_KEY environment variable."
+            )
         if not self.event_type_id:
-            logger.error("CALCOM_EVENT_TYPE_ID not set. Please set the CALCOM_EVENT_TYPE_ID environment variable.")
+            logger.error(
+                "CALCOM_EVENT_TYPE_ID not set. Please set the CALCOM_EVENT_TYPE_ID environment variable."
+            )
 
         self.user_timezone = user_timezone or "America/New_York"
 
@@ -97,7 +105,9 @@ class CalComTools:
                 "eventTypeId": str(self.event_type_id),
             }
 
-            response = requests.get(url, headers=self._get_headers(), params=querystring)  # type: ignore
+            response = requests.get(
+                url, headers=self._get_headers(), params=querystring
+            )  # type: ignore
             if response.status_code == 200:
                 slots = response.json()["data"]["slots"]
                 available_slots = []
@@ -130,11 +140,19 @@ class CalComTools:
         """
         try:
             url = "https://api.cal.com/v2/bookings"
-            start_time = datetime.fromisoformat(start_time).astimezone(pytz.utc).isoformat(timespec="seconds")
+            start_time = (
+                datetime.fromisoformat(start_time)
+                .astimezone(pytz.utc)
+                .isoformat(timespec="seconds")
+            )
             payload = {
                 "start": start_time,
                 "eventTypeId": self.event_type_id,
-                "attendee": {"name": name, "email": email, "timeZone": self.user_timezone},
+                "attendee": {
+                    "name": name,
+                    "email": email,
+                    "timeZone": self.user_timezone,
+                },
             }
 
             response = requests.post(url, json=payload, headers=self._get_headers())
@@ -163,7 +181,9 @@ class CalComTools:
             if email:
                 querystring["attendeeEmail"] = email
 
-            response = requests.get(url, headers=self._get_headers(), params=querystring)
+            response = requests.get(
+                url, headers=self._get_headers(), params=querystring
+            )
             if response.status_code == 200:
                 bookings = response.json()["data"]
                 if not bookings:
@@ -201,7 +221,11 @@ class CalComTools:
         """
         try:
             url = f"https://api.cal.com/v2/bookings/{booking_uid}/reschedule"
-            new_start_time = datetime.fromisoformat(new_start_time).astimezone(pytz.utc).isoformat(timespec="seconds")
+            new_start_time = (
+                datetime.fromisoformat(new_start_time)
+                .astimezone(pytz.utc)
+                .isoformat(timespec="seconds")
+            )
             payload = {"start": new_start_time, "reschedulingReason": reason}
 
             response = requests.post(url, json=payload, headers=self._get_headers())

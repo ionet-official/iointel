@@ -7,7 +7,9 @@ from ...utilities.decorators import register_tool
 try:
     from newspaper import Article
 except ImportError:
-    raise ImportError("`newspaper3k` not installed. Please run `pip install newspaper3k lxml_html_clean`.")
+    raise ImportError(
+        "`newspaper3k` not installed. Please run `pip install newspaper3k lxml_html_clean`."
+    )
 
 
 class NewspaperTools:

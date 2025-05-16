@@ -34,7 +34,9 @@ class HackerNewsTools:
         # Fetch story details
         stories = []
         for story_id in story_ids[:num_stories]:
-            story_response = httpx.get(f"https://hacker-news.firebaseio.com/v0/item/{story_id}.json")
+            story_response = httpx.get(
+                f"https://hacker-news.firebaseio.com/v0/item/{story_id}.json"
+            )
             story = story_response.json()
             story["username"] = story["by"]
             stories.append(story)
@@ -53,7 +55,9 @@ class HackerNewsTools:
 
         try:
             logger.info(f"Getting details for user: {username}")
-            user = httpx.get(f"https://hacker-news.firebaseio.com/v0/user/{username}.json").json()
+            user = httpx.get(
+                f"https://hacker-news.firebaseio.com/v0/user/{username}.json"
+            ).json()
             user_details = {
                 "id": user.get("user_id"),
                 "karma": user.get("karma"),

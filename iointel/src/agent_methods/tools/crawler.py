@@ -16,9 +16,11 @@ T = TypeVar("T", bound=BaseModel)
 # Apply nest_asyncio to allow nested event loops (if needed)
 nest_asyncio.apply()
 
+
 class FirecrawlResponse(BaseModel):
     markdown: str
     metadata: dict
+
 
 class Crawler:
     """
@@ -27,11 +29,11 @@ class Crawler:
     """
 
     def __init__(
-            self, 
-            api_key: Optional[str] = None, 
-            timeout: int = 60, 
-            version: Optional[str] = None
-            ) -> None:
+        self,
+        api_key: Optional[str] = None,
+        timeout: int = 60,
+        version: Optional[str] = None,
+    ) -> None:
         """
         Initialize the Firecrawl app.
 
@@ -42,7 +44,9 @@ class Crawler:
         """
         self.api_key = api_key or os.getenv("FIRECRAWL_API_KEY")
         if not self.api_key:
-            raise ValueError("FIRECRAWL_API_KEY not set. Please set the FIRECRAWL_API_KEY environment variable.")
+            raise ValueError(
+                "FIRECRAWL_API_KEY not set. Please set the FIRECRAWL_API_KEY environment variable."
+            )
 
         super().__init__(api_key=self.api_key, timeout=timeout)
         if version:
@@ -114,7 +118,9 @@ class Crawler:
             Dict[str, Any]: The asynchronous batch scraping result.
         """
         event_loop = asyncio.get_event_loop()
-        return await event_loop.run_in_executor(None, self.app.async_batch_scrape_urls, urls, params)
+        return await event_loop.run_in_executor(
+            None, self.app.async_batch_scrape_urls, urls, params
+        )
 
     @register_tool(name="firecrawl_crawl_single_url")
     def crawl_url(
@@ -161,8 +167,9 @@ class Crawler:
         if idempotency_key is None:
             idempotency_key = ""
         event_loop = asyncio.get_event_loop()
-        return await event_loop.run_in_executor(None, self.app.async_crawl_url,
-                                                url, crawl_params, idempotency_key)
+        return await event_loop.run_in_executor(
+            None, self.app.async_crawl_url, url, crawl_params, idempotency_key
+        )
 
     @register_tool(name="firecrawl_async_scrape_urls")
     def scrape_urls(

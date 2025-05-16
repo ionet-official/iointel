@@ -9,7 +9,9 @@ from ...utilities.decorators import register_tool
 try:
     import pandas as pd
 except ImportError:
-    raise ImportError("`pandas` not installed. Please install using `pip install pandas`.")
+    raise ImportError(
+        "`pandas` not installed. Please install using `pip install pandas`."
+    )
 
 
 class PandasTools:
@@ -18,7 +20,10 @@ class PandasTools:
 
     @register_tool(name="pandas_create_dataframe")
     def create_pandas_dataframe(
-        self, dataframe_name: str, create_using_function: str, function_parameters: Dict[str, Any]
+        self,
+        dataframe_name: str,
+        create_using_function: str,
+        function_parameters: Dict[str, Any],
     ) -> str:
         """Creates a pandas dataframe named `dataframe_name` by running a function `create_using_function` with the parameters `function_parameters`.
         Returns the created dataframe name as a string if successful, otherwise returns an error message.
@@ -56,7 +61,9 @@ class PandasTools:
             return f"Error creating dataframe: {e}"
 
     @register_tool(name="pandas_run_dataframe_operation")
-    def run_dataframe_operation(self, dataframe_name: str, operation: str, operation_parameters: Dict[str, Any]) -> str:
+    def run_dataframe_operation(
+        self, dataframe_name: str, operation: str, operation_parameters: Dict[str, Any]
+    ) -> str:
         """Runs an operation `operation` on a dataframe `dataframe_name` with the parameters `operation_parameters`.
         Returns the result of the operation as a string if successful, otherwise returns an error message.
 

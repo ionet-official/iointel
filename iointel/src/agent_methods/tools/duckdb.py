@@ -8,7 +8,9 @@ logger = logging.getLogger(__name__)
 try:
     import duckdb
 except ImportError:
-    raise ImportError("`duckdb` not installed. Please install using `pip install duckdb`.")
+    raise ImportError(
+        "`duckdb` not installed. Please install using `pip install duckdb`."
+    )
 
 
 class DuckDbTools:
@@ -19,15 +21,12 @@ class DuckDbTools:
         init_commands: Optional[List] = None,
         read_only: bool = False,
         config: Optional[dict] = None,
-
     ):
-
         self.db_path: Optional[str] = db_path
         self.read_only: bool = read_only
         self.config: Optional[dict] = config
         self._connection: Optional[duckdb.DuckDBPyConnection] = connection
         self.init_commands: Optional[List] = init_commands
-
 
     @property
     def connection(self) -> duckdb.DuckDBPyConnection:
@@ -166,12 +165,19 @@ class DuckDbTools:
         # Get the file name without extension from the path
         table, extension = os.path.splitext(file_name)
         # If the table isn't a valid SQL identifier, we'll need to use something else
-        table = table.replace("-", "_").replace(".", "_").replace(" ", "_").replace("/", "_")
+        table = (
+            table.replace("-", "_")
+            .replace(".", "_")
+            .replace(" ", "_")
+            .replace("/", "_")
+        )
 
         return table
 
     @register_tool(name="duckdb_create_table_from_path")
-    def create_table_from_path(self, path: str, table: Optional[str] = None, replace: bool = False) -> str:
+    def create_table_from_path(
+        self, path: str, table: Optional[str] = None, replace: bool = False
+    ) -> str:
         """Creates a table from a path
 
         :param path: Path to load
@@ -194,7 +200,9 @@ class DuckDbTools:
         return table
 
     @register_tool(name="duckdb_export_table_to_path")
-    def export_table_to_path(self, table: str, format: Optional[str] = "PARQUET", path: Optional[str] = None) -> str:
+    def export_table_to_path(
+        self, table: str, format: Optional[str] = "PARQUET", path: Optional[str] = None
+    ) -> str:
         """Save a table in a desired format (default: parquet)
         If the path is provided, the table will be saved under that path.
             Eg: If path is /tmp, the table will be saved as /tmp/table.parquet
@@ -213,13 +221,17 @@ class DuckDbTools:
             path = f"{table}.{format}"
         else:
             path = f"{path}/{table}.{format}"
-        export_statement = f"COPY (SELECT * FROM {table}) TO '{path}' (FORMAT {format.upper()});"
+        export_statement = (
+            f"COPY (SELECT * FROM {table}) TO '{path}' (FORMAT {format.upper()});"
+        )
         result = self.run_query(export_statement)
         logger.debug(f"Exported {table} to {path}/{table}")
         return result
 
     @register_tool(name="duckdb_load_local_path_to_table")
-    def load_local_path_to_table(self, path: str, table: Optional[str] = None) -> Tuple[str, str]:
+    def load_local_path_to_table(
+        self, path: str, table: Optional[str] = None
+    ) -> Tuple[str, str]:
         """Load a local file into duckdb
 
         :param path: Path to load
@@ -236,9 +248,16 @@ class DuckDbTools:
             # Get the file name without extension from the s3 path
             table, extension = os.path.splitext(file_name)
             # If the table isn't a valid SQL identifier, we'll need to use something else
-            table = table.replace("-", "_").replace(".", "_").replace(" ", "_").replace("/", "_")
+            table = (
+                table.replace("-", "_")
+                .replace(".", "_")
+                .replace(" ", "_")
+                .replace("/", "_")
+            )
 
-        create_statement = f"CREATE OR REPLACE TABLE '{table}' AS SELECT * FROM '{path}';"
+        create_statement = (
+            f"CREATE OR REPLACE TABLE '{table}' AS SELECT * FROM '{path}';"
+        )
         self.run_query(create_statement)
 
         logger.debug(f"Loaded {path} into duckdb as {table}")
@@ -265,7 +284,12 @@ class DuckDbTools:
             # Get the file name without extension from the s3 path
             table, extension = os.path.splitext(file_name)
             # If the table isn't a valid SQL identifier, we'll need to use something else
-            table = table.replace("-", "_").replace(".", "_").replace(" ", "_").replace("/", "_")
+            table = (
+                table.replace("-", "_")
+                .replace(".", "_")
+                .replace(" ", "_")
+                .replace("/", "_")
+            )
 
         select_statement = f"SELECT * FROM read_csv('{path}'"
         if delimiter is not None:
@@ -280,7 +304,9 @@ class DuckDbTools:
         return table, create_statement
 
     @register_tool(name="duckdb_load_s3_path_to_table")
-    def load_s3_path_to_table(self, path: str, table: Optional[str] = None) -> Tuple[str, str]:
+    def load_s3_path_to_table(
+        self, path: str, table: Optional[str] = None
+    ) -> Tuple[str, str]:
         """Load a file from S3 into duckdb
 
         :param path: S3 path to load
@@ -297,9 +323,16 @@ class DuckDbTools:
             # Get the file name without extension from the s3 path
             table, extension = os.path.splitext(file_name)
             # If the table isn't a valid SQL identifier, we'll need to use something else
-            table = table.replace("-", "_").replace(".", "_").replace(" ", "_").replace("/", "_")
+            table = (
+                table.replace("-", "_")
+                .replace(".", "_")
+                .replace(" ", "_")
+                .replace("/", "_")
+            )
 
-        create_statement = f"CREATE OR REPLACE TABLE '{table}' AS SELECT * FROM '{path}';"
+        create_statement = (
+            f"CREATE OR REPLACE TABLE '{table}' AS SELECT * FROM '{path}';"
+        )
         self.run_query(create_statement)
 
         logger.debug(f"Loaded {path} into duckdb as {table}")
@@ -325,7 +358,12 @@ class DuckDbTools:
             # Get the file name without extension from the s3 path
             table, extension = os.path.splitext(file_name)
             # If the table isn't a valid SQL identifier, we'll need to use something else
-            table = table.replace("-", "_").replace(".", "_").replace(" ", "_").replace("/", "_")
+            table = (
+                table.replace("-", "_")
+                .replace(".", "_")
+                .replace(" ", "_")
+                .replace("/", "_")
+            )
 
         select_statement = f"SELECT * FROM read_csv('{path}'"
         if delimiter is not None:
@@ -340,7 +378,9 @@ class DuckDbTools:
         return table, create_statement
 
     @register_tool(name="duckdb_create_fts_index")
-    def create_fts_index(self, table: str, unique_key: str, input_values: list[str]) -> str:
+    def create_fts_index(
+        self, table: str, unique_key: str, input_values: list[str]
+    ) -> str:
         """Create a full text search index on a table
 
         :param table: Table to create the index on
@@ -354,7 +394,9 @@ class DuckDbTools:
         self.run_query("LOAD fts;")
         logger.debug("Loaded FTS extension")
 
-        create_fts_index_statement = f"PRAGMA create_fts_index('{table}', '{unique_key}', '{input_values}');"
+        create_fts_index_statement = (
+            f"PRAGMA create_fts_index('{table}', '{unique_key}', '{input_values}');"
+        )
         logger.debug(f"Running {create_fts_index_statement}")
         result = self.run_query(create_fts_index_statement)
         logger.debug(f"Created FTS index on {table} for {input_values}")
