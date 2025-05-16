@@ -3,6 +3,9 @@ from os import getenv
 from typing import Any, Literal, Optional
 import logging
 
+from ...utilities.decorators import register_tool
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -31,7 +34,7 @@ class OpenBBTools:
         self.provider: Literal["benzinga", "fmp", "intrinio", "polygon", "tiingo", "tmx", "yfinance"] = provider
 
 
-
+    @register_tool(name="openbb_get_stock_price")
     def get_stock_price(self, symbol: str) -> str:
         """Use this function to get the current stock price for a stock symbol or list of symbols.
 
@@ -67,6 +70,7 @@ class OpenBBTools:
         except Exception as e:
             return f"Error fetching current price for {symbol}: {e}"
 
+    @register_tool(name="openbb_get_stock_history")
     def search_company_symbol(self, company_name: str) -> str:
         """Use this function to get a list of ticker symbols for a company.
 
@@ -86,6 +90,7 @@ class OpenBBTools:
 
         return json.dumps(clean_results, indent=2, default=str)
 
+    @register_tool(name="openbb_get_price_targets")
     def get_price_targets(self, symbol: str) -> str:
         """Use this function to get consensus price target and recommendations for a stock symbol or list of symbols.
 
@@ -103,6 +108,7 @@ class OpenBBTools:
         except Exception as e:
             return f"Error fetching company news for {symbol}: {e}"
 
+    @register_tool(name="openbb_get_company_news")
     def get_company_news(self, symbol: str, num_stories: int = 10) -> str:
         """Use this function to get company news for a stock symbol or list of symbols.
 
@@ -126,6 +132,7 @@ class OpenBBTools:
         except Exception as e:
             return f"Error fetching company news for {symbol}: {e}"
 
+    @register_tool(name="openbb_get_company_profile")
     def get_company_profile(self, symbol: str) -> str:
         """Use this function to get company profile and overview for a stock symbol or list of symbols.
 

@@ -4,6 +4,7 @@ from typing import Optional
 
 import logging
 
+from ...utilities.decorators import register_tool
 logger = logging.getLogger(__name__)
 
 try:
@@ -48,7 +49,7 @@ class XTools:
         )
 
 
-
+    @register_tool(name="x_create_post")
     def create_post(self, text: str) -> str:
         """
         Create a new X post.
@@ -73,6 +74,7 @@ class XTools:
             logger.error(f"Error creating post: {e}")
             return json.dumps({"error": str(e)})
 
+    @register_tool(name="x_reply_to_post")
     def reply_to_post(self, post_id: str, text: str) -> str:
         """
         Reply to an existing post.
@@ -97,6 +99,7 @@ class XTools:
             logger.error(f"Error replying to post: {e}")
             return json.dumps({"error": str(e)})
 
+    @register_tool(name="x_send_dm")
     def send_dm(self, recipient: str, text: str) -> str:
         """
         Send a direct message to a user.
@@ -143,6 +146,7 @@ class XTools:
             logger.error(f"Unexpected error sending DM: {e}")
             return json.dumps({"error": f"An unexpected error occurred: {str(e)}"}, indent=2)
 
+    @register_tool(name="x_get_my_info")
     def get_my_info(self) -> str:
         """
         Retrieve information about the authenticated user.
@@ -170,6 +174,7 @@ class XTools:
             logger.error(f"Error fetching user info: {e}")
             return json.dumps({"error": str(e)})
 
+    @register_tool(name="x_get_user_info")
     def get_user_info(self, username: str) -> str:
         """
         Retrieve information about a specific user.
@@ -200,6 +205,7 @@ class XTools:
             logger.error(f"Error fetching user info: {e}")
             return json.dumps({"error": str(e)})
 
+    @register_tool(name="x_get_timeline")
     def get_home_timeline(self, max_results: int = 10) -> str:
         """
         Retrieve the authenticated user's home timeline.

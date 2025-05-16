@@ -9,6 +9,9 @@ except ImportError:
 
 import logging
 
+from ...utilities.decorators import register_tool
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -62,6 +65,7 @@ class PostgresTools:
 
         return self._connection
 
+    @register_tool(name="postgres_show_tables")
     def show_tables(self) -> str:
         """Function to show tables in the database
 
@@ -72,6 +76,7 @@ class PostgresTools:
         logger.debug(f"Tables: {tables}")
         return tables
 
+    @register_tool(name="postgres_describe_table")
     def describe_table(self, table: str) -> str:
         """Function to describe a table
 
@@ -84,6 +89,7 @@ class PostgresTools:
         logger.debug(f"Table description: {table_description}")
         return f"{table}\n{table_description}"
 
+    @register_tool(name="postgres_summarize_table")
     def summarize_table(self, table: str) -> str:
         """Function to compute a number of aggregates over a table.
         The function launches a query that computes a number of aggregates over all columns,
@@ -153,6 +159,7 @@ class PostgresTools:
         logger.debug(f"Table summary: {table_summary}")
         return table_summary
 
+    @register_tool(name="postgres_inspect_query")
     def inspect_query(self, query: str) -> str:
         """Function to inspect a query and return the query plan. Always inspect your query before running them.
 
@@ -188,6 +195,7 @@ class PostgresTools:
 
         return result
 
+    @register_tool(name="postgres_run_query")
     def run_query(self, query: str) -> str:
         """Function that runs a query and returns the result.
 

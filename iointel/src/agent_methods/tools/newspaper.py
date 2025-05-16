@@ -2,6 +2,8 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+from ...utilities.decorators import register_tool
+
 try:
     from newspaper import Article
 except ImportError:
@@ -12,6 +14,7 @@ class NewspaperTools:
     def __init__(self):
         pass
 
+    @register_tool(name="newspapers_get_article_text")
     def get_article_text(self, url: str) -> str:
         """Get the text of an article from a URL.
 

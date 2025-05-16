@@ -2,6 +2,9 @@ import json
 
 import logging
 
+from ...utilities.decorators import register_tool
+
+
 logger = logging.getLogger(__name__)
 
 try:
@@ -14,7 +17,7 @@ class YFinanceTools:
     def __init__(self):
         pass
 
-
+    @register_tool(name="yfinance_get_current_stock_price")
     def get_current_stock_price(self, symbol: str) -> str:
         """
         Use this function to get the current stock price for a given symbol.
@@ -34,6 +37,7 @@ class YFinanceTools:
         except Exception as e:
             return f"Error fetching current price for {symbol}: {e}"
 
+    @register_tool(name="yfinance_get_company_info")
     def get_company_info(self, symbol: str) -> str:
         """Use this function to get company information and overview for a given stock symbol.
 
@@ -85,6 +89,7 @@ class YFinanceTools:
         except Exception as e:
             return f"Error fetching company profile for {symbol}: {e}"
 
+    @register_tool(name="yfinance_get_historical_stock_prices")
     def get_historical_stock_prices(self, symbol: str, period: str = "1mo", interval: str = "1d") -> str:
         """
         Use this function to get the historical stock price for a given symbol.
@@ -107,6 +112,7 @@ class YFinanceTools:
         except Exception as e:
             return f"Error fetching historical prices for {symbol}: {e}"
 
+    @register_tool(name="yfinance_get_stock_fundamentals")
     def get_stock_fundamentals(self, symbol: str) -> str:
         """Use this function to get fundamental data for a given stock symbol yfinance API.
 
@@ -151,6 +157,7 @@ class YFinanceTools:
         except Exception as e:
             return f"Error getting fundamentals for {symbol}: {e}"
 
+    @register_tool(name="yfinance_get_income_statements")
     def get_income_statements(self, symbol: str) -> str:
         """Use this function to get income statements for a given stock symbol.
 
@@ -168,6 +175,7 @@ class YFinanceTools:
         except Exception as e:
             return f"Error fetching income statements for {symbol}: {e}"
 
+    @register_tool(name="yfinance_get_key_financial_ratios")
     def get_key_financial_ratios(self, symbol: str) -> str:
         """Use this function to get key financial ratios for a given stock symbol.
 
@@ -185,6 +193,7 @@ class YFinanceTools:
         except Exception as e:
             return f"Error fetching key financial ratios for {symbol}: {e}"
 
+    @register_tool(name="yfinance_get_analyst_recommendations")
     def get_analyst_recommendations(self, symbol: str) -> str:
         """Use this function to get analyst recommendations for a given stock symbol.
 
@@ -202,6 +211,7 @@ class YFinanceTools:
         except Exception as e:
             return f"Error fetching analyst recommendations for {symbol}: {e}"
 
+    @register_tool(name="yfinance_get_company_news")
     def get_company_news(self, symbol: str, num_stories: int = 3) -> str:
         """Use this function to get company news and press releases for a given stock symbol.
 
@@ -219,6 +229,7 @@ class YFinanceTools:
         except Exception as e:
             return f"Error fetching company news for {symbol}: {e}"
 
+    @register_tool(name="yfinance_get_technical_indicators")
     def get_technical_indicators(self, symbol: str, period: str = "3mo") -> str:
         """Use this function to get technical indicators for a given stock symbol.
 

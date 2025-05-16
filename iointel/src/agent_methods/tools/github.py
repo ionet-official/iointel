@@ -4,6 +4,9 @@ from typing import List, Optional
 
 import logging
 
+from ...utilities.decorators import register_tool
+
+
 logger = logging.getLogger(__name__)
 
 try:
@@ -25,6 +28,7 @@ class GithubTools:
         self.g = self.authenticate()
 
 
+    @register_tool(name="github_auth")
     def authenticate(self):
         """Authenticate with GitHub using the provided access token."""
         if not self.access_token:  # Fixes lint type error
@@ -38,6 +42,7 @@ class GithubTools:
             logger.debug("Authenticating with public GitHub")
             return Github(auth=auth)
 
+    @register_tool(name="github_search_repositories")
     def search_repositories(
         self, query: str, sort: str = "stars", order: str = "desc", page: int = 1, per_page: int = 30
     ) -> str:
@@ -83,6 +88,7 @@ class GithubTools:
             logger.error(f"Error searching repositories: {e}")
             return json.dumps({"error": str(e)})
 
+    @register_tool(name="github_list_repositories")
     def list_repositories(self) -> str:
         """List all repositories for the authenticated user.
 
@@ -98,6 +104,7 @@ class GithubTools:
             logger.error(f"Error listing repositories: {e}")
             return json.dumps({"error": str(e)})
 
+    @register_tool(name="github_create_repository")
     def create_repository(
         self,
         name: str,
@@ -150,6 +157,7 @@ class GithubTools:
             logger.error(f"Error creating repository: {e}")
             return json.dumps({"error": str(e)})
 
+    @register_tool(name="github_get_repository")
     def get_repository(self, repo_name: str) -> str:
         """Get details of a specific repository.
 
@@ -178,6 +186,7 @@ class GithubTools:
             logger.error(f"Error getting repository: {e}")
             return json.dumps({"error": str(e)})
 
+    @register_tool(name="github_get_repository_languages")
     def get_repository_languages(self, repo_name: str) -> str:
         """Get the languages used in a repository.
 
@@ -196,6 +205,7 @@ class GithubTools:
             logger.error(f"Error getting repository languages: {e}")
             return json.dumps({"error": str(e)})
 
+    @register_tool(name="github_list_pull_requests")
     def list_pull_requests(self, repo_name: str, state: str = "open") -> str:
         """List pull requests for a repository.
 
@@ -226,6 +236,7 @@ class GithubTools:
             logger.error(f"Error listing pull requests: {e}")
             return json.dumps({"error": str(e)})
 
+    @register_tool(name="github_get_pull_request")
     def get_pull_request(self, repo_name: str, pr_number: int) -> str:
         """Get details of a specific pull request.
 
@@ -257,6 +268,7 @@ class GithubTools:
             logger.error(f"Error getting pull request: {e}")
             return json.dumps({"error": str(e)})
 
+    @register_tool(name="github_get_pull_request_changes")
     def get_pull_request_changes(self, repo_name: str, pr_number: int) -> str:
         """Get the changes (files modified) in a pull request.
 
@@ -290,6 +302,7 @@ class GithubTools:
             logger.error(f"Error getting pull request changes: {e}")
             return json.dumps({"error": str(e)})
 
+    @register_tool(name="github_create_issue")
     def create_issue(self, repo_name: str, title: str, body: Optional[str] = None) -> str:
         """Create an issue in a repository.
 
@@ -320,6 +333,7 @@ class GithubTools:
             logger.error(f"Error creating issue: {e}")
             return json.dumps({"error": str(e)})
 
+    @register_tool(name="github_list_issues")
     def list_issues(self, repo_name: str, state: str = "open") -> str:
         """List issues for a repository.
 
@@ -352,6 +366,7 @@ class GithubTools:
             logger.error(f"Error listing issues: {e}")
             return json.dumps({"error": str(e)})
 
+    @register_tool(name="github_get_issue")
     def get_issue(self, repo_name: str, issue_number: int) -> str:
         """Get details of a specific issue.
 
@@ -383,6 +398,7 @@ class GithubTools:
             logger.error(f"Error getting issue: {e}")
             return json.dumps({"error": str(e)})
 
+    @register_tool(name="github_comment_on_issue")
     def comment_on_issue(self, repo_name: str, issue_number: int, comment_body: str) -> str:
         """Add a comment to an issue.
 
@@ -411,6 +427,7 @@ class GithubTools:
             logger.error(f"Error commenting on issue: {e}")
             return json.dumps({"error": str(e)})
 
+    @register_tool(name="github_close_issue")
     def close_issue(self, repo_name: str, issue_number: int) -> str:
         """Close an issue.
 
@@ -431,6 +448,7 @@ class GithubTools:
             logger.error(f"Error closing issue: {e}")
             return json.dumps({"error": str(e)})
 
+    @register_tool(name="github_reopen_issue")
     def reopen_issue(self, repo_name: str, issue_number: int) -> str:
         """Reopen a closed issue.
 
@@ -451,6 +469,7 @@ class GithubTools:
             logger.error(f"Error reopening issue: {e}")
             return json.dumps({"error": str(e)})
 
+    @register_tool(name="github_assign_issue")
     def assign_issue(self, repo_name: str, issue_number: int, assignees: List[str]) -> str:
         """Assign users to an issue.
 
@@ -472,6 +491,7 @@ class GithubTools:
             logger.error(f"Error assigning issue: {e}")
             return json.dumps({"error": str(e)})
 
+    @register_tool(name="github_label_issue")
     def label_issue(self, repo_name: str, issue_number: int, labels: List[str]) -> str:
         """Add labels to an issue.
 
@@ -493,6 +513,7 @@ class GithubTools:
             logger.error(f"Error labeling issue: {e}")
             return json.dumps({"error": str(e)})
 
+    @register_tool(name="github_list_issue_comments")
     def list_issue_comments(self, repo_name: str, issue_number: int) -> str:
         """List comments on an issue.
 
@@ -523,6 +544,7 @@ class GithubTools:
             logger.error(f"Error listing issue comments: {e}")
             return json.dumps({"error": str(e)})
 
+    @register_tool(name="github_edit_issue")
     def edit_issue(
         self, repo_name: str, issue_number: int, title: Optional[str] = None, body: Optional[str] = None
     ) -> str:

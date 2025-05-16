@@ -6,6 +6,8 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+from ...utilities.decorators import register_tool
+
 try:
     import pytz
     import requests
@@ -70,6 +72,7 @@ class CalComTools:
             "Content-Type": "application/json",
         }
 
+    @register_tool(name="calcom_get_available_slots")
     def get_available_slots(
         self,
         start_date: str,
@@ -108,6 +111,7 @@ class CalComTools:
             logger.error(f"Error fetching available slots: {e}")
             return f"Error: {str(e)}"
 
+    @register_tool(name="calcom_create_booking")
     def create_booking(
         self,
         start_time: str,
@@ -143,6 +147,7 @@ class CalComTools:
             logger.error(f"Error creating booking: {e}")
             return f"Error: {str(e)}"
 
+    @register_tool(name="calcom_get_upcoming_bookings")
     def get_upcoming_bookings(self, email: Optional[str] = None) -> str:
         """Get all upcoming bookings for an attendee.
 
@@ -176,6 +181,7 @@ class CalComTools:
             logger.error(f"Error fetching upcoming bookings: {e}")
             return f"Error: {str(e)}"
 
+    @register_tool(name="calcom_get_booking_details")
     def reschedule_booking(
         self,
         booking_uid: str,
@@ -208,6 +214,7 @@ class CalComTools:
             logger.error(f"Error rescheduling booking: {e}")
             return f"Error: {str(e)}"
 
+    @register_tool(name="calcom_cancel_booking")
     def cancel_booking(self, booking_uid: str, reason: str) -> str:
         """Cancel an existing booking.
 

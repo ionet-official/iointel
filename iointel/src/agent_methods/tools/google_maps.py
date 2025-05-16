@@ -17,6 +17,8 @@ from os import getenv
 from typing import List, Optional
 
 
+from ...utilities.decorators import register_tool
+
 
 try:
     import googlemaps
@@ -36,7 +38,7 @@ class GoogleMapTools:
         self.client = googlemaps.Client(key=api_key)
 
 
-
+    @register_tool(name="google_maps_search_places")
     def search_places(self, query: str) -> str:
         """
         Search for places using Google Maps Places API.
@@ -90,6 +92,7 @@ class GoogleMapTools:
             print(f"Error searching Google Maps: {str(e)}")
             return str([])
 
+    @register_tool(name="google_maps_get_directions")
     def get_directions(
         self,
         origin: str,
@@ -118,6 +121,7 @@ class GoogleMapTools:
             print(f"Error getting directions: {str(e)}")
             return str([])
 
+    @register_tool(name="google_maps_validate_address")
     def validate_address(
         self, address: str, region_code: str = "US", locality: Optional[str] = None, enable_usps_cass: bool = False
     ) -> str:
@@ -142,6 +146,7 @@ class GoogleMapTools:
             print(f"Error validating address: {str(e)}")
             return str({})
 
+    @register_tool(name="google_maps_geocode_address")
     def geocode_address(self, address: str, region: Optional[str] = None) -> str:
         """
         Convert an address into geographic coordinates using Google Maps Geocoding API.
@@ -160,6 +165,7 @@ class GoogleMapTools:
             print(f"Error geocoding address: {str(e)}")
             return str([])
 
+    @register_tool(name="google_maps_reverse_geocode")
     def reverse_geocode(
         self, lat: float, lng: float, result_type: Optional[List[str]] = None, location_type: Optional[List[str]] = None
     ) -> str:
@@ -182,6 +188,7 @@ class GoogleMapTools:
             print(f"Error reverse geocoding: {str(e)}")
             return str([])
 
+    @register_tool(name="google_maps_get_distance_matrix")
     def get_distance_matrix(
         self,
         origins: List[str],
@@ -212,6 +219,7 @@ class GoogleMapTools:
             print(f"Error getting distance matrix: {str(e)}")
             return str({})
 
+    @register_tool(name="google_maps_get_elevation")
     def get_elevation(self, lat: float, lng: float) -> str:
         """
         Get the elevation for a specific location using Google Maps Elevation API.
@@ -230,6 +238,7 @@ class GoogleMapTools:
             print(f"Error getting elevation: {str(e)}")
             return str([])
 
+    @register_tool(name="google_maps_get_timezone")
     def get_timezone(self, lat: float, lng: float, timestamp: Optional[datetime] = None) -> str:
         """
         Get timezone information for a location using Google Maps Time Zone API.

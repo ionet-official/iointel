@@ -3,6 +3,8 @@ from typing import Any, Dict, List, Optional
 
 import logging
 
+from ...utilities.decorators import register_tool
+
 logger = logging.getLogger(__name__)
 
 try:
@@ -45,7 +47,7 @@ class GoogleSearchTools:
         self.timeout: Optional[int] = timeout
 
 
-
+    @register_tool(name="google_search")
     def google_search(self, query: str, max_results: int = 5, language: str = "en") -> str:
         """
         Use this function to search Google for a specified query.

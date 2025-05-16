@@ -3,6 +3,9 @@ import math
 
 import logging
 
+from ...utilities.decorators import register_tool
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -10,6 +13,7 @@ class CalculatorTools:
     def __init__(self):
         pass
 
+    @register_tool(name="calculator_add")
     def add(self, a: float, b: float) -> str:
         """Add two numbers and return the result.
 
@@ -24,6 +28,7 @@ class CalculatorTools:
         logger.info(f"Adding {a} and {b} to get {result}")
         return json.dumps({"operation": "addition", "result": result})
 
+    @register_tool(name="calculator_subtract")
     def subtract(self, a: float, b: float) -> str:
         """Subtract second number from first and return the result.
 
@@ -38,6 +43,7 @@ class CalculatorTools:
         logger.info(f"Subtracting {b} from {a} to get {result}")
         return json.dumps({"operation": "subtraction", "result": result})
 
+    @register_tool(name="calculator_multiply")
     def multiply(self, a: float, b: float) -> str:
         """Multiply two numbers and return the result.
 
@@ -52,6 +58,7 @@ class CalculatorTools:
         logger.info(f"Multiplying {a} and {b} to get {result}")
         return json.dumps({"operation": "multiplication", "result": result})
 
+    @register_tool(name="calculator_divide")
     def divide(self, a: float, b: float) -> str:
         """Divide first number by second and return the result.
 
@@ -72,6 +79,7 @@ class CalculatorTools:
         logger.info(f"Dividing {a} by {b} to get {result}")
         return json.dumps({"operation": "division", "result": result})
 
+    @register_tool(name="calculator_exponentiate")
     def exponentiate(self, a: float, b: float) -> str:
         """Raise first number to the power of the second number and return the result.
 
@@ -86,6 +94,7 @@ class CalculatorTools:
         logger.info(f"Raising {a} to the power of {b} to get {result}")
         return json.dumps({"operation": "exponentiation", "result": result})
 
+    @register_tool(name="calculator_factorial")
     def factorial(self, n: int) -> str:
         """Calculate the factorial of a number and return the result.
 
@@ -102,6 +111,7 @@ class CalculatorTools:
         logger.info(f"Calculating factorial of {n} to get {result}")
         return json.dumps({"operation": "factorial", "result": result})
 
+    @register_tool(name="calculator_is_prime")
     def is_prime(self, n: int) -> str:
         """Check if a number is prime and return the result.
 
@@ -118,6 +128,7 @@ class CalculatorTools:
                 return json.dumps({"operation": "prime_check", "result": False})
         return json.dumps({"operation": "prime_check", "result": True})
 
+    @register_tool(name="calculator_square_root")
     def square_root(self, n: float) -> str:
         """Calculate the square root of a number and return the result.
 

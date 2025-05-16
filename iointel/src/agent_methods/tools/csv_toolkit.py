@@ -5,6 +5,9 @@ from typing import Any, Dict, List, Optional, Union
 
 import logging
 
+from ...utilities.decorators import register_tool
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -37,6 +40,7 @@ class CsvTools:
             except ImportError:
                 raise ImportError("`duckdb` not installed. Please install using `pip install duckdb`.")
 
+    @register_tool(name="list_csv_files")
     def list_csv_files(self) -> str:
         """Returns a list of available csv files
 
@@ -45,6 +49,7 @@ class CsvTools:
         """
         return json.dumps([_csv.stem for _csv in self.csvs])
 
+    @register_tool(name="read_csv_file")
     def read_csv_file(self, csv_name: str, row_limit: Optional[int] = None) -> str:
         """Use this function to read the contents of a csv file `name` without the extension.
 
@@ -76,6 +81,7 @@ class CsvTools:
             logger.error(f"Error reading csv: {e}")
             return f"Error reading csv: {e}"
 
+    @register_tool(name="get_csv_columns")
     def get_columns(self, csv_name: str) -> str:
         """Use this function to get the columns of the csv file `csv_name` without the extension.
 
@@ -102,6 +108,7 @@ class CsvTools:
             logger.error(f"Error getting columns: {e}")
             return f"Error getting columns: {e}"
 
+    @register_tool(name="query_csv_file")
     def query_csv_file(self, csv_name: str, sql_query: str) -> str:
         """Use this function to run a SQL query on csv file `csv_name` without the extension.
         The Table name is the name of the csv file without the extension.

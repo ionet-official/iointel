@@ -3,6 +3,9 @@ from typing import Optional
 
 import logging
 
+from ...utilities.decorators import register_tool
+
+
 logger = logging.getLogger(__name__)
 
 try:
@@ -25,7 +28,7 @@ class ResendTools:
             logger.error("No Resend API key provided")
 
 
-
+    @register_tool(name="resend_send_email")
     def send_email(self, to_email: str, subject: str, body: str) -> str:
         """Send an email using the Resend API. Returns if the email was sent successfully or an error message.
 

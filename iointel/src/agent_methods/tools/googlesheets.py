@@ -50,7 +50,7 @@ from os import getenv
 from pathlib import Path
 from typing import Any, List, Optional
 
-
+from ...utilities.decorators import register_tool
 
 try:
     from google.auth.transport.requests import Request
@@ -181,6 +181,7 @@ class GoogleSheetsTools:
             token_file.write_text(self.creds.to_json()) if self.creds else None
 
     @authenticate
+    @register_tool(name="google_sheets_read")
     def read_sheet(self, spreadsheet_id: Optional[str] = None, spreadsheet_range: Optional[str] = None) -> str:
         """
         Read values from a Google Sheet. Prioritizes instance attributes over method parameters.
@@ -210,6 +211,7 @@ class GoogleSheetsTools:
             return f"Error reading Google Sheet: {e}"
 
     @authenticate
+    @register_tool(name="google_sheets_create")
     def create_sheet(self, title: str) -> str:
         """
         Create a Google Sheet with a given title.
@@ -235,6 +237,7 @@ class GoogleSheetsTools:
             return f"Error creating Google Sheet: {e}"
 
     @authenticate
+    @register_tool(name="google_sheets_update")
     def update_sheet(
         self, data: List[List[Any]], spreadsheet_id: Optional[str] = None, range_name: Optional[str] = None
     ) -> str:
@@ -272,6 +275,7 @@ class GoogleSheetsTools:
             return f"Error updating Google Sheet: {e}"
 
     @authenticate
+    @register_tool(name="google_sheets_duplicate")
     def create_duplicate_sheet(
         self, source_id: str, new_title: Optional[str] = None, copy_permissions: bool = True
     ) -> str:

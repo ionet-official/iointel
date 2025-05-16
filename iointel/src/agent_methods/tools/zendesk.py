@@ -4,6 +4,7 @@ from os import getenv
 from typing import Optional
 
 import logging
+from ...utilities.decorators import register_tool
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +44,7 @@ class ZendeskTools:
             logger.error("Username, password, or company name not provided.")
 
 
-
+    @register_tool(name="zendesk_search")
     def search_zendesk(self, search_string: str) -> str:
         """
         Searches for articles in Zendesk Help Center that match the given search string.

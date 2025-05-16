@@ -5,6 +5,9 @@ import httpx
 
 import logging
 
+from ...utilities.decorators import register_tool
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -23,6 +26,7 @@ class TelegramTools:
     def _call_post_method(self, method, *args, **kwargs):
         return httpx.post(f"{self.base_url}/bot{self.token}/{method}", *args, **kwargs)
 
+    @register_tool(name="telegram_send_message")
     def send_message(self, message: str) -> str:
         """This function sends a message to the chat ID.
 

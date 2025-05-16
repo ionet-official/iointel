@@ -9,6 +9,8 @@ from typing import Optional
 
 import logging
 
+from ...utilities.decorators import register_tool
+
 logger = logging.getLogger(__name__)
 
 class SpiderTools:
@@ -23,6 +25,7 @@ class SpiderTools:
         self.optional_params = optional_params or {}
 
 
+    @register_tool(name="spider_search")
     def search(self, query: str, max_results: int = 5) -> str:
         """Use this function to search the web.
         Args:
@@ -34,6 +37,7 @@ class SpiderTools:
         max_results = self.max_results or max_results
         return self._search(query, max_results=max_results)
 
+    @register_tool(name="spider_scrape")
     def scrape(self, url: str) -> str:
         """Use this function to scrape the content of a webpage.
         Args:
@@ -43,6 +47,7 @@ class SpiderTools:
         """
         return self._scrape(url)
 
+    @register_tool(name="spider_crawl")
     def crawl(self, url: str, limit: Optional[int] = None) -> str:
         """Use this function to crawl the web.
         Args:

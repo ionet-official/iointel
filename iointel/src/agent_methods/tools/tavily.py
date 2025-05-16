@@ -4,6 +4,9 @@ from typing import Any, Dict, Literal, Optional
 
 import logging
 
+from ...utilities.decorators import register_tool
+
+
 logger = logging.getLogger(__name__)
 
 try:
@@ -34,7 +37,7 @@ class TavilyTools:
         self.include_answer: bool = include_answer
         self.format: Literal["json", "markdown"] = format
 
-
+    @register_tool(name="tavily_web_search")
     def web_search_using_tavily(self, query: str, max_results: int = 5) -> str:
         """Use this function to search the web for a given query.
         This function uses the Tavily API to provide realtime online information about the query.
@@ -83,6 +86,7 @@ class TavilyTools:
                 _markdown += f"{result['content']}\n\n"
             return _markdown
 
+    @register_tool(name="tavily_search_web")
     def web_search_with_tavily(self, query: str) -> str:
         """Use this function to search the web for a given query.
         This function uses the Tavily API to provide realtime online information about the query.

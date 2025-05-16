@@ -5,6 +5,8 @@ from functools import wraps
 
 import logging
 
+from ...utilities.decorators import register_tool
+
 logger = logging.getLogger(__name__)
 
 try:
@@ -91,6 +93,7 @@ class GoogleCalendarTools:
 
 
     @authenticated
+    @register_tool(name="google_calendar_list_events")
     def list_events(self, limit: int = 10, date_from: str = datetime.date.today().isoformat()) -> str:
         """
         List events from the user's primary calendar.
@@ -128,6 +131,7 @@ class GoogleCalendarTools:
             return json.dumps({"error": f"An error occurred: {error}"})
 
     @authenticated
+    @register_tool(name="google_calendar_delete_event")
     def create_event(
         self,
         start_datetime: str,

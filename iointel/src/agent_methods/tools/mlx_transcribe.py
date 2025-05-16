@@ -21,6 +21,9 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 
 import logging
 
+from ...utilities.decorators import register_tool
+
+
 logger = logging.getLogger(__name__)
 
 try:
@@ -66,8 +69,7 @@ class MLXTranscribeTools:
         self.hallucination_silence_threshold: Optional[float] = hallucination_silence_threshold
         self.decode_options: Optional[dict] = decode_options
 
-
-
+    @register_tool(name="mlx_transcribe")
     def transcribe(self, file_name: str) -> str:
         """
         Transcribe uses Apple's MLX Whisper model.
@@ -121,6 +123,7 @@ class MLXTranscribeTools:
             logger.error(_e)
             return _e
 
+    @register_tool(name="mlx_transcribe_read_files")
     def read_files(self) -> str:
         """Returns a list of files in the base directory
 

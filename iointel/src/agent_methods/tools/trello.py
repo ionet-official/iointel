@@ -3,6 +3,7 @@ from os import getenv
 from typing import Optional
 
 import logging
+from ...utilities.decorators import register_tool
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +37,7 @@ class TrelloTools:
             self.client = None
 
 
-
+    @register_tool(name="trello_create_card")
     def create_card(self, board_id: str, list_name: str, card_title: str, description: str = "") -> str:
         """
         Create a new card in the specified board and list.
@@ -74,6 +75,7 @@ class TrelloTools:
         except Exception as e:
             return f"Error creating card: {e}"
 
+    @register_tool(name="trello_get_board_lists")
     def get_board_lists(self, board_id: str) -> str:
         """
         Get all lists on a board.
@@ -100,6 +102,7 @@ class TrelloTools:
         except Exception as e:
             return f"Error getting board lists: {e}"
 
+    @register_tool(name="trello_move_card")
     def move_card(self, card_id: str, list_id: str) -> str:
         """
         Move a card to a different list.
@@ -125,6 +128,7 @@ class TrelloTools:
         except Exception as e:
             return f"Error moving card: {e}"
 
+    @register_tool(name="trello_get_cards")
     def get_cards(self, list_id: str) -> str:
         """
         Get all cards in a list.
@@ -160,6 +164,7 @@ class TrelloTools:
         except Exception as e:
             return f"Error getting cards: {e}"
 
+    @register_tool(name="trello_create_board")
     def create_board(self, name: str, default_lists: bool = False) -> str:
         """
         Create a new Trello board.
@@ -190,6 +195,7 @@ class TrelloTools:
         except Exception as e:
             return f"Error creating board: {e}"
 
+    @register_tool(name="trello_create_list")
     def create_list(self, board_id: str, list_name: str, pos: str = "bottom") -> str:
         """
         Create a new list on a specified board.
@@ -223,6 +229,7 @@ class TrelloTools:
         except Exception as e:
             return f"Error creating list: {e}"
 
+    @register_tool(name="trello_list_boards")
     def list_boards(self, board_filter: str = "all") -> str:
         """
         Get a list of all boards for the authenticated user.

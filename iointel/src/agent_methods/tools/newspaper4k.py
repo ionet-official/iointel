@@ -3,6 +3,9 @@ from typing import Any, Dict, Optional
 
 import logging
 
+from ...utilities.decorators import register_tool
+
+
 logger = logging.getLogger(__name__)
 
 try:
@@ -21,7 +24,7 @@ class Newspaper4kTools:
         self.include_summary: bool = include_summary
         self.article_length: Optional[int] = article_length
 
-
+    @register_tool(name="newspaper4k_get_article_data")
     def get_article_data(self, url: str) -> Optional[Dict[str, Any]]:
         """Read and get article data from a URL.
 
@@ -55,6 +58,7 @@ class Newspaper4kTools:
             logger.warning(f"Error reading article from {url}: {e}")
             return None
 
+    @register_tool(name="newspaper4k_read_article")
     def read_article(self, url: str) -> str:
         """Use this function to read an article from a URL.
 

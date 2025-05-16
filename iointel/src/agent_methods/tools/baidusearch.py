@@ -5,6 +5,9 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+from ...utilities.decorators import register_tool
+
+
 try:
     from baidusearch.baidusearch import search  # type: ignore
 except ImportError:
@@ -44,6 +47,7 @@ class BaiduSearchTools:
         self.timeout = timeout
         self.debug = debug
 
+    @register_tool(name="baidu_search")
     def baidu_search(self, query: str, max_results: int = 5, language: str = "zh") -> str:
         """Execute Baidu search and return results
 

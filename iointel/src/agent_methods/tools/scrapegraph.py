@@ -3,6 +3,7 @@ import os
 from typing import Optional
 
 import logging
+from ...utilities.decorators import register_tool
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +31,7 @@ class ScrapeGraphTools:
             markdownify = True
 
 
+    @register_tool(name="scrapegraph_smartscraper")
     def smartscraper(self, url: str, prompt: str) -> str:
         """Use this function to extract structured data from a webpage using LLM.
         Args:
@@ -45,6 +47,7 @@ class ScrapeGraphTools:
         except Exception as e:
             return json.dumps({"error": str(e)})
 
+    @register_tool(name="scrapegraph_markdownify")
     def markdownify(self, url: str) -> str:
         """Use this function to convert a webpage to markdown format.
         Args:

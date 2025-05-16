@@ -6,11 +6,19 @@ from typing import List, Dict, Any, Optional, Callable
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import TypeVar, Type
 from pydantic import BaseModel
+import os
+
+from ...utilities.decorators import register_tool
+
 
 T = TypeVar("T", bound=BaseModel)
+
 # Apply nest_asyncio to allow nested event loops (if needed)
 nest_asyncio.apply()
 
+class FirecrawlResponse(BaseModel):
+    markdown: str
+    metadata: dict
 
 class Crawler:
     """
@@ -18,22 +26,31 @@ class Crawler:
     crawling, mapping, extracting, and watching crawl jobs.
     """
 
-    def __init__(self, api_key: str, version: Optional[str] = None) -> None:
+    def __init__(
+            self, 
+            api_key: Optional[str] = None, 
+            timeout: int = 60, 
+            version: Optional[str] = None
+            ) -> None:
         """
         Initialize the Firecrawl app.
 
         Args:
             api_key (str): The API key for Firecrawl.
+            timeout (int): How many seconds to wait while scraping.
             version (Optional[str]): Optional API version.
         """
+        self.api_key = api_key or os.getenv("FIRECRAWL_API_KEY")
+        super().__init__(api_key=self.api_key, timeout=timeout)
         if version:
-            self.app: FirecrawlApp = FirecrawlApp(api_key=api_key, version=version)
+            self.app: FirecrawlApp = FirecrawlApp(api_key=self.api_key, version=version)
         else:
-            self.app: FirecrawlApp = FirecrawlApp(api_key=api_key)
+            self.app: FirecrawlApp = FirecrawlApp(api_key=self.api_key)
 
+    @register_tool(name="firecrawl_scrape_url")
     def scrape_url(
         self, url: str, options: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
+    ) -> FirecrawlResponse:
         """
         Scrape a single URL.
 
@@ -46,8 +63,24 @@ class Crawler:
         """
         if options is None:
             options = {}
-        return self.app.scrape_url(url, options)
+        response = self.app.scrape_url(url, options)
+        return FirecrawlResponse(markdown=response.markdown, metadata=response.metadata)
 
+    @register_tool(name="firecrawl_async_scrape_url")
+    async def async_scrape_url(
+        self, url: str, timeout: int | None = None
+    ) -> FirecrawlResponse:
+        """
+        Scrape a single URL.
+        Args:
+            url (str): The URL to scrape.
+            timeout (int): How many seconds to wait while scraping
+        Returns:
+            Dict[str, Any]: The scraping result.
+        """
+        return await asyncio.to_thread(self.scrape_url, url, timeout)
+
+    @register_tool(name="firecrawl_async_scrape_url")
     def batch_scrape_urls(
         self, urls: List[str], params: Dict[str, Any]
     ) -> Dict[str, Any]:
@@ -63,6 +96,7 @@ class Crawler:
         """
         return self.app.batch_scrape_urls(urls, params)
 
+    @register_tool(name="firecrawl_async_scrape_url")
     async def async_batch_scrape_urls(
         self, urls: List[str], params: Dict[str, Any]
     ) -> Dict[str, Any]:
@@ -79,6 +113,7 @@ class Crawler:
         event_loop = asyncio.get_event_loop()
         return await event_loop.run_in_executor(None, self.app.async_batch_scrape_urls, urls, params)
 
+    @register_tool(name="firecrawl_crawl_single_url")
     def crawl_url(
         self,
         url: str,
@@ -102,6 +137,7 @@ class Crawler:
             idempotency_key = str(uuid.uuid4())
         return self.app.crawl_url(url, crawl_params, depth, idempotency_key)
 
+    @register_tool(name="firecrawl_async_crawl_single_url")
     async def async_crawl_url(
         self,
         url: str,
@@ -125,6 +161,7 @@ class Crawler:
         return await event_loop.run_in_executor(None, self.app.async_crawl_url,
                                                 url, crawl_params, idempotency_key)
 
+    @register_tool(name="firecrawl_async_scrape_urls")
     def scrape_urls(
         self, urls: List[str], extraction_schema: Type[T]
     ) -> List[Dict[str, Any]]:
@@ -164,6 +201,7 @@ class Crawler:
                     print(f"Error scraping URL {url}: {exc}")
         return results
 
+    @register_tool(name="firecrawl_check_crawl_status")
     def check_crawl_status(self, crawl_id: str) -> Dict[str, Any]:
         """
         Check the status of an ongoing crawl.
@@ -176,6 +214,7 @@ class Crawler:
         """
         return self.app.check_crawl_status(crawl_id)
 
+    @register_tool(name="firecrawl_get_current_crawl_status")
     def get_crawl_status(self, crawl_id: str) -> Dict[str, Any]:
         """
         Get the current status of a crawl.
@@ -188,6 +227,7 @@ class Crawler:
         """
         return self.app.get_crawl_status(crawl_id)
 
+    @register_tool(name="firecrawl_map_url")
     def map_url(self, url: str, options: Dict[str, Any]) -> Dict[str, Any]:
         """
         Map a website (e.g., for searching within the site).
@@ -201,6 +241,7 @@ class Crawler:
         """
         return self.app.map_url(url, options)
 
+    @register_tool(name="firecrawl_extract_custom_params")
     def extract(
         self, urls: List[str], extraction_options: Dict[str, Any]
     ) -> Dict[str, Any]:
@@ -216,6 +257,7 @@ class Crawler:
         """
         return self.app.extract(urls, extraction_options)
 
+    @register_tool(name="firecrawl_crawl_and_watch")
     async def crawl_and_watch(
         self,
         url: str,

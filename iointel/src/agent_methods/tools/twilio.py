@@ -4,6 +4,8 @@ from typing import Any, Dict, List, Optional
 
 import logging
 
+from ...utilities.decorators import register_tool
+
 logger = logging.getLogger(__name__)
 
 try:
@@ -91,6 +93,7 @@ class TwilioTools:
         """Validate E.164 phone number format"""
         return bool(re.match(r"^\+[1-9]\d{1,14}$", phone))
 
+    @register_tool(name="twilio_send_sms")
     def send_sms(self, to: str, from_: str, body: str) -> str:
         """
         Send an SMS message using Twilio.
@@ -118,6 +121,7 @@ class TwilioTools:
             logger.error(f"Failed to send SMS to {to}: {e}")
             return f"Error sending message: {str(e)}"
 
+    @register_tool(name="twilio_get_call_details")
     def get_call_details(self, call_sid: str) -> Dict[str, Any]:
         """
         Get details about a specific call.
@@ -145,6 +149,7 @@ class TwilioTools:
             logger.error(f"Failed to fetch call details for SID {call_sid}: {e}")
             return {"error": str(e)}
 
+    @register_tool(name="twilio_list_messages")
     def list_messages(self, limit: int = 20) -> List[Dict[str, Any]]:
         """
         List recent SMS messages.

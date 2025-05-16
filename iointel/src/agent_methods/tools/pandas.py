@@ -4,6 +4,8 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+from ...utilities.decorators import register_tool
+
 try:
     import pandas as pd
 except ImportError:
@@ -14,7 +16,7 @@ class PandasTools:
     def __init__(self):
         self.dataframes: Dict[str, pd.DataFrame] = {}
 
-
+    @register_tool(name="pandas_create_dataframe")
     def create_pandas_dataframe(
         self, dataframe_name: str, create_using_function: str, function_parameters: Dict[str, Any]
     ) -> str:
@@ -53,6 +55,7 @@ class PandasTools:
             logger.error(f"Error creating dataframe: {e}")
             return f"Error creating dataframe: {e}"
 
+    @register_tool(name="pandas_run_dataframe_operation")
     def run_dataframe_operation(self, dataframe_name: str, operation: str, operation_parameters: Dict[str, Any]) -> str:
         """Runs an operation `operation` on a dataframe `dataframe_name` with the parameters `operation_parameters`.
         Returns the result of the operation as a string if successful, otherwise returns an error message.

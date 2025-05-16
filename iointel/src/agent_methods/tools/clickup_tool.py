@@ -3,6 +3,8 @@ import os
 import re
 from typing import Any, Dict, List, Optional
 
+from ...utilities.decorators import register_tool
+
 import logging
 
 logger = logging.getLogger(__name__)
@@ -106,6 +108,7 @@ class ClickUpTools:
         tasks_data = tasks.get("tasks", [])
         return tasks_data
 
+    @register_tool(name="clickup_list_tasks")
     def list_tasks(self, space_name: str) -> str:
         """List all tasks in a space.
 
@@ -136,6 +139,7 @@ class ClickUpTools:
 
         return json.dumps({"tasks": all_tasks}, indent=2)
 
+    @register_tool(name="clickup_create_task")
     def create_task(self, space_name: str, task_name: str, task_description: str) -> str:
         """Create a new task in a space.
 
@@ -167,6 +171,7 @@ class ClickUpTools:
         task = self._make_request("POST", f"list/{list_info['id']}/task", data=data)
         return json.dumps(task, indent=2)
 
+    @register_tool(name="clickup_list_spaces")
     def list_spaces(self) -> str:
         """List all spaces in the workspace.
 
@@ -176,6 +181,7 @@ class ClickUpTools:
         spaces = self._make_request("GET", f"team/{self.master_space_id}/space")
         return json.dumps(spaces, indent=2)
 
+    @register_tool(name="clickup_list_lists")
     def list_lists(self, space_name: str) -> str:
         """List all lists in a space.
 
@@ -194,6 +200,7 @@ class ClickUpTools:
         lists = self._make_request("GET", f"space/{space['id']}/list")
         return json.dumps(lists, indent=2)
 
+    @register_tool(name="clickup_get_task")
     def get_task(self, task_id: str) -> str:
         """Get details of a specific task.
 
@@ -206,6 +213,7 @@ class ClickUpTools:
         task = self._make_request("GET", f"task/{task_id}")
         return json.dumps(task, indent=2)
 
+    @register_tool(name="clickup_update_task")
     def update_task(self, task_id: str, **kwargs) -> str:
         """Update a specific task.
 
@@ -219,6 +227,7 @@ class ClickUpTools:
         task = self._make_request("PUT", f"task/{task_id}", data=kwargs)
         return json.dumps(task, indent=2)
 
+    @register_tool(name="clickup_delete_task")
     def delete_task(self, task_id: str) -> str:
         """Delete a specific task.
 

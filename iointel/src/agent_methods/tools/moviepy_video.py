@@ -2,6 +2,8 @@ from typing import Dict, List, Optional
 
 import logging
 
+from ...utilities.decorators import register_tool
+
 logger = logging.getLogger(__name__)
 
 try:
@@ -64,6 +66,7 @@ class MoviePyVideoTools:
 
         return subtitles
 
+    @register_tool(name="create_caption_clips")
     def create_caption_clips(
         self,
         text_json: Dict,
@@ -162,6 +165,7 @@ class MoviePyVideoTools:
 
         return word_clips
 
+    @register_tool(name="parse_srt")
     def parse_srt(self, srt_content: str) -> List[Dict]:
         """Convert SRT formatted content into word-level timing data
         Args:
@@ -207,6 +211,7 @@ class MoviePyVideoTools:
 
         return words
 
+    @register_tool(name="movie_py_extract_audio")
     def extract_audio(self, video_path: str, output_path: str) -> str:
         """Converts video to audio using MoviePy
         Args:
@@ -225,6 +230,7 @@ class MoviePyVideoTools:
             logger.error(f"Failed to extract audio: {str(e)}")
             return f"Failed to extract audio: {str(e)}"
 
+    @register_tool(name="moviepy_create_srt")
     def create_srt(self, transcription: str, output_path: str) -> str:
         """Save transcription text to SRT formatted file
         Args:
@@ -244,6 +250,7 @@ class MoviePyVideoTools:
             logger.error(f"Failed to create SRT file: {str(e)}")
             return f"Failed to create SRT file: {str(e)}"
 
+    @register_tool(name="moviepy_embed_captions")
     def embed_captions(
         self,
         video_path: str,

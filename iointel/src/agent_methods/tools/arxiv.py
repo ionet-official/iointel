@@ -6,6 +6,10 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+
+from ...utilities.decorators import register_tool
+
+
 try:
     import arxiv
 except ImportError:
@@ -23,6 +27,7 @@ class ArxivTools:
         self.client: arxiv.Client = arxiv.Client()
         self.download_dir: Path = download_dir or Path(__file__).parent.joinpath("arxiv_pdfs")
 
+    @register_tool(name="arxiv_search")
     def search_arxiv_and_return_articles(self, query: str, num_articles: int = 10) -> str:
         """Use this function to search arXiv for a query and return the top articles.
 
@@ -62,6 +67,7 @@ class ArxivTools:
                 logger.error(f"Error processing article: {e}")
         return json.dumps(articles, indent=4)
 
+    @register_tool(name="arxiv_read_papers")
     def read_arxiv_papers(self, id_list: List[str], pages_to_read: Optional[int] = None) -> str:
         """Use this function to read a list of arxiv papers and return the content.
 

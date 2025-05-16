@@ -4,6 +4,8 @@ from urllib.parse import parse_qs, urlencode, urlparse
 from urllib.request import urlopen
 
 import logging
+from ...utilities.decorators import register_tool
+
 logger = logging.getLogger(__name__)
 
 try:
@@ -23,7 +25,7 @@ class YouTubeTools:
         self.languages: Optional[List[str]] = languages
         self.proxies: Optional[Dict[str, Any]] = proxies
 
-
+    @register_tool(name="youtube_video_id")
     def get_youtube_video_id(self, url: str) -> Optional[str]:
         """Function to get the video ID from a YouTube URL.
 
@@ -48,6 +50,7 @@ class YouTubeTools:
                 return parsed_url.path.split("/")[2]
         return None
 
+    @register_tool(name="youtube_video_data")
     def get_youtube_video_data(self, url: str) -> str:
         """Function to get video data from a YouTube URL.
         Data returned includes {title, author_name, author_url, type, height, width, version, provider_name, provider_url, thumbnail_url}
@@ -93,6 +96,7 @@ class YouTubeTools:
         except Exception as e:
             return f"Error getting video data: {e}"
 
+    @register_tool(name="youtube_video_captions")
     def get_youtube_video_captions(self, url: str) -> str:
         """Use this function to get captions from a YouTube video.
 
@@ -127,6 +131,7 @@ class YouTubeTools:
         except Exception as e:
             return f"Error getting captions for video: {e}"
 
+    @register_tool(name="youtube_video_timestamps")
     def get_video_timestamps(self, url: str) -> str:
         """Generate timestamps for a YouTube video based on captions.
 

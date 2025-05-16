@@ -5,6 +5,9 @@ import requests
 
 import logging
 
+from ...utilities.decorators import register_tool
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -48,6 +51,7 @@ class LinearTools:
             logger.error(f"Unexpected error: {e}")
             raise
 
+    @register_tool(name="linear_get_user_details")
     def get_user_details(self) -> Optional[str]:
         """
         Fetch authenticated user details.
@@ -87,6 +91,7 @@ class LinearTools:
             logger.error(f"Error fetching authenticated user details: {e}")
             raise
 
+    @register_tool(name="linear_get_issue_details")
     def get_issue_details(self, issue_id: str) -> Optional[str]:
         """
         Retrieve details of a specific issue by issue ID.
@@ -127,6 +132,7 @@ class LinearTools:
             logger.error(f"Error retrieving issue with ID {issue_id}: {e}")
             raise
 
+    @register_tool(name="linear_create_issue")
     def create_issue(
         self, title: str, description: str, team_id: str, project_id: str, assignee_id: str
     ) -> Optional[str]:
@@ -184,6 +190,7 @@ class LinearTools:
             logger.error(f"Error creating issue '{title}' for team ID {team_id}: {e}")
             raise
 
+    @register_tool(name="linear_update_issue")
     def update_issue(self, issue_id: str, title: Optional[str]) -> Optional[str]:
         """
         Update the title or state of a specific issue by issue ID.
@@ -235,6 +242,7 @@ class LinearTools:
             logger.error(f"Error updating issue ID {issue_id}: {e}")
             raise
 
+    @register_tool(name="linear_get_user_assigned_issues")
     def get_user_assigned_issues(self, user_id: str) -> Optional[str]:
         """
         Retrieve issues assigned to a specific user by user ID.
@@ -283,6 +291,7 @@ class LinearTools:
             logger.error(f"Error retrieving issues for user ID {user_id}: {e}")
             raise
 
+    @register_tool(name="linear_get_workflow_issues")
     def get_workflow_issues(self, workflow_id: str) -> Optional[str]:
         """
         Retrieve issues within a specific workflow state by workflow ID.
@@ -326,6 +335,7 @@ class LinearTools:
             logger.error(f"Error retrieving issues for workflow state ID {workflow_id}: {e}")
             raise
 
+    @register_tool(name="linear_get_high_priority_issues")
     def get_high_priority_issues(self) -> Optional[str]:
         """
         Retrieve issues with a high priority (priority <= 2).

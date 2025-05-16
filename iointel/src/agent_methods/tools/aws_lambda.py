@@ -2,6 +2,8 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+from ...utilities.decorators import register_tool
+
 try:
     import boto3
 except ImportError:
@@ -12,7 +14,7 @@ class AWSLambdaTools:
     def __init__(self, region_name: str = "us-east-1"):
         self.client = boto3.client("lambda", region_name=region_name)
 
-
+    @register_tool(name="aws_lambda_list_functions")
     def list_functions(self) -> str:
         try:
             response = self.client.list_functions()
@@ -21,6 +23,7 @@ class AWSLambdaTools:
         except Exception as e:
             return f"Error listing functions: {str(e)}"
 
+    @register_tool(name="aws_lambda_invoke_function")
     def invoke_function(self, function_name: str, payload: str = "{}") -> str:
         try:
             response = self.client.invoke(FunctionName=function_name, Payload=payload)

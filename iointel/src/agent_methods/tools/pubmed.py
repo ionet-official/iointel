@@ -5,6 +5,10 @@ from xml.etree import ElementTree
 import httpx
 
 import logging
+
+from ...utilities.decorators import register_tool
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -17,7 +21,7 @@ class PubmedTools:
         self.max_results: Optional[int] = max_results
         self.email: str = email
 
-
+    @register_tool(name="pubmed_get_ids")
     def fetch_pubmed_ids(self, query: str, max_results: int, email: str) -> List[str]:
         url = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi"
         params = {
@@ -31,12 +35,14 @@ class PubmedTools:
         root = ElementTree.fromstring(response.content)
         return [id_elem.text for id_elem in root.findall(".//Id") if id_elem.text is not None]
 
+    @register_tool(name="pubmed_get_details")
     def fetch_details(self, pubmed_ids: List[str]) -> ElementTree.Element:
         url = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi"
         params = {"db": "pubmed", "id": ",".join(pubmed_ids), "retmode": "xml"}
         response = httpx.get(url, params=params)
         return ElementTree.fromstring(response.content)
 
+    @register_tool(name="pubmed_parse_details")
     def parse_details(self, xml_root: ElementTree.Element) -> List[Dict[str, Any]]:
         articles = []
         for article in xml_root.findall(".//PubmedArticle"):
@@ -52,6 +58,7 @@ class PubmedTools:
             )
         return articles
 
+    @register_tool(name="pubmed_search")
     def search_pubmed(self, query: str, max_results: int = 10) -> str:
         """Use this function to search PubMed for articles.
 

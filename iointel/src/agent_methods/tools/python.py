@@ -5,6 +5,9 @@ from typing import Optional
 
 import logging
 
+from ...utilities.decorators import register_tool
+
+
 logger = logging.getLogger(__name__)
 
 @functools.lru_cache(maxsize=None)
@@ -28,7 +31,7 @@ class PythonTools:
         self.safe_locals: dict = safe_locals or locals()
 
 
-
+    @register_tool(name="python_save_and_run")
     def save_to_file_and_run(
         self, file_name: str, code: str, variable_to_return: Optional[str] = None, overwrite: bool = True
     ) -> str:
@@ -69,6 +72,7 @@ class PythonTools:
             logger.error(f"Error saving and running code: {e}")
             return f"Error saving and running code: {e}"
 
+    @register_tool(name="python_run_file")
     def run_python_file_return_variable(self, file_name: str, variable_to_return: Optional[str] = None) -> str:
         """This function runs code in a Python file.
         If successful, returns the value of `variable_to_return` if provided otherwise returns a success message.
@@ -96,6 +100,7 @@ class PythonTools:
             logger.error(f"Error running file: {e}")
             return f"Error running file: {e}"
 
+    @register_tool(name="python_read_file")
     def read_file(self, file_name: str) -> str:
         """Reads the contents of the file `file_name` and returns the contents if successful.
 
@@ -111,6 +116,7 @@ class PythonTools:
             logger.error(f"Error reading file: {e}")
             return f"Error reading file: {e}"
 
+    @register_tool(name="python_list_files")
     def list_files(self) -> str:
         """Returns a list of files in the base directory
 
@@ -153,6 +159,7 @@ class PythonTools:
             logger.error(f"Error running python code: {e}")
             return f"Error running python code: {e}"
 
+    @register_tool(name="python_pip_install")
     def pip_install_package(self, package_name: str) -> str:
         """This function installs a package using pip in the current environment.
         If successful, returns a success message.

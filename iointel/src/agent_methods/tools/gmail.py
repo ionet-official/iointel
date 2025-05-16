@@ -49,6 +49,7 @@ from pathlib import Path
 from typing import List, Optional
 
 
+from ...utilities.decorators import register_tool
 
 try:
     from email.mime.text import MIMEText
@@ -235,6 +236,7 @@ class GmailTools:
             return f"Unexpected error retrieving latest emails: {type(error).__name__}: {error}"
 
     @authenticate
+    @register_tool(name="gmail_get_emails_from_user")
     def get_emails_from_user(self, user: str, count: int) -> str:
         """
         Get X number of emails from a specific user (name or email).
@@ -257,6 +259,7 @@ class GmailTools:
             return f"Unexpected error retrieving emails from {user}: {type(error).__name__}: {error}"
 
     @authenticate
+    @register_tool(name="gmail_get_unread_emails")
     def get_unread_emails(self, count: int) -> str:
         """
         Get the X number of latest unread emails from the user's inbox.
@@ -277,6 +280,7 @@ class GmailTools:
             return f"Unexpected error retrieving unread emails: {type(error).__name__}: {error}"
 
     @authenticate
+    @register_tool(name="gmail_get_emails_by_thread")
     def get_emails_by_thread(self, thread_id: str) -> str:
         """
         Retrieve all emails from a specific thread.
@@ -298,6 +302,7 @@ class GmailTools:
             return f"Unexpected error retrieving emails from thread {thread_id}: {type(error).__name__}: {error}"
 
     @authenticate
+    @register_tool(name="gmail_get_starred_emails")
     def get_starred_emails(self, count: int) -> str:
         """
         Get X number of starred emails from the user's inbox.
@@ -318,6 +323,7 @@ class GmailTools:
             return f"Unexpected error retrieving starred emails: {type(error).__name__}: {error}"
 
     @authenticate
+    @register_tool(name="gmail_get_emails_by_context")
     def get_emails_by_context(self, context: str, count: int) -> str:
         """
         Get X number of emails matching a specific context or search term.
@@ -339,6 +345,7 @@ class GmailTools:
             return f"Unexpected error retrieving emails by context '{context}': {type(error).__name__}: {error}"
 
     @authenticate
+    @register_tool(name="gmail_get_emails_by_date")
     def get_emails_by_date(
         self, start_date: int, range_in_days: Optional[int] = None, num_emails: Optional[int] = 10
     ) -> str:
@@ -370,6 +377,7 @@ class GmailTools:
             return f"Unexpected error retrieving emails by date: {type(error).__name__}: {error}"
 
     @authenticate
+    @register_tool(name="gmail_create_draft_email")
     def create_draft_email(self, to: str, subject: str, body: str, cc: Optional[str] = None) -> str:
         """
         Create and save a draft email. to and cc are comma separated string of email ids
@@ -389,6 +397,7 @@ class GmailTools:
         return str(draft)
 
     @authenticate
+    @register_tool(name="gmail_send_email")
     def send_email(self, to: str, subject: str, body: str, cc: Optional[str] = None) -> str:
         """
         Send an email immediately. to and cc are comma separated string of email ids
@@ -408,6 +417,7 @@ class GmailTools:
         return str(message)
 
     @authenticate
+    @register_tool(name="gmail_send_email_reply")
     def send_email_reply(
         self, thread_id: str, message_id: str, to: str, subject: str, body: str, cc: Optional[str] = None
     ) -> str:
@@ -439,6 +449,7 @@ class GmailTools:
         return str(message)
 
     @authenticate
+    @register_tool(name="gmail_search_emails")
     def search_emails(self, query: str, count: int) -> str:
         """
         Get X number of emails based on a given natural text query.

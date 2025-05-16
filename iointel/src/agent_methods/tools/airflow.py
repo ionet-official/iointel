@@ -1,6 +1,8 @@
 from pathlib import Path
 from typing import Optional, Union
 
+from ...utilities.decorators import register_tool
+
 import logging
 
 logger = logging.getLogger(__name__)
@@ -20,7 +22,7 @@ class AirflowTools:
                 _dags_dir = dags_dir
         self.dags_dir: Path = _dags_dir or Path.cwd()
 
-
+    @register_tool(name="airflow_save_dag_file")
     def save_dag_file(self, contents: str, dag_file: str) -> str:
         """Saves python code for an Airflow DAG to a file called `dag_file` and returns the file path if successful.
 
@@ -40,6 +42,7 @@ class AirflowTools:
             logger.error(f"Error saving to file: {e}")
             return f"Error saving to file: {e}"
 
+    @register_tool(name="airflow_read_dag_file")
     def read_dag_file(self, dag_file: str) -> str:
         """Reads an Airflow DAG file `dag_file` and returns the contents if successful.
 

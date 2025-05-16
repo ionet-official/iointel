@@ -3,6 +3,9 @@ from typing import List, Optional, Union
 
 import logging
 
+from ...utilities.decorators import register_tool
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -15,7 +18,7 @@ class ShellTools:
             self.base_dir = Path(base_dir) if isinstance(base_dir, str) else base_dir
 
 
-
+    @register_tool(name="shell_run_command")
     def run_shell_command(self, args: List[str], tail: int = 100) -> str:
         """Runs a shell command and returns the output or error.
 

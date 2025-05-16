@@ -3,6 +3,8 @@ from pathlib import Path
 from typing import Optional
 import logging
 
+from ...utilities.decorators import register_tool
+
 logger = logging.getLogger(__name__)
 
 class FileTools:
@@ -13,6 +15,7 @@ class FileTools:
 
         self.base_dir: Path = base_dir or Path.cwd()
 
+    @register_tool(name="file_save")
     def save_file(self, contents: str, file_name: str, overwrite: bool = True) -> str:
         """Saves the contents to a file called `file_name` and returns the file name if successful.
 
@@ -35,6 +38,7 @@ class FileTools:
             logger.error(f"Error saving to file: {e}")
             return f"Error saving to file: {e}"
 
+    @register_tool(name="file_read")
     def read_file(self, file_name: str) -> str:
         """Reads the contents of the file `file_name` and returns the contents if successful.
 
@@ -50,6 +54,7 @@ class FileTools:
             logger.error(f"Error reading file: {e}")
             return f"Error reading file: {e}"
 
+    @register_tool(name="list_files")
     def list_files(self) -> str:
         """Returns a list of files in the base directory
 

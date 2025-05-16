@@ -1,7 +1,8 @@
 from datetime import datetime
 from typing import Any, Callable, Optional
+from ...utilities.decorators import register_tool
 
-
+@register_tool(name="between")
 def between(
     min_value: Optional[Any] = None,
     max_value: Optional[Any] = None,
@@ -36,6 +37,7 @@ def between(
     return validate
 
 
+@register_tool(name="get_current_datetime")
 def get_current_datetime() -> str:
     """
     Return the current datetime as a string in YYYY-MM-DD HH:MM:SS format.

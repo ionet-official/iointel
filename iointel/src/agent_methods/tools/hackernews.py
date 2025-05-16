@@ -4,6 +4,10 @@ import httpx
 
 import logging
 
+
+from ...utilities.decorators import register_tool
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -11,7 +15,7 @@ class HackerNewsTools:
     def __init__(self):
         pass
 
-
+    @register_tool(name="hackernews_search")
     def get_top_hackernews_stories(self, num_stories: int = 10) -> str:
         """Use this function to get top stories from Hacker News.
 
@@ -36,6 +40,7 @@ class HackerNewsTools:
             stories.append(story)
         return json.dumps(stories)
 
+    @register_tool(name="hackernews_user_details")
     def get_user_details(self, username: str) -> str:
         """Use this function to get the details of a Hacker News user using their username.
 

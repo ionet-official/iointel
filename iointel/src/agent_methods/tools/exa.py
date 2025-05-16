@@ -4,6 +4,8 @@ from typing import Any, Dict, List, Optional
 
 import logging
 
+from ...utilities.decorators import register_tool
+
 logger = logging.getLogger(__name__)
 
 try:
@@ -109,6 +111,7 @@ class ExaTools:
             exa_results_parsed.append(result_dict)
         return json.dumps(exa_results_parsed, indent=4)
 
+    @register_tool(name="exa_search")
     def search_exa(self, query: str, num_results: int = 5, category: Optional[str] = None) -> str:
         """Use this function to search Exa (a web search engine) for a query.
 
@@ -153,6 +156,7 @@ class ExaTools:
             logger.error(f"Failed to search exa {e}")
             return f"Error: {e}"
 
+    @register_tool(name="exa_get_contents")
     def get_contents(self, urls: list[str]) -> str:
         """
         Retrieve detailed content from specific URLs using the Exa API.
@@ -185,6 +189,7 @@ class ExaTools:
             logger.error(f"Failed to get contents from Exa: {e}")
             return f"Error: {e}"
 
+    @register_tool(name="exa_find_similar")
     def find_similar(self, url: str, num_results: int = 5) -> str:
         """
         Find similar links to a given URL using the Exa API.
@@ -225,6 +230,7 @@ class ExaTools:
             logger.error(f"Failed to get similar links from Exa: {e}")
             return f"Error: {e}"
 
+    @register_tool(name="exa_answer")
     def exa_answer(self, query: str, text: bool = False) -> str:
         """
         Get an LLM answer to a question informed by Exa search results.

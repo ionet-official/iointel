@@ -4,6 +4,9 @@ from typing import Any, Dict, List, Optional
 
 import logging
 
+from ...utilities.decorators import register_tool
+
+
 logger = logging.getLogger(__name__)
 
 try:
@@ -25,7 +28,7 @@ class SlackTools:
             raise ValueError("SLACK_TOKEN is not set")
         self.client = WebClient(token=self.token)
 
-
+    @register_tool(name="slack_send_message")
     def send_message(self, channel: str, text: str) -> str:
         """
         Send a message to a Slack channel.
@@ -44,6 +47,7 @@ class SlackTools:
             logger.error(f"Error sending message: {e}")
             return json.dumps({"error": str(e)})
 
+    @register_tool(name="slack_list_channels")
     def list_channels(self) -> str:
         """
         List all channels in the Slack workspace.
@@ -59,6 +63,7 @@ class SlackTools:
             logger.error(f"Error listing channels: {e}")
             return json.dumps({"error": str(e)})
 
+    @register_tool(name="slack_get_channel_history")
     def get_channel_history(self, channel: str, limit: int = 100) -> str:
         """
         Get the message history of a Slack channel.

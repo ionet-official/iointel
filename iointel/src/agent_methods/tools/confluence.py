@@ -4,6 +4,8 @@ from typing import Optional
 
 import logging
 
+from ...utilities.decorators import register_tool
+
 logger = logging.getLogger(__name__)
 
 try:
@@ -54,6 +56,7 @@ class ConfluenceTools:
 
         self.confluence = Confluence(url=self.url, username=self.username, password=self.password)
 
+    @register_tool(name="confluence_get_page_content")
     def get_page_content(self, space_name: str, page_title: str, expand: Optional[str] = "body.storage"):
         """Retrieve the content of a specific page in a Confluence space.
 
@@ -80,6 +83,7 @@ class ConfluenceTools:
             logger.error(f"Error retrieving page '{page_title}': {e}")
             return json.dumps({"error": str(e)})
 
+    @register_tool(name="confluence_get_all_space_detail")
     def get_all_space_detail(self):
         """Retrieve details about all Confluence spaces.
 
@@ -90,6 +94,7 @@ class ConfluenceTools:
         results = self.confluence.get_all_spaces()["results"]
         return str(results)
 
+    @register_tool(name="confluence_get_space_key")
     def get_space_key(self, space_name: str):
         """Get the space key for a particular Confluence space.
 
@@ -110,6 +115,7 @@ class ConfluenceTools:
         logger.warning(f"No space named {space_name} found")
         return "No space found"
 
+    @register_tool(name="confluence_get_all_page_from_space")
     def get_all_page_from_space(self, space_name: str):
         """Retrieve all pages from a specific Confluence space.
 
@@ -127,6 +133,7 @@ class ConfluenceTools:
         page_details = str([{"id": page["id"], "title": page["title"]} for page in page_details])
         return page_details
 
+    @register_tool(name="confluence_create_page")
     def create_page(self, space_name: str, title: str, body: str, parent_id: Optional[str] = None) -> str:
         """Create a new page in Confluence.
 
@@ -148,6 +155,7 @@ class ConfluenceTools:
             logger.error(f"Error creating page '{title}': {e}")
             return json.dumps({"error": str(e)})
 
+    @register_tool(name="confluence_update_page")
     def update_page(self, page_id: str, title: str, body: str) -> str:
         """Update an existing Confluence page.
 

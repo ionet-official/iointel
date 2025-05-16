@@ -7,6 +7,9 @@ from typing import Optional
 import requests
 
 import logging
+from ...utilities.decorators import register_tool
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -84,6 +87,7 @@ class ZoomTools:
             self.__token_expiry = None
             return ""
 
+    @register_tool(name="zoom_schedule_meeting")
     def schedule_meeting(self, topic: str, start_time: str, duration: int, timezone: str = "UTC") -> str:
         """
         Schedule a new Zoom meeting.
@@ -142,6 +146,7 @@ class ZoomTools:
             logger.error(f"Error scheduling meeting: {e}")
             return json.dumps({"error": str(e)})
 
+    @register_tool(name="zoom_get_upcoming_meetings")
     def get_upcoming_meetings(self, user_id: str = "me") -> str:
         """
         Get a list of upcoming meetings for a specified user.
@@ -175,6 +180,7 @@ class ZoomTools:
             logger.error(f"Error fetching upcoming meetings: {e}")
             return json.dumps({"error": str(e)})
 
+    @register_tool(name="zoom_list_meetings")
     def list_meetings(self, user_id: str = "me", type: str = "scheduled") -> str:
         """
         List all meetings for a specified user.
@@ -221,6 +227,7 @@ class ZoomTools:
             logger.error(f"Error fetching meetings: {e}")
             return json.dumps({"error": str(e)})
 
+    @register_tool(name="zoom_get_meeting_recordings")
     def get_meeting_recordings(
         self, meeting_id: str, include_download_token: bool = False, token_ttl: Optional[int] = None
     ) -> str:
@@ -279,6 +286,7 @@ class ZoomTools:
             logger.error(f"Error fetching meeting recordings: {e}")
             return json.dumps({"error": str(e)})
 
+    @register_tool(name="zoom_delete_meeting")
     def delete_meeting(self, meeting_id: str, schedule_for_reminder: bool = True) -> str:
         """
         Delete a scheduled Zoom meeting.
@@ -318,6 +326,7 @@ class ZoomTools:
             logger.error(f"Error deleting meeting: {e}")
             return json.dumps({"error": str(e)})
 
+    @register_tool(name="zoom_get_meeting")
     def get_meeting(self, meeting_id: str) -> str:
         """
         Get the details of a specific Zoom meeting.
@@ -362,6 +371,7 @@ class ZoomTools:
             logger.error(f"Error fetching meeting details: {e}")
             return json.dumps({"error": str(e)})
 
+    @register_tool(name="zoom_set_instructions")
     def instructions(self) -> str:
         """
         Provide instructions for using the ZoomTool.

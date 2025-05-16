@@ -3,6 +3,8 @@ from typing import Optional
 
 import logging
 
+from ...utilities.decorators import register_tool
+
 logger = logging.getLogger(__name__)
 
 try:
@@ -19,7 +21,7 @@ class Crawl4aiTools:
 
         self.max_length = max_length
 
-
+    @register_tool(name="crawl4ai_web_crawler")
     def web_crawler(self, url: str, max_length: Optional[int] = None) -> str:
         """
         Crawls a website using crawl4ai's WebCrawler.

@@ -5,6 +5,8 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+from ...utilities.decorators import register_tool
+
 try:
     from apify_client import ApifyClient
     
@@ -22,7 +24,7 @@ class ApifyTools:
         if not self.api_key:
             logger.error("No Apify API key provided")
 
-
+    @register_tool(name="apify_website_content_crawler")
     def website_content_crawler(self, urls: List[str], timeout: Optional[int] = 60) -> str:
         """
         Crawls a website using Apify's website-content-crawler actor.
@@ -56,7 +58,8 @@ class ApifyTools:
 
         return results
 
-    def web_scrapper(self, urls: List[str], timeout: Optional[int] = 60) -> str:
+    @register_tool(name="apify_web_scraper")
+    def web_scraper(self, urls: List[str], timeout: Optional[int] = 60) -> str:
         """
         Scrapes a website using Apify's web-scraper actor.
 

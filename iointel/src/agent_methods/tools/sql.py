@@ -3,6 +3,8 @@ from typing import Any, Dict, List, Optional
 
 import logging
 
+from ...utilities.decorators import register_tool
+
 logger = logging.getLogger(__name__)
 
 try:
@@ -49,7 +51,7 @@ class SQLTools:
         self.tables: Optional[Dict[str, Any]] = tables
 
 
-
+    @register_tool(name="sql_list_tables")
     def list_tables(self) -> str:
         """Use this function to get a list of table names in the database.
 
@@ -68,6 +70,7 @@ class SQLTools:
             logger.error(f"Error getting tables: {e}")
             return f"Error getting tables: {e}"
 
+    @register_tool(name="sql_describe_table")
     def describe_table(self, table_name: str) -> str:
         """Use this function to describe a table.
 
@@ -87,6 +90,7 @@ class SQLTools:
             logger.error(f"Error getting table schema: {e}")
             return f"Error getting table schema: {e}"
 
+    @register_tool(name="sql_run_query")
     def run_sql_query(self, query: str, limit: Optional[int] = 10) -> str:
         """Use this function to run a SQL query and return the result.
 
@@ -105,6 +109,7 @@ class SQLTools:
             logger.error(f"Error running query: {e}")
             return f"Error running query: {e}"
 
+    @register_tool(name="sql_run_sql")
     def run_sql(self, sql: str, limit: Optional[int] = None) -> List[dict]:
         """Internal function to run a sql query.
 

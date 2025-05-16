@@ -1,6 +1,7 @@
 from typing import Any, Dict, List, Optional, Tuple
 
 import logging
+from ...utilities.decorators import register_tool
 
 logger = logging.getLogger(__name__)
 
@@ -54,6 +55,7 @@ class DuckDbTools:
 
         return self._connection
 
+    @register_tool(name="duckdb_list_tables")
     def show_tables(self, show_tables: bool) -> str:
         """Function to show tables in the database
 
@@ -67,6 +69,7 @@ class DuckDbTools:
             return tables
         return "No tables to show"
 
+    @register_tool(name="duckdb_describe_table")
     def describe_table(self, table: str) -> str:
         """Function to describe a table
 
@@ -79,6 +82,7 @@ class DuckDbTools:
         logger.debug(f"Table description: {table_description}")
         return f"{table}\n{table_description}"
 
+    @register_tool(name="duckdb_inspect_query")
     def inspect_query(self, query: str) -> str:
         """Function to inspect a query and return the query plan. Always inspect your query before running them.
 
@@ -91,6 +95,7 @@ class DuckDbTools:
         logger.debug(f"Explain plan: {explain_plan}")
         return explain_plan
 
+    @register_tool(name="duckdb_run_query")
     def run_query(self, query: str) -> str:
         """Function that runs a query and returns the result.
 
@@ -133,6 +138,7 @@ class DuckDbTools:
         except Exception as e:
             return str(e)
 
+    @register_tool(name="duckdb_summarize_table")
     def summarize_table(self, table: str) -> str:
         """Function to compute a number of aggregates over a table.
         The function launches a query that computes a number of aggregates over all columns,
@@ -146,6 +152,7 @@ class DuckDbTools:
         logger.debug(f"Table description: {table_summary}")
         return table_summary
 
+    @register_tool(name="duckdb_get_table_name_from_path")
     def get_table_name_from_path(self, path: str) -> str:
         """Get the table name from a path
 
@@ -163,6 +170,7 @@ class DuckDbTools:
 
         return table
 
+    @register_tool(name="duckdb_create_table_from_path")
     def create_table_from_path(self, path: str, table: Optional[str] = None, replace: bool = False) -> str:
         """Creates a table from a path
 
@@ -185,6 +193,7 @@ class DuckDbTools:
         logger.debug(f"Created table {table} from {path}")
         return table
 
+    @register_tool(name="duckdb_export_table_to_path")
     def export_table_to_path(self, table: str, format: Optional[str] = "PARQUET", path: Optional[str] = None) -> str:
         """Save a table in a desired format (default: parquet)
         If the path is provided, the table will be saved under that path.
@@ -209,6 +218,7 @@ class DuckDbTools:
         logger.debug(f"Exported {table} to {path}/{table}")
         return result
 
+    @register_tool(name="duckdb_load_local_path_to_table")
     def load_local_path_to_table(self, path: str, table: Optional[str] = None) -> Tuple[str, str]:
         """Load a local file into duckdb
 
@@ -234,6 +244,7 @@ class DuckDbTools:
         logger.debug(f"Loaded {path} into duckdb as {table}")
         return table, create_statement
 
+    @register_tool(name="duckdb_load_local_csv_to_table")
     def load_local_csv_to_table(
         self, path: str, table: Optional[str] = None, delimiter: Optional[str] = None
     ) -> Tuple[str, str]:
@@ -268,6 +279,7 @@ class DuckDbTools:
         logger.debug(f"Loaded CSV {path} into duckdb as {table}")
         return table, create_statement
 
+    @register_tool(name="duckdb_load_s3_path_to_table")
     def load_s3_path_to_table(self, path: str, table: Optional[str] = None) -> Tuple[str, str]:
         """Load a file from S3 into duckdb
 
@@ -293,6 +305,7 @@ class DuckDbTools:
         logger.debug(f"Loaded {path} into duckdb as {table}")
         return table, create_statement
 
+    @register_tool(name="duckdb_load_s3_csv_to_table")
     def load_s3_csv_to_table(
         self, path: str, table: Optional[str] = None, delimiter: Optional[str] = None
     ) -> Tuple[str, str]:
@@ -326,6 +339,7 @@ class DuckDbTools:
         logger.debug(f"Loaded CSV {path} into duckdb as {table}")
         return table, create_statement
 
+    @register_tool(name="duckdb_create_fts_index")
     def create_fts_index(self, table: str, unique_key: str, input_values: list[str]) -> str:
         """Create a full text search index on a table
 
@@ -347,6 +361,7 @@ class DuckDbTools:
 
         return result
 
+    @register_tool(name="duckdb_full_text_search")
     def full_text_search(self, table: str, unique_key: str, search_text: str) -> str:
         """Full text Search in a table column for a specific text/keyword
 

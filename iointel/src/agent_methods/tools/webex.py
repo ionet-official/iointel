@@ -4,6 +4,8 @@ from typing import Optional
 
 import logging
 
+from ...utilities.decorators import register_tool
+
 logger = logging.getLogger(__name__)
 
 try:
@@ -23,7 +25,7 @@ class WebexTools:
 
         self.client = WebexAPI(access_token=access_token)
 
-
+    @register_tool(name="webex_send_message")
     def send_message(self, room_id: str, text: str) -> str:
         """
         Send a message to a Webex Room.
@@ -40,6 +42,7 @@ class WebexTools:
             logger.error(f"Error sending message: {e} in room: {room_id}")
             return json.dumps({"error": str(e)})
 
+    @register_tool(name="webex_list_rooms")
     def list_rooms(self) -> str:
         """
         List all rooms in the Webex.

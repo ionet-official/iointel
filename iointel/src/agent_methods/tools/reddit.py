@@ -2,6 +2,8 @@ import json
 from os import getenv
 from typing import Dict, List, Optional, Union
 
+from ...utilities.decorators import register_tool
+
 import logging
 
 logger = logging.getLogger(__name__)
@@ -83,6 +85,7 @@ class RedditTools:
             logger.error(f"Authentication error: {e}")
             return False
 
+    @register_tool(name="reddit_get_user_info")
     def get_user_info(self, username: str) -> str:
         """Get information about a Reddit user."""
         if not self.reddit:
@@ -107,6 +110,7 @@ class RedditTools:
         except Exception as e:
             return f"Error getting user info: {e}"
 
+    @register_tool(name="reddit_get_top_posts")
     def get_top_posts(self, subreddit: str, time_filter: str = "week", limit: int = 10) -> str:
         """
         Get top posts from a subreddit for a specific time period.
@@ -142,6 +146,7 @@ class RedditTools:
         except Exception as e:
             return f"Error getting top posts: {e}"
 
+    @register_tool(name="reddit_get_subreddit_info")
     def get_subreddit_info(self, subreddit_name: str) -> str:
         """
         Get information about a specific subreddit.
@@ -175,6 +180,7 @@ class RedditTools:
         except Exception as e:
             return f"Error getting subreddit info: {e}"
 
+    @register_tool(name="reddit_get_trending_subreddits")
     def get_trending_subreddits(self) -> str:
         """Get currently trending subreddits."""
         if not self.reddit:
@@ -215,6 +221,7 @@ class RedditTools:
         except Exception as e:
             return f"Error getting subreddit stats: {e}"
 
+    @register_tool(name="reddit_create_post")
     def create_post(
         self,
         subreddit: str,

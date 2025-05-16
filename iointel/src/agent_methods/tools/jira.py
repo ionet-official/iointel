@@ -3,6 +3,8 @@ import os
 from typing import Optional, cast
 
 import logging
+from ...utilities.decorators import register_tool
+
 
 logger = logging.getLogger(__name__)
 
@@ -44,7 +46,7 @@ class JiraTools:
             self.jira = JIRA(server=self.server_url)
 
 
-
+    @register_tool(name="jira_get_issue")
     def get_issue(self, issue_key: str) -> str:
         """
         Retrieves issue details from Jira.
@@ -69,6 +71,7 @@ class JiraTools:
             logger.error(f"Error retrieving issue {issue_key}: {e}")
             return json.dumps({"error": str(e)})
 
+    @register_tool(name="jira_create_issue")
     def create_issue(self, project_key: str, summary: str, description: str, issuetype: str = "Task") -> str:
         """
         Creates a new issue in Jira.
@@ -94,6 +97,7 @@ class JiraTools:
             logger.error(f"Error creating issue in project {project_key}: {e}")
             return json.dumps({"error": str(e)})
 
+    @register_tool(name="jira_search_issues")
     def search_issues(self, jql_str: str, max_results: int = 50) -> str:
         """
         Searches for issues using a JQL query.
@@ -120,6 +124,7 @@ class JiraTools:
             logger.error(f"Error searching issues with JQL '{jql_str}': {e}")
             return json.dumps([{"error": str(e)}])
 
+    @register_tool(name="jira_add_comment")
     def add_comment(self, issue_key: str, comment: str) -> str:
         """
         Adds a comment to an issue.

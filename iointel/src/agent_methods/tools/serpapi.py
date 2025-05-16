@@ -4,6 +4,8 @@ from typing import Optional
 
 import logging
 
+from ...utilities.decorators import register_tool
+
 logger = logging.getLogger(__name__)
 
 try:
@@ -23,7 +25,7 @@ class SerpApiTools:
             logger.warning("No Serpapi API key provided")
 
 
-
+    @register_tool(name="serpapi_search_google")
     def search_google(self, query: str, num_results: int = 10) -> str:
         """
         Search Google using the Serpapi API. Returns the search results.
@@ -68,6 +70,7 @@ class SerpApiTools:
         except Exception as e:
             return f"Error searching for the query {query}: {e}"
 
+    @register_tool(name="serpapi_search_youtube")
     def search_youtube(self, query: str) -> str:
         """
         Search Youtube using the Serpapi API. Returns the search results.

@@ -3,6 +3,8 @@ from pathlib import Path
 from typing import Optional
 from uuid import uuid4
 
+from ...utilities.decorators import register_tool
+
 import logging
 
 logger = logging.getLogger(__name__)
@@ -28,7 +30,7 @@ class LocalFileSystemTools:
         target_path = Path(self.target_directory)
         target_path.mkdir(parents=True, exist_ok=True)
 
-
+    @register_tool(name="write_file")
     def write_file(
         self,
         content: str,
@@ -74,6 +76,7 @@ class LocalFileSystemTools:
             logger.error(error_msg)
             return f"Error: {error_msg}"
 
+    @register_tool(name="read_file")
     def read_file(self, filename: str, directory: Optional[str] = None) -> str:
         """
         Read content from a local file.

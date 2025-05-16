@@ -2,6 +2,8 @@ from typing import Optional
 
 import logging
 
+from ...utilities.decorators import register_tool
+
 logger = logging.getLogger(__name__)
 
 
@@ -18,7 +20,7 @@ class EmailTools:
         self.sender_email: Optional[str] = sender_email
         self.sender_passkey: Optional[str] = sender_passkey
 
-
+    @register_tool(name="email_user")
     def email_user(self, subject: str, body: str) -> str:
         """Emails the user with the given subject and body.
 

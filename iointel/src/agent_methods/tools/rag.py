@@ -5,6 +5,7 @@ import uuid
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any, Dict, List, Optional, Callable
 from r2r import R2RClient
+from ...utilities.decorators import register_tool
 
 
 class RAG:
@@ -24,6 +25,7 @@ class RAG:
     # -----------------------------
     # Document Ingestion Operations
     # -----------------------------
+    @register_tool(name="rag_ingest_document")
     def ingest_document(
         self,
         file_path: str,
@@ -53,6 +55,7 @@ class RAG:
             kwargs["ingestion_config"] = ingestion_config
         return self.client.documents.create(**kwargs)
 
+    @register_tool(name="rag_ingest_documents_parallel")
     def ingest_documents_parallel(
         self,
         data_list: List[Dict[str, Any]],
@@ -136,6 +139,7 @@ class RAG:
         """
         return self.client.documents.extract(document_id)
 
+    @register_tool(name="rag_extract_document")
     def extract_documents(
         self, document_ids: List[str], max_workers: int = 4
     ) -> List[Dict[str, Any]]:
@@ -163,6 +167,7 @@ class RAG:
                     print("Error during extraction:", e)
         return results
 
+    @register_tool(name="rag_list_document_entities")
     def list_document_entities(self, document_id: str) -> Dict[str, Any]:
         """
         List the entities extracted from a document.
@@ -175,6 +180,7 @@ class RAG:
         """
         return self.client.documents.list_entities(document_id)
 
+    @register_tool(name="rag_list_document_relationships")
     def list_document_relationships(self, document_id: str) -> Dict[str, Any]:
         """
         List the relationships extracted from a document.
@@ -190,6 +196,8 @@ class RAG:
     # -----------------------------
     # Collection & Graph Operations
     # -----------------------------
+
+    @register_tool(name="rag_list_collections")
     def list_collections(self) -> Dict[str, Any]:
         """
         List all collections.
@@ -212,6 +220,7 @@ class RAG:
         """
         return self.client.collections.create(name=name, description=description)
 
+    @register_tool(name="rag_add_document_to_collection")
     def add_document_to_collection(
         self, collection_id: str, document_id: str
     ) -> Dict[str, Any]:
@@ -227,6 +236,7 @@ class RAG:
         """
         return self.client.collections.add_document(collection_id, document_id)
 
+    @register_tool(name="rag_remove_document_from_collection")
     def remove_document_from_collection(
         self, collection_id: str, document_id: str
     ) -> Dict[str, Any]:
@@ -242,6 +252,7 @@ class RAG:
         """
         return self.client.collections.remove_document(collection_id, document_id)
 
+    @register_tool(name="rag_get_collection")
     def get_collection(self, collection_id: str) -> Dict[str, Any]:
         """
         Retrieve a collection by ID.
@@ -254,6 +265,7 @@ class RAG:
         """
         return self.client.collections.retrieve(collection_id)
 
+    @register_tool(name="rag_list_graph_entities")
     def list_graph_entities(self, collection_id: str) -> Dict[str, Any]:
         """
         List graph entities for a given collection.
@@ -266,6 +278,7 @@ class RAG:
         """
         return self.client.graphs.list_entities(collection_id)
 
+    @register_tool(name="rag_list_graph_relationships")
     def list_graph_relationships(self, collection_id: str) -> Dict[str, Any]:
         """
         List graph relationships for a given collection.
@@ -278,6 +291,7 @@ class RAG:
         """
         return self.client.graphs.list_relationships(collection_id)
 
+    @register_tool(name="rag_pull_graph")
     def pull_graph(self, collection_id: str) -> Dict[str, Any]:
         """
         Pull all entities and relationships from a collection into the graph.
@@ -290,6 +304,7 @@ class RAG:
         """
         return self.client.graphs.pull(collection_id=collection_id)
 
+    @register_tool(name="rag_build_graph")
     def build_graph(self, collection_id: str) -> Dict[str, Any]:
         """
         Build communities in the graph for a collection.
@@ -305,6 +320,7 @@ class RAG:
     # -----------------------------
     # Deletion Operations
     # -----------------------------
+    @register_tool(name="rag_delete_document")
     def delete_document(self, document_id: str) -> Dict[str, Any]:
         """
         Delete a document.
@@ -332,6 +348,7 @@ class RAG:
     # -----------------------------
     # Retrieval Operations
     # -----------------------------
+    @register_tool(name="rag_retrieval")
     def retrieval_rag(
         self,
         query: str,
@@ -359,6 +376,7 @@ class RAG:
         )
         return response["results"]["completion"]["choices"][0]["message"]["content"]
 
+    @register_tool(name="rag_retrieval_search")
     def retrieval_search(
         self, query: str, search_settings: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
@@ -375,8 +393,9 @@ class RAG:
         return self.client.retrieval.search(query, search_settings)
 
     # -----------------------------
-    # System Settings
+    # System Settings - TODO NOT SURE  BOUT ADDING THESE TO REGISTRY
     # -----------------------------
+    
     def get_system_settings(self) -> Dict[str, Any]:
         """
         Retrieve system settings.

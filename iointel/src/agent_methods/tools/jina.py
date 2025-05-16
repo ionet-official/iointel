@@ -6,6 +6,9 @@ from pydantic import BaseModel, Field, HttpUrl
 
 import logging
 
+from ...utilities.decorators import register_tool
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -37,7 +40,7 @@ class JinaReaderTools:
         )
 
 
-
+    @register_tool(name="jina_read_url")
     def read_url(self, url: str) -> str:
         """Reads a URL and returns the truncated content using Jina Reader API."""
         full_url = f"{self.config.base_url}{url}"
@@ -52,6 +55,7 @@ class JinaReaderTools:
             logger.error(error_msg)
             return error_msg
 
+    @register_tool(name="jina_web_search")
     def search_query(self, query: str) -> str:
         """Performs a web search using Jina Reader API and returns the truncated results."""
         full_url = f"{self.config.search_url}{query}"
