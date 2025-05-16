@@ -41,6 +41,9 @@ class Crawler:
             version (Optional[str]): Optional API version.
         """
         self.api_key = api_key or os.getenv("FIRECRAWL_API_KEY")
+        if not self.api_key:
+            raise ValueError("FIRECRAWL_API_KEY not set. Please set the FIRECRAWL_API_KEY environment variable.")
+
         super().__init__(api_key=self.api_key, timeout=timeout)
         if version:
             self.app: FirecrawlApp = FirecrawlApp(api_key=self.api_key, version=version)
