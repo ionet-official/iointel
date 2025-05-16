@@ -1,83 +1,109 @@
-import json
-from typing import Any, Optional
+import asyncio
+from typing import Any, Dict, List, Optional
 
-import logging
-
-logger = logging.getLogger(__name__)
-
-try:
-    from duckduckgo_search import DDGS
-except ImportError:
-    raise ImportError("`duckduckgo-search` not installed. Please install using `pip install duckduckgo-search`")
+from iointel.src.utilities.decorators import register_tool
+from pydantic import BaseModel, ConfigDict, model_validator
 
 
-class DuckDuckGoTools:
-    """
-    DuckDuckGo is a toolkit for searching DuckDuckGo easily.
-    Args:
-        search (bool): Enable DuckDuckGo search function.
-        news (bool): Enable DuckDuckGo news function.
-        fixed_max_results (Optional[int]): A fixed number of maximum results.
-        headers (Optional[Any]): Headers to be used in the search request.
-        proxy (Optional[str]): Proxy to be used in the search request.
-        proxies (Optional[Any]): A list of proxies to be used in the search request.
-        timeout (Optional[int]): The maximum number of seconds to wait for a response.
+class DuckDuckGoSearchAPIWrapper(BaseModel):
+    """Wrapper for DuckDuckGo Search API.
+
+    Free and does not require any setup.
     """
 
-    def __init__(
-        self,
-        modifier: Optional[str] = None,
-        fixed_max_results: Optional[int] = None,
-        headers: Optional[Any] = None,
-        proxy: Optional[str] = None,
-        proxies: Optional[Any] = None,
-        timeout: Optional[int] = 10,
-        verify_ssl: bool = True,
-    ):
+    region: Optional[str] = "wt-wt"
+    """
+    See https://pypi.org/project/duckduckgo-search/#regions
+    """
+    safesearch: str = "moderate"
+    """
+    Options: strict, moderate, off
+    """
+    timelimit: Optional[str] = "y"
+    """
+    Options: d, w, m, y
+    """
+    max_results: int = 5
+    backend: str = "auto"
+    """
+    Options: auto, html, lite
+    """
 
-        self.headers: Optional[Any] = headers
-        self.proxy: Optional[str] = proxy
-        self.proxies: Optional[Any] = proxies
-        self.timeout: Optional[int] = timeout
-        self.fixed_max_results: Optional[int] = fixed_max_results
-        self.modifier: Optional[str] = modifier
-        self.verify_ssl: bool = verify_ssl
+    model_config = ConfigDict(
+        extra="forbid",
+    )
 
+    @model_validator(mode="before")
+    @classmethod
+    def validate_environment(cls, values: Dict) -> Any:
+        """Validate that python package exists in environment."""
+        try:
+            from duckduckgo_search import DDGS  # noqa: F401
+        except ImportError as e:
+            raise ImportError(
+                "Could not import duckduckgo-search python package. "
+                "Please install it with `pip install -U duckduckgo-search`."
+            ) from e
+        return values
 
+    def _ddgs(
+        self, query: str, max_results: Optional[int] = None
+    ) -> List[Dict[str, str]]:
+        """Run query through DuckDuckGo text search and return results."""
+        from duckduckgo_search import DDGS
 
-    def duckduckgo_search(self, query: str, max_results: int = 5) -> str:
-        """Use this function to search DuckDuckGo for a query.
+        with DDGS() as ddgs:
+            ddgs_gen = ddgs.text(
+                query,
+                region=self.region,  # type: ignore[arg-type]
+                safesearch=self.safesearch,
+                timelimit=self.timelimit,
+                max_results=max_results or self.max_results,
+                backend=self.backend,
+            )
+            if ddgs_gen:
+                return list(ddgs_gen)
+        return []
+
+    def results(
+        self, query: str, max_results: Optional[int] = None
+    ) -> List[Dict[str, str]]:
+        """Run query through DuckDuckGo and return metadata.
 
         Args:
-            query(str): The query to search for.
-            max_results (optional, default=5): The maximum number of results to return.
+            query: The query to search for.
+            max_results: The number of results to return.
 
         Returns:
-            The result from DuckDuckGo.
+            A list of dictionaries with the following keys:
+                snippet - The description of the result.
+                title - The title of the result.
+                link - The link to the result.
         """
-        logger.debug(f"Searching DDG for: {query}")
-        ddgs = DDGS(
-            headers=self.headers, proxy=self.proxy, proxies=self.proxies, timeout=self.timeout, verify=self.verify_ssl
-        )
-        if not self.modifier:
-            return json.dumps(ddgs.text(keywords=query, max_results=(self.fixed_max_results or max_results)), indent=2)
-        return json.dumps(
-            ddgs.text(keywords=self.modifier + " " + query, max_results=(self.fixed_max_results or max_results)),
-            indent=2,
-        )
+        results = [
+            {"snippet": r["body"], "title": r["title"], "link": r["href"]}
+            for r in self._ddgs(query, max_results=max_results)
+        ]
 
-    def duckduckgo_news(self, query: str, max_results: int = 5) -> str:
-        """Use this function to get the latest news from DuckDuckGo.
+        if results is None:
+            results = [{"error": "No good DuckDuckGo Search Result was found"}]
 
-        Args:
-            query(str): The query to search for.
-            max_results (optional, default=5): The maximum number of results to return.
+        return results
 
-        Returns:
-            The latest news from DuckDuckGo.
-        """
-        logger.debug(f"Searching DDG news for: {query}")
-        ddgs = DDGS(
-            headers=self.headers, proxy=self.proxy, proxies=self.proxies, timeout=self.timeout, verify=self.verify_ssl
-        )
-        return json.dumps(ddgs.news(keywords=query, max_results=(self.fixed_max_results or max_results)), indent=2)
+@register_tool
+def search_the_web(text: str, max_results: int = 10):
+    """
+    :param text: Text to search
+    :param max_results: How many results to return (from 1 to 20)
+    :return: The list of snippets in json format
+    """
+    return DuckDuckGoSearchAPIWrapper().results(text, max_results=max_results)
+
+@register_tool
+async def search_the_web_async(text: str, max_results: int = 10):
+    """
+    :param text: Text to search
+    :param max_results: How many results to return (from 1 to 20)
+    :return: The list of snippets in json format
+    """
+    return await asyncio.to_thread(search_the_web, text=text, max_results=max_results)

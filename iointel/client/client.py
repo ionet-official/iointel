@@ -4,7 +4,7 @@ import time
 from typing import Optional, List
 from functools import partial
 
-from iointel.src.constants import get_api_url, get_api_key
+from ..src.utilities.constants import get_api_url, get_api_key
 
 BASE_URL, API_KEY = get_api_url(), get_api_key()
 BASE_MCP_URL = os.getenv("BASE_MCP_URL")
@@ -32,17 +32,6 @@ def __make_api_call(method, **kwargs) -> dict:
 
 __make_post_call = partial(__make_api_call, method="POST")
 __make_get_call = partial(__make_api_call, method="GET")
-
-
-def schedule_task(task: str) -> dict:
-    raise NotImplementedError()
-    # payload = {"task": task}
-    # return __make_post_call(json=payload)
-
-
-def run_council_task(task: str) -> dict:
-    raise NotImplementedError()
-    # return __make_post_call(json=payload)
 
 
 def run_reasoning_task(text: str) -> dict:
