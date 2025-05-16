@@ -14,7 +14,7 @@ dependencies = [
     "python-multipart>=0.0.20",
     "sqlalchemy-utils>=0.41.2",
     "pgvector>=0.3.6",
-
+    "pydantic-ai>=0.2.4",
 ]
 keywords = ["Agents", "LLM", "framework", "AI", "tools"]
 classifiers = [
@@ -94,6 +94,11 @@ tools = [
     "tweepy>=4.15.0",
     "yfinance>=0.2.54",
     "youtube-transcript-api>=0.6.3",
+    "e2b_code_interpreter>=1.5.0",
+    "browserbase>=1.4.0",
+    "playwright>=1.52.0",
+    "todoist-api-python>=3.1.0",
+    # "agentql", BROKEN dep
 ]
 
 
