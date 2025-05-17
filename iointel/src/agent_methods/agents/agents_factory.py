@@ -18,15 +18,19 @@ def create_agent(params: AgentParams) -> Agent:
     agent_data["tools"] = resolve_tools(params)
     if output_type := agent_data.get("output_type"):
         if isinstance(output_type, str):
-            agent_data["output_type"] = globals().get(output_type) or getattr(__builtins__, output_type, output_type)
+            agent_data["output_type"] = globals().get(output_type) or getattr(
+                __builtins__, output_type, output_type
+            )
     return Agent(**agent_data)
 
 
-def create_swarm(agents: list[AgentParams]|AgentSwarm):
+def create_swarm(agents: list[AgentParams] | AgentSwarm):
     raise NotImplementedError()
 
 
-def agent_or_swarm(agent_obj: Agent|Sequence[Agent], store_creds: bool) -> list[AgentParams]|AgentSwarm:
+def agent_or_swarm(
+    agent_obj: Agent | Sequence[Agent], store_creds: bool
+) -> list[AgentParams] | AgentSwarm:
     """
     Serializes an agent object into a list of AgentParams.
 
@@ -63,7 +67,9 @@ def agent_or_swarm(agent_obj: Agent|Sequence[Agent], store_creds: bool) -> list[
 
     if isinstance(agent_obj, Sequence):
         # group of agents not packed as a swarm
-        assert all(not hasattr(ag, "members") for ag in agent_obj), "Nested swarms not allowed"
+        assert all(not hasattr(ag, "members") for ag in agent_obj), (
+            "Nested swarms not allowed"
+        )
         return [make_params(ag) for ag in agent_obj]
     if hasattr(agent_obj, "api_key"):
         # Individual agent.

@@ -90,7 +90,8 @@ class DuckDuckGoSearchAPIWrapper(BaseModel):
 
         return results
 
-@register_tool
+
+@register_tool(name="ddg_search_the_web")
 def search_the_web(text: str, max_results: int = 10):
     """
     :param text: Text to search
@@ -99,7 +100,8 @@ def search_the_web(text: str, max_results: int = 10):
     """
     return DuckDuckGoSearchAPIWrapper().results(text, max_results=max_results)
 
-@register_tool
+
+@register_tool(name="ddg_search_the_web_async")
 async def search_the_web_async(text: str, max_results: int = 10):
     """
     :param text: Text to search

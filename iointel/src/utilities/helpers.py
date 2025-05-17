@@ -17,6 +17,7 @@ def make_logger(name: str, level: str = "INFO"):
 
 logger = make_logger(__name__)
 
+
 class LazyCaller(BaseModel):
     func: Callable
     args: tuple[Any, ...] = ()
@@ -77,13 +78,14 @@ class LazyCaller(BaseModel):
         """Only serialize the name, not the problematic object"""
         return {"name": self.name}
 
+
 def supports_tool_choice_required(model_name: str) -> bool:
     """Temp hack fix to check if the model supports tool choice required."""
     # TODO: Remove this once we have a better way to check if the model supports tool choice required.
     model_name = model_name.lower()
     return (
-        model_name.startswith("gpt-") or
-        model_name.startswith("openai/") or
-        "gpt" in model_name or
-        model_name == "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8"
+        model_name.startswith("gpt-")
+        or model_name.startswith("openai/")
+        or "gpt" in model_name
+        or model_name == "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8"
     )

@@ -1,5 +1,4 @@
-from typing import List, Dict, Any, Optional
-import asyncio
+from typing import List, Dict, Any
 
 from .agents import Agent
 from .utilities.helpers import LazyCaller
@@ -86,9 +85,7 @@ class Task:
             )
         )
 
-    async def chain_runs(
-        self, run_specs: List[Dict[str, Any]]
-    ) -> List[Any]:
+    async def chain_runs(self, run_specs: List[Dict[str, Any]]) -> List[Any]:
         """
         Execute multiple runs in sequence. Each element in run_specs is a dict containing parameters for `self.run`.
         The output of one run can be fed into the context of the next run if desired.
@@ -134,8 +131,7 @@ class Task:
                 **{
                     k: v
                     for k, v in spec.items()
-                    if k
-                    not in ["objective", "agents", "context", "conversation_id"]
+                    if k not in ["objective", "agents", "context", "conversation_id"]
                 },
             )
             results.append(result)
