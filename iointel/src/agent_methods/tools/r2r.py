@@ -3,6 +3,7 @@ import sys
 from typing import Any
 import uuid
 import httpx
+from pathlib import Path
 from pydantic import BaseModel
 
 if sys.version_info < (3, 12):
@@ -80,7 +81,7 @@ class R2RClient(BaseModel):
     @register_tool
     async def create_document(
         self,
-        content: str | bytes,
+        content: str | bytes | Path,
         filename: str | None = None,
         id: str | uuid.UUID | None = None,
         metadata: dict | None = None,
@@ -89,7 +90,10 @@ class R2RClient(BaseModel):
         Create a new document.
 
         Args:
-            content (str|bytes): document content to upload; if it's bytes, it is uploaded as a file.
+            content (str|bytes|Path): document content or path to upload.
+                If it's bytes, it is uploaded as a octet-stream file content,
+                if it's Path, it is uploaded as filesystem-existing file.
+                Otherwise, it's uploaded as raw text document.
             filename (Optional[str]): document name (equal to id if not specified). Ignored if content is a str,
                 and used to determine document type based on extension if content is bytes.
                 If not given, is generated as document id (if given) or random uuid + .txt extension.
@@ -106,13 +110,26 @@ class R2RClient(BaseModel):
         if isinstance(content, bytes):
             if not filename:
                 filename = f"{id or uuid.uuid4().hex}.txt"
-            files: httpx._types.RequestFiles = {"file": (filename, content)}
+            files: httpx._types.RequestFiles = {
+                "file": (filename, content, "application/octet-stream")
+            }
             response_dict = await self._request(
                 "POST",
                 "documents",
                 data=data,
                 files=files,
             )
+        elif isinstance(content, Path):
+            with open(str(content), "rb") as fsFile:
+                files: httpx._types.RequestFiles = {
+                    "file": (content.name, fsFile, "application/octet-stream")
+                }
+                response_dict = await self._request(
+                    "POST",
+                    "documents",
+                    data=data,
+                    files=files,
+                )
         else:
             data["raw_text"] = str(content) if not isinstance(content, str) else content
             response_dict = await self._request("POST", "documents", data=data)
