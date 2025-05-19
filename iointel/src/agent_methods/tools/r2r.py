@@ -81,7 +81,7 @@ class R2RClient(BaseModel):
     async def create_document(
         self,
         content: str | bytes,
-        name: str | None = None,
+        filename: str | None = None,
         id: str | uuid.UUID | None = None,
         metadata: dict | None = None,
     ) -> str:
@@ -90,7 +90,7 @@ class R2RClient(BaseModel):
 
         Args:
             content (str|bytes): document content to upload; if it's bytes, it is uploaded as a file.
-            name (Optional[str]): document name (equal to id if not specified). Ignored if content is a str,
+            filename (Optional[str]): document name (equal to id if not specified). Ignored if content is a str,
                 and used to determine document type based on extension if content is bytes.
                 If not given, is generated as document id (if given) or random uuid + .txt extension.
             id (Optional[str | UUID]): Optional ID to assign to the document
@@ -104,9 +104,9 @@ class R2RClient(BaseModel):
         if metadata:
             data["metadata"] = json.dumps(metadata)
         if isinstance(content, bytes):
-            if not name:
-                name = f"{id or uuid.uuid4().hex}.txt"
-            files: httpx._types.RequestFiles = {"file": (name, content)}
+            if not filename:
+                filename = f"{id or uuid.uuid4().hex}.txt"
+            files: httpx._types.RequestFiles = {"file": (filename, content)}
             response_dict = await self._request(
                 "POST",
                 "documents",
