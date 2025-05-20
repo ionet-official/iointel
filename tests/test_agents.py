@@ -1,4 +1,5 @@
 import pytest
+from pydantic import SecretStr
 
 from iointel.src.agents import Agent
 from pydantic_ai.models.openai import OpenAIModel
@@ -16,11 +17,31 @@ def test_agent_default_model(prefix, monkeypatch):
         name="TestAgent",
         instructions="You are a test agent.",
     )
-    assert isinstance(
-        a.model, OpenAIModel
-    ), "Agent should default to ChatOpenAI if no provider is specified."
+    assert isinstance(a.model, OpenAIModel), (
+        "Agent should default to ChatOpenAI if no provider is specified."
+    )
     assert a.name == "TestAgent"
     assert "test agent" in a.instructions.lower()
+
+
+def test_agent_api_key_from_params():
+    """
+    Test that Agent correctly passes api_key and base_url params.
+    """
+    api_key = "fake_api_key"
+    base_url = "http://fake-url.com"
+
+    a = Agent(
+        name="TestAgent",
+        instructions="You are a test agent.",
+        api_key=api_key,
+        base_url=base_url,
+    )
+    assert isinstance(a.api_key, SecretStr), "Api key should be stored as SecretStr."
+    assert a.api_key.get_secret_value() == api_key, (
+        "Api key value should be taken from params."
+    )
+    assert a.model.base_url == base_url, "Base url value should be taken from params."
 
 
 def test_agent_run():

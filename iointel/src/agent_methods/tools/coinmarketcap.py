@@ -5,6 +5,8 @@ import httpx
 import urllib.parse
 from pydantic import Field
 
+from iointel.src.utilities.decorators import register_tool
+
 COINMARKETCAP_API_BASE = "pro-api.coinmarketcap.com"
 COINMARKETCAP_API_KEY = os.getenv("COINMARKETCAP_API_KEY")
 
@@ -44,6 +46,7 @@ def make_coinmarketcap_request(client: httpx.Client, url: str) -> dict[str, Any]
         return None
 
 
+@register_tool
 def listing_coins(
     start: Annotated[Optional[int], Field(ge=1)] = None,
     limit: Annotated[Optional[int], Field(ge=1, le=5000)] = None,
@@ -138,6 +141,23 @@ def listing_coins(
     return coinmarketcap_request("v1/cryptocurrency/listings/latest", params)
 
 
+def _parse_triplet(
+    id: Optional[list[str]] = None,
+    slug: Optional[list[str]] = None,
+    symbol: Optional[list[str]] = None,
+) -> dict:
+    if id:
+        slug = symbol = None
+    elif slug:
+        symbol = None
+    return {
+        "id": ",".join(id) if id else None,
+        "slug": ",".join(slug) if slug else None,
+        "symbol": ",".join(symbol) if symbol else None,
+    }
+
+
+@register_tool
 def get_coin_info(
     id: Optional[list[str]] = None,
     slug: Optional[list[str]] = None,
@@ -159,10 +179,7 @@ def get_coin_info(
     Returns:
         A dictionary containing the coin information if the request is successful, or None otherwise.
     """
-    params = {
-        "id": ",".join(id) if id else None,
-        "slug": ",".join(slug) if slug else None,
-        "symbol": ",".join(symbol) if symbol else None,
+    params = _parse_triplet(id, slug, symbol) | {
         "address": address,
         "skip_invalid": skip_invalid,
     }
@@ -170,6 +187,7 @@ def get_coin_info(
     return coinmarketcap_request("v2/cryptocurrency/info", params)
 
 
+@register_tool
 def get_coin_quotes(
     id: Optional[list[str]] = None,
     slug: Optional[list[str]] = None,
@@ -196,10 +214,7 @@ def get_coin_quotes(
     Returns:
         A dictionary containing the latest market quote data if the request is successful, or None otherwise.
     """
-    params = {
-        "id": ",".join(id) if id else None,
-        "slug": ",".join(slug) if slug else None,
-        "symbol": ",".join(symbol) if symbol else None,
+    params = _parse_triplet(id, slug, symbol) | {
         "convert": ",".join(convert) if convert else None,
         "convert_id": ",".join(convert_id) if convert_id else None,
         "aux": ",".join(aux) if aux else None,
@@ -208,6 +223,7 @@ def get_coin_quotes(
     return coinmarketcap_request("v2/cryptocurrency/quotes/latest", params)
 
 
+@register_tool
 def get_coin_quotes_historical(
     id: Optional[list[str]] = None,
     slug: Optional[list[str]] = None,
@@ -251,10 +267,7 @@ def get_coin_quotes_historical(
     """
     time_start = time_start.replace(microsecond=0).isoformat() if time_start else None
     time_end = time_end.replace(microsecond=0).isoformat() if time_end else None
-    params = {
-        "id": ",".join(id) if id else None,
-        "slug": ",".join(slug) if slug else None,
-        "symbol": ",".join(symbol) if symbol else None,
+    params = _parse_triplet(id, slug, symbol) | {
         "convert": ",".join(convert) if convert else None,
         "convert_id": ",".join(convert_id) if convert_id else None,
         "aux": ",".join(aux) if aux else None,

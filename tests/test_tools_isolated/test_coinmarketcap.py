@@ -1,6 +1,5 @@
 import datetime
 
-import pytest
 
 from iointel.src.agent_methods.tools.coinmarketcap import (
     get_coin_quotes_historical,
@@ -22,12 +21,9 @@ def test_get_coin_price():
     assert get_coin_quotes(symbol=["BTC"])
 
 
-@pytest.mark.skip(reason="Waiting to get a paid coinmarketcap API key")
 def test_get_coin_historical_price():
     assert get_coin_quotes_historical(
         symbol=["BTC"],
-        time_end=datetime.datetime(
-            year=2025, month=3, day=17, hour=12, minute=0, second=0
-        ),
+        time_end=datetime.datetime.now() - datetime.timedelta(days=1),
         count=1,
     )
