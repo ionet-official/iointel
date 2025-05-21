@@ -5,7 +5,11 @@ import yaml
 from pathlib import Path
 from collections import defaultdict
 
-from .agent_methods.agents.agents_factory import agent_or_swarm, create_agent, create_swarm
+from .agent_methods.agents.agents_factory import (
+    agent_or_swarm,
+    create_agent,
+    create_swarm,
+)
 from .agent_methods.data_models.datamodels import (
     WorkflowDefinition,
     TaskDefinition,
@@ -39,6 +43,7 @@ from rich.progress import (
 
 logger = make_logger(__name__)
 
+
 def _get_task_key(task: dict) -> str:
     return (
         task.get("task_id")
@@ -46,6 +51,7 @@ def _get_task_key(task: dict) -> str:
         or task.get("type")
         or "task"
     )
+
 
 class Workflow:
     """
@@ -120,7 +126,7 @@ class Workflow:
             execution_metadata["conversation_id"] = task["conversation_id"]
         if conversation_id:
             execution_metadata["conversation_id"] = conversation_id
-        client_mode = execution_metadata.get("client_mode", self.client_mode)
+        # client_mode = execution_metadata.get("client_mode", self.client_mode)
 
         if stage_defs := execution_metadata.get("stages"):
             stage_objects = []
@@ -344,14 +350,12 @@ class Workflow:
 
         # pass the class objects to Graph
         return Graph(
-            nodes      = tuple(node_classes),
-            state_type = WorkflowState,
-            run_end_type = WorkflowState,
+            nodes=tuple(node_classes),
+            state_type=WorkflowState,
+            run_end_type=WorkflowState,
         )
 
-    async def run_tasks(
-        self, conversation_id: Optional[str] = None, **kwargs
-    ) -> dict:
+    async def run_tasks(self, conversation_id: Optional[str] = None, **kwargs) -> dict:
         if not conversation_id:
             conversation_id = str(uuid.uuid4())
 
@@ -426,8 +430,8 @@ class Workflow:
                 "memory": True,
                 "memories": True,
                 "agents": {"__all__": {"memory": True}},
-                "tasks": {"__all__": {"agents": {"__all__": {"memory": True}}}}
-            }
+                "tasks": {"__all__": {"agents": {"__all__": {"memory": True}}}},
+            },
         )
         yaml_str = yaml.safe_dump(wf_dict, sort_keys=False)
         if file_path:
