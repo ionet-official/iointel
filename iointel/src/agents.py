@@ -222,7 +222,9 @@ class Agent(BaseModel):
     def add_tool(self, tool):
         registered_tool = self._get_registered_tool(tool)
         self.tools += [registered_tool]
-        self._runner._register_tool(PatchedValidatorTool(registered_tool.get_wrapped_fn()))
+        self._runner._register_tool(
+            PatchedValidatorTool(registered_tool.get_wrapped_fn())
+        )
 
     async def run(
         self,

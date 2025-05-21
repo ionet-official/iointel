@@ -1,5 +1,4 @@
 import asyncio
-import concurrent.futures
 from .runners import run_agents
 from typing import Any, get_type_hints
 
@@ -52,13 +51,20 @@ async def _run_sequential(
 ) -> list:
     results = []
     for substage in stage.stages:
-        results.append(await execute_stage(substage, agents, task_metadata, default_text))
+        results.append(
+            await execute_stage(substage, agents, task_metadata, default_text)
+        )
     return results
 
 
 @register_stage_runner
-async def _run_parallel(stage: ParallelStage, agents, task_metadata, default_text) -> list:
-    futures = [execute_stage(substage, agents, task_metadata, default_text) for substage in stage.stages]
+async def _run_parallel(
+    stage: ParallelStage, agents, task_metadata, default_text
+) -> list:
+    futures = [
+        execute_stage(substage, agents, task_metadata, default_text)
+        for substage in stage.stages
+    ]
     return await asyncio.gather(*futures)
 
 
@@ -74,7 +80,9 @@ async def _run_while(stage: WhileStage, agents, task_metadata, default_text) -> 
 
 
 @register_stage_runner
-async def _run_fallback(stage: FallbackStage, agents, task_metadata, default_text) -> any:
+async def _run_fallback(
+    stage: FallbackStage, agents, task_metadata, default_text
+) -> any:
     try:
         return await execute_stage(stage.primary, agents, task_metadata, default_text)
     except Exception as e:
