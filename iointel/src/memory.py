@@ -13,8 +13,8 @@ from pydantic_ai.messages import (
 )
 
 from datetime import datetime, timezone
-from sqlalchemy import create_engine, Column, String, Text, DateTime, select
-from sqlalchemy.orm import sessionmaker, declarative_base
+from sqlalchemy import Column, String, Text, DateTime, select
+from sqlalchemy.orm import declarative_base
 
 # For async support
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker

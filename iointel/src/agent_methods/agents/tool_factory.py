@@ -97,7 +97,9 @@ def resolve_tools(params: AgentParams) -> List[Optional[Callable]]:
             logger.debug(
                 f"Tool '{tool_obj.name}' found in TOOLS_REGISTRY under the custom name '{registered_tool_name}'."
             )
-            resolved_tools.append(registered_tool.model_copy(update={"fn_self": tool_obj.fn_self}))
+            resolved_tools.append(
+                registered_tool.model_copy(update={"fn_self": tool_obj.fn_self})
+            )
             continue
         else:
             logger.warning(

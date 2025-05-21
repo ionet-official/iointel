@@ -43,7 +43,7 @@ async def test_rag_search(r2r_client: R2RClient, sample_document: uuid.UUID):
     result = await r2r_client.rag_search("What do you know about samples?")
     assert result, "Expected non-empty RAG result"
     assert result["answer"], "Expected non-empty RAG answer"
-    assert (
-        "database" in result["answer"]
-    ), "Sample document has to be referenced in RAG answer"
+    assert "database" in result["answer"], (
+        "Sample document has to be referenced in RAG answer"
+    )
     assert result["citations"], "Expected to see at least one citation"
