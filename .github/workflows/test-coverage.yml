@@ -1,0 +1,107 @@
+name: Test Coverage
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  test-coverage:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Fetch all history for comparing branches
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -e ".[dev]"
+
+    - name: Get base branch coverage
+      run: |
+        git fetch origin ${{ github.base_ref }}
+        git checkout ${{ github.base_ref }}
+        BASE_COVERAGE=$(pytest -vv tests/test_agents.py --cov=iointel --cov-report=term-missing | grep "TOTAL" | awk '{print $4}')
+        echo "BASE_COVERAGE=$BASE_COVERAGE" >> $GITHUB_ENV
+
+    - name: Get PR branch coverage
+      run: |
+        git checkout ${{ github.head_ref }}
+        PR_COVERAGE=$(pytest -vv tests/test_agents.py --cov=iointel --cov-report=term-missing | grep "TOTAL" | awk '{print $4}')
+        echo "PR_COVERAGE=$PR_COVERAGE" >> $GITHUB_ENV
+
+    - name: Generate coverage report
+      run: |
+        echo "## Code Coverage Report" > coverage-report.md
+        echo "" >> coverage-report.md
+        
+        # Calculate coverage difference
+        BASE_COVERAGE_NUM=$(echo $BASE_COVERAGE | sed 's/%//')
+        PR_COVERAGE_NUM=$(echo $PR_COVERAGE | sed 's/%//')
+        COVERAGE_DIFF=$(echo "$PR_COVERAGE_NUM - $BASE_COVERAGE_NUM" | bc)
+        
+        # Format the coverage difference with appropriate emoji
+        if (( $(echo "$COVERAGE_DIFF > 0" | bc -l) )); then
+          DIFF_EMOJI="📈"
+        elif (( $(echo "$COVERAGE_DIFF < 0" | bc -l) )); then
+          DIFF_EMOJI="📉"
+        else
+          DIFF_EMOJI="➡️"
+        fi
+        
+        echo "**Coverage Comparison**" >> coverage-report.md
+        echo "- Base branch (${{ github.base_ref }}): $BASE_COVERAGE" >> coverage-report.md
+        echo "- PR branch (${{ github.head_ref }}): $PR_COVERAGE" >> coverage-report.md
+        echo "- Difference: $DIFF_EMOJI $COVERAGE_DIFF%" >> coverage-report.md
+        echo "" >> coverage-report.md
+        
+        # Get detailed coverage for PR branch
+        COVERAGE=$(pytest -vv tests/test_agents.py --cov=iointel --cov-report=term-missing | grep "TOTAL" | awk '{print "**" $4 "** (" $2 " statements, " $3 " missed)"}')
+        echo "**Current Coverage Details:**" >> coverage-report.md
+        echo "$COVERAGE" >> coverage-report.md
+        echo "" >> coverage-report.md
+        echo "### Key Files Coverage:" >> coverage-report.md
+        echo "| File | Coverage | Missing Lines |" >> coverage-report.md
+        echo "|------|----------|---------------|" >> coverage-report.md
+        pytest -vv tests/test_agents.py --cov=iointel --cov-report=term-missing | awk '/^Name/,/^TOTAL/' | grep -v "^Name" | grep -v "^---" | grep -v "^TOTAL" | while read -r line; do
+          if [[ $line =~ ^([^|]+)[[:space:]]+([0-9]+)[[:space:]]+([0-9]+)[[:space:]]+([0-9]+%)[[:space:]]+(.*)$ ]]; then
+            file=$(echo "${BASH_REMATCH[1]}" | sed 's/[[:space:]]*$//')
+            coverage="${BASH_REMATCH[4]}"
+            missing="${BASH_REMATCH[5]}"
+            if [[ $coverage != "0%" ]] && [[ $coverage != "100%" ]]; then
+              echo "| \`$file\` | $coverage | $missing |" >> coverage-report.md
+            fi
+          fi
+        done
+        echo "" >> coverage-report.md
+        echo "### Files with 0% Coverage:" >> coverage-report.md
+        pytest -vv tests/test_agents.py --cov=iointel --cov-report=term-missing | awk '/^Name/,/^TOTAL/' | grep -v "^Name" | grep -v "^---" | grep -v "^TOTAL" | while read -r line; do
+          if [[ $line =~ ^([^|]+)[[:space:]]+([0-9]+)[[:space:]]+([0-9]+)[[:space:]]+0% ]]; then
+            file=$(echo "${BASH_REMATCH[1]}" | sed 's/[[:space:]]*$//')
+            echo "- \`$file\`" >> coverage-report.md
+          fi
+        done
+
+    - name: Comment PR
+      uses: actions/github-script@v7
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        script: |
+          const fs = require('fs');
+          const report = fs.readFileSync('coverage-report.md', 'utf8');
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: report
+          }); 
