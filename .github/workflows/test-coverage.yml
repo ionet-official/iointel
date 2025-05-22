@@ -1,0 +1,81 @@
+name: Test Coverage
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  test-coverage:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -e ".[dev]"
+
+    - name: Run tests with coverage
+      run: |
+        pytest -vv tests/test_agents.py --cov=iointel --cov-report=term-missing --cov-report=html
+
+    - name: Generate coverage report
+      run: |
+        echo "## Code Coverage Report" > coverage-report.md
+        echo "" >> coverage-report.md
+        COVERAGE=$(pytest -vv tests/test_agents.py --cov=iointel --cov-report=term-missing | grep "TOTAL" | awk '{print $2, $3, $4}')
+        echo "**Overall Coverage: $COVERAGE**" >> coverage-report.md
+        echo "" >> coverage-report.md
+        echo "### Key Files Coverage:" >> coverage-report.md
+        echo "| File | Coverage | Missing Lines |" >> coverage-report.md
+        echo "|------|----------|---------------|" >> coverage-report.md
+        pytest -vv tests/test_agents.py --cov=iointel --cov-report=term-missing | awk '/^Name/,/^TOTAL/' | grep -v "^Name" | grep -v "^---" | grep -v "^TOTAL" | while read -r line; do
+          if [[ $line =~ ^([^|]+)[[:space:]]+([0-9]+)[[:space:]]+([0-9]+)[[:space:]]+([0-9]+%)[[:space:]]+(.*)$ ]]; then
+            file="${BASH_REMATCH[1]}"
+            coverage="${BASH_REMATCH[4]}"
+            missing="${BASH_REMATCH[5]}"
+            if [[ $coverage != "0%" ]] && [[ $coverage != "100%" ]]; then
+              echo "| \`$file\` | $coverage | $missing |" >> coverage-report.md
+            fi
+          fi
+        done
+        echo "" >> coverage-report.md
+        echo "### Files with 0% Coverage:" >> coverage-report.md
+        pytest -vv tests/test_agents.py --cov=iointel --cov-report=term-missing | awk '/^Name/,/^TOTAL/' | grep -v "^Name" | grep -v "^---" | grep -v "^TOTAL" | while read -r line; do
+          if [[ $line =~ ^([^|]+)[[:space:]]+([0-9]+)[[:space:]]+([0-9]+)[[:space:]]+0% ]]; then
+            file="${BASH_REMATCH[1]}"
+            echo "- \`$file\`" >> coverage-report.md
+          fi
+        done
+        echo "" >> coverage-report.md
+        echo "*Note: Full coverage report available in the HTML report (htmlcov/index.html)*" >> coverage-report.md
+
+    - name: Comment PR
+      uses: actions/github-script@v7
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        script: |
+          const fs = require('fs');
+          const report = fs.readFileSync('coverage-report.md', 'utf8');
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: report
+          });
+
+    - name: Upload coverage report
+      uses: actions/upload-artifact@v4
+      with:
+        name: coverage-report
+        path: htmlcov/ 
