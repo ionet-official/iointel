@@ -45,7 +45,7 @@ jobs:
         echo "|------|----------|---------------|" >> coverage-report.md
         pytest -vv tests/test_agents.py --cov=iointel --cov-report=term-missing | awk '/^Name/,/^TOTAL/' | grep -v "^Name" | grep -v "^---" | grep -v "^TOTAL" | while read -r line; do
           if [[ $line =~ ^([^|]+)[[:space:]]+([0-9]+)[[:space:]]+([0-9]+)[[:space:]]+([0-9]+%)[[:space:]]+(.*)$ ]]; then
-            file="${BASH_REMATCH[1]}"
+            file=$(echo "${BASH_REMATCH[1]}" | sed 's/[[:space:]]*$//')
             coverage="${BASH_REMATCH[4]}"
             missing="${BASH_REMATCH[5]}"
             if [[ $coverage != "0%" ]] && [[ $coverage != "100%" ]]; then
@@ -57,7 +57,7 @@ jobs:
         echo "### Files with 0% Coverage:" >> coverage-report.md
         pytest -vv tests/test_agents.py --cov=iointel --cov-report=term-missing | awk '/^Name/,/^TOTAL/' | grep -v "^Name" | grep -v "^---" | grep -v "^TOTAL" | while read -r line; do
           if [[ $line =~ ^([^|]+)[[:space:]]+([0-9]+)[[:space:]]+([0-9]+)[[:space:]]+0% ]]; then
-            file="${BASH_REMATCH[1]}"
+            file=$(echo "${BASH_REMATCH[1]}" | sed 's/[[:space:]]*$//')
             echo "- \`$file\`" >> coverage-report.md
           fi
         done
