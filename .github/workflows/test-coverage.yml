@@ -10,8 +10,6 @@ jobs:
     permissions:
       contents: read
       pull-requests: write
-      pages: write
-      id-token: write
 
     steps:
     - uses: actions/checkout@v4
@@ -29,7 +27,7 @@ jobs:
 
     - name: Run tests with coverage
       run: |
-        pytest -vv tests/test_agents.py --cov=iointel --cov-report=term-missing --cov-report=html
+        pytest -vv tests/test_agents.py --cov=iointel --cov-report=term-missing
 
     - name: Generate coverage report
       run: |
@@ -37,8 +35,6 @@ jobs:
         echo "" >> coverage-report.md
         COVERAGE=$(pytest -vv tests/test_agents.py --cov=iointel --cov-report=term-missing | grep "TOTAL" | awk '{print "**" $4 "** (" $2 " statements, " $3 " missed)"}')
         echo "$COVERAGE" >> coverage-report.md
-        echo "" >> coverage-report.md
-        echo "📊 [View detailed coverage report](https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/coverage-report-${{ github.event.pull_request.number }}/)" >> coverage-report.md
         echo "" >> coverage-report.md
         echo "### Key Files Coverage:" >> coverage-report.md
         echo "| File | Coverage | Missing Lines |" >> coverage-report.md
@@ -61,8 +57,6 @@ jobs:
             echo "- \`$file\`" >> coverage-report.md
           fi
         done
-        echo "" >> coverage-report.md
-        echo "*Note: Full coverage report available in the HTML report (htmlcov/index.html)*" >> coverage-report.md
 
     - name: Comment PR
       uses: actions/github-script@v7
@@ -76,23 +70,4 @@ jobs:
             owner: context.repo.owner,
             repo: context.repo.repo,
             body: report
-          });
-
-    - name: Setup Pages
-      uses: actions/configure-pages@v4
-      with:
-        static_site_generator: generic
-
-    - name: Upload coverage report to Pages
-      uses: actions/upload-pages-artifact@v3
-      with:
-        name: coverage-report-${{ github.event.pull_request.number }}
-        path: htmlcov/
-
-    - name: Deploy to GitHub Pages
-      uses: actions/deploy-pages@v4
-      with:
-        artifact_name: coverage-report-${{ github.event.pull_request.number }}
-        path: htmlcov/
-        branch: gh-pages
-        folder: coverage-report-${{ github.event.pull_request.number }} 
+          }); 
