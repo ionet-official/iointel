@@ -13,6 +13,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Fetch all history for comparing branches
 
     - name: Set up Python
       uses: actions/setup-python@v5
@@ -25,15 +27,47 @@ jobs:
         python -m pip install --upgrade pip
         pip install -e ".[dev]"
 
-    - name: Run tests with coverage
+    - name: Get base branch coverage
       run: |
-        pytest -vv tests/test_agents.py --cov=iointel --cov-report=term-missing
+        git fetch origin ${{ github.base_ref }}
+        git checkout ${{ github.base_ref }}
+        BASE_COVERAGE=$(pytest -vv tests/test_agents.py --cov=iointel --cov-report=term-missing | grep "TOTAL" | awk '{print $4}')
+        echo "BASE_COVERAGE=$BASE_COVERAGE" >> $GITHUB_ENV
+
+    - name: Get PR branch coverage
+      run: |
+        git checkout ${{ github.head_ref }}
+        PR_COVERAGE=$(pytest -vv tests/test_agents.py --cov=iointel --cov-report=term-missing | grep "TOTAL" | awk '{print $4}')
+        echo "PR_COVERAGE=$PR_COVERAGE" >> $GITHUB_ENV
 
     - name: Generate coverage report
       run: |
         echo "## Code Coverage Report" > coverage-report.md
         echo "" >> coverage-report.md
+        
+        # Calculate coverage difference
+        BASE_COVERAGE_NUM=$(echo $BASE_COVERAGE | sed 's/%//')
+        PR_COVERAGE_NUM=$(echo $PR_COVERAGE | sed 's/%//')
+        COVERAGE_DIFF=$(echo "$PR_COVERAGE_NUM - $BASE_COVERAGE_NUM" | bc)
+        
+        # Format the coverage difference with appropriate emoji
+        if (( $(echo "$COVERAGE_DIFF > 0" | bc -l) )); then
+          DIFF_EMOJI="📈"
+        elif (( $(echo "$COVERAGE_DIFF < 0" | bc -l) )); then
+          DIFF_EMOJI="📉"
+        else
+          DIFF_EMOJI="➡️"
+        fi
+        
+        echo "**Coverage Comparison**" >> coverage-report.md
+        echo "- Base branch (${{ github.base_ref }}): $BASE_COVERAGE" >> coverage-report.md
+        echo "- PR branch (${{ github.head_ref }}): $PR_COVERAGE" >> coverage-report.md
+        echo "- Difference: $DIFF_EMOJI $COVERAGE_DIFF%" >> coverage-report.md
+        echo "" >> coverage-report.md
+        
+        # Get detailed coverage for PR branch
         COVERAGE=$(pytest -vv tests/test_agents.py --cov=iointel --cov-report=term-missing | grep "TOTAL" | awk '{print "**" $4 "** (" $2 " statements, " $3 " missed)"}')
+        echo "**Current Coverage Details:**" >> coverage-report.md
         echo "$COVERAGE" >> coverage-report.md
         echo "" >> coverage-report.md
         echo "### Key Files Coverage:" >> coverage-report.md
