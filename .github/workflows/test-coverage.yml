@@ -10,6 +10,8 @@ jobs:
     permissions:
       contents: read
       pull-requests: write
+      pages: write
+      id-token: write
 
     steps:
     - uses: actions/checkout@v4
@@ -33,8 +35,10 @@ jobs:
       run: |
         echo "## Code Coverage Report" > coverage-report.md
         echo "" >> coverage-report.md
-        COVERAGE=$(pytest -vv tests/test_agents.py --cov=iointel --cov-report=term-missing | grep "TOTAL" | awk '{print $2, $3, $4}')
-        echo "**Overall Coverage: $COVERAGE**" >> coverage-report.md
+        COVERAGE=$(pytest -vv tests/test_agents.py --cov=iointel --cov-report=term-missing | grep "TOTAL" | awk '{print "**" $4 "** (" $2 " statements, " $3 " missed)"}')
+        echo "$COVERAGE" >> coverage-report.md
+        echo "" >> coverage-report.md
+        echo "📊 [View detailed coverage report](https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/coverage-report-${{ github.event.pull_request.number }}/)" >> coverage-report.md
         echo "" >> coverage-report.md
         echo "### Key Files Coverage:" >> coverage-report.md
         echo "| File | Coverage | Missing Lines |" >> coverage-report.md
@@ -74,8 +78,21 @@ jobs:
             body: report
           });
 
-    - name: Upload coverage report
-      uses: actions/upload-artifact@v4
+    - name: Setup Pages
+      uses: actions/configure-pages@v4
       with:
-        name: coverage-report
-        path: htmlcov/ 
+        static_site_generator: generic
+
+    - name: Upload coverage report to Pages
+      uses: actions/upload-pages-artifact@v3
+      with:
+        name: coverage-report-${{ github.event.pull_request.number }}
+        path: htmlcov/
+
+    - name: Deploy to GitHub Pages
+      uses: actions/deploy-pages@v4
+      with:
+        artifact_name: coverage-report-${{ github.event.pull_request.number }}
+        path: htmlcov/
+        branch: gh-pages
+        folder: coverage-report-${{ github.event.pull_request.number }} 
