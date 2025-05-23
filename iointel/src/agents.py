@@ -1,6 +1,6 @@
 from .memory import AsyncMemory
 from .agent_methods.data_models.datamodels import PersonaConfig, Tool
-from .utilities.rich import console
+from .utilities.rich import console, pretty_output
 from .utilities.constants import get_api_url, get_base_model, get_api_key
 from .utilities.registries import TOOLS_REGISTRY
 from .utilities.helpers import supports_tool_choice_required
@@ -230,7 +230,7 @@ class Agent(BaseModel):
         self,
         query: str,
         conversation_id: Optional[str] = None,
-        pretty=True,
+        pretty=None,
         message_history_limit=100,
         **kwargs,
     ):
@@ -281,7 +281,7 @@ class Agent(BaseModel):
                 await self.memory.store_run_history(conversation_id, result)
             except Exception as e:
                 print("Error storing run history:", e)
-        if pretty:
+        if pretty or (pretty is None and pretty_output.is_enabled):
             task_header = Text(
                 f" Objective: {query} ", style="bold white on dark_green"
             )
