@@ -406,7 +406,7 @@ class AgentParams(BaseModel):
         description="Context to be passed to the agent.",
     )
     # memories: Optional[list[Memory]] = Field(default_factory=list)
-    memory: Optional[AsyncMemory] = None
+    memory: Optional[AsyncMemory] = Field(default_factory=list)
 
     model_settings: Optional[Dict[str, Any]] = Field(default_factory=dict)
     output_type: Optional[Any] = str
