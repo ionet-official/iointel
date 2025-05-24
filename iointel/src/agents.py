@@ -9,19 +9,22 @@ from pydantic_ai.models.openai import OpenAIModel
 from pydantic_ai.providers.openai import OpenAIProvider
 from pydantic_ai import Agent as PydanticAgent, Tool as PydanticTool
 
-from pydantic import ConfigDict, SecretStr, BaseModel, ValidationError
+from pydantic import ConfigDict, SecretStr, BaseModel, ValidationError, PrivateAttr
 from pydantic_ai.messages import PartDeltaEvent, TextPartDelta, ToolCallPart
-from typing import Callable, Dict, Any, Optional, Union
+from typing import Callable, Dict, Any, Optional, Union, Literal
 import json
 import dataclasses
 
 import uuid
 import asyncio
+import logging
 
 from rich.panel import Panel
 from rich.text import Text
 from rich.markdown import Markdown
 from rich.live import Live
+from rich.table import Table
+from rich.columns import Columns
 
 
 class PatchedValidatorTool(PydanticTool):
@@ -57,6 +60,12 @@ class PatchedValidatorTool(PydanticTool):
         return await super().run(message, *args, **kw)
 
 
+class ToolUsageResult(BaseModel):
+    tool_name: str
+    tool_args: dict
+    tool_result: Any = None
+
+
 class Agent(BaseModel):
     """
     A configurable agent that allows you to plug in different chat models,
@@ -82,6 +91,10 @@ class Agent(BaseModel):
     output_type: Optional[Any] = str
     _runner: PydanticAgent
     conversation_id: Optional[str] = None
+    show_tool_calls: bool = True
+    tool_pil_layout: Literal["vertical", "horizontal"] = "horizontal"  # 'vertical' or 'horizontal'
+    debug: bool = False
+    _logger: logging.Logger = PrivateAttr()
 
     # args must stay in sync with AgentParams, because we use that model
     # to reconstruct agents
@@ -102,6 +115,9 @@ class Agent(BaseModel):
         output_type: Optional[Any] = str,
         retries: int = 3,
         output_retries: int | None = None,
+        show_tool_calls: bool = True,
+        tool_pil_layout: Literal["vertical", "horizontal"] = "horizontal",
+        debug: bool = False,
         **model_kwargs,
     ):
         """
@@ -113,6 +129,8 @@ class Agent(BaseModel):
         :param model: A callable that returns a configured model instance.
                               If provided, it should handle all model-related configuration.
         :param model_kwargs: Additional keyword arguments passed to the model factory or ChatOpenAI if no factory is provided.
+        :param verbose: If True, displays detailed tool usage information during execution.
+        :param tool_pil_layout: 'horizontal' (default) or 'vertical' for tool PIL stacking.
 
         If model_provider is given, you rely entirely on it for the model and ignore other model-related kwargs.
         If not, you fall back to ChatOpenAI with model_kwargs such as model="gpt-4o-mini", api_key="..."
@@ -167,7 +185,11 @@ class Agent(BaseModel):
             api_key=resolved_api_key,
             base_url=resolved_base_url,
             output_type=output_type,
+            show_tool_calls=show_tool_calls,
+            tool_pil_layout=tool_pil_layout,
+            debug=debug,
         )
+        self.tool_pil_layout = tool_pil_layout  # Explicitly set to ensure correct value
         self._runner = PydanticAgent(
             name=name,
             tools=[PatchedValidatorTool(fn.get_wrapped_fn()) for fn in resolved_tools],
@@ -179,6 +201,12 @@ class Agent(BaseModel):
             output_retries=output_retries,
         )
         self._runner.system_prompt(dynamic=True)(self._make_init_prompt)
+        # Set up logger as a private attribute
+        self._logger = logging.getLogger(f"AgentLogger.{self.name}")
+        if self.debug:
+            logging.basicConfig(level=logging.DEBUG)
+        else:
+            logging.basicConfig(level=logging.WARNING)
 
     @classmethod
     def _get_registered_tool(cls, tool: str | Tool | Callable) -> Tool:
@@ -223,6 +251,45 @@ class Agent(BaseModel):
         registered_tool = self._get_registered_tool(tool)
         self.tools += [registered_tool]
         self._runner._register_tool(PatchedValidatorTool(registered_tool.get_wrapped_fn()))
+
+    def extract_tool_usage_results(self, messages) -> tuple[list[ToolUsageResult], list[Panel]]:
+        """
+        Given a list of messages, extract ToolUsageResult objects and corresponding Rich Panels.
+        Returns (tool_usage_results, tool_usage_pils)
+        """
+        tool_usage_results: list[ToolUsageResult] = []
+        tool_usage_pils: list[Panel] = []
+        i = 0
+        while i < len(messages):
+            msg = messages[i]
+            # Look for response/tool-call
+            if msg.kind == 'response' and msg.parts and msg.parts[0].part_kind == 'tool-call':
+                call_part = msg.parts[0]
+                tool_name = call_part.tool_name
+                tool_args = call_part.args
+                tool_result = None
+                # Look ahead for request/tool-return
+                if i + 1 < len(messages):
+                    next_msg = messages[i+1]
+                    if next_msg.kind == 'request' and next_msg.parts and next_msg.parts[0].part_kind == 'tool-return':
+                        tool_result = next_msg.parts[0].content
+                        i += 1  # Skip the tool-return message in the next iteration
+                tool_usage_results.append(ToolUsageResult(
+                    tool_name=tool_name,
+                    tool_args=tool_args if isinstance(tool_args, dict) else {},
+                    tool_result=tool_result
+                ))
+                pil = Panel(
+                    f"[bold cyan]🛠️ Tool: [magenta]{tool_name}[/magenta]\n[yellow]Args: {tool_args}[/yellow]" + (f"\n\n[bold green]✅ Result: [white]{tool_result}[/white]" if tool_result is not None else ""),
+                    border_style="cyan",
+                    title="Tool Call",
+                    title_align="left",
+                    padding=(1,2),
+                    style="on black"
+                )
+                tool_usage_pils.append(pil)
+            i += 1
+        return tool_usage_results, tool_usage_pils
 
     async def run(
         self,
@@ -279,25 +346,44 @@ class Agent(BaseModel):
                 await self.memory.store_run_history(conversation_id, result)
             except Exception as e:
                 print("Error storing run history:", e)
+
+        # Always build tool usage results and pills
+        messages = result.all_messages()
+        tool_usage_results, tool_usage_pils = self.extract_tool_usage_results(messages)
+        # Logging for debug
+        self._logger.debug(f"tool_pil_layout at runtime: {self.tool_pil_layout}")
+        self._logger.debug(f"tool_usage_pils length: {len(tool_usage_pils)}")
+        # Only show in UI if show_tool_calls is True
         if pretty:
+            from rich.console import Group
             task_header = Text(
                 f" Objective: {query} ", style="bold white on dark_green"
             )
             agent_info = Text(f"Agent(s): {self.name}", style="cyan bold")
             result_info = Markdown(str(result.output), style="magenta")
-
+            if self.show_tool_calls and tool_usage_pils:
+                if self.tool_pil_layout == "horizontal":
+                    panel_content = Group(result_info, Text("\n"), Columns(tool_usage_pils, expand=True))
+                else:  # vertical
+                    panel_content = Group(result_info, Text("\n"), *tool_usage_pils)
+            else:
+                panel_content = result_info
             panel = Panel(
-                result_info,
+                panel_content,
                 title=task_header,
                 subtitle=agent_info,
                 border_style="electric_blue",
             )
             console.print(panel)
-
+        # Attach tool usage results to result object if possible
+        if hasattr(result, 'tool_usage_results'):
+            result.tool_usage_results = tool_usage_results
+        # Add to returned dict as well
         return dict(
             result=result.output,
             conversation_id=conversation_id or self.conversation_id,
             full_result=result,
+            tool_usage_results=tool_usage_results,
         )
 
     async def run_stream(
