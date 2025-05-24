@@ -28,6 +28,7 @@ from .utilities.stages import (
     WhileStage,
     FallbackStage,
 )
+from .utilities.rich import pretty_output
 
 from .utilities.graph_nodes import WorkflowState, TaskNode, make_task_node
 from pydantic_graph import Graph, End, GraphRunContext
@@ -225,7 +226,11 @@ class Workflow:
                 result = await result.execute()
             return result
 
-    async def execute_graph_streaming(self, graph, initial_state):
+    async def execute_graph_streaming(
+        self, graph, initial_state, pretty: Optional[bool] = None
+    ):
+        if pretty is None:
+            pretty = pretty_output.is_enabled
         nodes = list(graph.node_defs.values())
         total_tasks = len(nodes)
 
@@ -240,6 +245,7 @@ class Workflow:
             TaskProgressColumn(),
             TimeElapsedColumn(),
             transient=True,
+            disable=not pretty,
         ) as progress:
             task_progress = progress.add_task(
                 "[cyan]Executing Tasks...", total=total_tasks
@@ -295,7 +301,11 @@ class Workflow:
 
         return state
 
-    async def execute_graph(self, graph: Graph, initial_state: WorkflowState):
+    async def execute_graph(
+        self, graph: Graph, initial_state: WorkflowState, pretty: Optional[bool] = None
+    ):
+        if pretty is None:
+            pretty = pretty_output.is_enabled
         nodes = list(graph.node_defs.values())
         total_tasks = len(nodes)
 
@@ -306,6 +316,7 @@ class Workflow:
             TaskProgressColumn(),
             TimeElapsedColumn(),
             transient=True,
+            disable=not pretty,
         ) as progress:
             task_progress = progress.add_task(
                 "[cyan]Executing Tasks...", total=total_tasks

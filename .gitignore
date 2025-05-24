@@ -17,3 +17,7 @@ dist
 .coverage.*
 coverage.xml
 htmlcov/
+
+# virtual environments
+venv
+.venv
