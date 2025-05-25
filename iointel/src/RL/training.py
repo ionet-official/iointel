@@ -50,6 +50,7 @@ class RLEnvironment:
             print(f"Generated {len(tasks)} tasks and saved to {self.task_file_path}")
             for task in tasks:
                 print(f"Task {task.id}: {task.description}")
+                print('='*60)
         return tasks
     
     def load_tasks(self, verbose: bool = False):
@@ -58,6 +59,7 @@ class RLEnvironment:
             print(f"Loaded {len(self.task_manager.tasks)} tasks from {self.task_file_path}")
             for task in self.task_manager.tasks:
                 print(f"Task {task.id}: {task.description}")
+                print('='*60)
         return self.task_manager.tasks
 
     def reset(self, task: Task = None, difficulty: float = 0.5):
@@ -67,8 +69,8 @@ class RLEnvironment:
         self.state = RLState(task=task)
         return self.state
 
-    async def run_episode(self, verbose=True):
-        state = self.reset()
+    async def run_episode(self, task: Task = None, difficulty: float = 0.5, verbose=True):
+        state = self.reset(task=task, difficulty=difficulty)
         task = state.task
         instructions = self.agent_instructions
         best_instructions = None
@@ -94,7 +96,7 @@ class RLEnvironment:
                 query = f"{task.description}\n\n{critic_feedback.better_query if critic_feedback else ''}"
             result = await agent.run(query, conversation_id=task.id)
             ##########################The Agent Learns###############################
-            state.agent_result = result
+            state.agent_result = result['full_result']
             state.step_count = step + 1
 
             # 2. Critic feedback
@@ -113,14 +115,14 @@ class RLEnvironment:
 
             # 4. Print/log everything
             if verbose:
-                print("="*60)
-                print(f"Query: {query}")
-                print(f"Step {step+1}:")
-                print("Agent output:", result.get("result"))
-                print("Tool usage:", result.get("tool_usage_results"))
-                print("Critic:", getattr(critic_feedback, 'model_dump_json', lambda **_: critic_feedback)())
-                print("Oracle:", getattr(oracle_result, 'model_dump_json', lambda **_: oracle_result)())
-                print("-"*60)
+                print("\n" + "-"*60)
+                print(f"\nStep {step+1}:")
+                print(f"\nTask/Query:\n{query}")
+                print("\nAgent output:\n" + str(result.get("result")))
+                print("\nTool usage:\n" + str(result.get("tool_usage_results")))
+                print("\nCritic:\n" + str(getattr(critic_feedback, 'model_dump_json', lambda **_: critic_feedback)()))
+                print("\nOracle:\n" + str(getattr(oracle_result, 'model_dump_json', lambda **_: oracle_result)()))
+                print("\n" + "-"*60 + "\n")
 
             # 5. Meta-learn: update instructions if critic suggests new ones
             if self.meta_learn_instructions and getattr(critic_feedback, 'new_instructions', None):
@@ -133,12 +135,36 @@ class RLEnvironment:
                 best_instructions = instructions
                 break
         
+        # pretty print the state
+        print("\n" + "-"*60)
+        print('='*60)
+        print("\nFinal Results:")
+        print("\nTask:")
+        print(f"    {task.description}")
+        print("\nBest Instructions:")
+        print(f"    {best_instructions}")
+        print("\nBest Query:")
+        print(f"    {query}")
+        print("\nCritic Feedback:")
+        print(f"    {critic_feedback}")
+        print("\nOracle Result:") 
+        print(f"    {oracle_result}")
+        print("\n" + '='*60)
         state.best_instructions = best_instructions
         state.best_query = query
         state.critic_feedback = critic_feedback
         state.oracle_result = oracle_result
         return state
-
+    
+    async def run_all_tasks(self, difficulty: float = 0.5, verbose=True):
+        tasks = self.load_tasks(verbose=verbose)
+        best_states = []
+        for task in tasks:
+            state = await self.run_episode(task=task, difficulty=difficulty, verbose=verbose)
+            best_states.append(state)
+        self.best_states = best_states
+        return self.best_states
+    
 if __name__ == "__main__":
     async def main():
         tools = [add, subtract, multiply, divide, get_weather]
