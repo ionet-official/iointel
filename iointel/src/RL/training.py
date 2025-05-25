@@ -142,12 +142,27 @@ class RLEnvironment:
 if __name__ == "__main__":
     async def main():
         tools = [add, subtract, multiply, divide, get_weather]
-        #agent = Agent(model="gpt-4o", api_key=os.getenv("OPENAI_API_KEY"), base_url=os.getenv("OPENAI_API_BASE"), tools=tools)
-        critic = CriticAgent(model="gpt-4o", api_key=os.getenv("OPENAI_API_KEY"), base_url=os.getenv("OPENAI_API_BASE"))
-        task_manager = TaskManager(model="gpt-4o", api_key=os.getenv("OPENAI_API_KEY"), base_url=os.getenv("OPENAI_API_BASE"))
-        oracle = OracleAgent(model="gpt-4o", api_key=os.getenv("OPENAI_API_KEY"), base_url=os.getenv("OPENAI_API_BASE"))
+        model = "gpt-4o"
+        api_key = os.getenv("OPENAI_API_KEY")
+        base_url = os.getenv("OPENAI_API_BASE")
 
-        environment = RLEnvironment(name="padwan", agent_instructions='', task_manager=task_manager, critic=critic, oracle=oracle, tools=tools, max_steps=3, agent_class=Agent, model="gpt-4o", api_key=os.getenv("OPENAI_API_KEY"), base_url=os.getenv("OPENAI_API_BASE"))
+        critic = CriticAgent(model=model, api_key=api_key, base_url=base_url)
+        task_manager = TaskManager(model=model, api_key=api_key, base_url=base_url)
+        oracle = OracleAgent(model=model, api_key=api_key, base_url=base_url)
+
+        environment = RLEnvironment(
+            name="padwan",
+            agent_instructions='',
+            task_manager=task_manager,
+            critic=critic,
+            oracle=oracle,
+            tools=tools,
+            max_steps=3,
+            agent_class=Agent,
+            model=model,
+            api_key=api_key,
+            base_url=base_url
+        )
         generate_new = False
         if generate_new:
             environment.generate_tasks(num_tasks=10, verbose=True)
