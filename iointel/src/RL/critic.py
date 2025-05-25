@@ -1,170 +1,106 @@
-from typing import Any, Dict, List, Optional
+from typing import Dict, List, Optional
 from pydantic import BaseModel
-import numpy as np
+from iointel import Agent
+from iointel.src.agents import ToolUsageResult
+import os
+import asyncio
+from dotenv import load_dotenv
+
+
+load_dotenv(os.path.join(os.path.dirname(__file__), '../../..', 'creds.env'))
 
 class CriticFeedback(BaseModel):
     """Feedback from the critic on agent performance"""
     score: float  # 0.0 to 1.0
-    feedback: str
-    suggestions: List[str]
+    better_query: str
     metrics: Dict[str, float]
+    new_instructions: Optional[str] = None  # For meta-learning: a better agent instruction
 
-class Critic:
-    """Evaluates agent performance and provides feedback"""
-    
-    def __init__(self):
-        self.metrics_history: List[Dict[str, float]] = []
-    
-    def evaluate_performance(
-        self,
-        task: Any,
-        agent_actions: List[Dict[str, Any]],
-        tool_results: List[Dict[str, Any]],
-        final_response: Dict[str, Any],
-        ground_truth: Dict[str, Any]
-    ) -> CriticFeedback:
-        """Evaluate agent performance on a task"""
-        
-        # Calculate various metrics
-        metrics = {
-            "tool_usage_efficiency": self._calculate_tool_efficiency(agent_actions),
-            "response_accuracy": self._calculate_response_accuracy(final_response, ground_truth),
-            "action_relevance": self._calculate_action_relevance(agent_actions, task),
-            "response_completeness": self._calculate_completeness(final_response, ground_truth)
-        }
-        
-        # Calculate overall score
-        score = np.mean(list(metrics.values()))
-        
-        # Generate feedback
-        feedback = self._generate_feedback(metrics)
-        suggestions = self._generate_suggestions(metrics)
-        
-        # Store metrics for historical analysis
-        self.metrics_history.append(metrics)
-        
-        return CriticFeedback(
-            score=score,
-            feedback=feedback,
-            suggestions=suggestions,
-            metrics=metrics
+class CriticAgent:
+    """Agentic LLM-based Critic for evaluating agent performance"""
+    def __init__(self, model="gpt-4o", api_key=None, base_url=None):
+        self.agent = Agent(
+            name="CriticAgent",
+            instructions="""
+            You are a critic agent. Given a task, agent actions, tool results, the agent's final response, and the ground truth, evaluate the agent's performance.
+            Estimate the following as best as possible:
+            - score: a float from 0.0 to 1.0 (overall performance)
+            - better_query: a better query to solve the task (more specific, more detailed, more accurate, a hint, etc.). If current query is good, just return the same query.
+            - metrics: a dict of named metrics (e.g., tool_usage_efficiency, response_accuracy, action_relevance, response_completeness), each a float from 0.0 to 1.0
+            - new_instructions: (optional) a better instruction prompt for the agent to solve this task next time, if you can think of one. Should be the instructions you would write to an LLM agent.
+            Output ONLY valid JSON that can be parsed as the CriticFeedback Pydantic model.
+            """,
+            model=model,
+            api_key=api_key,
+            base_url=base_url,
+            output_type=CriticFeedback
         )
-    
-    def _calculate_tool_efficiency(self, actions: List[Dict[str, Any]]) -> float:
-        """Calculate how efficiently tools were used"""
-        if not actions:
-            return 0.0
-        
-        # Count unique tools used
-        unique_tools = len(set(a.get("tool_name") for a in actions))
-        total_actions = len(actions)
-        
-        # Efficiency decreases with redundant tool usage
-        return min(1.0, unique_tools / total_actions)
-    
-    def _calculate_response_accuracy(
+
+    async def evaluate_performance(
         self,
-        response: Dict[str, Any],
-        ground_truth: Dict[str, Any]
-    ) -> float:
-        """Calculate how accurate the response is compared to ground truth"""
-        if not response or not ground_truth:
-            return 0.0
-        
-        # Count matching key-value pairs
-        matches = 0
-        total = len(ground_truth)
-        
-        for key, value in ground_truth.items():
-            if key in response and response[key] == value:
-                matches += 1
-        
-        return matches / total if total > 0 else 0.0
+        task: str,
+        agent_actions: List[ToolUsageResult],
+        final_response: str,
+    ) -> CriticFeedback:
+        """Evaluate agent performance on a task using the LLM agent"""
+        prompt = f"""
+        Task:
+        {task}
+
+        Agent Actions:
+        {agent_actions}
+
+        Final Response:
+        {final_response}
+        """
+        return (await self.agent.run(prompt))['result']
     
-    def _calculate_action_relevance(
-        self,
-        actions: List[Dict[str, Any]],
-        task: Any
-    ) -> float:
-        """Calculate how relevant the actions were to the task"""
-        if not actions:
-            return 0.0
+
+if __name__ == "__main__":
+    async def main():
+        critic = CriticAgent(model="gpt-4o", api_key=os.getenv("OPENAI_API_KEY"), base_url=os.getenv("OPENAI_API_BASE"))
         
-        # Simple relevance score based on task description keywords
-        task_keywords = set(task.description.lower().split())
-        relevant_actions = 0
-        
-        for action in actions:
-            action_str = str(action).lower()
-            if any(keyword in action_str for keyword in task_keywords):
-                relevant_actions += 1
-        
-        return relevant_actions / len(actions)
-    
-    def _calculate_completeness(
-        self,
-        response: Dict[str, Any],
-        ground_truth: Dict[str, Any]
-    ) -> float:
-        """Calculate how complete the response is"""
-        if not response or not ground_truth:
-            return 0.0
-        
-        # Count how many ground truth fields are present in response
-        present_fields = sum(1 for key in ground_truth if key in response)
-        return present_fields / len(ground_truth)
-    
-    def _generate_feedback(self, metrics: Dict[str, float]) -> str:
-        """Generate feedback based on metrics"""
-        feedback_parts = []
-        
-        if metrics["tool_usage_efficiency"] < 0.5:
-            feedback_parts.append("The agent used tools inefficiently, with many redundant calls.")
-        elif metrics["tool_usage_efficiency"] > 0.8:
-            feedback_parts.append("The agent used tools very efficiently.")
-        
-        if metrics["response_accuracy"] < 0.5:
-            feedback_parts.append("The response was not very accurate compared to the expected result.")
-        elif metrics["response_accuracy"] > 0.8:
-            feedback_parts.append("The response was highly accurate.")
-        
-        if metrics["action_relevance"] < 0.5:
-            feedback_parts.append("Many actions were not relevant to the task.")
-        elif metrics["action_relevance"] > 0.8:
-            feedback_parts.append("Actions were highly relevant to the task.")
-        
-        if metrics["response_completeness"] < 0.5:
-            feedback_parts.append("The response was incomplete, missing important information.")
-        elif metrics["response_completeness"] > 0.8:
-            feedback_parts.append("The response was very complete.")
-        
-        return " ".join(feedback_parts) if feedback_parts else "No specific feedback available."
-    
-    def _generate_suggestions(self, metrics: Dict[str, float]) -> List[str]:
-        """Generate improvement suggestions based on metrics"""
-        suggestions = []
-        
-        if metrics["tool_usage_efficiency"] < 0.7:
-            suggestions.append("Try to minimize redundant tool usage and plan actions more carefully.")
-        
-        if metrics["response_accuracy"] < 0.7:
-            suggestions.append("Double-check responses against expected results before submitting.")
-        
-        if metrics["action_relevance"] < 0.7:
-            suggestions.append("Focus on actions that directly contribute to solving the task.")
-        
-        if metrics["response_completeness"] < 0.7:
-            suggestions.append("Ensure all required information is included in the response.")
-        
-        return suggestions
-    
-    def get_performance_trends(self) -> Dict[str, List[float]]:
-        """Get historical performance trends"""
-        if not self.metrics_history:
-            return {}
-        
-        trends = {}
-        for metric in self.metrics_history[0].keys():
-            trends[metric] = [m[metric] for m in self.metrics_history]
-        
-        return trends 
+        # Perfect execution
+        task1 = "What is the weather in Tokyo?"
+        agent_actions1 = [
+            ToolUsageResult(
+                tool_name="get_weather",
+                tool_args={"city": "Tokyo"},
+                tool_result={"result": "Sunny", "metadata": {}}
+            )
+        ]
+        final_response1 = "The weather in Tokyo is sunny."
+        res1 = await critic.evaluate_performance(task1, agent_actions1, final_response1)
+        print("\nPerfect execution:")
+        print(res1['result'])
+
+        # Partially correct execution
+        task2 = "What is 5 + 3 multiplied by 2?"
+        agent_actions2 = [
+            ToolUsageResult(
+                tool_name="add",
+                tool_args={"a": 5, "b": 3},
+                tool_result={"result": 8, "metadata": {}}
+            )
+            # Missing multiplication step
+        ]
+        final_response2 = "The result is 8" # Should be 16
+        res2 = await critic.evaluate_performance(task2, agent_actions2, final_response2)
+        print("\nPartially correct execution:")
+        print(res2['result'])
+
+        # Wrong execution
+        task3 = "What is the weather in Paris?"
+        agent_actions3 = [
+            ToolUsageResult(
+                tool_name="multiply",
+                tool_args={"a": 10, "b": 5},
+                tool_result={"result": 50, "metadata": {}}
+            ) # Wrong tool
+        ]
+        final_response3 = "The result is 50" # Completely wrong response
+        res3 = await critic.evaluate_performance(task3, agent_actions3, final_response3)
+        print("\nWrong execution:")
+        print(res3['result'])
+
+    asyncio.run(main())

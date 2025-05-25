@@ -1,10 +1,12 @@
 import asyncio
 from typing import Dict, Any
 from .environment import RLEnvironment, State, Action
-from .oracle_agent import OracleAgent
+from .oracle import OracleAgent
 from .task_manager import TaskManager
 from .critic import Critic
-from .tools.splunk import SplunkTool
+from .example_tools import add, subtract, multiply, divide, get_weather
+
+tools = [add, subtract, multiply, divide, get_weather]
 
 async def main():
     # Initialize components
@@ -13,11 +15,11 @@ async def main():
     critic = Critic()
     
     # Create tools
-    splunk_tool = SplunkTool({
-        "base_url": "https://splunk.example.com",
-        "api_key": "your-api-key"
-    })
-    tools = [splunk_tool]
+    #splunk_tool = SplunkTool({
+    #    "base_url": "https://splunk.example.com",
+    #    "api_key": "your-api-key"
+    #})
+    #tools = [splunk_tool]
     
     # Create environment
     env = RLEnvironment(
