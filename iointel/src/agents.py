@@ -255,40 +255,58 @@ class Agent(BaseModel):
     def extract_tool_usage_results(self, messages) -> tuple[list[ToolUsageResult], list[Panel]]:
         """
         Given a list of messages, extract ToolUsageResult objects and corresponding Rich Panels.
+        Handles multiple tool calls/returns per message.
         Returns (tool_usage_results, tool_usage_pils)
         """
+        # Collect all tool-calls and tool-returns by tool_call_id
+        tool_calls = {}
+        tool_returns = {}
+
+        for msg in messages:
+            if not hasattr(msg, "parts") or not msg.parts:
+                continue
+            for part in msg.parts:
+                if getattr(part, "part_kind", None) == "tool-call":
+                    tool_call_id = getattr(part, "tool_call_id", None)
+                    if tool_call_id:
+                        tool_calls[tool_call_id] = part
+                elif getattr(part, "part_kind", None) == "tool-return":
+                    tool_call_id = getattr(part, "tool_call_id", None)
+                    if tool_call_id:
+                        tool_returns[tool_call_id] = part
+
         tool_usage_results: list[ToolUsageResult] = []
         tool_usage_pils: list[Panel] = []
-        i = 0
-        while i < len(messages):
-            msg = messages[i]
-            # Look for response/tool-call
-            if msg.kind == 'response' and msg.parts and msg.parts[0].part_kind == 'tool-call':
-                call_part = msg.parts[0]
-                tool_name = call_part.tool_name
-                tool_args = call_part.args
-                tool_result = None
-                # Look ahead for request/tool-return
-                if i + 1 < len(messages):
-                    next_msg = messages[i+1]
-                    if next_msg.kind == 'request' and next_msg.parts and next_msg.parts[0].part_kind == 'tool-return':
-                        tool_result = next_msg.parts[0].content
-                        i += 1  # Skip the tool-return message in the next iteration
-                tool_usage_results.append(ToolUsageResult(
-                    tool_name=tool_name,
-                    tool_args=tool_args if isinstance(tool_args, dict) else {},
-                    tool_result=tool_result
-                ))
-                pil = Panel(
-                    f"[bold cyan]🛠️ Tool: [magenta]{tool_name}[/magenta]\n[yellow]Args: {tool_args}[/yellow]" + (f"\n\n[bold green]✅ Result: [white]{tool_result}[/white]" if tool_result is not None else ""),
-                    border_style="cyan",
-                    title="Tool Call",
-                    title_align="left",
-                    padding=(1,2),
-                    style="on black"
-                )
-                tool_usage_pils.append(pil)
-            i += 1
+
+        # Pair tool-calls with their returns
+        for tool_call_id, call_part in tool_calls.items():
+            tool_name = getattr(call_part, "tool_name", None)
+            tool_args = getattr(call_part, "args", {})
+            # Try to parse args if it's a JSON string
+            if isinstance(tool_args, str):
+                try:
+                    tool_args = json.loads(tool_args)
+                except Exception:
+                    tool_args = {}
+            tool_result = None
+            if tool_call_id in tool_returns:
+                tool_result = getattr(tool_returns[tool_call_id], "content", None)
+            tool_usage_results.append(ToolUsageResult(
+                tool_name=tool_name,
+                tool_args=tool_args if isinstance(tool_args, dict) else {},
+                tool_result=tool_result
+            ))
+            pil = Panel(
+                f"[bold cyan]🛠️ Tool: [magenta]{tool_name}[/magenta]\n[yellow]Args: {tool_args}[/yellow]" +
+                (f"\n\n[bold green]✅ Result: [white]{tool_result}[/white]" if tool_result is not None else ""),
+                border_style="cyan",
+                title="Tool Call",
+                title_align="left",
+                padding=(1,2),
+                style="on black"
+            )
+            tool_usage_pils.append(pil)
+
         return tool_usage_results, tool_usage_pils
 
     async def run(
