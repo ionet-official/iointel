@@ -1,11 +1,11 @@
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Callable
 from pydantic import BaseModel
 import random
 import inspect
 from iointel import Agent
 import asyncio
 import os
-from iointel.src.RL.example_tools import add, subtract, multiply, divide, get_weather
+from iointel.src.RL.example_tools import add, subtract, multiply, divide, get_weather, square_root
 from dotenv import load_dotenv
 import json
 load_dotenv(os.path.join(os.path.dirname(__file__), '../../..', 'creds.env'))
@@ -21,9 +21,10 @@ class Task(BaseModel):
     required_tools: List[str]
     difficulty: float  # 0.0 to 1.0
     context: Optional[Dict[str, Any]] = None
+    goal_seek: Optional[str] = None
 
 class TaskGeneratorAgent:
-    def __init__(self, model="gpt-4o", api_key=None, base_url=None):
+    def __init__(self, model:str, api_key:str=None, base_url:str=None, verbose:bool=True):
         self.Task = Task
         self.agent = Agent(
             name="TaskGenerator",
@@ -31,6 +32,10 @@ class TaskGeneratorAgent:
             You are a task generation agent. Given a set of tool definitions (name, docstring, parameters), 
             generate a list of diverse and interesting tasks as Pydantic Task objects. 
             Each task should specify a ordered numeric id, description, ground_truth, required_tools, and difficulty (between 0.0 and 1.0).
+            if during the task generation, you need to specify a goal seek outcome, include it here, otherwise leave it blank.
+
+            If it is difficult to generate a known ground truth (imagine the roots of a quintic polynomial), you can estimate it and its likelihood, such as ranges, or expected values, or probabilities.
+
             Output only valid JSON that can be parsed into the Task Pydantic model.
             """,
             model=model,
@@ -38,18 +43,24 @@ class TaskGeneratorAgent:
             base_url=base_url,
             output_type=List[Task]
         )
-
-    async def generate_tasks(self, tools, num_tasks=5, context=None) -> List[Task]:
+        self.verbose = verbose
+        
+    async def generate_tasks(self, tools: List[Callable], num_tasks: int = 5, context: str = None, goal_seek: bool = False) -> List[Task]:
         tool_descriptions = []
         for tool in tools:
             sig = str(inspect.signature(tool))
             doc = tool.__doc__ or ""
             tool_descriptions.append(f"{tool.__name__}{sig}: {doc}")
-        prompt = f"""
-        Tools available:\n{chr(10).join(tool_descriptions)}\n\nContext: {context or 'None'}\n\nPlease generate {num_tasks} diverse Task objects as JSON.
+        prompt = f"""Tools available:\n{chr(10).join(tool_descriptions)}\n\nContext: {context or 'None'}\n\nPlease generate {num_tasks} diverse Task objects as JSON.
         """
+        if goal_seek:
+            prompt += f"""  
+            Generate a goal seek outcome for each task.
+            """
+        if self.verbose:
+            print(f"TaskGenerator prompt:\n{prompt}")
         res = await self.agent.run(prompt)
-        return res['full_result'].output
+        return res['result']#.output
 
 class TaskManager:
     """Manages task generation and evaluation"""
@@ -60,13 +71,16 @@ class TaskManager:
         
     def get_task(self, difficulty: Optional[float] = None) -> Task:
         """Get a random task, optionally filtered by difficulty"""
+        ## add random seed
+        random.seed(random.randint(0, 1000000))
+
         if difficulty is not None:
             filtered_tasks = [t for t in self.tasks if abs(t.difficulty - difficulty) < 0.2]
             if filtered_tasks:
                 return random.choice(filtered_tasks)
         return random.choice(self.tasks)
     
-    def get_task_by_id(self, task_id: str) -> Optional[Task]:
+    def get_task_by_id(self, task_id: int) -> Optional[Task]:
         """Get a specific task by ID"""
         for task in self.tasks:
             if task.id == task_id:
@@ -77,7 +91,7 @@ class TaskManager:
         """Add a new task to the manager"""
         self.tasks.append(task)
     
-    def remove_task(self, task_id: str):
+    def remove_task(self, task_id: int):
         """Remove a task by ID"""
         self.tasks = [t for t in self.tasks if t.id != task_id]
     
@@ -102,8 +116,8 @@ class TaskManager:
             if min_difficulty <= t.difficulty <= max_difficulty
         ] 
     
-    async def generate_tasks(self, tools, num_tasks=5, context=None) -> List[Task]:
-        tasks = await self.generator.generate_tasks(tools, num_tasks, context)
+    async def generate_tasks(self, tools: List[Callable], num_tasks: int = 5, context: str = None, goal_seek: bool = False) -> List[Task]:
+        tasks = await self.generator.generate_tasks(tools, num_tasks, context, goal_seek)
         self.tasks.extend(tasks)
         return tasks
     
@@ -112,11 +126,11 @@ class TaskManager:
 if __name__ == "__main__":
     async def main():
         task_manager = TaskManager(model="gpt-4o", api_key=os.getenv("OPENAI_API_KEY"), base_url=os.getenv("OPENAI_API_BASE"))
-        tools = [add, subtract, multiply, divide, get_weather]
+        tools = [add, subtract, multiply, divide, get_weather, square_root]
         
         generate_new = False
         if generate_new:
-            tasks = await task_manager.generate_tasks(tools, num_tasks=10)
+            tasks = await task_manager.generate_tasks(tools, num_tasks=10, context="more difficult tasks can mix weather and arithmetic, and inputs should be floats etc. Must generate a few with difficult ground truths and difficulty>0.8.", goal_seek=False)
             task_manager.save_tasks("tasks.json")
             print("Generated new tasks:")
         else:

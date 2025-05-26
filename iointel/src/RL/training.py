@@ -9,7 +9,7 @@ import asyncio
 import os
 from dotenv import load_dotenv
 from iointel.src.RL.example_tools import add, subtract, multiply, divide, get_weather
-
+import random
 load_dotenv(os.path.join(os.path.dirname(__file__), '../../..', 'creds.env'))
 
 
@@ -25,7 +25,7 @@ class RLState(BaseModel):
 
 class RLEnvironment:
     """Agentic RL environment: orchestrates agent, critic, oracle, and task manager."""
-    def __init__(self, name: str, agent_instructions: str, task_manager: TaskManager, critic: CriticAgent, oracle: OracleAgent, tools: List[Callable], max_steps=10, meta_learn_instructions=False, persona=None, agent_class=None, task_file_path="tasks.json", model=None, api_key=None, base_url=None, threshold: float = 0.95):
+    def __init__(self, name: str, agent_instructions: str, task_manager: TaskManager, critic: CriticAgent, oracle: OracleAgent, tools: List[Callable], max_steps=10, meta_learn_instructions=False, persona=None, agent_class=None, task_file_path="tasks.json", model=None, api_key=None, base_url=None, threshold: float = 0.90):
         self.name: str = name
         self.agent_instructions: str = agent_instructions
         self.persona: PersonaConfig = persona
@@ -43,7 +43,7 @@ class RLEnvironment:
         self.base_url: str = base_url
         self.threshold: float = threshold
 
-    def generate_tasks(self, num_tasks: int = 10, verbose: bool = False):
+    def generate_tasks(self, num_tasks: int = 10, verbose: bool = False) -> List[Task]:
         tasks = self.task_manager.generate_tasks(self.tools, num_tasks)
         self.task_manager.save_tasks(self.task_file_path)
         if verbose:
@@ -53,7 +53,7 @@ class RLEnvironment:
                 print('='*60)
         return tasks
     
-    def load_tasks(self, verbose: bool = False):
+    def load_tasks(self, verbose: bool = False) -> List[Task]:
         self.task_manager.load_tasks(self.task_file_path)
         if verbose:
             print(f"Loaded {len(self.task_manager.tasks)} tasks from {self.task_file_path}")
@@ -62,15 +62,20 @@ class RLEnvironment:
                 print('='*60)
         return self.task_manager.tasks
 
-    def reset(self, task: Task = None, difficulty: float = 0.5):
+    def reset(self, task: Task = None, difficulty: Optional[float] = None) -> RLState:
+        random.seed(random.randint(0, 1000000))
         if task is None:
             task = self.task_manager.get_task(difficulty)
-        print(f"Resetting environment with task: {task.description}")
+        print('-'*30)
+        print(f"==== Resetting environment with task: {task.description}")
         self.state = RLState(task=task)
         return self.state
 
-    async def run_episode(self, task: Task = None, difficulty: float = 0.5, verbose=True):
+    async def run_episode(self, task: Task = None, difficulty: Optional[float] = None, verbose=True) -> Optional[RLState]:
         state = self.reset(task=task, difficulty=difficulty)
+        if not state.task:
+            print("==== No task found ====")
+            return None
         task = state.task
         instructions = self.agent_instructions
         best_instructions = None
@@ -94,14 +99,16 @@ class RLEnvironment:
                 query = task.description
             else:
                 query = f"{task.description}\n\n{critic_feedback.better_query if critic_feedback else ''}"
-            result = await agent.run(query, conversation_id=task.id)
+            #########################################################
+            conversation_id = f"{task.id}-{task.description}-training-episode"
+            result = await agent.run(query, conversation_id=conversation_id)
             ##########################The Agent Learns###############################
             state.agent_result = result['full_result']
             state.step_count = step + 1
 
             # 2. Critic feedback
             critic_feedback = await self.critic.evaluate_performance(
-                task=task,
+                task=task.description,
                 agent_actions=result.get("tool_usage_results", []),
                 final_response=result.get("result"),
             )
@@ -129,7 +136,7 @@ class RLEnvironment:
                 instructions = critic_feedback.new_instructions
 
             # 6. Check for success
-            if hasattr(oracle_result, 'score') and oracle_result.score > self.threshold:
+            if hasattr(oracle_result, 'score') and oracle_result.score >= self.threshold:
                 print("Task solved!")
                 state.done = True
                 best_instructions = instructions
@@ -138,14 +145,14 @@ class RLEnvironment:
         # pretty print the state
         print("\n" + "-"*60)
         print('='*60)
-        print("\nFinal Results:")
-        print("\nTask:")
+        print("Final Results:")
+        print("\n * Task:")
         print(f"    {task.description}")
-        print("\nBest Instructions:")
+        print("\n * Best Instructions:")
         print(f"    {best_instructions}")
-        print("\nBest Query:")
+        print("\n * Best Query:")
         print(f"    {query}")
-        print("\nCritic Feedback:")
+        print("\n * Critic Feedback:")
         print(f"    {critic_feedback}")
         print("\nOracle Result:") 
         print(f"    {oracle_result}")
@@ -156,16 +163,39 @@ class RLEnvironment:
         state.oracle_result = oracle_result
         return state
     
-    async def run_all_tasks(self, difficulty: float = 0.5, verbose=True):
+    async def run_all_tasks(self, verbose=True):
         tasks = self.load_tasks(verbose=verbose)
         best_states = []
         for task in tasks:
-            state = await self.run_episode(task=task, difficulty=difficulty, verbose=verbose)
+            state = await self.run_episode(task=task, verbose=verbose)
             best_states.append(state)
         self.best_states = best_states
         return self.best_states
     
 if __name__ == "__main__":
+    PADWAN_INSTRUCTIONS = """
+You are a tool-using assistant.
+
+MANDATORY CONTRACT
+1.  **Never** invent external facts or numbers.  
+    • If a value is unknown, you must call an appropriate tool  
+      or clearly state “UNKNOWN”.
+2.  For every action, emit exactly this pair of lines:
+
+    STEP {n}: <brief reasoning sentence>
+    TOOL {n}: <tool_name>(<json_args>) -> <result OR PENDING>
+
+   Keep numbering consecutive.
+3.  After your final TOOL line, give a one-paragraph answer
+   that references your computed values.
+4.  If a required tool is unavailable or fails, output only:
+
+    CANNOT COMPLETE – REASON: <short explanation>
+
+Begin.
+"""
+
+
     async def main():
         tools = [add, subtract, multiply, divide, get_weather]
         model = "gpt-4o"
@@ -178,7 +208,7 @@ if __name__ == "__main__":
 
         environment = RLEnvironment(
             name="padwan",
-            agent_instructions='',
+            agent_instructions=PADWAN_INSTRUCTIONS,
             task_manager=task_manager,
             critic=critic,
             oracle=oracle,
@@ -194,7 +224,27 @@ if __name__ == "__main__":
             environment.generate_tasks(num_tasks=10, verbose=True)
         else:
             environment.load_tasks(verbose=True)
-        best_state = await environment.run_episode(verbose=True)
-        print("="*80)
-        print(f"\n\nBest state: {best_state}")
+
+        run_all = True
+        if run_all:
+            best_states = await environment.run_all_tasks(verbose=True)
+            print("="*80)
+            for state in best_states:
+                print(f"\n\nBest state:")
+                print(f"Task: {state.task.description}")
+                print(f"Best Instructions: {state.best_instructions}")
+                print(f"Best Query: {state.best_query}")
+                print(f"Critic Feedback: {state.critic_feedback}")
+                print(f"Oracle Result: {state.oracle_result}")
+                print("="*80)
+        else:
+            best_state = await environment.run_episode(verbose=True, difficulty=0.8)
+            print("="*80)
+            print(f"\n\nBest state:")
+            print(f"Task: {best_state.task.description}")
+            print(f"Best Instructions: {best_state.best_instructions}")
+            print(f"Best Query: {best_state.best_query}")
+            print(f"Critic Feedback: {best_state.critic_feedback}")
+            print(f"Oracle Result: {best_state.oracle_result}")
+            print("="*80)
     asyncio.run(main())

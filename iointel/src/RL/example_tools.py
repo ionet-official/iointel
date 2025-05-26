@@ -28,6 +28,12 @@ def divide(a: float, b: float) -> float:
     return a / b
 
 @register_tool
+def square_root(x: float) -> float:
+    """Get the square root of a number."""
+    print(f"square_root: {x}", flush=True)
+    return x ** 0.5
+
+@register_tool
 def get_weather(city: str) -> Dict[str, Any]:
     """Get weather information for a city: available cities are New York, London, Tokyo, or Paris."""
     # Mock weather data
