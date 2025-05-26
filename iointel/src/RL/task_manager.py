@@ -71,9 +71,6 @@ class TaskManager:
         
     def get_task(self, difficulty: Optional[float] = None) -> Task:
         """Get a random task, optionally filtered by difficulty"""
-        ## add random seed
-        random.seed(random.randint(0, 1000000))
-
         if difficulty is not None:
             filtered_tasks = [t for t in self.tasks if abs(t.difficulty - difficulty) < 0.2]
             if filtered_tasks:

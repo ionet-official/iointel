@@ -5,7 +5,7 @@ from iointel.src.agents import ToolUsageResult
 import os
 import asyncio
 from dotenv import load_dotenv
-
+from iointel.src.RL.utils import tool_usage_results_to_string
 
 load_dotenv(os.path.join(os.path.dirname(__file__), '../../..', 'creds.env'))
 
@@ -14,24 +14,28 @@ class CriticFeedback(BaseModel):
     score: float  # 0.0 to 1.0
     better_query: str
     metrics: Dict[str, float]
-    new_instructions: Optional[str] = None  # For meta-learning: a better agent instruction
+    agent_prompt_instructions: Optional[str] = None  # For meta-learning: a better agent instruction
+
+
+CRITIC_INSTRUCTIONS = """
+You are a critic agent. Given a task, agent actions, tool results, the agent's final response, and the ground truth, evaluate the agent's performance.
+Estimate the following as best as possible:
+- score: a float from 0.0 to 1.0 (overall performance)
+- better_query: a better query to solve the task (more specific, more detailed, more accurate, a hint, etc.). If current query is good, just return the same query. This new query SHOULD NOT lose information, but rather add more information.
+    eg: Divide the current temperature in London by the square root of 99, then multiply by 5.5. SHOULD NOT BE "What is the square root of 99?" or "What is the weather in London?", capish?
+- metrics: a dict of named metrics (e.g., tool_usage_efficiency, response_accuracy, action_relevance, response_completeness), each a float from 0.0 to 1.0
+- agent_prompt_instructions: (optional) a better instruction prompt for the agent to solve this task next time. Should be GENERAL instructions you would give to an LLM agent as instructions, not specific to this task.
+
+Output ONLY valid JSON that can be parsed as the CriticFeedback Pydantic model.
+"""
+
 
 class CriticAgent:
     """Agentic LLM-based Critic for evaluating agent performance"""
     def __init__(self, model="gpt-4o", api_key=None, base_url=None, verbose=True):
         self.agent = Agent(
             name="CriticAgent",
-            instructions="""
-            You are a critic agent. Given a task, agent actions, tool results, the agent's final response, and the ground truth, evaluate the agent's performance.
-            Estimate the following as best as possible:
-            - score: a float from 0.0 to 1.0 (overall performance)
-            - better_query: a better query to solve the task (more specific, more detailed, more accurate, a hint, etc.). If current query is good, just return the same query. This new query SHOULD NOT lose information, but rather add more information.
-             eg: Divide the current temperature in London by the square root of 99, then multiply by 5.5. SHOULD NOT BE "What is the square root of 99?" or "What is the weather in London?", capish?
-            - metrics: a dict of named metrics (e.g., tool_usage_efficiency, response_accuracy, action_relevance, response_completeness), each a float from 0.0 to 1.0
-            - new_instructions: (optional) a better instruction prompt for the agent to solve this task next time. Should be GENERAL instructions you would give to an LLM agent as instructions, not specific to this task.
-            
-            Output ONLY valid JSON that can be parsed as the CriticFeedback Pydantic model.
-            """,
+            instructions=CRITIC_INSTRUCTIONS,
             model=model,
             api_key=api_key,
             base_url=base_url,
@@ -39,29 +43,37 @@ class CriticAgent:
         )
         self.verbose = verbose
 
-    async def evaluate_performance(
+    async def generate_critical_feedback(
         self,
         task: str,
         agent_actions: List[ToolUsageResult],
         final_response: str,
+        feedback: Optional[str] = None,
         goal_seek: Optional[str] = None, # if the task has a goal seek outcome, include it here
     ) -> CriticFeedback:
         """Evaluate agent performance on a task using the LLM agent"""
+        agent_actions_string = tool_usage_results_to_string(agent_actions)
         prompt = f"""
-        Task:
-        {task}
+Task:
+{task}
 
-        Agent Actions:
-        {agent_actions}
+Agent Tool Actions (treat tool calls as trustworthy, and do not question them):
+{agent_actions_string}
 
-        Final Response:
-        {final_response}
-        """
+Agent Final Response and Reasoning:
+{final_response}
+
+"""
+        if feedback:
+            prompt += f"""
+Thoughtful Feedback(? be critical if this is good feedback or not given the above -- this might be meant to test your ability to be critical):
+{feedback}
+"""
         if goal_seek:
             prompt += f"""
-            Goal Seek Outcome:
-            {goal_seek}
-            """
+Goal Seek Outcome:
+{goal_seek}
+"""
             
         if self.verbose:
             print(f"Critic prompt: {prompt}")
@@ -82,7 +94,7 @@ if __name__ == "__main__":
             )
         ]
         final_response1 = "The weather in Tokyo is sunny."
-        res1 = await critic.evaluate_performance(task1, agent_actions1, final_response1)
+        res1 = await critic.generate_critical_feedback(task1, agent_actions1, final_response1)
         print("\nPerfect execution:")
         print(res1['result'])
 
@@ -97,7 +109,7 @@ if __name__ == "__main__":
             # Missing multiplication step
         ]
         final_response2 = "The result is 8" # Should be 16
-        res2 = await critic.evaluate_performance(task2, agent_actions2, final_response2)
+        res2 = await critic.generate_critical_feedback(task2, agent_actions2, final_response2)
         print("\nPartially correct execution:")
         print(res2['result'])
 
@@ -111,7 +123,7 @@ if __name__ == "__main__":
             ) # Wrong tool
         ]
         final_response3 = "The result is 50" # Completely wrong response
-        res3 = await critic.evaluate_performance(task3, agent_actions3, final_response3)
+        res3 = await critic.generate_critical_feedback(task3, agent_actions3, final_response3)
         print("\nWrong execution:")
         print(res3['result'])
 

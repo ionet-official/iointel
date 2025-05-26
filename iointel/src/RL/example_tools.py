@@ -1,5 +1,6 @@
 from iointel import register_tool
 from typing import Dict, Any
+import random
 
 @register_tool
 def add(a: float, b: float) -> float:
@@ -38,9 +39,9 @@ def get_weather(city: str) -> Dict[str, Any]:
     """Get weather information for a city: available cities are New York, London, Tokyo, or Paris."""
     # Mock weather data
     weather_data = {
-        "New York": {"temp": 72, "condition": "Sunny"},
-        "London": {"temp": 65, "condition": "Rainy"},
-        "Tokyo": {"temp": 80, "condition": "Cloudy"},
-        "Paris": {"temp": 70, "condition": "Clear"}
+        "New York": {"temp": round(72 + random.random(), 2), "condition": "Sunny"},
+        "London": {"temp": round(65 + random.random(), 2), "condition": "Rainy"},
+        "Tokyo": {"temp": round(55 + random.random(), 2), "condition": "Cloudy"}, 
+        "Paris": {"temp": round(70 + random.random(), 2), "condition": "Clear"} 
     }
-    return weather_data.get(city, {"temp": 0, "condition": "Unknown"}) 
+    return weather_data.get(city, {"temp": 0, "condition": "Unknown"})      

@@ -8,7 +8,7 @@ from iointel.src.agents  import ToolUsageResult
 import asyncio
 import os
 from dotenv import load_dotenv
-from iointel.src.RL.example_tools import add, subtract, multiply, divide, get_weather
+from iointel.src.RL.example_tools import add, subtract, multiply, divide, get_weather, square_root
 import random
 load_dotenv(os.path.join(os.path.dirname(__file__), '../../..', 'creds.env'))
 
@@ -23,9 +23,42 @@ class RLState(BaseModel):
     oracle_result: Optional[EvaluationResult] = None # TODO: add oracle result
     done: bool = False
 
+def pprint_state(task: Task, query: str, critic_feedback: CriticFeedback, oracle_result: EvaluationResult, best_instructions: str, state: RLState) -> None:
+        print("\n" + "-"*60)
+        print('='*60)
+        print("Final Results:")
+        
+        print("\n * Initial Task:")
+        print(f"    {task.description if task else 'No task'}")
+        
+        print("\n * Best Query (after critic and oracle feedback):")
+        print(f"    {query if query else 'No query'}")
+        
+        if critic_feedback:
+            print("\n * Critic Feedback Metrics:")
+            print(f"    {critic_feedback.metrics}")
+        
+        if oracle_result:   
+            print("\n * Oracle Result:")
+
+            print(f"    correct:   {oracle_result.correct}")
+            print(f"    score:     {oracle_result.score}")
+            print(f"    feedback:  {oracle_result.feedback}")
+            print(f"    details:   {oracle_result.details}")
+   
+        if best_instructions:
+            print("\n * Best Instructions:")
+            print(f"    {best_instructions}")
+        
+        print("\n * Done:")
+        print(f"    {state.done if state else False}")
+        
+        print("\n" + '='*60)
+
+
 class RLEnvironment:
     """Agentic RL environment: orchestrates agent, critic, oracle, and task manager."""
-    def __init__(self, name: str, agent_instructions: str, task_manager: TaskManager, critic: CriticAgent, oracle: OracleAgent, tools: List[Callable], max_steps=10, meta_learn_instructions=False, persona=None, agent_class=None, task_file_path="tasks.json", model=None, api_key=None, base_url=None, threshold: float = 0.90):
+    def __init__(self, name: str, agent_instructions: str, task_manager: TaskManager, critic: CriticAgent, oracle: OracleAgent, tools: List[Callable], max_steps=10, meta_learn_instructions=True, persona=None, agent_class=None, task_file_path="tasks.json", model=None, api_key=None, base_url=None, threshold: float = 0.90):
         self.name: str = name
         self.agent_instructions: str = agent_instructions
         self.persona: PersonaConfig = persona
@@ -63,7 +96,6 @@ class RLEnvironment:
         return self.task_manager.tasks
 
     def reset(self, task: Task = None, difficulty: Optional[float] = None) -> RLState:
-        random.seed(random.randint(0, 1000000))
         if task is None:
             task = self.task_manager.get_task(difficulty)
         print('-'*30)
@@ -71,16 +103,17 @@ class RLEnvironment:
         self.state = RLState(task=task)
         return self.state
 
-    async def run_episode(self, task: Task = None, difficulty: Optional[float] = None, verbose=True) -> Optional[RLState]:
+    async def run_episode(self, task: Task = None, difficulty: Optional[float] = None, verbose=True, use_chat_history=False) -> Optional[RLState]:
         state = self.reset(task=task, difficulty=difficulty)
         if not state.task:
             print("==== No task found ====")
             return None
         task = state.task
+        OG_INSTRUCTIONS = self.agent_instructions
         instructions = self.agent_instructions
-        best_instructions = None
         critic_feedback = None
         context = '' # we can also vary this, but for later....
+        query = task.description
         for step in range(self.max_steps):
             ##########################The Agent Learns###############################
             # 1. Instantiate agent (with updated instructions if meta-learning)
@@ -94,78 +127,70 @@ class RLEnvironment:
                 api_key=self.api_key,
                 base_url=self.base_url
             )
-            # Compose input: task.description (+ critic feedback if not meta-learn-instructions)
-            if step == 0 or self.meta_learn_instructions:
-                query = task.description
-            else:
-                query = f"{task.description}\n\n{critic_feedback.better_query if critic_feedback else ''}"
+
             #########################################################
-            conversation_id = f"{task.id}-{task.description}-training-episode"
-            result = await agent.run(query, conversation_id=conversation_id)
+            if use_chat_history:
+                conversation_id = f"{task.id}-{task.description}-training-episode"
+                print(f"=== Using chat history for task {task.id}")
+                result = await agent.run(query, conversation_id=conversation_id)
+            else:
+                print(f"=== Not using chat history for task {task.id}")
+                result = await agent.run(query)
             ##########################The Agent Learns###############################
             state.agent_result = result['full_result']
             state.step_count = step + 1
 
-            # 2. Critic feedback
-            critic_feedback = await self.critic.evaluate_performance(
+            # 2. Oracle evaluation
+            oracle_result: EvaluationResult = await self.oracle.evaluate(
+                agent_response=result.get("result"),
+                ground_truth=task.ground_truth,
+                task_description=task.description,
+                agent_actions=result.get("tool_usage_results", []),
+                required_tools=task.required_tools
+            )
+            if oracle_result.correct: # skip the rest of the steps if the task is solved, no more learning is needed
+                print("********** Task solved! **********")
+                state.done = True
+                break
+            # get feedback from the oracle
+            feedback = oracle_result.feedback + "\n\n" + oracle_result.details.get("additional_insights", "")
+
+            # 3. Critic steering, using the oracle feedback
+            critic_feedback: CriticFeedback = await self.critic.generate_critical_feedback(
                 task=task.description,
                 agent_actions=result.get("tool_usage_results", []),
                 final_response=result.get("result"),
+                feedback=feedback
             )
 
-            # 3. Oracle evaluation
-            oracle_result = await self.oracle.evaluate(
-                agent_response=result.get("result"),
-                ground_truth=task.ground_truth,
-                task_description=task.description
-            )
+            # # 4. Meta-learn: update instructions if critic suggests new ones
+            if self.meta_learn_instructions and (critic_feedback and critic_feedback.agent_prompt_instructions):
+                # Refine the instruction string for the *next* agent instance
+                instructions = f"{OG_INSTRUCTIONS}\n\n{critic_feedback.agent_prompt_instructions}"
+                # Keep the original task text so the agent always sees context
+                query = f"{critic_feedback.better_query}"
+            elif critic_feedback and critic_feedback.better_query:
+                # No meta-instruction learning; just pass the improved query
+                query = f"{critic_feedback.better_query}"
 
-            # 4. Print/log everything
+            # 5. Print/log everything
             if verbose:
                 print("\n" + "-"*60)
-                print(f"\nStep {step+1}:")
-                print(f"\nTask/Query:\n{query}")
-                print("\nAgent output:\n" + str(result.get("result")))
-                print("\nTool usage:\n" + str(result.get("tool_usage_results")))
-                print("\nCritic:\n" + str(getattr(critic_feedback, 'model_dump_json', lambda **_: critic_feedback)()))
-                print("\nOracle:\n" + str(getattr(oracle_result, 'model_dump_json', lambda **_: oracle_result)()))
-                print("\n" + "-"*60 + "\n")
-
-            # 5. Meta-learn: update instructions if critic suggests new ones
-            if self.meta_learn_instructions and getattr(critic_feedback, 'new_instructions', None):
-                instructions = critic_feedback.new_instructions
-
-            # 6. Check for success
-            if hasattr(oracle_result, 'score') and oracle_result.score >= self.threshold:
-                print("Task solved!")
-                state.done = True
-                best_instructions = instructions
-                break
+                print(f"\n ****** Step {step+1}: ******")
+                pprint_state(task, query, critic_feedback, oracle_result, instructions, state)
         
-        # pretty print the state
-        print("\n" + "-"*60)
-        print('='*60)
-        print("Final Results:")
-        print("\n * Task:")
-        print(f"    {task.description}")
-        print("\n * Best Instructions:")
-        print(f"    {best_instructions}")
-        print("\n * Best Query:")
-        print(f"    {query}")
-        print("\n * Critic Feedback:")
-        print(f"    {critic_feedback}")
-        print("\nOracle Result:") 
-        print(f"    {oracle_result}")
-        print("\n" + '='*60)
-        state.best_instructions = best_instructions
+        pprint_state(task, query, critic_feedback, oracle_result, instructions, state)
+        state.best_instructions = instructions
         state.best_query = query
         state.critic_feedback = critic_feedback
         state.oracle_result = oracle_result
         return state
     
-    async def run_all_tasks(self, verbose=True):
+    async def run_all_tasks(self, verbose=True, sample_size: Optional[int]=None):
         tasks = self.load_tasks(verbose=verbose)
         best_states = []
+        if sample_size:
+            tasks = random.sample(tasks, sample_size)
         for task in tasks:
             state = await self.run_episode(task=task, verbose=verbose)
             best_states.append(state)
@@ -174,30 +199,10 @@ class RLEnvironment:
     
 if __name__ == "__main__":
     PADWAN_INSTRUCTIONS = """
-You are a tool-using assistant.
-
-MANDATORY CONTRACT
-1.  **Never** invent external facts or numbers.  
-    • If a value is unknown, you must call an appropriate tool  
-      or clearly state “UNKNOWN”.
-2.  For every action, emit exactly this pair of lines:
-
-    STEP {n}: <brief reasoning sentence>
-    TOOL {n}: <tool_name>(<json_args>) -> <result OR PENDING>
-
-   Keep numbering consecutive.
-3.  After your final TOOL line, give a one-paragraph answer
-   that references your computed values.
-4.  If a required tool is unavailable or fails, output only:
-
-    CANNOT COMPLETE – REASON: <short explanation>
-
-Begin.
-"""
-
+You are a tool-using assistant."""
 
     async def main():
-        tools = [add, subtract, multiply, divide, get_weather]
+        tools = [add, subtract, multiply, divide, get_weather, square_root]
         model = "gpt-4o"
         api_key = os.getenv("OPENAI_API_KEY")
         base_url = os.getenv("OPENAI_API_BASE")
@@ -207,7 +212,7 @@ Begin.
         oracle = OracleAgent(model=model, api_key=api_key, base_url=base_url)
 
         environment = RLEnvironment(
-            name="padwan",
+            name="Padawan learner",
             agent_instructions=PADWAN_INSTRUCTIONS,
             task_manager=task_manager,
             critic=critic,
@@ -227,24 +232,7 @@ Begin.
 
         run_all = True
         if run_all:
-            best_states = await environment.run_all_tasks(verbose=True)
-            print("="*80)
-            for state in best_states:
-                print(f"\n\nBest state:")
-                print(f"Task: {state.task.description}")
-                print(f"Best Instructions: {state.best_instructions}")
-                print(f"Best Query: {state.best_query}")
-                print(f"Critic Feedback: {state.critic_feedback}")
-                print(f"Oracle Result: {state.oracle_result}")
-                print("="*80)
+            await environment.run_all_tasks(verbose=True, sample_size=3)
         else:
-            best_state = await environment.run_episode(verbose=True, difficulty=0.8)
-            print("="*80)
-            print(f"\n\nBest state:")
-            print(f"Task: {best_state.task.description}")
-            print(f"Best Instructions: {best_state.best_instructions}")
-            print(f"Best Query: {best_state.best_query}")
-            print(f"Critic Feedback: {best_state.critic_feedback}")
-            print(f"Oracle Result: {best_state.oracle_result}")
-            print("="*80)
+            await environment.run_episode(verbose=True, difficulty=0.8)
     asyncio.run(main())
