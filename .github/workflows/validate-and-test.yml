@@ -1,0 +1,48 @@
+name: Run Tests and Coverage
+
+on:
+  pull_request:
+    branches: [main, dev]
+    types: [opened, synchronize]
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  run-tests:
+    permissions:
+      pull-requests: write
+    name: Run Tests and Coverage
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - uses: actions/cache@v4
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pytest pytest-cov
+
+    - name: Test with pytest
+      run: |
+        pytest tests/ --capture=no --junitxml=pytest.xml --cov-report=term-missing:skip-covered --cov=agent_council tests/ | tee pytest-coverage.txt
+
+    - name: Pytest coverage comment
+      uses: MishaKav/pytest-coverage-comment@main
+      with:
+        pytest-coverage-path: ./pytest-coverage.txt
+        junitxml-path: ./pytest.xml 
