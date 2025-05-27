@@ -59,6 +59,7 @@ jobs:
           --cov-report=term-missing:skip-covered \
           --cov=agent_council \
           --cov-fail-under=0 | tee pytest-coverage.txt
+      if: ${{ !(github.event.pull_request.head.repo.fork) }}
 
     - name: Pytest coverage comment
       uses: MishaKav/pytest-coverage-comment@main
