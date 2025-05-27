@@ -16,8 +16,15 @@ jobs:
     name: Run Tests and Coverage
     runs-on: ubuntu-latest
     env:
-      # Add mock API keys for testing
-      FIRECRAWL_API_KEY: ${{ secrets.FIRECRAWL_API_KEY }}
+        IO_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        IO_API_BASE_URL: ${{ secrets.OPENAI_API_BASE_URL }}
+        IO_API_MODEL: meta-llama/Llama-3.3-70B-Instruct
+        WOLFRAM_API_KEY: ${{ secrets.WOLFRAM_API_KEY }}
+        SOLSCAN_API_KEY: ${{ secrets.SOLSCAN_API_KEY }}
+        COINMARKETCAP_API_KEY: ${{ secrets.COINMARKETCAP_API_KEY }}
+        FIRECRAWL_API_KEY: ${{ secrets.FIRECRAWL_API_KEY }}
+        SLOW_MODE_SLEEP: 10
+        LOGFIRE_IGNORE_NO_CONFIG: 1
       # Add other environment variables that might be needed
       PYTHONPATH: ${{ github.workspace }}
     steps:
