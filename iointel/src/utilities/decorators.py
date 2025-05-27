@@ -97,7 +97,7 @@ def register_tool(_fn=None, name: Optional[str] = None):
             logger.debug(f"Tool '{tool_name}' is already safely registered.")
             return executor_fn
 
-        TOOLS_REGISTRY[tool_name] = Tool.from_function(executor_fn)
+        TOOLS_REGISTRY[tool_name] = Tool.from_function(executor_fn, name=tool_name)
         logger.debug(f"Registered tool '{tool_name}' safely.")
         return executor_fn
 
