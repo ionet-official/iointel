@@ -446,12 +446,6 @@ class TranslationResult(BaseModel):
 Activation = Annotated[float, Field(ge=0, le=1)]
 
 
-class ModerationException(Exception):
-    """Exception raised when a message is not allowed."""
-
-    ...
-
-
 class ViolationActivation(TypedDict):
     """Violation activation."""
 
@@ -461,6 +455,14 @@ class ViolationActivation(TypedDict):
     harassment: Activation
     self_harm: Activation
     dangerous_content: Activation
+
+
+class ModerationException(Exception):
+    """Exception raised when a message is not allowed."""
+
+    def __init__(self, *args, violations: ViolationActivation):
+        super().__init__(*args)
+        self.violations = violations
 
 
 ##### task and workflow models ########

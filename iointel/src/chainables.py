@@ -225,17 +225,19 @@ async def execute_moderation(
         ).execute()
 
         if result["extreme_profanity"] > threshold:
-            raise ModerationException("Extreme profanity detected")
+            raise ModerationException("Extreme profanity detected", violations=result)
         elif result["sexually_explicit"] > threshold:
-            raise ModerationException("Sexually explicit content detected")
+            raise ModerationException(
+                "Sexually explicit content detected", violations=result
+            )
         elif result["hate_speech"] > threshold:
-            raise ModerationException("Hate speech detected")
+            raise ModerationException("Hate speech detected", violations=result)
         elif result["harassment"] > threshold:
-            raise ModerationException("Harassment detected")
+            raise ModerationException("Harassment detected", violations=result)
         elif result["self_harm"] > threshold:
-            raise ModerationException("Self harm detected")
+            raise ModerationException("Self harm detected", violations=result)
         elif result["dangerous_content"] > threshold:
-            raise ModerationException("Dangeme profanity detected")
+            raise ModerationException("Dangeme profanity detected", violations=result)
 
         return result
 
