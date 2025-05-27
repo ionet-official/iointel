@@ -1,6 +1,7 @@
 from typing import List, Optional, Any
 import uuid
 import inspect
+import warnings
 import yaml
 from pathlib import Path
 from collections import defaultdict
@@ -67,9 +68,17 @@ class Workflow:
     def __init__(
         self,
         objective: str = "",
+        text: str | None = None,
         client_mode: bool = True,
         agents: Optional[List[Any]] = None,
     ):
+        if text is not None:
+            if objective:
+                raise ValueError("Both `text` and `objective` parameters set")
+            objective = text
+            warnings.warn(
+                "`text` parameter is deprecated, please use `objective` instead"
+            )
         self.tasks: List[dict] = []
         self.objective = objective
         self.client_mode = client_mode
