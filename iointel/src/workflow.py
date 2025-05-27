@@ -60,7 +60,7 @@ class Workflow:
     Manages a chain of tasks and runs them sequentially.
 
     Example usage:
-        workflow = Workflow(text="Some input text", client_mode=False, agents=[swarm])
+        workflow = Workflow(objective="Some input text", client_mode=False, agents=[swarm])
         workflow.summarize_text(max_words=50).custom(name="do-fancy-thing", objective="Fancy step", agents=[my_agent])
         results = await workflow.run_tasks()
     """
