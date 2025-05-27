@@ -15,6 +15,11 @@ jobs:
       pull-requests: write
     name: Run Tests and Coverage
     runs-on: ubuntu-latest
+    env:
+      # Add mock API keys for testing
+      FIRECRAWL_API_KEY: ${{ secrets.FIRECRAWL_API_KEY }}
+      # Add other environment variables that might be needed
+      PYTHONPATH: ${{ github.workspace }}
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
@@ -34,11 +39,11 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install -e ".[dev]"       
+        pip install -e ".[dev]"
 
     - name: Test with pytest
       run: |
-        pytest tests/ --capture=no --junitxml=pytest.xml --cov-report=term-missing:skip-covered --cov=agent_council tests/ | tee pytest-coverage.txt
+        pytest | tee pytest-coverage.txt
 
     - name: Pytest coverage comment
       uses: MishaKav/pytest-coverage-comment@main
