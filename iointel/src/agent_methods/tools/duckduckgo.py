@@ -1,5 +1,11 @@
 import asyncio
 from typing import Any, Dict, List, Optional
+import backoff
+
+try:
+    from duckduckgo import DuckDuckGoSearchException
+except ImportError:
+    DuckDuckGoSearchException = Exception
 
 from iointel.src.utilities.decorators import register_tool
 from pydantic import BaseModel, ConfigDict, model_validator
@@ -24,7 +30,7 @@ class DuckDuckGoSearchAPIWrapper(BaseModel):
     Options: d, w, m, y
     """
     max_results: int = 5
-    backend: str = "auto"
+    backend: str = "html"
     """
     Options: auto, html, lite
     """
@@ -46,6 +52,12 @@ class DuckDuckGoSearchAPIWrapper(BaseModel):
             ) from e
         return values
 
+    @backoff.on_exception(
+        backoff.expo,
+        exception=(DuckDuckGoSearchException,),
+        max_tries=5,
+        jitter=backoff.random_jitter,
+    )
     def _ddgs(
         self, query: str, max_results: Optional[int] = None
     ) -> List[Dict[str, str]]:

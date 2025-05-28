@@ -63,7 +63,11 @@ def resolve_tools(params: AgentParams) -> List[Optional[Callable]]:
     """
     resolved_tools = []
     for tool_data in params.tools:
-        if isinstance(tool_data, dict):
+        if isinstance(tool_data, str):
+            logger.debug(f"Looking up the registry for tool `{tool_data}`")
+            if not (tool_obj := TOOLS_REGISTRY.get(tool_data)):
+                raise ValueError(f"Tool {tool_data} is not known")
+        elif isinstance(tool_data, dict):
             logger.debug(f"Rehydrating tool from dict: {tool_data}")
             tool_obj = Tool.model_validate(tool_data)
             if "body" in tool_data:
@@ -82,7 +86,7 @@ def resolve_tools(params: AgentParams) -> List[Optional[Callable]]:
             tool_obj = Tool.from_function(tool_data)
         else:
             raise ValueError(
-                "Unexpected type for tool_data; expected dict, Tool instance, or callable."
+                "Unexpected type for tool_data; expected str, dict, Tool instance, or callable."
             )
 
         registered_tool_name, registered_tool = next(
