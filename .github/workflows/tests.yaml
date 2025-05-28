@@ -64,12 +64,14 @@ jobs:
 #          pip install pipx
 #          pipx run hatch-fancy-pypi-readme | grep -vq 'MISSING ANCHOR'
 
+      - name: Set up Docker Compose
+        uses: ndeloof/install-compose-action@v1
+
       - name: Start services
         run: |
           docker-compose up -d
           # Wait for searxng to be healthy
           timeout 60s bash -c 'until docker-compose ps searxng | grep -q "(healthy)"; do sleep 2; done'
-
 
       - name: Run tests
         run: pytest -vv tests/ --retries 2 --retry-delay 5
