@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+  searxng:
+    image: searxng/searxng
+    container_name: iointel-searxng
+    ports:
+      - "8080:8080"
+    volumes:
+      - searxng_config:/etc/searxng
+    environment:
+      - BASE_URL=http://localhost:8080/
+      - INSTANCE_NAME=my-instance
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+    restart: unless-stopped
+
+  # Service to modify settings.yml
+  setup:
+    image: python:3-slim
+    volumes:
+      - searxng_config:/etc/searxng
+    command: ["bash", "-c", "pip install pyyaml && python3 -c 'import yaml; f=\"/etc/searxng/settings.yml\"; d=yaml.safe_load(open(f)); d.setdefault(\"search\",{}).setdefault(\"formats\",[]).append(\"json\"); open(f,\"w\").write(yaml.safe_dump(d))'"]
+    depends_on:
+      - searxng
+
+volumes:
+  searxng_config:
+    name: iointel-searxng-config
