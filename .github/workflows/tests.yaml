@@ -48,28 +48,33 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.python-version }}
+#      - name: Set up Python ${{ matrix.python-version }}
+#        uses: actions/setup-python@v5
+#        with:
+#          python-version: ${{ matrix.python-version }}
+#
+#      - name: download uv
+#        run: curl -LsSf https://astral.sh/uv/install.sh | sh
+#
+#      - name: Install dependencies
+#        run: uv pip install --system -e ".[dev]"
+#
+#      - name: Check readme anchors
+#        run: |
+#          pip install pipx
+#          pipx run hatch-fancy-pypi-readme | grep -vq 'MISSING ANCHOR'
 
-      - name: download uv
-        run: curl -LsSf https://astral.sh/uv/install.sh | sh
-
-      - name: Install dependencies
-        run: uv pip install --system -e ".[dev]"
-
-      - name: Check readme anchors
+      - name: Start services
         run: |
-          pip install pipx
-          pipx run hatch-fancy-pypi-readme | grep -vq 'MISSING ANCHOR'
+          docker-compose up -d
+          # Wait for searxng to be healthy
+          timeout 60s bash -c 'until docker-compose ps searxng | grep -q "(healthy)"; do sleep 2; done'
 
-      - name: Prepare containers for tests
-        run: docker-compose up -d
 
       - name: Run tests
         run: pytest -vv tests/ --retries 2 --retry-delay 5
         if: ${{ !(github.event.pull_request.head.repo.fork) }}
 
       - name: Remove containers
+        if: always()  # This ensures cleanup happens even if tests fail
         run: docker-compose down -v
