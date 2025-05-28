@@ -1,0 +1,12 @@
+services:
+  # 1) WireMock — JSON stubs in ./wiremock/{mappings,__files}
+  wiremock:
+    image: wiremock/wiremock:3.13.0        # use any v3.x tag
+    container_name: wiremock
+    ports:
+      - "7070:8080"
+    volumes:
+      - ./wiremock/mappings:/home/wiremock/mappings:ro   # stub definitions
+      - ./wiremock/__files:/home/wiremock/__files:ro     # static bodies
+    # optional CLI flags (see wiremock --help)
+    command: --verbose  --enable-browser-proxying
