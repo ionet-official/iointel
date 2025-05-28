@@ -70,8 +70,8 @@ jobs:
       - name: Start services
         run: |
           docker compose up -d
-          # Wait for searxng to be healthy
-          timeout 60s bash -c 'until docker-compose ps searxng | grep -q "(healthy)"; do sleep 2; done'
+          # Wait for searxng to be healthy by checking the health endpoint directly
+          timeout 60s bash -c 'until curl -s -f http://localhost:8080/healthz > /dev/null; do sleep 2; done'
 
       - name: Run tests
         run: pytest -vv tests/ --retries 2 --retry-delay 5
@@ -79,4 +79,4 @@ jobs:
 
       - name: Remove containers
         if: always()  # This ensures cleanup happens even if tests fail
-        run: docker-compose down -v
+        run: docker compose down -v
