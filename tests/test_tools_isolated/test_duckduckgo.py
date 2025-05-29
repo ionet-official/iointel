@@ -4,10 +4,16 @@ from duckduckgo_search.exceptions import DuckDuckGoSearchException
 from iointel.src.agent_methods.tools.duckduckgo import search_the_web
 
 
-def test_duckduckgo_tool():
+def test_duckduckgo_tool(monkeypatch):
+    monkeypatch.setenv("DDGS_HTTP_PROXY", "http://127.0.0.1:7070")
+    monkeypatch.setenv("DDGS_HTTP_V1", True)
+
     try:
-        assert search_the_web("When did people fly to the moon?", max_results=3)
+        r = search_the_web("When did people fly to the moon?", max_results=3)
+        assert r
     except DuckDuckGoSearchException as err:
         if "202 Ratelimit" in str(err):
-            pytest.xfail(reason="DDG rate limited us :(")
+            pytest.xfail(reason="DuckDuckGoSearchException - DDG rate limited us :(")
+        raise
+    except Exception:
         raise
