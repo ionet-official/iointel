@@ -34,7 +34,7 @@ async def test_basic_tools():
         Complete tasks to the best of your ability by using the appropriate tool. Follow all instructions carefully.
         When you need to add numbers, call the tool and use its result.
         """,
-        tools=[add_two_numbers, get_current_datetime],
+        tools=["add_two_numbers", get_current_datetime],
     )
     numbers = [22122837493142, 159864395786239452]
 

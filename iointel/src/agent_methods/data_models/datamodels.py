@@ -400,7 +400,7 @@ class AgentParams(BaseModel):
     base_url: Optional[str] = Field(
         None, description="Base URL for the model, if required."
     )
-    tools: Optional[List[dict | Tool | Callable]] = Field(default_factory=list)
+    tools: Optional[List[str | dict | Tool | Callable]] = Field(default_factory=list)
     context: Optional[Dict[str, Any]] = Field(
         None,
         description="Context to be passed to the agent.",
