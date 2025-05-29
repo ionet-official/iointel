@@ -57,7 +57,7 @@ class CriticAgent:
 Task:
 {task}
 
-Agent Tool Actions (treat tool calls as trustworthy, and do not question them):
+Agent Tool Actions:
 {agent_actions_string}
 
 Agent Final Response and Reasoning:
@@ -96,7 +96,7 @@ if __name__ == "__main__":
         final_response1 = "The weather in Tokyo is sunny."
         res1 = await critic.generate_critical_feedback(task1, agent_actions1, final_response1)
         print("\nPerfect execution:")
-        print(res1['result'])
+        print(res1)
 
         # Partially correct execution
         task2 = "What is 5 + 3 multiplied by 2?"
@@ -111,7 +111,7 @@ if __name__ == "__main__":
         final_response2 = "The result is 8" # Should be 16
         res2 = await critic.generate_critical_feedback(task2, agent_actions2, final_response2)
         print("\nPartially correct execution:")
-        print(res2['result'])
+        print(res2)
 
         # Wrong execution
         task3 = "What is the weather in Paris?"
@@ -125,6 +125,6 @@ if __name__ == "__main__":
         final_response3 = "The result is 50" # Completely wrong response
         res3 = await critic.generate_critical_feedback(task3, agent_actions3, final_response3)
         print("\nWrong execution:")
-        print(res3['result'])
+        print(res3)
 
     asyncio.run(main())
