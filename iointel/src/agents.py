@@ -30,7 +30,7 @@ class PatchedValidatorTool(PydanticTool):
     async def run(self, message: ToolCallPart, *args, **kw):
         if (margs := message.args) and isinstance(margs, str):
             try:
-                self._validator.validate_json(margs)
+                self.function_schema.validator.validate_json(margs)
             except ValidationError as e:
                 try:
                     margs_dict = json.loads(margs)
