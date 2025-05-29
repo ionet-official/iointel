@@ -1,6 +1,22 @@
-version: '3.8'
-
 services:
+  # Service WireMock — JSON stubs in ./wiremock/{mappings,__files}
+  wiremock:
+    image: wiremock/wiremock:3.13.0        # use any v3.x tag
+    container_name: wiremock
+    ports:
+      - "7070:8080"
+    volumes:
+      - ./mock-api/wiremock/mappings:/home/wiremock/mappings:ro   # stub definitions
+      - ./mock-api/wiremock/__files:/home/wiremock/__files:ro     # static bodies
+    # optional CLI flags (see wiremock --help)
+    command: --verbose --enable-browser-proxying --trust-all-proxy-targets
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/__admin/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+
   searxng:
     image: searxng/searxng
     container_name: iointel-searxng
@@ -18,6 +34,9 @@ services:
       retries: 3
       start_period: 5s
     restart: unless-stopped
+    depends_on:
+      wiremock:
+        condition: service_healthy
 
   # Service to modify settings.yml
   setup:
