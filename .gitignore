@@ -1,0 +1,18 @@
+
+agent_council/.DS_Store
+*.env
+.DS_Store
+.venv
+moa/*
+moa
+__pycache__
+*.egg-info
+dist
+.idea
+
+*.ipynb
+*.ipynb_checkpoints
+
+# virtual environments
+venv
+.venv
