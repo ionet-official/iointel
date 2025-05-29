@@ -72,7 +72,7 @@ class DuckDuckGoSearchAPIWrapper(BaseModel):
 
         with DDGS(proxy=DDGS_PROXY) as ddgs:
             if DDGS_HTTP_V1:
-                # By default duckduckgo_search hardcode HTTP2. 
+                # By default duckduckgo_search hardcode HTTP2.
                 # In case need to use HTTP1 must override the client instance
                 # https://github.com/deedy5/duckduckgo_search/blob/main/duckduckgo_search/duckduckgo_search.py#L70
                 ddgs.client = primp.Client(
