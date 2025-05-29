@@ -8,7 +8,7 @@ dependencies = [
     "python-dotenv>=1.0.1",
     "httpx",
     "python-multipart>=0.0.20",
-    "pydantic-ai>=0.1.0",
+    "pydantic-ai>=0.2.0",
     "pyyaml>=6.0.2",
     "duckduckgo-search==8.0.2",
     "pgvector>=0.4.0",
