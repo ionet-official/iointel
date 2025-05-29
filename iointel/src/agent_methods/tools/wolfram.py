@@ -7,10 +7,11 @@ from pydantic import BaseModel
 
 WOLFRAM_API_KEY = os.getenv("WOLFRAM_API_KEY")
 
+
 class Wolfram(BaseModel):
     api_key: str
 
-    def __init__(self, api_key: str|None = None):
+    def __init__(self, api_key: str | None = None):
         if not (api_key := api_key or WOLFRAM_API_KEY):
             raise RuntimeError("Wolfram API key is not set")
         super().__init__(api_key=api_key)
