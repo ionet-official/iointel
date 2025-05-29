@@ -84,8 +84,8 @@ def linearize_agent_result(agent_result):
         return str(agent_result)
 
 async def evaluate_model(model_name, num_tasks=3, timeout=10):
-    api_key="io-v1-c1af24f4f007d634ec37506eb6b86f70129790e0668d045c"
-    base_url="https://api.intelligence-dev.io.solutions/api/v1"
+    api_key = os.getenv("IO_API_KEY")
+    base_url = os.getenv("IO_BASE_URL", "https://api.intelligence-dev.io.solutions/api/v1")
     tools = [add, subtract, multiply, divide, get_weather, square_root]
     critic = CriticAgent(model=model_name, api_key=api_key, base_url=base_url)
     task_manager = TaskManager(model=model_name, api_key=api_key, base_url=base_url)
