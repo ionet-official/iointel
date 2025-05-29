@@ -6,7 +6,8 @@ from iointel.src.agent_methods.tools.duckduckgo import search_the_web
 
 def test_duckduckgo_tool(monkeypatch):
     monkeypatch.setenv("DDGS_HTTP_PROXY", "http://127.0.0.1:7070")
-    monkeypatch.setenv("DDGS_HTTP_V1", True)
+    # wiremock/proxy must use httpv1
+    monkeypatch.setenv("DDGS_HTTP_V1", "true")
 
     try:
         r = search_the_web("When did people fly to the moon?", max_results=3)
