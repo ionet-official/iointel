@@ -1,4 +1,3 @@
-
 agent_council/.DS_Store
 *.env
 .DS_Store
@@ -13,6 +12,13 @@ dist
 *.ipynb
 *.ipynb_checkpoints
 
+# Coverage files
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+
 # virtual environments
 venv
 .venv
+
