@@ -1,7 +1,7 @@
 import pytest
 
 from iointel import Agent
-from iointel.src.agent_methods.tools.wolfram import query_wolfram
+from iointel.src.agent_methods.tools.wolfram import Wolfram
 from iointel.src.utilities.runners import run_agents
 
 
@@ -13,7 +13,7 @@ def wolfram_agent():
             You are wolfram alfa AI agent.
             Use wolfram to do any calculations, and provide answers in correct format.
             """,
-        tools=[query_wolfram],
+        tools=[Wolfram().query],
     )
 
 

@@ -3,7 +3,7 @@ from .agent_methods.data_models.datamodels import PersonaConfig, Tool
 from .utilities.rich import console, pretty_output
 from .utilities.constants import get_api_url, get_base_model, get_api_key
 from .utilities.registries import TOOLS_REGISTRY
-from .utilities.helpers import supports_tool_choice_required
+from .utilities.helpers import supports_tool_choice_required, flatten_union_types
 
 from pydantic_ai.models.openai import OpenAIModel
 from pydantic_ai.providers.openai import OpenAIProvider
@@ -30,7 +30,7 @@ class PatchedValidatorTool(PydanticTool):
     async def run(self, message: ToolCallPart, *args, **kw):
         if (margs := message.args) and isinstance(margs, str):
             try:
-                self._validator.validate_json(margs)
+                self.function_schema.validator.validate_json(margs)
             except ValidationError as e:
                 try:
                     margs_dict = json.loads(margs)
@@ -257,19 +257,10 @@ class Agent(BaseModel):
         if not self.model_settings.get("supports_tool_choice_required"):
             if (output_type := kwargs.get("output_type")) is not None:
                 if output_type is not str:
-                    from pydantic_ai._output import (
-                        get_union_args,
-                        extract_str_from_union,
-                    )
-
-                    if union_args := get_union_args(output_type):
-                        if not extract_str_from_union(output_type):
-                            # if output_type is a Union but with no `str`, insert it there
-                            output_type = Union[tuple(str, *union_args)]
-                    else:
-                        # it's not a Union and doesn't mention `str`, turn it into union with it
-                        output_type = Union[str, output_type]
-                    kwargs["output_type"] = output_type
+                    flat_types = flatten_union_types(output_type)
+                    if str not in flat_types:
+                        flat_types = [str] + flat_types
+                    kwargs["output_type"] = Union[tuple(flat_types)]
         result = await self._runner.run(query, **kwargs)
 
         if self.memory:

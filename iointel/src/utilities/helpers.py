@@ -1,7 +1,8 @@
-from typing import Any, Callable
+from typing import Any, Callable, Sequence
 import inspect
 
 from pydantic import BaseModel, ConfigDict, model_serializer
+from pydantic_ai._output import get_union_args
 
 import logging
 import os
@@ -89,3 +90,19 @@ def supports_tool_choice_required(model_name: str) -> bool:
         or "gpt" in model_name
         or model_name == "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8"
     )
+
+
+def flatten_union_types(output_type) -> list:
+    output_types: Sequence
+    if isinstance(output_type, (str, bytes)) or not isinstance(output_type, Sequence):
+        output_types = (output_type,)
+    else:
+        output_types = output_type
+
+    result = []
+    for output_type in output_types:
+        if union_types := get_union_args(output_type):
+            result.extend(union_types)
+        else:
+            result.append(output_type)
+    return result

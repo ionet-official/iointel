@@ -2,7 +2,6 @@ from .src.agents import Agent
 from .src.memory import AsyncMemory
 from .src.workflow import Workflow
 from .src.utilities.runners import run_agents, run_agents_stream
-from .src.agent_methods.tools.wolfram import query_wolfram
 from .src.agent_methods.data_models.datamodels import PersonaConfig
 from .src.utilities.decorators import register_custom_task, register_tool
 from .src.utilities.rich import pretty_output

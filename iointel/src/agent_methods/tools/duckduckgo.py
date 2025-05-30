@@ -1,6 +1,8 @@
 import asyncio
+import os
 from typing import Any, Dict, List, Optional
 import backoff
+import primp
 
 try:
     from duckduckgo import DuckDuckGoSearchException
@@ -62,9 +64,29 @@ class DuckDuckGoSearchAPIWrapper(BaseModel):
         self, query: str, max_results: Optional[int] = None
     ) -> List[Dict[str, str]]:
         """Run query through DuckDuckGo text search and return results."""
+
         from duckduckgo_search import DDGS
 
-        with DDGS() as ddgs:
+        DDGS_PROXY = os.environ.get("DDGS_HTTP_PROXY")
+        DDGS_HTTP_V1 = os.environ.get("DDGS_HTTP_V1", "").lower() == "true"
+
+        with DDGS(proxy=DDGS_PROXY) as ddgs:
+            if DDGS_HTTP_V1:
+                # By default duckduckgo_search hardcode HTTP2.
+                # In case need to use HTTP1 must override the client instance
+                # https://github.com/deedy5/duckduckgo_search/blob/main/duckduckgo_search/duckduckgo_search.py#L70
+                ddgs.client = primp.Client(
+                    headers=ddgs.client.headers,
+                    proxy=ddgs.proxy,
+                    timeout=ddgs.timeout,
+                    cookie_store=True,
+                    referer=True,
+                    impersonate="random",
+                    impersonate_os="random",
+                    follow_redirects=False,
+                    verify=False,
+                    http2_only=False,
+                )
             ddgs_gen = ddgs.text(
                 query,
                 region=self.region,  # type: ignore[arg-type]
