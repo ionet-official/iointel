@@ -1,3 +1,5 @@
+import inspect
+from pydantic import BaseModel
 from ..data_models.datamodels import AgentParams
 from typing import Callable, List, Optional
 import re
@@ -52,7 +54,18 @@ def rehydrate_tool(tool_def: Tool) -> Callable:
     return fn
 
 
-def resolve_tools(params: AgentParams) -> List[Optional[Callable]]:
+def instantiate_stateful_tool(tool: Tool, state_args: dict) -> BaseModel:
+    if tool.fn.__qualname__.count(".") != 1:
+        raise ValueError(f"Tool {tool.name} is not nested correctly")
+    tool_cls: type[BaseModel] = tool.fn.__globals__[tool.fn.__qualname__.split(".")[0]]
+    tool_obj = tool_cls.model_validate(state_args)
+    return tool_obj
+
+
+def resolve_tools(
+    params: AgentParams,
+    tool_instantiator: Callable[[Tool, dict], BaseModel] = instantiate_stateful_tool,
+) -> List[Optional[Callable]]:
     """
     Resolve the tools in an AgentParams object.
     Each tool in params.tools is expected to be either:
@@ -63,6 +76,18 @@ def resolve_tools(params: AgentParams) -> List[Optional[Callable]]:
     """
     resolved_tools = []
     for tool_data in params.tools:
+        state_args: dict | None = None
+        if isinstance(tool_data, (tuple, list)):
+            logger.debug(f"Looking up registry for stateful tool: {tool_data}")
+            try:
+                name, state_args = tool_data
+                if not isinstance(name, str) or not isinstance(state_args, dict):
+                    raise ValueError("Incorrect types of pair of name and args")
+            except ValueError as err:
+                raise ValueError(
+                    f"Stateful tool data should be a pair of name and args, got {tool_data}"
+                ) from err
+            tool_data = name
         if isinstance(tool_data, str):
             logger.debug(f"Looking up the registry for tool `{tool_data}`")
             if not (tool_obj := TOOLS_REGISTRY.get(tool_data)):
@@ -101,6 +126,26 @@ def resolve_tools(params: AgentParams) -> List[Optional[Callable]]:
             logger.debug(
                 f"Tool '{tool_obj.name}' found in TOOLS_REGISTRY under the custom name '{registered_tool_name}'."
             )
+            if state_args is not None:
+                if not tool_obj.fn_metadata or not tool_obj.fn_metadata.stateful:
+                    raise ValueError(
+                        f"Tool {tool_obj.name} got state args but is not marked as stateful"
+                    )
+                fn_self = tool_instantiator(tool_obj, state_args)
+                fn_method = getattr(fn_self, tool_obj.fn.__name__, None)
+                if not inspect.ismethod(fn_method) or fn_method.__func__ != tool_obj.fn:
+                    raise ValueError(
+                        f"Tool {tool_obj.name} got code replaced when intantiating, spoofing detected"
+                    )
+                tool_obj = tool_obj.instantiate_from_state(fn_self)
+            elif (
+                tool_obj.fn_metadata
+                and tool_obj.fn_metadata.stateful
+                and tool_obj.fn_self is None
+            ):
+                raise ValueError(
+                    f"Tool {tool_obj.name} is stateful but got no args and was not pre-initialized"
+                )
             resolved_tools.append(
                 registered_tool.model_copy(update={"fn_self": tool_obj.fn_self})
             )

@@ -275,10 +275,11 @@ class Tool(BaseModel):
 
     @field_serializer("fn_self")
     def serialize_fn_self(self, _: Any):
+        if self.fn_self is not None:
+            return self.fn_self
         if not inspect.ismethod(self.fn) or not isinstance(self.fn.__self__, BaseModel):
             return None
-        if self.fn_self is None:
-            self._update_fn_self(self.fn.__self__)
+        self._update_fn_self(self.fn.__self__)
         return self.fn_self
 
     def _update_fn_self(self, fn_self: BaseModel):
@@ -294,6 +295,14 @@ class Tool(BaseModel):
         if (instance := TOOL_SELF_INSTANCES.get(tool_id)) is not None:
             return instance
         return TOOL_SELF_REGISTRY[tool_key].model_validate_json(tool_json)
+
+    def instantiate_from_state(self, state: BaseModel) -> "Tool":
+        tool_fn = getattr(state, self.fn.__name__)
+        self.check_supported_fn(tool_fn)
+        tool_key = self._instance_tool_key(state)
+        return self.model_copy(
+            update={"fn_self": (tool_key, state.model_dump_json(), id(state))}
+        )
 
     def __call__(self, *args, **kwargs):
         if self.fn:
@@ -350,7 +359,7 @@ class Tool(BaseModel):
     ) -> "Tool":
         if isinstance(fn, cls):
             return fn
-        func_name = name or fn.__name__
+        func_name = name or fn.__qualname__
         if func_name == "<lambda>":
             raise ValueError("You must provide a name for lambda functions")
         func_doc = description or fn.__doc__ or ""
@@ -391,7 +400,7 @@ class AgentParams(BaseModel):
     instructions: str = Field(..., description="Instructions for the agent")
     persona: Optional[PersonaConfig] = None
     model: Optional[Union[OpenAIModel, str]] = Field(
-        default="meta-llama/Llama-3.3-70B-Instruct",
+        None,
         description="Model or model name for the agent",
     )
     api_key: Optional[Union[str, SecretStr]] = Field(
@@ -400,7 +409,9 @@ class AgentParams(BaseModel):
     base_url: Optional[str] = Field(
         None, description="Base URL for the model, if required."
     )
-    tools: Optional[List[str | dict | Tool | Callable]] = Field(default_factory=list)
+    tools: Optional[List[str | dict | tuple[str, dict] | Tool | Callable]] = Field(
+        default_factory=list
+    )
     context: Optional[Dict[str, Any]] = Field(
         None,
         description="Context to be passed to the agent.",

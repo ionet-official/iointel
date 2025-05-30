@@ -170,7 +170,12 @@ class Agent(BaseModel):
         )
         self._runner = PydanticAgent(
             name=name,
-            tools=[PatchedValidatorTool(fn.get_wrapped_fn()) for fn in resolved_tools],
+            tools=[
+                PatchedValidatorTool(
+                    fn.get_wrapped_fn(), name=fn.name, description=fn.description
+                )
+                for fn in resolved_tools
+            ],
             model=resolved_model,
             model_settings=model_settings,
             output_type=output_type,
