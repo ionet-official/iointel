@@ -87,6 +87,10 @@ def register_tool(_fn=None, name: Optional[str] = None):
 
     def decorator(executor_fn: Callable):
         tool_name = name or executor_fn.__qualname__
+        if executor_fn.__qualname__.count(".") > 1:
+            logger.warning(
+                f"Tool name {tool_name} is too deeply nested: qualified name {executor_fn.__qualname__}"
+            )
 
         if tool_name in TOOLS_REGISTRY:
             existing_tool = TOOLS_REGISTRY[tool_name]
