@@ -73,10 +73,15 @@ def resolve_tools(
     """
     Resolve the tools in an AgentParams object.
     Each tool in params.tools is expected to be either:
+      - a string - tool name,
+      - a pair of (string, dict) - tool name + args to reconstruct tool self,
       - a dict (serialized Tool) with a "body" field,
       - a Tool instance,
       - or a callable.
     In the dict case, we ensure that the "body" is preserved.
+
+    The `tool_instantiator` is called when a tool is "stateful",
+    i.e. it is an instancemethod, and its `self` is not yet initialized.
     """
     resolved_tools = []
     for tool_data in params.tools:
