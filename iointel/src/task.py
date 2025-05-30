@@ -1,8 +1,10 @@
-from typing import List, Dict, Any
+from typing import Callable, List, Dict, Any
+
+from pydantic import BaseModel
 
 from .agents import Agent
 from .utilities.helpers import LazyCaller
-from .agent_methods.data_models.datamodels import TaskDefinition
+from .agent_methods.data_models.datamodels import AgentParams, TaskDefinition, Tool
 from .agent_methods.agents.agents_factory import create_agent
 
 
@@ -57,9 +59,19 @@ class Task:
             )
         )
 
-    async def run(self, definition: TaskDefinition, **kwargs) -> Any:
+    async def run(
+        self,
+        definition: TaskDefinition,
+        output_type=str,
+        instantiate_agent: Callable[[AgentParams], Agent] | None = None,
+        instantiate_tool: Callable[[Tool, dict | None], BaseModel | None] | None = None,
+        **kwargs,
+    ) -> Any:
         if definition.agents:
-            chosen_agents = [create_agent(agent) for agent in definition.agents]
+            chosen_agents = [
+                create_agent(agent, instantiate_agent, instantiate_tool)
+                for agent in definition.agents
+            ]
             if chosen_agents:
                 self.agents = chosen_agents
         else:
@@ -73,7 +85,6 @@ class Task:
         if context:
             active_agent.set_context(context)
 
-        output_type = kwargs.pop("output_type", str)
         return LazyCaller(
             lambda: active_agent.run(
                 query=definition.objective,

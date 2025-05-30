@@ -1,7 +1,8 @@
-from typing import List, Optional, Any
+from typing import Callable, List, Optional, Any
 import uuid
 import inspect
 import warnings
+from pydantic import BaseModel
 import yaml
 from pathlib import Path
 from collections import defaultdict
@@ -12,6 +13,7 @@ from .agent_methods.agents.agents_factory import (
     create_swarm,
 )
 from .agent_methods.data_models.datamodels import (
+    Tool,
     WorkflowDefinition,
     TaskDefinition,
     AgentParams,
@@ -458,7 +460,13 @@ class Workflow:
             Path(file_path).write_text(yaml_str, encoding="utf-8")
         return yaml_str
 
-    def from_yaml(self, yaml_str: str = None, file_path: str = None) -> "Workflow":
+    def from_yaml(
+        self,
+        yaml_str: str = None,
+        file_path: str = None,
+        instantiate_agent: Callable[[AgentParams], Agent] | None = None,
+        instantiate_tool: Callable[[Tool, dict | None], BaseModel | None] | None = None,
+    ) -> "Workflow":
         if not yaml_str and not file_path:
             raise ValueError("Either yaml_str or file_path must be provided.")
         if yaml_str:
@@ -492,14 +500,19 @@ class Workflow:
             logger.debug(
                 f" Group for swarm '{swarm_name}': {len(members_list)} member(s)"
             )
-            members = [create_agent(member) for member in members_list]
+            members = [
+                create_agent(member, instantiate_agent, instantiate_tool)
+                for member in members_list
+            ]
             swarm_obj = create_swarm(members)
             # Explicitly set the swarm's name.
             swarm_obj.name = swarm_name
             real_agents.append(swarm_obj)
         # Rehydrate individual agents.
         for agent_data in individual_agents:
-            real_agents.append(create_agent(agent_data))
+            real_agents.append(
+                create_agent(agent_data, instantiate_agent, instantiate_tool)
+            )
         self.agents = real_agents
 
         top_level_swarm_lookup = {
@@ -551,7 +564,11 @@ class Workflow:
                         step_agents.append(top_level_swarm_lookup[swarm_name])
                     else:
                         members = [
-                            create_agent(AgentParams.model_validate(m))
+                            create_agent(
+                                AgentParams.model_validate(m),
+                                instantiate_agent,
+                                instantiate_tool,
+                            )
                             for m in members_list
                         ]
                         swarm_obj = create_swarm(members)
@@ -562,7 +579,11 @@ class Workflow:
                         step_agents.append(swarm_obj)
 
                 for agent in individual:
-                    rehydrated = create_agent(AgentParams.model_validate(agent))
+                    rehydrated = create_agent(
+                        AgentParams.model_validate(agent),
+                        instantiate_agent,
+                        instantiate_tool,
+                    )
 
                     logger.debug(f"  Rehydrated individual agent: {rehydrated.name}")
                     step_agents.append(rehydrated)

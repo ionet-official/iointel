@@ -1,27 +1,53 @@
+from pydantic import BaseModel
 from ...agents import Agent
 from ..data_models.datamodels import AgentParams, Tool, AgentSwarm
-from typing import Sequence
-from .tool_factory import resolve_tools
+from typing import Callable, Sequence
+from .tool_factory import instantiate_stateful_tool, resolve_tools
 
 
-def create_agent(params: AgentParams) -> Agent:
+def instantiate_agent_default(params: AgentParams) -> Agent:
+    return Agent(**params.model_dump(exclude="tools"), tools=params.tools)
+
+
+def create_agent(
+    params: AgentParams,
+    instantiate_agent: Callable[[AgentParams], Agent] | None = None,
+    instantiate_tool: Callable[[Tool, dict | None], BaseModel | None] | None = None,
+) -> Agent:
     """
     Create an Agent instance from the given AgentParams.
     When rehydrating from YAML, each tool in params.tools is expected to be either:
+      - a string - tool name,
+      - a pair of (string, dict) - tool name + args to reconstruct tool self,
       - a dict (serialized Tool) with a "body" field,
       - a Tool instance,
       - or a callable.
     In the dict case, we ensure that the "body" is preserved.
+
+    The `instantiate_tool` is called when a tool is "stateful",
+    i.e. it is an instancemethod, and its `self` is not yet initialized,
+    and its purpose is to allow to customize the process of Tool instantiation.
+
+    The `instantiate_agent` is called to create `Agent` from `AgentParams`,
+    and its purpose is to allow to customize the process of Agent instantiation.
     """
     # Dump the rest of the agent data (excluding tools) then reinsert our resolved tools.
-    agent_data = params.model_dump(exclude={"tools"})
-    agent_data["tools"] = resolve_tools(params)
-    if output_type := agent_data.get("output_type"):
-        if isinstance(output_type, str):
-            agent_data["output_type"] = globals().get(output_type) or getattr(
-                __builtins__, output_type, output_type
-            )
-    return Agent(**agent_data)
+    tools = resolve_tools(
+        params,
+        tool_instantiator=instantiate_tool
+        if instantiate_tool is not None
+        else instantiate_stateful_tool,
+    )
+    output_type = params.output_type
+    if isinstance(output_type, str):
+        output_type = globals().get(output_type) or getattr(
+            __builtins__, output_type, output_type
+        )
+    return (
+        instantiate_agent
+        if instantiate_agent is not None
+        else instantiate_agent_default
+    )(params.model_copy(update={"tools": tools, "output_type": output_type}))
 
 
 def create_swarm(agents: list[AgentParams] | AgentSwarm):
