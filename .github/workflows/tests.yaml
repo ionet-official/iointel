@@ -57,7 +57,7 @@ jobs:
         run: curl -LsSf https://astral.sh/uv/install.sh | sh
  
       - name: Install dependencies
-        run: uv pip install --system -e ".[dev]"
+        run: uv pip install --system -e ".[dev]" pytest-timeout
  
       - name: Check readme anchors
         run: |
@@ -74,7 +74,7 @@ jobs:
           timeout 60s bash -c 'until curl -s -f http://localhost:8080/healthz > /dev/null; do sleep 2; done'
 
       - name: Run tests
-        run: pytest -vv tests/ --retries 2 --retry-delay 5
+        run: pytest -vv tests/ --retries 2 --retry-delay 5 --timeout=720
         if: ${{ !(github.event.pull_request.head.repo.fork) }}
 
       - name: Remove containers
