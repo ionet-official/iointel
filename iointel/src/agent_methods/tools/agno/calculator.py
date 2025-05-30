@@ -1,5 +1,4 @@
 from functools import wraps
-from typing import Union
 from pydantic import BaseModel
 from agno.tools.calculator import CalculatorTools as AgnoCalculatorTools
 
@@ -13,7 +12,7 @@ class Calculator(BaseModel, DisableAgnoRegistryMixin, AgnoCalculatorTools):
 
     @register_tool(name="calculator_add")
     @wraps(AgnoCalculatorTools.add)
-    def add(self, a:float, b: float) -> str:
+    def add(self, a: float, b: float) -> str:
         """
         Add two numbers.
         """

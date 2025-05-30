@@ -2,65 +2,63 @@ from iointel import Agent
 import pytest
 import os
 from iointel.src.agent_methods.tools.agno.calculator import Calculator
+
 # from agno.tools.calculator import CalculatorTools
-from typing import List, Union
-from pydantic import BaseModel, PrivateAttr
 import json
 from pydantic_ai.models.openai import OpenAIModel
-from pydantic_ai.providers.openai import OpenAIProvider
 # import openai
 
 
 def test_calculator_basic_arithmetic():
     calculator = Calculator()
-       
+
     result = calculator.add(10, 5)
     assert "15" in result
-   
+
     result = calculator.subtract(20, 5)
     assert "15" in result
-    
+
     # Test multiplication
     result = calculator.multiply(10, 5)
     assert "50" in result
-    
+
     result = calculator.multiply(2, 3)
     assert "6" in result
-    
+
     # Test division
     result = calculator.divide(100, 4)
     assert "25" in result
-    
 
 
 def test_calculator_advanced_operations():
     calculator = Calculator()
-    
+
     # Test exponentiation
     result = calculator.exponentiate(2, 3)
     assert "8" in result
-    
+
     # Test square root
     result = calculator.square_root(16)
     assert "4" in result
-    
+
     # Test factorial
     result = calculator.factorial(5)
     assert "120" in result
-    
+
     # Test prime number check
     result = calculator.is_prime(17)
     assert json.loads(result)["result"] is True
-    
+
     result = calculator.is_prime(4)
     assert json.loads(result)["result"] is False
 
 
 @pytest.mark.asyncio
-@pytest.mark.skipif(not os.environ.get("OPENAI_API_KEY"), reason="OPENAI_API_KEY not set")
+@pytest.mark.skipif(
+    not os.environ.get("OPENAI_API_KEY"), reason="OPENAI_API_KEY not set"
+)
 async def test_calculator_with_agent():
     # from iointel import Agent
-    from iointel.src.utilities.runners import run_agents
 
     calculator = Calculator()
     agent = Agent(
@@ -69,21 +67,20 @@ async def test_calculator_with_agent():
         You are a calculator AI agent.
         Perform mathematical operations and provide answers in a clean string format (not json) and not a dictionary.
         """,
-        tools=[
-            calculator.add
-        ],
-        model=OpenAIModel(model_name="gpt-4o-mini")
+        tools=[calculator.add],
+        model=OpenAIModel(model_name="gpt-4o-mini"),
     )
 
     # agent.a_run()
     result = await agent.run("calculate 2 + 3")
-    print('@@@@ type:', type(result), 'value:', str(result["result"]))
+    print("@@@@ type:", type(result), "value:", str(result["result"]))
     assert "5" in result["result"]
 
 
-
 @pytest.mark.asyncio
-@pytest.mark.skipif(not os.environ.get("OPENAI_API_KEY"), reason="OPENAI_API_KEY not set")
+@pytest.mark.skipif(
+    not os.environ.get("OPENAI_API_KEY"), reason="OPENAI_API_KEY not set"
+)
 async def test_calculator_with_agent_complex():
     """
     Test the agent's ability to:
@@ -91,7 +88,7 @@ async def test_calculator_with_agent_complex():
       • Correctly use single-argument and multi-argument tools.
       • Handle prime checks and nested operations.
     """
-    
+
     calculator = Calculator()
     agent = Agent(
         name="MyAgent",
@@ -125,5 +122,6 @@ async def test_calculator_with_agent_complex():
 
     # Test a prime check
     result_prime = await agent.run("Is 17 a prime number?")
-    assert "true" in str(result_prime).lower() or "yes" in str(result_prime).lower(), f"Expected result to confirm 17 is prime, got {result_prime}"
-
+    assert "true" in str(result_prime).lower() or "yes" in str(result_prime).lower(), (
+        f"Expected result to confirm 17 is prime, got {result_prime}"
+    )
