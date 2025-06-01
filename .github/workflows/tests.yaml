@@ -57,7 +57,7 @@ jobs:
         run: curl -LsSf https://astral.sh/uv/install.sh | sh
  
       - name: Install dependencies
-        run: uv pip install --system -e ".[dev]" pytest-timeout
+        run: uv pip install --system -e ".[dev]"
  
       - name: Check readme anchors
         run: |
