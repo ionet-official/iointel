@@ -57,8 +57,6 @@ def test_calculator_advanced_operations():
     not os.environ.get("OPENAI_API_KEY"), reason="OPENAI_API_KEY not set"
 )
 async def test_calculator_with_agent():
-    # from iointel import Agent
-
     calculator = Calculator()
     agent = Agent(
         name="CalculatorAgent",
@@ -70,9 +68,7 @@ async def test_calculator_with_agent():
         model=OpenAIModel(model_name="gpt-4o-mini"),
     )
 
-    # agent.a_run()
     result = await agent.run("calculate 2 + 3")
-    print("@@@@ type:", type(result), "value:", str(result["result"]))
     assert "5" in result["result"]
 
 
