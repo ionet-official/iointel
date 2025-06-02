@@ -1,0 +1,68 @@
+name: Run Tests and Coverage
+
+on:
+  pull_request:
+    branches: [main, dev]
+    types: [opened, synchronize]
+
+env:
+  # enable colored output
+  PY_COLORS: 1
+  # API keys and configuration
+  IO_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+  IO_API_BASE_URL: ${{ secrets.OPENAI_API_BASE_URL }}
+  IO_API_MODEL: meta-llama/Llama-3.3-70B-Instruct
+  WOLFRAM_API_KEY: ${{ secrets.WOLFRAM_API_KEY }}
+  SOLSCAN_API_KEY: ${{ secrets.SOLSCAN_API_KEY }}
+  COINMARKETCAP_API_KEY: ${{ secrets.COINMARKETCAP_API_KEY }}
+  FIRECRAWL_API_KEY: ${{ secrets.FIRECRAWL_API_KEY }}
+  SLOW_MODE_SLEEP: 10
+  LOGFIRE_IGNORE_NO_CONFIG: 1
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  run-tests:
+    permissions:
+      pull-requests: write
+    name: Run Tests and Coverage
+    runs-on: ubuntu-latest
+    environment: ${{ github.ref == 'refs/heads/main' && 'prod' || github.base_ref == 'main' && 'prod' || github.ref == 'refs/heads/staging' && 'staging' || github.base_ref == 'staging' && 'staging' || github.ref == 'refs/heads/dev' && 'dev' || github.base_ref == 'dev' && 'dev' }}
+    if: ${{ !(github.event.pull_request.head.repo.fork) }}
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+
+    - name: download uv
+      run: curl -LsSf https://astral.sh/uv/install.sh | sh
+
+    - name: Install dependencies
+      run: uv pip install --system -e ".[dev]"
+
+    - name: Prepare for tests
+      run: make prepare_for_tests
+
+    - name: Test with pytest
+      run: |
+        pytest -vv tests/ \
+          --retries 2 \
+          --retry-delay 5 \
+          --capture=no \
+          --junitxml=pytest.xml \
+          --cov-report=term-missing:skip-covered \
+          --cov=agent_council \
+          --cov-fail-under=0 | tee pytest-coverage.txt
+      if: ${{ !(github.event.pull_request.head.repo.fork) }}
+
+    - name: Pytest coverage comment
+      uses: MishaKav/pytest-coverage-comment@main
+      with:
+        pytest-coverage-path: ./pytest-coverage.txt
+        junitxml-path: ./pytest.xml 
