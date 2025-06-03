@@ -309,6 +309,9 @@ async def main():
 
 asyncio.run(main())
 ```
+![Screenshot 2025-06-02 at 5 46 15 PM](https://github.com/user-attachments/assets/b563a937-bb06-4856-9ff2-d3f1ddda5a1a)
+
+![Screenshot 2025-06-02 at 5 46 55 PM](https://github.com/user-attachments/assets/c52ca18b-375a-4406-9a5f-02bac598a6cf)
 
 ---
 
@@ -338,6 +341,9 @@ agent.launch_gradio_ui(interface_title="Iointel Gradio Solar")
 # ui = IOGradioUI(agent, interface_title="Iointel GradioSolar")
 # ui.launch(share=True)
 ```
+
+![Screenshot 2025-06-02 at 5 44 49 PM](https://github.com/user-attachments/assets/1b6f834c-1ff3-4475-b581-c1b5233a099e)
+
 
 - **Tool calls** are rendered as beautiful, gold-trimmed panels in the chat.
 - **Dynamic UI**: If your agent/tool returns a UI spec, it will be rendered live.
