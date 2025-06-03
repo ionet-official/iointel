@@ -1,9 +1,10 @@
 from .memory import AsyncMemory
 from .agent_methods.data_models.datamodels import PersonaConfig, Tool
-from .utilities.rich import console, pretty_output
+from .utilities.rich import console
 from .utilities.constants import get_api_url, get_base_model, get_api_key
 from .utilities.registries import TOOLS_REGISTRY
 from .utilities.helpers import supports_tool_choice_required, flatten_union_types
+from .ui.io_gradio_ui import IOGradioUI
 
 from pydantic_ai.models.openai import OpenAIModel
 from pydantic_ai.providers.openai import OpenAIProvider
@@ -25,7 +26,6 @@ from rich.markdown import Markdown
 from rich.live import Live
 from rich.columns import Columns
 
-from .ui.io_gradio_ui import IOGradioUI
 
 class PatchedValidatorTool(PydanticTool):
     _PATCH_ERR_TYPES = ("list_type",)
@@ -399,13 +399,6 @@ class Agent(BaseModel):
                 await self.memory.store_run_history(conversation_id, result)
             except Exception as e:
                 print("Error storing run history:", e)
-
-        if pretty or (pretty is None and pretty_output.is_enabled):
-            task_header = Text(
-                f" Objective: {query} ", style="bold white on dark_green"
-            )
-            agent_info = Text(f"Agent(s): {self.name}", style="cyan bold")
-            result_info = Markdown(str(result.output), style="magenta")
 
         return self._postprocess_agent_result(result, query, conversation_id, pretty=pretty)
 
