@@ -272,3 +272,75 @@ Please refer to (IO.net documentation)[https://docs.io.net/docs/exploring-ai-age
 
 ## License<a id="license"></a>
 See the [LICENSE](https://github.com/ionet-official/iointel?tab=Apache-2.0-1-ov-file#readme) file for license rights and limitations (Apache 2.0).
+
+# IOIntel: Agentic Tools with Beautiful UI
+
+## Features
+- **Agentic tool use**: Agents can call Python tools, return results, and chain reasoning.
+- **Rich tool call visualization**: Tool calls and results are rendered as beautiful, gold-accented "pills" in both CLI (with [rich](https://github.com/Textualize/rich)) and Gradio UI.
+- **Dynamic UI**: Agents can generate forms (textboxes, sliders, etc.) on the fly in the Gradio app.
+- **Live CSS theming**: Agents can change the UI theme at runtime.
+- **Jupyter compatible**: The Gradio UI can be launched in a notebook cell.
+
+---
+
+## Quickstart: CLI Usage
+
+```python
+from iointel import Agent, register_tool
+
+@register_tool
+def add(a: float, b: float) -> float:
+    return a + b
+
+agent = Agent(
+    name="Solar",
+    instructions="You are a helpful assistant.",
+    model="gpt-4o",
+    api_key="sk-...",
+    tools=[add],
+    show_tool_calls=True,  # Pretty rich tool call output!
+)
+
+import asyncio
+async def main():
+    result = await agent.run("What is 2 + 2?", pretty=True)
+    # Tool calls/results are shown in rich formatting!
+
+asyncio.run(main())
+```
+
+---
+
+## Quickstart: Gradio UI
+
+```python
+from iointel import Agent, register_tool
+
+@register_tool
+def get_weather(city: str) -> dict:
+    return {"temp": 72, "condition": "Sunny"}
+
+agent = Agent(
+    name="GradioSolar",
+    instructions="You are a helpful assistant.",
+    model="gpt-4o",
+    api_key="sk-...",
+    tools=[get_weather],
+    show_tool_calls=True,
+)
+
+# Launch the beautiful Gradio Chat UI (works in Jupyter too!)
+agent.launch_gradio_ui(interface_title="Iointel Gradio Solar")
+
+# Or, for more control across different agents:
+# from iointel.src.ui.io_gradio_ui import IOGradioUI
+# ui = IOGradioUI(agent, interface_title="Iointel GradioSolar")
+# ui.launch(share=True)
+```
+
+- **Tool calls** are rendered as beautiful, gold-trimmed panels in the chat.
+- **Dynamic UI**: If your agent/tool returns a UI spec, it will be rendered live.
+- **Works in Jupyter**: Just run the above in a notebook cell!
+
+---
