@@ -217,9 +217,6 @@ def test_yaml_roundtrip(custom_hi_task, poet, store_creds: bool):
         base_noagent = dict(base, agents=None)
         unpacked_noagent = dict(unpacked, agents=None)
         for key, value in base_noagent.items():
-            # FIXME: remove the skip when task type is overridable
-            if key == "type":
-                continue
             assert unpacked_noagent[key] == value, (
                 "Expected roundtrip to retain task info"
             )
