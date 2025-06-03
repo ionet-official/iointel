@@ -8,6 +8,7 @@ from iointel.src.RL.oracle import OracleAgent
 from iointel.src.RL.training import RLEnvironment
 from iointel import Agent
 from iointel.src.RL.example_tools import add, subtract, multiply, divide, get_weather, square_root
+from iointel.src.RL.utils import tool_usage_results_to_string
 
 MODELS = [
     "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8",
@@ -48,9 +49,6 @@ MODELS = [
 
 REPORT_CSV = "rl_model_report.csv"
 
-# Helper to linearize tool usage results
-from iointel.src.RL.utils import tool_usage_results_to_string
-
 def linearize_tool_usage(tool_usage_results):
     if not tool_usage_results:
         return ""
@@ -67,13 +65,10 @@ def linearize_dict(d):
     except Exception:
         return str(d)
 
-def linearize_list(l):
-    if l is None:
+def linearize_list(lst):
+    if lst is None:
         return ""
-    try:
-        return json.dumps(l, ensure_ascii=False)
-    except Exception:
-        return str(l)
+    return ", ".join(str(x) for x in lst)
 
 def linearize_agent_result(agent_result):
     if agent_result is None:

@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional, Callable
+from typing import Dict, List, Optional, Callable
 from pydantic import BaseModel
 from iointel.src.RL.task_manager import Task, TaskManager
 from iointel.src.RL.critic import CriticAgent, CriticFeedback

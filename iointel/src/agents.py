@@ -23,9 +23,7 @@ from rich.panel import Panel
 from rich.text import Text
 from rich.markdown import Markdown
 from rich.live import Live
-from rich.table import Table
 from rich.columns import Columns
-import gradio as gr
 
 from .ui.io_gradio_ui import IOGradioUI
 

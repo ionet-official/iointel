@@ -54,7 +54,7 @@ class TaskGeneratorAgent:
         prompt = f"""Tools available:\n{chr(10).join(tool_descriptions)}\n\nContext: {context or 'None'}\n\nPlease generate {num_tasks} diverse Task objects as JSON.
         """
         if goal_seek:
-            prompt += f"""  
+            prompt += """
             Generate a goal seek outcome for each task.
             """
         if self.verbose:
