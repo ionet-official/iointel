@@ -40,8 +40,8 @@ def create_agent(
     )
     output_type = params.output_type
     if isinstance(output_type, str):
-        output_type = globals().get(output_type) or getattr(
-            __builtins__, output_type, output_type
+        output_type = globals().get(output_type) or __builtins__.get(
+            output_type, output_type
         )
     return (
         instantiate_agent_default if instantiate_agent is None else instantiate_agent

@@ -460,8 +460,9 @@ class Workflow:
             Path(file_path).write_text(yaml_str, encoding="utf-8")
         return yaml_str
 
+    @classmethod
     def from_yaml(
-        self,
+        cls,
         yaml_str: str = None,
         file_path: str = None,
         instantiate_agent: Callable[[AgentParams], Agent] | None = None,
@@ -475,7 +476,6 @@ class Workflow:
             data = yaml.safe_load(Path(file_path).read_text(encoding="utf-8"))
 
         wf_def = WorkflowDefinition(**data)
-        self.objective = wf_def.objective or ""
 
         # --- Rehydrate Top-Level Agents ---
         swarm_lookup = {}  # key: swarm_name, value: list of AgentParams objects
@@ -513,7 +513,6 @@ class Workflow:
             real_agents.append(
                 create_agent(agent_data, instantiate_agent, instantiate_tool)
             )
-        self.agents = real_agents
 
         top_level_swarm_lookup = {
             swarm_obj.name: swarm_obj
@@ -522,7 +521,7 @@ class Workflow:
         }
 
         # --- Rehydrate Tasks ---
-        self.tasks.clear()
+        tasks: list[dict] = []
         for task in wf_def.tasks:
             new_task = {
                 "task_id": task.task_id,
@@ -588,7 +587,14 @@ class Workflow:
                     logger.debug(f"  Rehydrated individual agent: {rehydrated.name}")
                     step_agents.append(rehydrated)
                 new_task["agents"] = step_agents
-            self.tasks.append(new_task)
+            tasks.append(new_task)
+
+        self = Workflow(
+            objective=wf_def.objective or "",
+            client_mode=wf_def.client_mode,
+            agents=real_agents,
+        )
+        self.tasks = tasks
         return self
 
 

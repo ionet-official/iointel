@@ -394,7 +394,6 @@ class Tool(BaseModel):
 class AgentParams(BaseModel):
     model_config = ConfigDict(
         arbitrary_types_allowed=True,
-        serializers={SecretStr: lambda s: s.get_secret_value()},
     )
     name: Optional[str] = None
     instructions: str = Field(..., description="Instructions for the agent")
@@ -421,6 +420,17 @@ class AgentParams(BaseModel):
 
     model_settings: Optional[Dict[str, Any]] = Field(default_factory=dict)
     output_type: Optional[Any] = str
+
+    @field_serializer("output_type", when_used="json")
+    def dump_output_type(self, v):
+        if isinstance(v, type):
+            # convert builtin and some global-accessible types to their string names
+            from iointel.src.agent_methods.agents.agents_factory import create_agent
+
+            name = v.__name__
+            if v is create_agent.__globals__.get(name, __builtins__.get(name, None)):
+                return name
+        return v
 
 
 # reasoning agent

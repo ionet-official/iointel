@@ -77,7 +77,7 @@ class Agent(BaseModel):
     model_settings: Optional[Dict[str, Any]] = (
         None  # dict(extra_body=None), #can add json model schema here
     )
-    api_key: Optional[SecretStr | str] = None
+    api_key: SecretStr
     base_url: Optional[str] = None
     output_type: Optional[Any] = str
     _runner: PydanticAgent
