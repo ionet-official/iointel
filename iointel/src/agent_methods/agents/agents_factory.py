@@ -34,9 +34,9 @@ def create_agent(
     # Dump the rest of the agent data (excluding tools) then reinsert our resolved tools.
     tools = resolve_tools(
         params,
-        tool_instantiator=instantiate_tool
-        if instantiate_tool is not None
-        else instantiate_stateful_tool,
+        tool_instantiator=instantiate_stateful_tool
+        if instantiate_tool is None
+        else instantiate_tool,
     )
     output_type = params.output_type
     if isinstance(output_type, str):
@@ -44,9 +44,7 @@ def create_agent(
             __builtins__, output_type, output_type
         )
     return (
-        instantiate_agent
-        if instantiate_agent is not None
-        else instantiate_agent_default
+        instantiate_agent_default if instantiate_agent is None else instantiate_agent
     )(params.model_copy(update={"tools": tools, "output_type": output_type}))
 
 
