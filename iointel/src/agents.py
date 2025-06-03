@@ -77,7 +77,7 @@ class Agent(BaseModel):
     model_settings: Optional[Dict[str, Any]] = (
         None  # dict(extra_body=None), #can add json model schema here
     )
-    api_key: Optional[SecretStr | str] = None
+    api_key: SecretStr
     base_url: Optional[str] = None
     output_type: Optional[Any] = str
     _runner: PydanticAgent
@@ -170,7 +170,12 @@ class Agent(BaseModel):
         )
         self._runner = PydanticAgent(
             name=name,
-            tools=[PatchedValidatorTool(fn.get_wrapped_fn()) for fn in resolved_tools],
+            tools=[
+                PatchedValidatorTool(
+                    fn.get_wrapped_fn(), name=fn.name, description=fn.description
+                )
+                for fn in resolved_tools
+            ],
             model=resolved_model,
             model_settings=model_settings,
             output_type=output_type,

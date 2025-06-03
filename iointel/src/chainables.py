@@ -261,16 +261,16 @@ def execute_custom(
 
             return custom_workflow(
                 name=name,
-                objective=task_metadata["objective"],
+                objective=objective,
                 agents=agents,
-                context={**task_metadata.get("kwargs", {}), "text": objective},
+                context=task_metadata.get("kwargs", {}),
             )
         else:
             response = run_agents(
                 name=name,
-                objective=task_metadata["objective"],
+                objective=objective,
                 agents=agents,
-                context={"text": objective, **task_metadata.get("kwargs", {})},
+                context=task_metadata.get("kwargs", {}),
                 output_type=str,
             )
             return response.execute()
@@ -399,8 +399,8 @@ def custom(
     self.tasks.append(
         {
             "type": "custom",
-            "objective": self.objective,
-            "task_metadata": {"name": name, "objective": objective, "kwargs": kwargs},
+            "objective": objective,
+            "task_metadata": {"name": name, "kwargs": kwargs},
             "agents": self.agents if agents is None else agents,
         }
     )

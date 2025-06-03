@@ -1,7 +1,8 @@
-from typing import List, Optional, Any
+from typing import Callable, List, Optional, Any
 import uuid
 import inspect
 import warnings
+from pydantic import BaseModel
 import yaml
 from pathlib import Path
 from collections import defaultdict
@@ -12,6 +13,7 @@ from .agent_methods.agents.agents_factory import (
     create_swarm,
 )
 from .agent_methods.data_models.datamodels import (
+    Tool,
     WorkflowDefinition,
     TaskDefinition,
     AgentParams,
@@ -128,7 +130,10 @@ class Workflow:
         if default_agents is None:
             default_agents = [Agent.make_default()]
 
-        text_for_task = task.get("objective", default_text)
+        if text_for_task := task.get("objective"):
+            context_for_task = {"main input": default_text}
+        else:
+            text_for_task, context_for_task = default_text, {}
         agents_for_task = task.get("agents") or default_agents
         execution_metadata = task.get("execution_metadata", {})
         # Ensure conversation_id is in metadata
@@ -223,8 +228,10 @@ class Workflow:
             executor = TASK_EXECUTOR_REGISTRY.get(task_type)
             if executor is None:
                 raise ValueError(f"No executor registered for task type: {task_type}")
+            task_metadata = task.get("task_metadata", {})
+            task_metadata["kwargs"] = context_for_task | task_metadata.get("kwargs", {})
             result = executor(
-                task_metadata=task.get("task_metadata", {}),
+                task_metadata=task_metadata,
                 objective=text_for_task,
                 agents=agents_for_task,
                 execution_metadata=execution_metadata,
@@ -423,6 +430,7 @@ class Workflow:
                 task_metadata["client_mode"] = t.get("client_mode", self.client_mode)
             task_model = TaskDefinition(
                 task_id=t.get("task_id", t.get("type", str(uuid.uuid4()))),
+                type=t.get("type", "custom"),
                 name=t.get("name", t.get("type", "Unnamed Task")),
                 objective=t.get("objective"),
                 task_metadata=task_metadata,
@@ -458,7 +466,14 @@ class Workflow:
             Path(file_path).write_text(yaml_str, encoding="utf-8")
         return yaml_str
 
-    def from_yaml(self, yaml_str: str = None, file_path: str = None) -> "Workflow":
+    @classmethod
+    def from_yaml(
+        cls,
+        yaml_str: str = None,
+        file_path: str = None,
+        instantiate_agent: Callable[[AgentParams], Agent] | None = None,
+        instantiate_tool: Callable[[Tool, dict | None], BaseModel | None] | None = None,
+    ) -> "Workflow":
         if not yaml_str and not file_path:
             raise ValueError("Either yaml_str or file_path must be provided.")
         if yaml_str:
@@ -467,7 +482,6 @@ class Workflow:
             data = yaml.safe_load(Path(file_path).read_text(encoding="utf-8"))
 
         wf_def = WorkflowDefinition(**data)
-        self.objective = wf_def.objective or ""
 
         # --- Rehydrate Top-Level Agents ---
         swarm_lookup = {}  # key: swarm_name, value: list of AgentParams objects
@@ -492,15 +506,19 @@ class Workflow:
             logger.debug(
                 f" Group for swarm '{swarm_name}': {len(members_list)} member(s)"
             )
-            members = [create_agent(member) for member in members_list]
+            members = [
+                create_agent(member, instantiate_agent, instantiate_tool)
+                for member in members_list
+            ]
             swarm_obj = create_swarm(members)
             # Explicitly set the swarm's name.
             swarm_obj.name = swarm_name
             real_agents.append(swarm_obj)
         # Rehydrate individual agents.
         for agent_data in individual_agents:
-            real_agents.append(create_agent(agent_data))
-        self.agents = real_agents
+            real_agents.append(
+                create_agent(agent_data, instantiate_agent, instantiate_tool)
+            )
 
         top_level_swarm_lookup = {
             swarm_obj.name: swarm_obj
@@ -509,10 +527,11 @@ class Workflow:
         }
 
         # --- Rehydrate Tasks ---
-        self.tasks.clear()
+        tasks: list[dict] = []
         for task in wf_def.tasks:
             new_task = {
                 "task_id": task.task_id,
+                "type": task.type,
                 "name": task.name,
                 "objective": task.objective,
                 "task_metadata": dict(task.task_metadata or {}, name=task.name),
@@ -551,7 +570,11 @@ class Workflow:
                         step_agents.append(top_level_swarm_lookup[swarm_name])
                     else:
                         members = [
-                            create_agent(AgentParams.model_validate(m))
+                            create_agent(
+                                AgentParams.model_validate(m),
+                                instantiate_agent,
+                                instantiate_tool,
+                            )
                             for m in members_list
                         ]
                         swarm_obj = create_swarm(members)
@@ -562,12 +585,23 @@ class Workflow:
                         step_agents.append(swarm_obj)
 
                 for agent in individual:
-                    rehydrated = create_agent(AgentParams.model_validate(agent))
+                    rehydrated = create_agent(
+                        AgentParams.model_validate(agent),
+                        instantiate_agent,
+                        instantiate_tool,
+                    )
 
                     logger.debug(f"  Rehydrated individual agent: {rehydrated.name}")
                     step_agents.append(rehydrated)
                 new_task["agents"] = step_agents
-            self.tasks.append(new_task)
+            tasks.append(new_task)
+
+        self = Workflow(
+            objective=wf_def.objective or "",
+            client_mode=wf_def.client_mode,
+            agents=real_agents,
+        )
+        self.tasks = tasks
         return self
 
 

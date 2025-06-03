@@ -4,7 +4,10 @@ from iointel.src.utilities.constants import get_api_url, get_base_model, get_api
 from pydantic_ai.models.openai import OpenAIModel
 from pydantic_ai.providers.openai import OpenAIProvider
 from iointel import Agent, Workflow, register_custom_task, run_agents
-from iointel.src.agent_methods.data_models.datamodels import ModerationException
+from iointel.src.agent_methods.data_models.datamodels import (
+    ModerationException,
+    PersonaConfig,
+)
 
 text = """A long time ago, In a galaxy far, far away, 
 It is a period of civil wars in the galaxy. 
@@ -40,6 +43,7 @@ def custom_hi_task():
 @pytest.fixture
 def poet() -> Agent:
     agent = Agent(
+        persona=PersonaConfig(name="garbage guy", bio="arcane janitor"),
         name="ArcanePoetAgent",
         instructions="You are an assistant specialized in arcane knowledge.",
         model=llm,
@@ -169,3 +173,55 @@ async def test_custom_steps_workflow(custom_hi_task, poet):
         phrase in results["hi"].lower()
         for phrase in ["over 9000", "Goku", "9000", "power level", "over 9000!"]
     ), f"Unexpected result: {results['hi']}"
+
+
+def _ensure_agents_equal(
+    left: list[Agent] | None, right: list[Agent] | None, check_api_key: bool
+):
+    assert len(left or ()) == len(right or ()), (
+        "Expected roundtrip to retain agent amount"
+    )
+    for base, unpacked in zip(left or (), right or ()):
+        if not check_api_key:
+            base = base.model_copy(update={"api_key": ""})
+            unpacked = unpacked.model_copy(update={"api_key": ""})
+        for key in base.model_dump():
+            if key == "model":
+                # OpenAIModels cannot be compared by simple `==`, need more complex checks
+                assert isinstance(base.model, OpenAIModel)
+                assert isinstance(unpacked.model, OpenAIModel)
+                assert base.model.model_name == unpacked.model.model_name
+                assert base.model.base_url == unpacked.model.base_url
+            else:
+                assert getattr(unpacked, key) == getattr(base, key), (
+                    "Expected roundtrip to retain agent parameters"
+                )
+
+
+@pytest.mark.parametrize("store_creds", [True, False])
+def test_yaml_roundtrip(custom_hi_task, poet, store_creds: bool):
+    wf_base: Workflow = Workflow(
+        "Goku has a power level of over 9000", client_mode=False
+    ).hi(agents=[poet])
+    yml = wf_base.to_yaml("test_workflow", store_creds=store_creds)
+    wf_unpacked = Workflow.from_yaml(yml)
+    assert "Goku" in yml
+
+    _ensure_agents_equal(wf_base.agents, wf_unpacked.agents, store_creds)
+    assert wf_base.objective == wf_unpacked.objective, (
+        "Expected roundtrip to retain objective"
+    )
+    assert wf_base.client_mode == wf_unpacked.client_mode, (
+        "Expected roundtrip to retain client_mode"
+    )
+    assert len(wf_base.tasks) == len(wf_unpacked.tasks), (
+        "Expected roundtrip to retain task amount"
+    )
+    for base, unpacked in zip(wf_base.tasks, wf_unpacked.tasks):
+        base_noagent = dict(base, agents=None)
+        unpacked_noagent = dict(unpacked, agents=None)
+        for key, value in base_noagent.items():
+            assert unpacked_noagent[key] == value, (
+                "Expected roundtrip to retain task info"
+            )
+        _ensure_agents_equal(base["agents"], unpacked["agents"], store_creds)

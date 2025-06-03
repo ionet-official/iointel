@@ -35,6 +35,7 @@ class ArgModelBase(BaseModel):
 
 class FuncMetadata(BaseModel):
     arg_model: Annotated[type[ArgModelBase], WithJsonSchema(None)]
+    stateful: bool
     # We can add things in the future like
     #  - Maybe some args are excluded from attempting to parse from JSON
     #  - Maybe some args are special (like context) for dependency injection
@@ -165,8 +166,7 @@ def func_metadata(func: Callable) -> FuncMetadata:
         **dynamic_pydantic_model_params,
         __base__=ArgModelBase,
     )
-    resp = FuncMetadata(arg_model=arguments_model)
-    return resp
+    return FuncMetadata(arg_model=arguments_model, stateful="." in func.__qualname__)
 
 
 def _get_typed_annotation(annotation: Any, globalns: dict[str, Any]) -> Any:
