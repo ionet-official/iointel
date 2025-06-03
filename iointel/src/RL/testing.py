@@ -55,9 +55,9 @@ MODELS = [
 ]
 
 MODELS = [
-    #"deepseek-ai/DeepSeek-R1-0528",
-    #"Qwen/Qwen3-235B-A22B-FP8",
-    #"meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8",
+    # "deepseek-ai/DeepSeek-R1-0528",
+    # "Qwen/Qwen3-235B-A22B-FP8",
+    # "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8",
     "meta-llama/Llama-3.3-70B-Instruct"
 ]
 

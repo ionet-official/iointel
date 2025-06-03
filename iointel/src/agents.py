@@ -112,7 +112,9 @@ class Agent(BaseModel):
         tools: Optional[list] = None,
         model: Optional[Union[OpenAIModel, str]] = None,
         memory: Optional[AsyncMemory] = None,
-        model_settings: Optional[ModelSettings | Dict[str, Any]] = None,  # dict(extra_body=None), #can add json model schema here
+        model_settings: Optional[
+            ModelSettings | Dict[str, Any]
+        ] = None,  # dict(extra_body=None), #can add json model schema here
         api_key: Optional[SecretStr | str] = None,
         base_url: Optional[str] = None,
         output_type: Optional[Any] = str,
@@ -163,9 +165,7 @@ class Agent(BaseModel):
                 **kwargs,
             )
 
-        resolved_tools = [
-            self._get_registered_tool(tool) for tool in (tools or ())
-        ]
+        resolved_tools = [self._get_registered_tool(tool) for tool in (tools or ())]
 
         if isinstance(model, str):
             model_supports_tool_choice = supports_tool_choice_required(model)
@@ -329,9 +329,17 @@ class Agent(BaseModel):
 
         return tool_usage_results, tool_usage_pils
 
-    def _postprocess_agent_result(self, result: AgentRunResult, query:str, conversation_id:Union[str, int], pretty:bool=True):
+    def _postprocess_agent_result(
+        self,
+        result: AgentRunResult,
+        query: str,
+        conversation_id: Union[str, int],
+        pretty: bool = True,
+    ):
         # Always build tool usage results and pills
-        messages: list[ModelMessage] = result.all_messages() if hasattr(result, "all_messages") else []
+        messages: list[ModelMessage] = (
+            result.all_messages() if hasattr(result, "all_messages") else []
+        )
         tool_usage_results, tool_usage_pils = self.extract_tool_usage_results(messages)
         # Logging for debug
         self._logger.debug(f"tool_pil_layout at runtime: {self.tool_pil_layout}")
