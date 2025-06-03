@@ -552,6 +552,7 @@ WhileStage.model_rebuild()
 class TaskDefinition(BaseModel):
     task_id: str
     name: str
+    type: str = "custom"
     # description: Optional[str] = None
     objective: Optional[str] = None
     agents: Optional[Union[List[AgentParams], AgentSwarm]] = None

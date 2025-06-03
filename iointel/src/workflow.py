@@ -130,7 +130,10 @@ class Workflow:
         if default_agents is None:
             default_agents = [Agent.make_default()]
 
-        text_for_task = task.get("objective", default_text)
+        if text_for_task := task.get("objective"):
+            context_for_task = {"main input": default_text}
+        else:
+            text_for_task, context_for_task = default_text, {}
         agents_for_task = task.get("agents") or default_agents
         execution_metadata = task.get("execution_metadata", {})
         # Ensure conversation_id is in metadata
@@ -225,8 +228,10 @@ class Workflow:
             executor = TASK_EXECUTOR_REGISTRY.get(task_type)
             if executor is None:
                 raise ValueError(f"No executor registered for task type: {task_type}")
+            task_metadata = task.get("task_metadata", {})
+            task_metadata["kwargs"] = context_for_task | task_metadata.get("kwargs", {})
             result = executor(
-                task_metadata=task.get("task_metadata", {}),
+                task_metadata=task_metadata,
                 objective=text_for_task,
                 agents=agents_for_task,
                 execution_metadata=execution_metadata,
@@ -525,6 +530,7 @@ class Workflow:
         for task in wf_def.tasks:
             new_task = {
                 "task_id": task.task_id,
+                "type": task.type,
                 "name": task.name,
                 "objective": task.objective,
                 "task_metadata": dict(task.task_metadata or {}, name=task.name),
