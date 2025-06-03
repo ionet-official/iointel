@@ -56,9 +56,9 @@ def register_custom_task(task_type: str, chainable: bool = True):
 
 
 # used in tests
-def _unregister_custom_task(task_type: str, chainable: bool = True):
+def _unregister_custom_task(task_type: str):
     del TASK_EXECUTOR_REGISTRY[task_type]
-    if chainable:
+    if task_type in CHAINABLE_METHODS:
         del CHAINABLE_METHODS[task_type]
         delattr(Workflow, task_type)
 
@@ -86,7 +86,11 @@ def register_tool(_fn=None, name: Optional[str] = None):
     """
 
     def decorator(executor_fn: Callable):
-        tool_name = name or executor_fn.__name__
+        tool_name = name or executor_fn.__qualname__
+        if executor_fn.__qualname__.count(".") > 1:
+            logger.warning(
+                f"Tool name {tool_name} is too deeply nested: qualified name {executor_fn.__qualname__}"
+            )
 
         if tool_name in TOOLS_REGISTRY:
             existing_tool = TOOLS_REGISTRY[tool_name]
