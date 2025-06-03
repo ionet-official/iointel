@@ -9,6 +9,9 @@ from .ui.io_gradio_ui import IOGradioUI
 from pydantic_ai.models.openai import OpenAIModel
 from pydantic_ai.providers.openai import OpenAIProvider
 from pydantic_ai import Agent as PydanticAgent, Tool as PydanticTool
+from pydantic_ai.agent import AgentRunResult
+from pydantic_ai.messages import ModelMessage
+from pydantic_ai.settings import ModelSettings
 
 from pydantic import ConfigDict, SecretStr, BaseModel, ValidationError, PrivateAttr
 from pydantic_ai.messages import PartDeltaEvent, TextPartDelta, ToolCallPart
@@ -83,7 +86,7 @@ class Agent(BaseModel):
     tools: Optional[list] = None
     model: Optional[Union[OpenAIModel, str]] = None
     memory: Optional[AsyncMemory] = None
-    model_settings: Optional[Dict[str, Any]] = (
+    model_settings: Optional[ModelSettings | Dict[str, Any]] = (
         None  # dict(extra_body=None), #can add json model schema here
     )
     api_key: Optional[SecretStr | str] = None
@@ -109,9 +112,7 @@ class Agent(BaseModel):
         tools: Optional[list] = None,
         model: Optional[Union[OpenAIModel, str]] = None,
         memory: Optional[AsyncMemory] = None,
-        model_settings: Optional[
-            Dict[str, Any]
-        ] = None,  # dict(extra_body=None), #can add json model schema here
+        model_settings: Optional[ModelSettings | Dict[str, Any]] = None,  # dict(extra_body=None), #can add json model schema here
         api_key: Optional[SecretStr | str] = None,
         base_url: Optional[str] = None,
         output_type: Optional[Any] = str,
@@ -121,7 +122,7 @@ class Agent(BaseModel):
         tool_pil_layout: Literal["vertical", "horizontal"] = "horizontal",
         debug: bool = False,
         **model_kwargs,
-    ):
+    ) -> None:
         """
         :param name: The name of the agent.
         :param instructions: The instruction prompt for the agent.
@@ -162,11 +163,7 @@ class Agent(BaseModel):
                 **kwargs,
             )
 
-        # Always include the _set_css tool for agentic CSS control
-        from iointel import register_tool
-
-        register_tool(self._set_css)
-        resolved_tools = [self._get_registered_tool(self._set_css)] + [
+        resolved_tools = [
             self._get_registered_tool(tool) for tool in (tools or ())
         ]
 
@@ -260,7 +257,7 @@ class Agent(BaseModel):
             so you can understand what is going on: {self.context}"""
         return combined_instructions
 
-    def add_tool(self, tool):
+    def add_tool(self, tool: Union[str, Tool, Callable]) -> None:
         registered_tool = self._get_registered_tool(tool)
         self.tools += [registered_tool]
         self._runner._register_tool(
@@ -268,7 +265,7 @@ class Agent(BaseModel):
         )
 
     def extract_tool_usage_results(
-        self, messages
+        self, messages: list[ModelMessage]
     ) -> tuple[list[ToolUsageResult], list[Panel]]:
         """
         Given a list of messages, extract ToolUsageResult objects and corresponding Rich Panels.
@@ -332,15 +329,15 @@ class Agent(BaseModel):
 
         return tool_usage_results, tool_usage_pils
 
-    def _postprocess_agent_result(self, result, query, conversation_id, pretty=True):
+    def _postprocess_agent_result(self, result: AgentRunResult, query:str, conversation_id:Union[str, int], pretty:bool=True):
         # Always build tool usage results and pills
-        messages = result.all_messages() if hasattr(result, "all_messages") else []
+        messages: list[ModelMessage] = result.all_messages() if hasattr(result, "all_messages") else []
         tool_usage_results, tool_usage_pils = self.extract_tool_usage_results(messages)
         # Logging for debug
         self._logger.debug(f"tool_pil_layout at runtime: {self.tool_pil_layout}")
         self._logger.debug(f"tool_usage_pils length: {len(tool_usage_pils)}")
         # Only show in UI if show_tool_calls is True
-        if pretty and self.show_tool_calls:
+        if pretty or self.show_tool_calls:
             from rich.console import Group
 
             task_header = Text(
@@ -378,7 +375,7 @@ class Agent(BaseModel):
         pretty=None,
         message_history_limit=100,
         **kwargs,
-    ):
+    ) -> dict[str, Any]:
         """
         Run the agent asynchronously.
         :param query: The query to run the agent on.
@@ -406,7 +403,7 @@ class Agent(BaseModel):
                     if str not in flat_types:
                         flat_types = [str] + flat_types
                     kwargs["output_type"] = Union[tuple(flat_types)]
-        result = await self._runner.run(query, **kwargs)
+        result: AgentRunResult = await self._runner.run(query, **kwargs)
 
         if self.memory:
             conversation_id = (
@@ -429,7 +426,7 @@ class Agent(BaseModel):
         return_markdown=False,
         message_history_limit=100,
         **kwargs,
-    ):
+    ) -> dict[str, Any]:
         task_header = Text(f" Objective: {query} ", style="bold white on dark_green")
         agent_info = Text(f"Agent: {self.name}", style="cyan bold")
         markdown_content = ""
@@ -512,7 +509,7 @@ class Agent(BaseModel):
             result_dict["result"] = markdown_content
         return result_dict
 
-    def set_context(self, context: Any):
+    def set_context(self, context: Any) -> None:
         """
         Set the context for the agent.
         :param context: The context to set for the agent.
@@ -520,13 +517,13 @@ class Agent(BaseModel):
         self.context = context
 
     @classmethod
-    def make_default(cls):
+    def make_default(cls) -> "Agent":
         return cls(
             name="default-agent",
             instructions="you are a generalist who is good at everything.",
         )
 
-    def get_conversation_ids(self):
+    def get_conversation_ids(self) -> list[str]:
         if hasattr(self, "memory") and self.memory:
             try:
                 convos = self.memory.list_conversation_ids()
@@ -541,44 +538,7 @@ class Agent(BaseModel):
                 print(f"Error fetching conversation IDs: {e}")
         return []
 
-    # --- AGENTIC CSS TOOL ---
-    @staticmethod
-    def _set_css(css: str) -> dict:
-        """
-        Set the UI CSS for the Gradio chat interface.
-
-        This tool allows the agent to dynamically change the appearance of the Gradio chat UI by providing a CSS string.
-        The CSS will be applied to the entire Gradio Blocks app. You can target selectors such as:
-        - #chatbot (the chat window)
-        - .user-bubble (user message bubbles)
-        - .agent-bubble (agent message bubbles)
-        - .gradio-container (the app background)
-        - .input-row (the input area at the bottom)
-        - Any other Gradio or HTML elements present in the UI
-
-        The CSS should be returned as a string in the 'css' key of the output dict, e.g.:
-            "#chatbot { background: #000; color: #0f0; } .user-bubble { background: #222; }"
-
-        You can create minimal, functional themes or highly creative, visually distinct ones (e.g., cyberpunk, matrix, vaporwave, etc.).
-        Do not break the chat layout (keep the chat scrollable, input at the bottom, etc.).
-
-        Example (minimal dark theme):
-            "#chatbot { background: #18181b; color: #fff; }\n.user-bubble { background: #2563eb; color: #fff; }\n.agent-bubble { background: #23272f; color: #fff; }\n.gradio-container { background: #111 !important; }\n.input-row { background: #18181b; }"
-
-        Example (cyberpunk theme):
-            "#chatbot { background: #0f0026; color: #ff00cc; border: 2px solid #00fff7; }\n.user-bubble { background: #ff00cc; color: #fff; border: 2px solid #00fff7; }\n.agent-bubble { background: #00fff7; color: #0f0026; border: 2px solid #ff00cc; }\n.gradio-container { background: #1a0033 !important; }\n.input-row { background: #0f0026; }"
-
-        for reference the default css is:
-        default_css ='
-        #chatbot {height: 600px !important; overflow-y: auto; background: #18181b; border-radius: 12px;}
-        .user-bubble {background: #2563eb; color: #fff; border-radius: 16px 16px 4px 16px; padding: 12px 18px; margin: 8px 0; max-width: 80%; align-self: flex-end;}
-        .agent-bubble {background: #23272f; color: #fff; border-radius: 16px 16px 16px 4px; padding: 12px 18px; margin: 8px 0; max-width: 80%; align-self: flex-start;}
-        .gradio-container {background: #111 !important;}
-        .input-row {position: sticky; bottom: 0; background: #18181b; z-index: 10; padding-bottom: 12px;}'
-        """
-        return {"css": css}
-
-    def launch_gradio_ui(self, interface_title: str = None, share: bool = False):
+    def launch_chat_ui(self, interface_title: str = None, share: bool = False) -> None:
         """
         Launches a Gradio UI for interacting with the agent as a chat interface.
         """
