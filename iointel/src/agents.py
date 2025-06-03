@@ -25,7 +25,9 @@ from rich.markdown import Markdown
 from rich.live import Live
 from rich.table import Table
 from rich.columns import Columns
+import gradio as gr
 
+from .ui.io_gradio_ui import IOGradioUI
 
 class PatchedValidatorTool(PydanticTool):
     _PATCH_ERR_TYPES = ("list_type",)
@@ -160,7 +162,10 @@ class Agent(BaseModel):
                 **kwargs,
             )
 
-        resolved_tools = [self._get_registered_tool(tool) for tool in (tools or ())]
+        # Always include the _set_css tool for agentic CSS control
+        from iointel import register_tool
+        register_tool(self._set_css)
+        resolved_tools = [self._get_registered_tool(self._set_css)] + [self._get_registered_tool(tool) for tool in (tools or ())]
 
         if isinstance(model, str):
             model_supports_tool_choice = supports_tool_choice_required(model)
@@ -189,7 +194,7 @@ class Agent(BaseModel):
             tool_pil_layout=tool_pil_layout,
             debug=debug,
         )
-        self.tool_pil_layout = tool_pil_layout  # Explicitly set to ensure correct value
+        self.tool_pil_layout = tool_pil_layout
         self._runner = PydanticAgent(
             name=name,
             tools=[PatchedValidatorTool(fn.get_wrapped_fn()) for fn in resolved_tools],
@@ -300,7 +305,7 @@ class Agent(BaseModel):
                 f"[bold cyan]🛠️ Tool: [magenta]{tool_name}[/magenta]\n[yellow]Args: {tool_args}[/yellow]" +
                 (f"\n\n[bold green]✅ Result: [white]{tool_result}[/white]" if tool_result is not None else ""),
                 border_style="cyan",
-                title="Tool Call",
+                title=f"== {tool_name} ==",
                 title_align="left",
                 padding=(1,2),
                 style="on black"
@@ -308,6 +313,40 @@ class Agent(BaseModel):
             tool_usage_pils.append(pil)
 
         return tool_usage_results, tool_usage_pils
+
+    def _postprocess_agent_result(self, result, query, conversation_id, pretty=True):
+        # Always build tool usage results and pills
+        messages = result.all_messages() if hasattr(result, "all_messages") else []
+        tool_usage_results, tool_usage_pils = self.extract_tool_usage_results(messages)
+        # Logging for debug
+        self._logger.debug(f"tool_pil_layout at runtime: {self.tool_pil_layout}")
+        self._logger.debug(f"tool_usage_pils length: {len(tool_usage_pils)}")
+        # Only show in UI if show_tool_calls is True
+        if pretty and self.show_tool_calls:
+            from rich.console import Group
+            task_header = Text(f" Objective: {query} ", style="bold white on dark_green")
+            agent_info = Text(f"Agent(s): {self.name}", style="cyan bold")
+            result_info = Markdown(str(result.output), style="magenta")
+            if tool_usage_pils:
+                if self.tool_pil_layout == "horizontal":
+                    panel_content = Group(result_info, Text("\n"), Columns(tool_usage_pils, expand=True))
+                else:
+                    panel_content = Group(result_info, Text("\n"), *tool_usage_pils)
+            else:
+                panel_content = result_info
+            panel = Panel(
+                panel_content,
+                title=task_header,
+                subtitle=agent_info,
+                border_style="electric_blue",
+            )
+            console.print(panel)
+        return dict(
+            result=result.output,
+            conversation_id=conversation_id or self.conversation_id,
+            full_result=result,
+            tool_usage_results=tool_usage_results,
+        )
 
     async def run(
         self,
@@ -365,44 +404,7 @@ class Agent(BaseModel):
             except Exception as e:
                 print("Error storing run history:", e)
 
-        # Always build tool usage results and pills
-        messages = result.all_messages()
-        tool_usage_results, tool_usage_pils = self.extract_tool_usage_results(messages)
-        # Logging for debug
-        self._logger.debug(f"tool_pil_layout at runtime: {self.tool_pil_layout}")
-        self._logger.debug(f"tool_usage_pils length: {len(tool_usage_pils)}")
-        # Only show in UI if show_tool_calls is True
-        if pretty:
-            from rich.console import Group
-            task_header = Text(
-                f" Objective: {query} ", style="bold white on dark_green"
-            )
-            agent_info = Text(f"Agent(s): {self.name}", style="cyan bold")
-            result_info = Markdown(str(result.output), style="magenta")
-            if self.show_tool_calls and tool_usage_pils:
-                if self.tool_pil_layout == "horizontal":
-                    panel_content = Group(result_info, Text("\n"), Columns(tool_usage_pils, expand=True))
-                else:  # vertical
-                    panel_content = Group(result_info, Text("\n"), *tool_usage_pils)
-            else:
-                panel_content = result_info
-            panel = Panel(
-                panel_content,
-                title=task_header,
-                subtitle=agent_info,
-                border_style="electric_blue",
-            )
-            console.print(panel)
-        # Attach tool usage results to result object if possible
-        if hasattr(result, 'tool_usage_results'):
-            result.tool_usage_results = tool_usage_results
-        # Add to returned dict as well
-        return dict(
-            result=result.output,
-            conversation_id=conversation_id or self.conversation_id,
-            full_result=result,
-            tool_usage_results=tool_usage_results,
-        )
+        return self._postprocess_agent_result(result, query, conversation_id, pretty=pretty)
 
     async def run_stream(
         self,
@@ -486,17 +488,11 @@ class Agent(BaseModel):
             except Exception as e:
                 console.print(f"[red]Error storing run history:[/red] {e}")
 
+        # Postprocess and return
+        result_dict = self._postprocess_agent_result(agent_run.result, query, conversation_id, pretty=True)
         if return_markdown:
-            result = dict(
-                result=markdown_content,
-                conversation_id=conversation_id or self.conversation_id,
-            )
-            return result
-        return dict(
-            result=agent_run.result.output,
-            conversation_id=conversation_id or self.conversation_id,
-            full_result=result,
-        )
+            result_dict["result"] = markdown_content
+        return result_dict
 
     def set_context(self, context: Any):
         """
@@ -511,3 +507,61 @@ class Agent(BaseModel):
             name="default-agent",
             instructions="you are a generalist who is good at everything.",
         )
+
+    def get_conversation_ids(self):
+        if hasattr(self, 'memory') and self.memory:
+            try:
+                convos = self.memory.list_conversation_ids()
+                if asyncio.iscoroutine(convos):
+                    import nest_asyncio
+                    nest_asyncio.apply()
+                    loop = asyncio.get_event_loop()
+                    convos = loop.run_until_complete(convos)
+                return convos or []
+            except Exception as e:
+                print(f"Error fetching conversation IDs: {e}")
+        return []
+
+    # --- AGENTIC CSS TOOL ---
+    @staticmethod
+    def _set_css(css: str) -> dict:
+        """
+        Set the UI CSS for the Gradio chat interface.
+
+        This tool allows the agent to dynamically change the appearance of the Gradio chat UI by providing a CSS string.
+        The CSS will be applied to the entire Gradio Blocks app. You can target selectors such as:
+        - #chatbot (the chat window)
+        - .user-bubble (user message bubbles)
+        - .agent-bubble (agent message bubbles)
+        - .gradio-container (the app background)
+        - .input-row (the input area at the bottom)
+        - Any other Gradio or HTML elements present in the UI
+
+        The CSS should be returned as a string in the 'css' key of the output dict, e.g.:
+            "#chatbot { background: #000; color: #0f0; } .user-bubble { background: #222; }"
+
+        You can create minimal, functional themes or highly creative, visually distinct ones (e.g., cyberpunk, matrix, vaporwave, etc.).
+        Do not break the chat layout (keep the chat scrollable, input at the bottom, etc.).
+
+        Example (minimal dark theme):
+            "#chatbot { background: #18181b; color: #fff; }\n.user-bubble { background: #2563eb; color: #fff; }\n.agent-bubble { background: #23272f; color: #fff; }\n.gradio-container { background: #111 !important; }\n.input-row { background: #18181b; }"
+
+        Example (cyberpunk theme):
+            "#chatbot { background: #0f0026; color: #ff00cc; border: 2px solid #00fff7; }\n.user-bubble { background: #ff00cc; color: #fff; border: 2px solid #00fff7; }\n.agent-bubble { background: #00fff7; color: #0f0026; border: 2px solid #ff00cc; }\n.gradio-container { background: #1a0033 !important; }\n.input-row { background: #0f0026; }"
+        
+        for reference the default css is:
+        default_css ='
+        #chatbot {height: 600px !important; overflow-y: auto; background: #18181b; border-radius: 12px;}
+        .user-bubble {background: #2563eb; color: #fff; border-radius: 16px 16px 4px 16px; padding: 12px 18px; margin: 8px 0; max-width: 80%; align-self: flex-end;}
+        .agent-bubble {background: #23272f; color: #fff; border-radius: 16px 16px 16px 4px; padding: 12px 18px; margin: 8px 0; max-width: 80%; align-self: flex-start;}
+        .gradio-container {background: #111 !important;}
+        .input-row {position: sticky; bottom: 0; background: #18181b; z-index: 10; padding-bottom: 12px;}'
+        """
+        return {"css": css}
+
+    def launch_gradio_ui(self, interface_title: str = None, share: bool = False):
+        """
+        Launches a Gradio UI for interacting with the agent as a chat interface.
+        """
+        ui = IOGradioUI(agent=self, interface_title=interface_title)
+        return ui.launch(share=share)
