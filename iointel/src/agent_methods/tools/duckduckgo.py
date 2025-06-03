@@ -1,5 +1,13 @@
 import asyncio
+import os
 from typing import Any, Dict, List, Optional
+import backoff
+import primp
+
+try:
+    from duckduckgo import DuckDuckGoSearchException
+except ImportError:
+    DuckDuckGoSearchException = Exception
 
 from iointel.src.utilities.decorators import register_tool
 from pydantic import BaseModel, ConfigDict, model_validator
@@ -24,7 +32,7 @@ class DuckDuckGoSearchAPIWrapper(BaseModel):
     Options: d, w, m, y
     """
     max_results: int = 5
-    backend: str = "auto"
+    backend: str = "html"
     """
     Options: auto, html, lite
     """
@@ -46,13 +54,39 @@ class DuckDuckGoSearchAPIWrapper(BaseModel):
             ) from e
         return values
 
+    @backoff.on_exception(
+        backoff.expo,
+        exception=(DuckDuckGoSearchException,),
+        max_tries=5,
+        jitter=backoff.random_jitter,
+    )
     def _ddgs(
         self, query: str, max_results: Optional[int] = None
     ) -> List[Dict[str, str]]:
         """Run query through DuckDuckGo text search and return results."""
+
         from duckduckgo_search import DDGS
 
-        with DDGS() as ddgs:
+        DDGS_PROXY = os.environ.get("DDGS_HTTP_PROXY")
+        DDGS_HTTP_V1 = os.environ.get("DDGS_HTTP_V1", "").lower() == "true"
+
+        with DDGS(proxy=DDGS_PROXY) as ddgs:
+            if DDGS_HTTP_V1:
+                # By default duckduckgo_search hardcode HTTP2.
+                # In case need to use HTTP1 must override the client instance
+                # https://github.com/deedy5/duckduckgo_search/blob/main/duckduckgo_search/duckduckgo_search.py#L70
+                ddgs.client = primp.Client(
+                    headers=ddgs.client.headers,
+                    proxy=ddgs.proxy,
+                    timeout=ddgs.timeout,
+                    cookie_store=True,
+                    referer=True,
+                    impersonate="random",
+                    impersonate_os="random",
+                    follow_redirects=False,
+                    verify=False,
+                    http2_only=False,
+                )
             ddgs_gen = ddgs.text(
                 query,
                 region=self.region,  # type: ignore[arg-type]
@@ -90,6 +124,7 @@ class DuckDuckGoSearchAPIWrapper(BaseModel):
 
         return results
 
+
 @register_tool
 def search_the_web(text: str, max_results: int = 10):
     """
@@ -98,6 +133,7 @@ def search_the_web(text: str, max_results: int = 10):
     :return: The list of snippets in json format
     """
     return DuckDuckGoSearchAPIWrapper().results(text, max_results=max_results)
+
 
 @register_tool
 async def search_the_web_async(text: str, max_results: int = 10):

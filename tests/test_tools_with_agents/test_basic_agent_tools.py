@@ -4,6 +4,8 @@ import asyncio
 from iointel import Agent
 from iointel.src.utilities.decorators import register_tool
 from iointel.src.utilities.runners import run_agents
+from iointel.src.agent_methods.agents.agents_factory import create_agent
+from iointel.src.agent_methods.data_models.datamodels import AgentParams
 from pydantic import BaseModel
 
 _CALLED = []
@@ -34,7 +36,7 @@ async def test_basic_tools():
         Complete tasks to the best of your ability by using the appropriate tool. Follow all instructions carefully.
         When you need to add numbers, call the tool and use its result.
         """,
-        tools=[add_two_numbers, get_current_datetime],
+        tools=["add_two_numbers", get_current_datetime],
     )
     numbers = [22122837493142, 159864395786239452]
 
@@ -50,18 +52,25 @@ class TestTool(BaseModel):
     arg: str
     counter: dict[str, int] = {}
 
-    @register_tool
+    @register_tool("whatever")
     def whatever(self):
         self.counter["whatever"] = self.counter.get("whatever", 0) + 1
         print(f"{self.counter=}")
         return f"foo, where arg={self.arg}"
 
-    @register_tool
+    @register_tool("something")
     async def something(self):
         await asyncio.sleep(0.1)
         self.counter["something"] = self.counter.get("something", 0) + 1
         print(f"{self.counter=}")
         return f"bar, where arg={self.arg}"
+
+    @register_tool
+    async def more_whatever(self):
+        await asyncio.sleep(0.1)
+        self.counter["more_whatever"] = self.counter.get("more_whatever", 0) + 1
+        print(f"{self.counter=}")
+        return f"baz, where arg={self.arg}"
 
 
 async def test_instancemethod_tool():
@@ -72,11 +81,26 @@ async def test_instancemethod_tool():
         tools=[tool.whatever, tool.something],
     )
     result = await run_agents(
-        "Call `whatever` tool and return its result", agents=[agent]
+        "Call `whatever` tool exactly once and return its result", agents=[agent]
     ).execute()
     assert result
     result = await run_agents(
-        "Call `something` tool and return its result", agents=[agent]
+        "Call `something` tool exactly once and return its result", agents=[agent]
     ).execute()
     assert result
     assert len(tool.counter) == 2, "Both tools must have been called"
+
+
+async def test_stateful_tool():
+    agent = create_agent(
+        AgentParams(
+            name="simple",
+            instructions="Complete tasks to the best of your ability by using the appropriate tool. Follow all instructions carefully.",
+            tools=[("TestTool.more_whatever", {"arg": "hey guys"})],
+        )
+    )
+    result = await run_agents(
+        "Call `TestTool.more_whatever` tool exactly once and return its result",
+        agents=[agent],
+    ).execute()
+    assert result

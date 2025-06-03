@@ -1,7 +1,8 @@
-from typing import Any, Callable
+from typing import Any, Callable, Sequence
 import inspect
 
 from pydantic import BaseModel, ConfigDict, model_serializer
+from pydantic_ai._output import get_union_args
 
 import logging
 import os
@@ -16,6 +17,7 @@ def make_logger(name: str, level: str = "INFO"):
 
 
 logger = make_logger(__name__)
+
 
 class LazyCaller(BaseModel):
     func: Callable
@@ -77,13 +79,30 @@ class LazyCaller(BaseModel):
         """Only serialize the name, not the problematic object"""
         return {"name": self.name}
 
+
 def supports_tool_choice_required(model_name: str) -> bool:
     """Temp hack fix to check if the model supports tool choice required."""
     # TODO: Remove this once we have a better way to check if the model supports tool choice required.
     model_name = model_name.lower()
     return (
-        model_name.startswith("gpt-") or
-        model_name.startswith("openai/") or
-        "gpt" in model_name or
-        model_name == "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8"
+        model_name.startswith("gpt-")
+        or model_name.startswith("openai/")
+        or "gpt" in model_name
+        or model_name == "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8"
     )
+
+
+def flatten_union_types(output_type) -> list:
+    output_types: Sequence
+    if isinstance(output_type, (str, bytes)) or not isinstance(output_type, Sequence):
+        output_types = (output_type,)
+    else:
+        output_types = output_type
+
+    result = []
+    for output_type in output_types:
+        if union_types := get_union_args(output_type):
+            result.extend(union_types)
+        else:
+            result.append(output_type)
+    return result

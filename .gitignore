@@ -12,3 +12,7 @@ dist
 
 *.ipynb
 *.ipynb_checkpoints
+
+# virtual environments
+venv
+.venv

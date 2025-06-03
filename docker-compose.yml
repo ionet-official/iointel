@@ -1,0 +1,52 @@
+services:
+  # Service WireMock — JSON stubs in ./wiremock/{mappings,__files}
+  wiremock:
+    image: wiremock/wiremock:3.13.0        # use any v3.x tag
+    container_name: wiremock
+    ports:
+      - "7070:8080"
+    volumes:
+      - ./mock-api/wiremock/mappings:/home/wiremock/mappings:ro   # stub definitions
+      - ./mock-api/wiremock/__files:/home/wiremock/__files:ro     # static bodies
+    # optional CLI flags (see wiremock --help)
+    command: --verbose --enable-browser-proxying --trust-all-proxy-targets
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/__admin/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+
+  searxng:
+    image: searxng/searxng
+    container_name: iointel-searxng
+    ports:
+      - "8080:8080"
+    volumes:
+      - searxng_config:/etc/searxng
+    environment:
+      - BASE_URL=http://localhost:8080/
+      - INSTANCE_NAME=my-instance
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+    restart: unless-stopped
+    depends_on:
+      wiremock:
+        condition: service_healthy
+
+  # Service to modify settings.yml
+  setup:
+    image: python:3-slim
+    volumes:
+      - searxng_config:/etc/searxng
+    command: ["bash", "-c", "pip install pyyaml && python3 -c 'import yaml; f=\"/etc/searxng/settings.yml\"; d=yaml.safe_load(open(f)); d.setdefault(\"search\",{}).setdefault(\"formats\",[]).append(\"json\"); open(f,\"w\").write(yaml.safe_dump(d))'"]
+    depends_on:
+      - searxng
+
+volumes:
+  searxng_config:
+    name: iointel-searxng-config

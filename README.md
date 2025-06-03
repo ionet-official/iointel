@@ -84,7 +84,7 @@ Users can define tasks (like `sentiment`, `translate_text`, etc.) in a **local**
 
 - A **task** is a single step in a workflow, e.g.,  `schedule_reminder`, `sentiment`, `translate_text`, etc.
 - Tasks are managed by the `Workflow` class in `workflow.py`.
-- Tasks can be chained for multi-step logic into a workflow (e.g., `await Workflow(text="...").translate_text().sentiment().run_tasks()`).
+- Tasks can be chained for multi-step logic into a workflow (e.g., `await Workflow(objective="...").translate_text().sentiment().run_tasks()`).
 
 ### Client Mode vs Local Mode<a id="client-mode-vs-local-mode"></a>
 
@@ -166,7 +166,7 @@ In Python code, you can create tasks by instantiating the Tasks class and chaini
 ```python
 from iointel import Workflow
 
-tasks = Workflow(text="This is the text to analyze", client_mode=False)
+tasks = Workflow(objective="This is the text to analyze", client_mode=False)
 (
   tasks
     .sentiment(agents=[my_agent])
@@ -181,14 +181,14 @@ Because client_mode=False, everything runs locally.
 ### Running a Local Workflow<a id="running-a-local-workflow"></a>
 
 ```python
-tasks = Workflow(text="Breaking news: local sports team wins!", client_mode=False)
+tasks = Workflow(objective="Breaking news: local sports team wins!", client_mode=False)
 await tasks.summarize_text(max_words=50).run_tasks()
 ```
 
 ### Running a Remote Workflow (Client Mode)<a id="running-a-remote-workflow-client-mode"></a>
 
 ```python
-tasks = Workflow(text="Breaking news: local sports team wins!", client_mode=True)
+tasks = Workflow(objective="Breaking news: local sports team wins!", client_mode=True)
 await tasks.summarize_text(max_words=50).run_tasks()
 ```
 Now, summarize_text calls the client function (e.g., summarize_task(...)) instead of local logic.
