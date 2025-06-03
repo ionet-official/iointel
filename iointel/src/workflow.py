@@ -430,6 +430,7 @@ class Workflow:
                 task_metadata["client_mode"] = t.get("client_mode", self.client_mode)
             task_model = TaskDefinition(
                 task_id=t.get("task_id", t.get("type", str(uuid.uuid4()))),
+                type=t.get("type", "custom"),
                 name=t.get("name", t.get("type", "Unnamed Task")),
                 objective=t.get("objective"),
                 task_metadata=task_metadata,
