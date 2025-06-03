@@ -54,6 +54,18 @@ MODELS = [
     "mixedbread-ai/mxbai-embed-large-v1",
 ]
 
+MODELS = [
+    #"deepseek-ai/DeepSeek-R1-0528",
+    #"Qwen/Qwen3-235B-A22B-FP8",
+    #"meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8",
+    "meta-llama/Llama-3.3-70B-Instruct"
+]
+
+MODELS_THAT_REQUIRE_MODEL_SETTINGS = [
+    "deepseek-ai/DeepSeek-R1-0528",
+    "meta-llama/Llama-3.3-70B-Instruct",
+]
+
 REPORT_CSV = "rl_model_report.csv"
 
 
@@ -95,7 +107,7 @@ def linearize_agent_result(agent_result):
         return str(agent_result)
 
 
-async def evaluate_model(model_name, num_tasks=3, timeout=10):
+async def evaluate_model(model_name, num_tasks=3, timeout=120):
     api_key = os.getenv("IO_API_KEY")
     base_url = os.getenv(
         "IO_BASE_URL", "https://api.intelligence-dev.io.solutions/api/v1"
@@ -116,6 +128,7 @@ async def evaluate_model(model_name, num_tasks=3, timeout=10):
         model=model_name,
         api_key=api_key,
         base_url=base_url,
+        needs_model_settings=MODELS_THAT_REQUIRE_MODEL_SETTINGS,
     )
     environment.load_tasks(verbose=False)
     tasks = environment.task_manager.get_all_tasks()
@@ -211,6 +224,7 @@ async def evaluate_model(model_name, num_tasks=3, timeout=10):
 async def main():
     all_rows = []
     for model in MODELS:
+        print("================================================")
         print(f"\n=== Evaluating model: {model} ===")
         try:
             rows = await evaluate_model(model)

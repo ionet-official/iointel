@@ -5,6 +5,7 @@ from iointel.src.RL.critic import CriticAgent, CriticFeedback
 from iointel.src.RL.oracle import OracleAgent, EvaluationResult
 from iointel import Agent, PersonaConfig
 from iointel.src.agents import ToolUsageResult
+from pydantic_ai.settings import ModelSettings
 import asyncio
 import os
 from dotenv import load_dotenv
@@ -92,6 +93,7 @@ class RLEnvironment:
         api_key=None,
         base_url=None,
         threshold: float = 0.90,
+        needs_model_settings: list[str] = [],
     ):
         self.name: str = name
         self.agent_instructions: str = agent_instructions
@@ -109,6 +111,7 @@ class RLEnvironment:
         self.api_key: str = api_key
         self.base_url: str = base_url
         self.threshold: float = threshold
+        self.needs_model_settings: list[str] = needs_model_settings
 
     def generate_tasks(self, num_tasks: int = 10, verbose: bool = False) -> List[Task]:
         tasks = self.task_manager.generate_tasks(self.tools, num_tasks)
@@ -159,16 +162,34 @@ class RLEnvironment:
         for step in range(self.max_steps):
             ##########################The Agent Learns###############################
             # 1. Instantiate agent (with updated instructions if meta-learning)
-            agent = self.agent_class(
-                name=self.name,
-                instructions=instructions,
-                tools=self.tools,
-                context=context,
-                persona=self.persona,
-                model=self.model,
-                api_key=self.api_key,
-                base_url=self.base_url,
-            )
+            if self.model in self.needs_model_settings:
+                agent = self.agent_class(
+                    name=self.name,
+                    instructions=instructions,
+                    tools=self.tools,
+                    context=context,
+                    persona=self.persona,
+                    model=self.model,
+                    api_key=self.api_key,
+                    base_url=self.base_url,
+                    model_settings=ModelSettings(
+                        dict(supports_tool_choice_required=True),
+                        extra_body={"tool_choice": "auto"},
+                    ),
+                    show_tool_calls=True,
+                )
+            else:
+                agent = self.agent_class(
+                    name=self.name,
+                    instructions=instructions,
+                    tools=self.tools,
+                    context=context,
+                    persona=self.persona,
+                    model=self.model,
+                    api_key=self.api_key,
+                    base_url=self.base_url,
+                    show_tool_calls=True,
+                )
 
             #########################################################
             if use_chat_history:
