@@ -215,6 +215,8 @@ class RLEnvironment:
                 print("********** Task solved! **********")
                 state.done = True
                 break
+            else:
+                print("********** Task not solved! Whomp Whomp **********")
             # get feedback from the oracle
             feedback = (
                 oracle_result.feedback
