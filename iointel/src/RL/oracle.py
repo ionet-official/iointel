@@ -8,6 +8,7 @@ from iointel.src.RL.utils import tool_usage_results_to_string
 
 class EvaluationResult(BaseModel):
     """Result of oracle evaluation"""
+
     correct: bool
     score: float  # 0.0 to 1.0
     feedback: str
@@ -46,26 +47,28 @@ You must return your evaluation in the following format:
 
 class OracleAgent:
     """An agent that acts as an oracle for evaluating responses"""
-    
+
     def __init__(
         self,
         model: str = "gpt-4o",
         api_key: Optional[str] = None,
         base_url: Optional[str] = None,
         temperature: float = 0.0,
-        verbose: bool = True
+        verbose: bool = True,
     ):
         self.agent = Agent(
             name="Oracle",
             instructions=ORACLE_INSTRUCTIONS,
             model=model,
-            output_type=EvaluationResult, 
+            output_type=EvaluationResult,
             api_key=api_key,
             base_url=base_url,
-            model_settings={"temperature": temperature} if temperature is not None else {}
+            model_settings={"temperature": temperature}
+            if temperature is not None
+            else {},
         )
         self.verbose = verbose
-    
+
     async def evaluate(
         self,
         agent_response: Any,
@@ -73,17 +76,17 @@ class OracleAgent:
         task_description: str,
         agent_actions: List[ToolUsageResult],
         required_tools: List[str],
-        context: Optional[Dict[str, Any]] = None
+        context: Optional[Dict[str, Any]] = None,
     ) -> EvaluationResult:
         """
         Evaluate agent response against ground truth using the oracle agent
-        
+
         Args:
             agent_response: The response from the agent
             ground_truth: The correct answer/expected response
             task_description: Description of the task
             context: Additional context for evaluation
-            
+
         Returns:
             EvaluationResult with correctness, score, and feedback
         """
@@ -105,13 +108,12 @@ These should be called (in any order and cardinality) in the agent's tool action
 {ground_truth}
 
 ## Context:
-{context if context else 'No additional context provided'}
+{context if context else "No additional context provided"}
 
 Please evaluate the agent's response against the ground truth.
 """
         if self.verbose:
             print(f"Oracle prompt: {prompt}")
         # Get evaluation from the oracle agent
-        response = (await self.agent.run(prompt))['result']
+        response = (await self.agent.run(prompt))["result"]
         return response
-        

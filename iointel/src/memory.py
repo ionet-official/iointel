@@ -207,7 +207,9 @@ class AsyncMemory:
         """
         async with self.SessionLocal() as session:
             try:
-                result = await session.execute(select(ConversationHistory.conversation_id))
+                result = await session.execute(
+                    select(ConversationHistory.conversation_id)
+                )
                 ids = result.scalars().all()
                 return ids
             except Exception as e:

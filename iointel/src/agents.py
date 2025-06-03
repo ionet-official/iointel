@@ -92,7 +92,9 @@ class Agent(BaseModel):
     _runner: PydanticAgent
     conversation_id: Optional[str] = None
     show_tool_calls: bool = True
-    tool_pil_layout: Literal["vertical", "horizontal"] = "horizontal"  # 'vertical' or 'horizontal'
+    tool_pil_layout: Literal["vertical", "horizontal"] = (
+        "horizontal"  # 'vertical' or 'horizontal'
+    )
     debug: bool = False
     _logger: logging.Logger = PrivateAttr()
 
@@ -162,8 +164,11 @@ class Agent(BaseModel):
 
         # Always include the _set_css tool for agentic CSS control
         from iointel import register_tool
+
         register_tool(self._set_css)
-        resolved_tools = [self._get_registered_tool(self._set_css)] + [self._get_registered_tool(tool) for tool in (tools or ())]
+        resolved_tools = [self._get_registered_tool(self._set_css)] + [
+            self._get_registered_tool(tool) for tool in (tools or ())
+        ]
 
         if isinstance(model, str):
             model_supports_tool_choice = supports_tool_choice_required(model)
@@ -262,7 +267,9 @@ class Agent(BaseModel):
             PatchedValidatorTool(registered_tool.get_wrapped_fn())
         )
 
-    def extract_tool_usage_results(self, messages) -> tuple[list[ToolUsageResult], list[Panel]]:
+    def extract_tool_usage_results(
+        self, messages
+    ) -> tuple[list[ToolUsageResult], list[Panel]]:
         """
         Given a list of messages, extract ToolUsageResult objects and corresponding Rich Panels.
         Handles multiple tool calls/returns per message.
@@ -301,19 +308,25 @@ class Agent(BaseModel):
             tool_result = None
             if tool_call_id in tool_returns:
                 tool_result = getattr(tool_returns[tool_call_id], "content", None)
-            tool_usage_results.append(ToolUsageResult(
-                tool_name=tool_name,
-                tool_args=tool_args if isinstance(tool_args, dict) else {},
-                tool_result=tool_result
-            ))
+            tool_usage_results.append(
+                ToolUsageResult(
+                    tool_name=tool_name,
+                    tool_args=tool_args if isinstance(tool_args, dict) else {},
+                    tool_result=tool_result,
+                )
+            )
             pil = Panel(
-                f"[bold cyan]🛠️ Tool: [magenta]{tool_name}[/magenta]\n[yellow]Args: {tool_args}[/yellow]" +
-                (f"\n\n[bold green]✅ Result: [white]{tool_result}[/white]" if tool_result is not None else ""),
+                f"[bold cyan]🛠️ Tool: [magenta]{tool_name}[/magenta]\n[yellow]Args: {tool_args}[/yellow]"
+                + (
+                    f"\n\n[bold green]✅ Result: [white]{tool_result}[/white]"
+                    if tool_result is not None
+                    else ""
+                ),
                 border_style="cyan",
                 title=f"== {tool_name} ==",
                 title_align="left",
-                padding=(1,2),
-                style="on black"
+                padding=(1, 2),
+                style="on black",
             )
             tool_usage_pils.append(pil)
 
@@ -329,12 +342,17 @@ class Agent(BaseModel):
         # Only show in UI if show_tool_calls is True
         if pretty and self.show_tool_calls:
             from rich.console import Group
-            task_header = Text(f" Objective: {query} ", style="bold white on dark_green")
+
+            task_header = Text(
+                f" Objective: {query} ", style="bold white on dark_green"
+            )
             agent_info = Text(f"Agent(s): {self.name}", style="cyan bold")
             result_info = Markdown(str(result.output), style="magenta")
             if tool_usage_pils:
                 if self.tool_pil_layout == "horizontal":
-                    panel_content = Group(result_info, Text("\n"), Columns(tool_usage_pils, expand=True))
+                    panel_content = Group(
+                        result_info, Text("\n"), Columns(tool_usage_pils, expand=True)
+                    )
                 else:
                     panel_content = Group(result_info, Text("\n"), *tool_usage_pils)
             else:
@@ -400,7 +418,9 @@ class Agent(BaseModel):
             except Exception as e:
                 print("Error storing run history:", e)
 
-        return self._postprocess_agent_result(result, query, conversation_id, pretty=pretty)
+        return self._postprocess_agent_result(
+            result, query, conversation_id, pretty=pretty
+        )
 
     async def run_stream(
         self,
@@ -485,7 +505,9 @@ class Agent(BaseModel):
                 console.print(f"[red]Error storing run history:[/red] {e}")
 
         # Postprocess and return
-        result_dict = self._postprocess_agent_result(agent_run.result, query, conversation_id, pretty=True)
+        result_dict = self._postprocess_agent_result(
+            agent_run.result, query, conversation_id, pretty=True
+        )
         if return_markdown:
             result_dict["result"] = markdown_content
         return result_dict
@@ -505,11 +527,12 @@ class Agent(BaseModel):
         )
 
     def get_conversation_ids(self):
-        if hasattr(self, 'memory') and self.memory:
+        if hasattr(self, "memory") and self.memory:
             try:
                 convos = self.memory.list_conversation_ids()
                 if asyncio.iscoroutine(convos):
                     import nest_asyncio
+
                     nest_asyncio.apply()
                     loop = asyncio.get_event_loop()
                     convos = loop.run_until_complete(convos)
@@ -544,7 +567,7 @@ class Agent(BaseModel):
 
         Example (cyberpunk theme):
             "#chatbot { background: #0f0026; color: #ff00cc; border: 2px solid #00fff7; }\n.user-bubble { background: #ff00cc; color: #fff; border: 2px solid #00fff7; }\n.agent-bubble { background: #00fff7; color: #0f0026; border: 2px solid #ff00cc; }\n.gradio-container { background: #1a0033 !important; }\n.input-row { background: #0f0026; }"
-        
+
         for reference the default css is:
         default_css ='
         #chatbot {height: 600px !important; overflow-y: auto; background: #18181b; border-radius: 12px;}

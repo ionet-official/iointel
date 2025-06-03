@@ -7,7 +7,14 @@ from iointel.src.RL.critic import CriticAgent
 from iointel.src.RL.oracle import OracleAgent
 from iointel.src.RL.training import RLEnvironment
 from iointel import Agent
-from iointel.src.RL.example_tools import add, subtract, multiply, divide, get_weather, square_root
+from iointel.src.RL.example_tools import (
+    add,
+    subtract,
+    multiply,
+    divide,
+    get_weather,
+    square_root,
+)
 from iointel.src.RL.utils import tool_usage_results_to_string
 
 MODELS = [
@@ -16,7 +23,7 @@ MODELS = [
     "Qwen/Qwen3-235B-A22B-FP8",
     "deepseek-ai/DeepSeek-R1",
     "Qwen/QwQ-32B",
-    "deepseek-ai/DeepSeek-R1-Distill-Qwen-32B", 
+    "deepseek-ai/DeepSeek-R1-Distill-Qwen-32B",
     "meta-llama/Llama-3.3-70B-Instruct",
     "databricks/dbrx-instruct",
     "neuralmagic/Llama-3.1-Nemotron-70B-Instruct-HF-FP8-dynamic",
@@ -44,10 +51,11 @@ MODELS = [
     "meta-llama/Llama-3.2-90B-Vision-Instruct",
     "Qwen/Qwen2-VL-7B-Instruct",
     "BAAI/bge-multilingual-gemma2",
-    "mixedbread-ai/mxbai-embed-large-v1"
+    "mixedbread-ai/mxbai-embed-large-v1",
 ]
 
 REPORT_CSV = "rl_model_report.csv"
+
 
 def linearize_tool_usage(tool_usage_results):
     if not tool_usage_results:
@@ -55,7 +63,13 @@ def linearize_tool_usage(tool_usage_results):
     try:
         return tool_usage_results_to_string(tool_usage_results, prefix="")
     except Exception:
-        return json.dumps([tur.model_dump() if hasattr(tur, 'model_dump') else dict(tur) for tur in tool_usage_results])
+        return json.dumps(
+            [
+                tur.model_dump() if hasattr(tur, "model_dump") else dict(tur)
+                for tur in tool_usage_results
+            ]
+        )
+
 
 def linearize_dict(d):
     if d is None:
@@ -65,10 +79,12 @@ def linearize_dict(d):
     except Exception:
         return str(d)
 
+
 def linearize_list(lst):
     if lst is None:
         return ""
     return ", ".join(str(x) for x in lst)
+
 
 def linearize_agent_result(agent_result):
     if agent_result is None:
@@ -78,9 +94,12 @@ def linearize_agent_result(agent_result):
     except Exception:
         return str(agent_result)
 
+
 async def evaluate_model(model_name, num_tasks=3, timeout=10):
     api_key = os.getenv("IO_API_KEY")
-    base_url = os.getenv("IO_BASE_URL", "https://api.intelligence-dev.io.solutions/api/v1")
+    base_url = os.getenv(
+        "IO_BASE_URL", "https://api.intelligence-dev.io.solutions/api/v1"
+    )
     tools = [add, subtract, multiply, divide, get_weather, square_root]
     critic = CriticAgent(model=model_name, api_key=api_key, base_url=base_url)
     task_manager = TaskManager(model=model_name, api_key=api_key, base_url=base_url)
@@ -96,12 +115,13 @@ async def evaluate_model(model_name, num_tasks=3, timeout=10):
         agent_class=Agent,
         model=model_name,
         api_key=api_key,
-        base_url=base_url
+        base_url=base_url,
     )
     environment.load_tasks(verbose=False)
     tasks = environment.task_manager.get_all_tasks()
     if num_tasks:
         import random
+
         tasks = random.sample(tasks, min(num_tasks, len(tasks)))
     rows = []
     for task in tasks:
@@ -116,9 +136,13 @@ async def evaluate_model(model_name, num_tasks=3, timeout=10):
             "task_goal_seek": task.goal_seek or "",
         }
         try:
-            state = await asyncio.wait_for(environment.run_episode(task=task, verbose=False), timeout=timeout)
+            state = await asyncio.wait_for(
+                environment.run_episode(task=task, verbose=False), timeout=timeout
+            )
             row["step_count"] = getattr(state, "step_count", "")
-            row["agent_result"] = linearize_agent_result(getattr(state, "agent_result", None))
+            row["agent_result"] = linearize_agent_result(
+                getattr(state, "agent_result", None)
+            )
             # Tool usage results (from agent_result if present)
             agent_result = getattr(state, "agent_result", None)
             tool_usage_results = None
@@ -131,11 +155,19 @@ async def evaluate_model(model_name, num_tasks=3, timeout=10):
             critic_feedback = getattr(state, "critic_feedback", None)
             if critic_feedback:
                 row["critic_score"] = getattr(critic_feedback, "score", "")
-                row["critic_better_query"] = getattr(critic_feedback, "better_query", "")
-                row["critic_metrics"] = linearize_dict(getattr(critic_feedback, "metrics", None))
-                row["critic_agent_prompt_instructions"] = getattr(critic_feedback, "agent_prompt_instructions", "")
+                row["critic_better_query"] = getattr(
+                    critic_feedback, "better_query", ""
+                )
+                row["critic_metrics"] = linearize_dict(
+                    getattr(critic_feedback, "metrics", None)
+                )
+                row["critic_agent_prompt_instructions"] = getattr(
+                    critic_feedback, "agent_prompt_instructions", ""
+                )
             else:
-                row["critic_score"] = row["critic_better_query"] = row["critic_metrics"] = row["critic_agent_prompt_instructions"] = ""
+                row["critic_score"] = row["critic_better_query"] = row[
+                    "critic_metrics"
+                ] = row["critic_agent_prompt_instructions"] = ""
             # Oracle result
             oracle_result = getattr(state, "oracle_result", None)
             if oracle_result:
@@ -144,15 +176,29 @@ async def evaluate_model(model_name, num_tasks=3, timeout=10):
                 row["oracle_feedback"] = getattr(oracle_result, "feedback", "")
                 details = getattr(oracle_result, "details", None)
                 if details:
-                    row["oracle_matching_fields"] = linearize_list(details.get("matching_fields"))
-                    row["oracle_missing_fields"] = linearize_list(details.get("missing_fields"))
-                    row["oracle_incorrect_values"] = linearize_dict(details.get("incorrect_values"))
-                    row["oracle_additional_insights"] = details.get("additional_insights", "")
+                    row["oracle_matching_fields"] = linearize_list(
+                        details.get("matching_fields")
+                    )
+                    row["oracle_missing_fields"] = linearize_list(
+                        details.get("missing_fields")
+                    )
+                    row["oracle_incorrect_values"] = linearize_dict(
+                        details.get("incorrect_values")
+                    )
+                    row["oracle_additional_insights"] = details.get(
+                        "additional_insights", ""
+                    )
                 else:
-                    row["oracle_matching_fields"] = row["oracle_missing_fields"] = row["oracle_incorrect_values"] = row["oracle_additional_insights"] = ""
+                    row["oracle_matching_fields"] = row["oracle_missing_fields"] = row[
+                        "oracle_incorrect_values"
+                    ] = row["oracle_additional_insights"] = ""
             else:
-                row["oracle_correct"] = row["oracle_score"] = row["oracle_feedback"] = ""
-                row["oracle_matching_fields"] = row["oracle_missing_fields"] = row["oracle_incorrect_values"] = row["oracle_additional_insights"] = ""
+                row["oracle_correct"] = row["oracle_score"] = row["oracle_feedback"] = (
+                    ""
+                )
+                row["oracle_matching_fields"] = row["oracle_missing_fields"] = row[
+                    "oracle_incorrect_values"
+                ] = row["oracle_additional_insights"] = ""
             row["error"] = ""
         except asyncio.TimeoutError:
             row["error"] = f"Timeout after {timeout}s"
@@ -160,6 +206,7 @@ async def evaluate_model(model_name, num_tasks=3, timeout=10):
             row["error"] = f"Error: {str(e)}"
         rows.append(row)
     return rows
+
 
 async def main():
     all_rows = []
@@ -175,11 +222,31 @@ async def main():
             all_rows.append({"model": model, "error": str(e)})
     # Write CSV report
     fieldnames = [
-        "model", "task_id", "task_description", "task_difficulty", "task_required_tools", "task_ground_truth", "task_context", "task_goal_seek",
-        "step_count", "agent_result", "tool_usage_results", "best_query", "best_instructions",
-        "critic_score", "critic_better_query", "critic_metrics", "critic_agent_prompt_instructions",
-        "oracle_correct", "oracle_score", "oracle_feedback", "oracle_matching_fields", "oracle_missing_fields", "oracle_incorrect_values", "oracle_additional_insights",
-        "error"
+        "model",
+        "task_id",
+        "task_description",
+        "task_difficulty",
+        "task_required_tools",
+        "task_ground_truth",
+        "task_context",
+        "task_goal_seek",
+        "step_count",
+        "agent_result",
+        "tool_usage_results",
+        "best_query",
+        "best_instructions",
+        "critic_score",
+        "critic_better_query",
+        "critic_metrics",
+        "critic_agent_prompt_instructions",
+        "oracle_correct",
+        "oracle_score",
+        "oracle_feedback",
+        "oracle_matching_fields",
+        "oracle_missing_fields",
+        "oracle_incorrect_values",
+        "oracle_additional_insights",
+        "error",
     ]
     with open(REPORT_CSV, "w", newline="") as csvfile:
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
@@ -191,6 +258,6 @@ async def main():
             writer.writerow(row)
     print(f"\nReport written to {REPORT_CSV}")
 
+
 if __name__ == "__main__":
     asyncio.run(main())
-
