@@ -1,7 +1,11 @@
 import gradio as gr
 import uuid
 from iointel.src.utilities.formatting import format_result_for_html
-from iointel.src.ui.dynamic_ui import MAX_TEXTBOXES, MAX_SLIDERS
+from iointel.src.ui.dynamic_ui import (
+    MAX_TEXTBOXES,
+    MAX_SLIDERS,
+    map_dynamic_ui_values_to_labels,
+)
 import ast
 import json
 
@@ -129,33 +133,25 @@ class IOGradioUI:
             if not conversation_id:
                 conversation_id = str(uuid.uuid4())
 
-            # Helper to map values to labels
-            def map_dynamic_ui_values_to_labels(spec, values) -> dict[str, str]:
-                result = {}
-                tb_idx = 0
-                sl_idx = 0
-                for comp in spec or []:
-                    if comp["type"] == "textbox":
-                        result[comp.get("label", f"Textbox {tb_idx+1}")] = values[tb_idx]
-                        tb_idx += 1
-                    elif comp["type"] == "slider":
-                        result[comp.get("label", f"Slider {sl_idx+1}")] = values[MAX_TEXTBOXES + sl_idx]
-                        sl_idx += 1
-                return result
-
             # If user_message is None and dynamic_ui_values is not None, treat as dynamic UI submission
             if (
                 user_message is None
                 and dynamic_ui_spec is not None
                 and dynamic_ui_values is not None
             ):
-                value_map = map_dynamic_ui_values_to_labels(dynamic_ui_spec, dynamic_ui_values)
-                user_message = f"[DYNAMIC_UI_SUBMIT] {json.dumps(value_map, ensure_ascii=False)}"
+                value_map = map_dynamic_ui_values_to_labels(
+                    dynamic_ui_spec, dynamic_ui_values
+                )
+                user_message = (
+                    f"[DYNAMIC_UI_SUBMIT] {json.dumps(value_map, ensure_ascii=False)}"
+                )
 
             # Serialize the dynamic_ui_history
             history_str = json.dumps(dynamic_ui_history, ensure_ascii=False)
             # Combine with user_message
-            combined_message = f"DYNAMIC_UI_HISTORY: {history_str}\nUSER: {user_message}"
+            combined_message = (
+                f"DYNAMIC_UI_HISTORY: {history_str}\nUSER: {user_message}"
+            )
             # Run the agent asynchronously and append the result to the chat
             result = await agent.run(
                 combined_message, conversation_id=conversation_id, pretty=True
@@ -204,20 +200,25 @@ class IOGradioUI:
                     height=600,
                     type="messages",
                 )
-                conv_id = conv_id_input
+                conv_id_input
             # Place the dynamic UI column directly in the layout so it always renders
             dynamic_ui_col = gr.Column(visible=True)
             with dynamic_ui_col:
-                predefined_textboxes = [gr.Textbox(visible=False) for _ in range(MAX_TEXTBOXES)]
-                predefined_sliders = [gr.Slider(visible=False) for _ in range(MAX_SLIDERS)]
-            dynamic_ui_inputs = []
+                predefined_textboxes = [
+                    gr.Textbox(visible=False) for _ in range(MAX_TEXTBOXES)
+                ]
+                predefined_sliders = [
+                    gr.Slider(visible=False) for _ in range(MAX_SLIDERS)
+                ]
             with gr.Row(elem_id="input-row"):
                 user_input = gr.Textbox(label="Ask IO", scale=4)
                 send_btn = gr.Button("Send", scale=1, elem_classes=["io-chat-btn"])
             css_html = gr.HTML(f"<style>{default_css}</style>", visible=False)
             conv_id_state = gr.State("")
             dynamic_ui_spec_state = gr.State(None)
-            dynamic_ui_values_state = gr.State(["" for _ in range(MAX_TEXTBOXES)] + [0 for _ in range(MAX_SLIDERS)])
+            dynamic_ui_values_state = gr.State(
+                ["" for _ in range(MAX_TEXTBOXES)] + [0 for _ in range(MAX_SLIDERS)]
+            )
             dynamic_ui_history_state = gr.State([])
 
             # Wire up dynamic UI components to update state as user interacts
@@ -226,6 +227,7 @@ class IOGradioUI:
                     new_values = list(values)
                     new_values[idx] = val
                     return new_values
+
                 return _update
 
             for i, tb in enumerate(predefined_textboxes):
@@ -246,28 +248,34 @@ class IOGradioUI:
                 updates = []
                 tb_idx = 0
                 sl_idx = 0
-                values = current_values or (["" for _ in range(MAX_TEXTBOXES)] + [0 for _ in range(MAX_SLIDERS)])
+                values = current_values or (
+                    ["" for _ in range(MAX_TEXTBOXES)] + [0 for _ in range(MAX_SLIDERS)]
+                )
                 # Textboxes
                 for comp in ui_spec or []:
                     if comp["type"] == "textbox" and tb_idx < MAX_TEXTBOXES:
-                        updates.append(gr.update(
-                            label=comp.get("label", f"Textbox {tb_idx+1}"),
-                            value=values[tb_idx],
-                            visible=True
-                        ))
+                        updates.append(
+                            gr.update(
+                                label=comp.get("label", f"Textbox {tb_idx + 1}"),
+                                value=values[tb_idx],
+                                visible=True,
+                            )
+                        )
                         tb_idx += 1
                 for i in range(tb_idx, MAX_TEXTBOXES):
                     updates.append(gr.update(visible=False))
                 # Sliders
                 for comp in ui_spec or []:
                     if comp["type"] == "slider" and sl_idx < MAX_SLIDERS:
-                        updates.append(gr.update(
-                            label=comp.get("label", f"Slider {sl_idx+1}"),
-                            minimum=comp.get("min", 0),
-                            maximum=comp.get("max", 100),
-                            value=values[MAX_TEXTBOXES + sl_idx],
-                            visible=True
-                        ))
+                        updates.append(
+                            gr.update(
+                                label=comp.get("label", f"Slider {sl_idx + 1}"),
+                                minimum=comp.get("min", 0),
+                                maximum=comp.get("max", 100),
+                                value=values[MAX_TEXTBOXES + sl_idx],
+                                visible=True,
+                            )
+                        )
                         sl_idx += 1
                 for i in range(sl_idx, MAX_SLIDERS):
                     updates.append(gr.update(visible=False))
@@ -277,7 +285,9 @@ class IOGradioUI:
             dynamic_ui_spec_state.change(
                 update_dynamic_ui_callback,
                 inputs=[dynamic_ui_spec_state, dynamic_ui_values_state],
-                outputs=predefined_textboxes + predefined_sliders + [dynamic_ui_values_state],
+                outputs=predefined_textboxes
+                + predefined_sliders
+                + [dynamic_ui_values_state],
             )
 
             # Function to render a static, read-only block for the dynamic UI in chat history
@@ -289,16 +299,24 @@ class IOGradioUI:
                 sl_idx = 0
                 for comp in ui_spec or []:
                     if comp["type"] == "textbox" and tb_idx < MAX_TEXTBOXES:
-                        html += f"<div><b>{comp.get('label','Textbox')}:</b> {values[tb_idx]}</div>"
+                        html += f"<div><b>{comp.get('label', 'Textbox')}:</b> {values[tb_idx]}</div>"
                         tb_idx += 1
                     elif comp["type"] == "slider" and sl_idx < MAX_SLIDERS:
-                        html += f"<div><b>{comp.get('label','Slider')}:</b> {values[MAX_TEXTBOXES + sl_idx]}</div>"
+                        html += f"<div><b>{comp.get('label', 'Slider')}:</b> {values[MAX_TEXTBOXES + sl_idx]}</div>"
                         sl_idx += 1
                 html += "</div>"
                 return html
 
             # Main chat send (collect dynamic UI values if present)
-            async def chat_with_dynamic_ui(chatbot_val, user_input_val, conv_id_val, css_html_val, dynamic_ui_spec_val, dynamic_ui_values_val, dynamic_ui_history_val):
+            async def chat_with_dynamic_ui(
+                chatbot_val,
+                user_input_val,
+                conv_id_val,
+                css_html_val,
+                dynamic_ui_spec_val,
+                dynamic_ui_values_val,
+                dynamic_ui_history_val,
+            ):
                 # Stack the current dynamic UI as a static block in chat history if present
                 history = chatbot_val or []
                 new_dynamic_ui_history = list(dynamic_ui_history_val)
@@ -306,13 +324,17 @@ class IOGradioUI:
                 print("[DEBUG] dynamic_ui_values_val:", dynamic_ui_values_val)
                 if dynamic_ui_spec_val and dynamic_ui_values_val:
                     print("[DEBUG] Adding static UI block to chat history.")
-                    static_ui_html = format_dynamic_ui_for_chat(dynamic_ui_spec_val, dynamic_ui_values_val)
+                    static_ui_html = format_dynamic_ui_for_chat(
+                        dynamic_ui_spec_val, dynamic_ui_values_val
+                    )
                     history = history + [{"role": "system", "content": static_ui_html}]
                     # Append to dynamic UI history
-                    new_dynamic_ui_history.append({
-                        "spec": dynamic_ui_spec_val,
-                        "values": list(dynamic_ui_values_val)
-                    })
+                    new_dynamic_ui_history.append(
+                        {
+                            "spec": dynamic_ui_spec_val,
+                            "values": list(dynamic_ui_values_val),
+                        }
+                    )
                 # Call the agent, passing the dynamic_ui_history
                 result = await agent_chat_fn(
                     history,
@@ -375,6 +397,7 @@ class IOGradioUI:
 
         demo.launch(share=share)
 
+
 def on_main_submit(main_text, *args, context, spec_input):
     # args: all textbox and slider values in order
     try:
@@ -383,5 +406,15 @@ def on_main_submit(main_text, *args, context, spec_input):
         ui_spec = []
     # Append the current form and values to the context
     new_context = context + [{"spec": ui_spec, "values": list(args)}]
-    print("[TEST] Main input:", main_text, "Dynamic UI values:", list(args), "Context:", new_context)
-    return f"Main input: {main_text}\nDynamic UI values: {list(args)}\nContext: {new_context}", new_context
+    print(
+        "[TEST] Main input:",
+        main_text,
+        "Dynamic UI values:",
+        list(args),
+        "Context:",
+        new_context,
+    )
+    return (
+        f"Main input: {main_text}\nDynamic UI values: {list(args)}\nContext: {new_context}",
+        new_context,
+    )
