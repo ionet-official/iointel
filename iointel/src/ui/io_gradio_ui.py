@@ -14,13 +14,6 @@ class IOGradioUI:
         agent = self.agent
         interface_title = self.interface_title
 
-        # Register the set_css tool (could be replaced with an Agent in the future)
-        if not hasattr(agent, "_set_css_registered"):
-            from iointel import register_tool
-
-            register_tool(agent._set_css)
-            agent._set_css_registered = True
-
         convos = agent.get_conversation_ids()
         if convos:
             conv_id_input = gr.Dropdown(
@@ -181,6 +174,7 @@ class IOGradioUI:
             # Inject favicon for IO.net branding
             favicon_html.render()
             gr.Markdown(f"# {interface_title}")
+            conv_id = conv_id_input
             with gr.Row():
                 chatbot = gr.Chatbot(
                     label="Chat",
@@ -189,7 +183,6 @@ class IOGradioUI:
                     height=600,
                     type="messages",
                 )
-                conv_id = conv_id_input
             with gr.Row(elem_id="input-row"):
                 user_input = gr.Textbox(label="Your message", scale=4)
                 send_btn = gr.Button("Send", scale=1, elem_classes=["io-chat-btn"])
