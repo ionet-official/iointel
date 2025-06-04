@@ -18,17 +18,6 @@ import json
 
 load_dotenv(os.path.join(os.path.dirname(__file__), "../../..", "creds.env"))
 
-print(
-    "API KEY:",
-    os.getenv("OPENAI_API_KEY")[:20],
-    "..." if os.getenv("OPENAI_API_KEY") else "NOT FOUND",
-)
-print(
-    "BASE URL:",
-    os.getenv("OPENAI_API_BASE")[:20],
-    "..." if os.getenv("OPENAI_API_BASE") else "NOT FOUND",
-)
-
 
 class Task(BaseModel):
     """Represents a task for the agent to solve"""

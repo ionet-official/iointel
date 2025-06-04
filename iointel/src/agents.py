@@ -1,6 +1,6 @@
 from .memory import AsyncMemory
 from .agent_methods.data_models.datamodels import PersonaConfig, Tool
-from .utilities.rich import console
+from .utilities.rich import console, pretty_output
 from .utilities.constants import get_api_url, get_base_model, get_api_key
 from .utilities.registries import TOOLS_REGISTRY
 from .utilities.helpers import supports_tool_choice_required, flatten_union_types
@@ -99,7 +99,6 @@ class Agent(BaseModel):
         "horizontal"  # 'vertical' or 'horizontal'
     )
     debug: bool = False
-    _logger: logging.Logger = PrivateAttr()
 
     # args must stay in sync with AgentParams, because we use that model
     # to reconstruct agents
@@ -211,12 +210,6 @@ class Agent(BaseModel):
             output_retries=output_retries,
         )
         self._runner.system_prompt(dynamic=True)(self._make_init_prompt)
-        # Set up logger as a private attribute
-        self._logger = logging.getLogger(f"AgentLogger.{self.name}")
-        if self.debug:
-            logging.basicConfig(level=logging.DEBUG)
-        else:
-            logging.basicConfig(level=logging.WARNING)
 
     @classmethod
     def _get_registered_tool(cls, tool: str | Tool | Callable) -> Tool:
@@ -350,9 +343,6 @@ class Agent(BaseModel):
         )
         tool_usage_results = self.extract_tool_usage_results(messages)
         tool_usage_pils = self.tool_usage_results_to_panels(tool_usage_results)
-        # Logging for debug
-        self._logger.debug(f"tool_pil_layout at runtime: {self.tool_pil_layout}")
-        self._logger.debug(f"tool_usage_pils length: {len(tool_usage_pils)}")
         if pretty:
             from rich.console import Group
 
