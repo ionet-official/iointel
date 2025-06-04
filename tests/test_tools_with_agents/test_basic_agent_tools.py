@@ -54,7 +54,7 @@ async def test_basic_tools():
     assert str(numbers[0] - numbers[1]) in result
 
 
-class TestTool(BaseModel):
+class StubTool(BaseModel):
     arg: str
     counter: dict[str, int] = {}
 
@@ -80,7 +80,7 @@ class TestTool(BaseModel):
 
 
 async def test_instancemethod_tool():
-    tool = TestTool(arg="hello")
+    tool = StubTool(arg="hello")
     agent = Agent(
         name="simple",
         instructions="Complete tasks to the best of your ability by using the appropriate tool. Follow all instructions carefully.",
@@ -102,11 +102,11 @@ async def test_stateful_tool():
         AgentParams(
             name="simple",
             instructions="Complete tasks to the best of your ability by using the appropriate tool. Follow all instructions carefully.",
-            tools=[("TestTool.more_whatever", {"arg": "hey guys"})],
+            tools=[("StubTool.more_whatever", {"arg": "hey guys"})],
         )
     )
     result = await run_agents(
-        "Call `TestTool.more_whatever` tool exactly once and return its result",
+        "Call `StubTool.more_whatever` tool exactly once and return its result",
         agents=[agent],
     ).execute()
     assert result
@@ -115,7 +115,7 @@ async def test_stateful_tool():
 def _custom_agent(params: AgentParams) -> Agent:
     return instantiate_agent_default(
         params.model_copy(
-            update={"tools": [TestTool(arg="custom agent").more_whatever]}
+            update={"tools": [StubTool(arg="custom agent").more_whatever]}
         )
     )
 
@@ -140,7 +140,7 @@ async def test_custom_instantiators(agent_creator, tool_creator, marker):
         AgentParams(
             name="simple",
             instructions="Complete tasks to the best of your ability by using the appropriate tool. Follow all instructions carefully.",
-            tools=[("TestTool.more_whatever", {"arg": "hey guys"})],
+            tools=[("StubTool.more_whatever", {"arg": "hey guys"})],
         ),
         instantiate_agent=agent_creator,
         instantiate_tool=tool_creator,

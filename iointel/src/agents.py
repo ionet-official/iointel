@@ -212,8 +212,12 @@ class Agent(BaseModel):
             raise ValueError(
                 f"Tool '{registered_tool.name}' not found in registry, did you forget to @register_tool?"
             )
-        # if a tool is stateful, we need to preserve its .fn as it is a bound method
-        return found_tool.model_copy(update={"fn": registered_tool.fn})
+        # we need to take tool name and description from the registry,
+        # as the user might have passed in an underlying function
+        # instead of the registered tool object
+        return registered_tool.model_copy(
+            update={"name": found_tool.name, "description": found_tool.description}
+        )
 
     def _make_init_prompt(self) -> str:
         # Combine user instructions with persona content
