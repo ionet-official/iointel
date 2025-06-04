@@ -51,3 +51,38 @@ def get_weather(city: str) -> Dict[str, Any]:
         "Paris": {"temp": round(70 + random.random(), 2), "condition": "Clear"},
     }
     return weather_data.get(city, {"temp": 0, "condition": "Unknown"})
+
+
+@register_tool
+def gradio_dynamic_ui(
+    components: list[dict], title: str = "Generated UI"
+) -> dict:
+    """
+    Return a UI spec for dynamic rendering in the main Gradio app.
+
+    components: REQUIRED. List of dicts, each describing a UI component.
+      Each dict can have:
+        - type: "textbox" or "slider"
+        - label: string
+        - value: string or number
+        - min, max, step: numbers (for sliders)
+
+    Example usage:
+        gradio_dynamic_ui(
+            components=[
+                {"type": "textbox", "label": "Your name", "value": ""},
+                {"type": "slider", "label": "Age", "min": 0, "max": 100, "value": 25}
+            ],
+            title="Personal Information Survey"
+        )
+
+    Example JSON:
+        {
+          "components": [
+            {"type": "textbox", "label": "Your name", "value": ""},
+            {"type": "slider", "label": "Age", "min": 0, "max": 100, "value": 25}
+          ],
+          "title": "Personal Information Survey"
+        }
+    """
+    return {"ui": components, "title": title}
