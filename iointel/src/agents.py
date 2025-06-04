@@ -1,10 +1,10 @@
 from .memory import AsyncMemory
 from .agent_methods.data_models.datamodels import PersonaConfig, Tool
-from .utilities.rich import console, pretty_output
+from .utilities.rich import console, pretty_output  # pretty needs to be here
 from .utilities.constants import get_api_url, get_base_model, get_api_key
 from .utilities.registries import TOOLS_REGISTRY
 from .utilities.helpers import supports_tool_choice_required, flatten_union_types
-from .ui.io_gradio_ui2 import IOGradioUI
+from .ui.io_gradio_ui import IOGradioUI
 
 from pydantic_ai.models.openai import OpenAIModel
 from pydantic_ai.providers.openai import OpenAIProvider
@@ -13,7 +13,7 @@ from pydantic_ai.agent import AgentRunResult
 from pydantic_ai.messages import ModelMessage
 from pydantic_ai.settings import ModelSettings
 
-from pydantic import ConfigDict, SecretStr, BaseModel, ValidationError, PrivateAttr
+from pydantic import ConfigDict, SecretStr, BaseModel, ValidationError
 from pydantic_ai.messages import PartDeltaEvent, TextPartDelta, ToolCallPart
 from typing import Callable, Dict, Any, Optional, Union, Literal
 import json
@@ -21,7 +21,6 @@ import dataclasses
 
 import uuid
 import asyncio
-import logging
 
 from rich.panel import Panel
 from rich.text import Text
@@ -537,21 +536,20 @@ class Agent(BaseModel):
     async def get_conversation_ids(self) -> list[str]:
         if hasattr(self, "memory") and self.memory:
             try:
-                convos = self.memory.list_conversation_ids()
-                if asyncio.iscoroutine(convos):
-                    import nest_asyncio
-
-                    nest_asyncio.apply()
-                    loop = asyncio.get_event_loop()
-                    convos = loop.run_until_complete(convos)
+                convos = await self.memory.list_conversation_ids()
                 return convos or []
             except Exception as e:
                 print(f"Error fetching conversation IDs: {e}")
         return []
 
-    async def launch_chat_ui(self, interface_title: str = None, share: bool = False) -> None:
+    def launch_chat_ui(self, interface_title: str = None, share: bool = False) -> None:
         """
         Launches a Gradio UI for interacting with the agent as a chat interface.
         """
         ui = IOGradioUI(agent=self, interface_title=interface_title)
-        return await ui.launch(share=share)
+        return ui.launch(share=share)
+
+
+if False:
+    # Prevent unused import warning for pretty_output, needed for linting
+    pretty_output(None)

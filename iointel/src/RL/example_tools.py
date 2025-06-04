@@ -54,9 +54,7 @@ def get_weather(city: str) -> Dict[str, Any]:
 
 
 @register_tool
-def gradio_dynamic_ui(
-    components: list[dict], title: str = "Generated UI"
-) -> dict:
+def gradio_dynamic_ui(components: list[dict], title: str = "Generated UI") -> dict:
     """
     Return a UI spec for dynamic rendering in the main Gradio app.
 

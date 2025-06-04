@@ -7,8 +7,6 @@ import asyncio
 from dotenv import load_dotenv
 from iointel.src.RL.utils import tool_usage_results_to_string
 
-load_dotenv(os.path.join(os.path.dirname(__file__), "../../..", "creds.env"))
-
 
 class CriticFeedback(BaseModel):
     """Feedback from the critic on agent performance"""
@@ -88,6 +86,8 @@ Goal Seek Outcome:
 
 
 if __name__ == "__main__":
+    load_dotenv(os.path.join(os.path.dirname(__file__), "../../..", "creds.env"))
+
 
     async def main():
         critic = CriticAgent(
