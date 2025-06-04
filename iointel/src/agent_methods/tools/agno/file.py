@@ -1,27 +1,23 @@
 from pathlib import Path
-from typing import Optional
-from functools import wraps
 from agno.tools.file import FileTools as AgnoFileTools
 
-from ..utils import register_tool
-from .common import DisableAgnoRegistryMixin
+from .common import make_base, wrap_tool
 
 
-class File(DisableAgnoRegistryMixin, AgnoFileTools):
-    def __init__(self, base_dir: Optional[Path] = None):
-        super().__init__(base_dir=base_dir)
+class File(make_base(AgnoFileTools)):
+    base_dir: Path | None = None
 
-    @register_tool(name="file_read")
-    @wraps(AgnoFileTools.read_file)
+    def _get_tool(self):
+        return self.Inner(base_dir=self.base_dir)
+
+    @wrap_tool("file_read", AgnoFileTools.read_file)
     def read_file(self, file_name: str) -> str:
-        return super().read_file(file_name)
+        return self._tool.read_file(file_name)
 
-    @register_tool(name="file_list")
-    @wraps(AgnoFileTools.list_files)
+    @wrap_tool("file_list", AgnoFileTools.list_files)
     def list_files(self) -> str:
-        return super().list_files()
+        return self._tool.list_files()
 
-    @register_tool(name="file_save")
-    @wraps(AgnoFileTools.save_file)
+    @wrap_tool("file_save", AgnoFileTools.save_file)
     def save_file(self, contents: str, file_name: str, overwrite: bool = True) -> str:
-        return super().save_file(contents, file_name, overwrite)
+        return self._tool.save_file(contents, file_name, overwrite)

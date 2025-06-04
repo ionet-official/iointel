@@ -1,16 +1,14 @@
-from typing import List, Optional
-from functools import wraps
 from agno.tools.shell import ShellTools as AgnoShellTools
 
-from ..utils import register_tool
-from .common import DisableAgnoRegistryMixin
+from .common import make_base, wrap_tool
 
 
-class Shell(DisableAgnoRegistryMixin, AgnoShellTools):
-    def __init__(self, base_dir: Optional[str] = None):
-        super().__init__(base_dir=base_dir)
+class Shell(make_base(AgnoShellTools)):
+    base_dir: str | None = None
 
-    @register_tool(name="run_shell_command")
-    @wraps(AgnoShellTools.run_shell_command)
-    def run_shell_command(self, args: List[str], tail: int = 100) -> str:
-        return super().run_shell_command(args, tail)
+    def _get_tool(self):
+        return self.Inner(base_dir=self.base_dir)
+
+    @wrap_tool("run_shell_command", AgnoShellTools.run_shell_command)
+    def run_shell_command(self, args: list[str], tail: int = 100) -> str:
+        return self._tool.run_shell_command(args, tail)
