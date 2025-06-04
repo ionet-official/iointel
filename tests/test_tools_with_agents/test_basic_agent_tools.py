@@ -1,9 +1,11 @@
 from datetime import datetime
 import asyncio
+import os
 from pydantic import BaseModel
 import pytest
+from pydantic_ai.models.openai import OpenAIModel
 
-from iointel import Agent
+from iointel import Agent, LiberalToolAgent
 from iointel.src.utilities.decorators import register_tool
 from iointel.src.utilities.runners import run_agents
 from iointel.src.agent_methods.agents.agents_factory import (
@@ -148,3 +150,36 @@ async def test_custom_instantiators(agent_creator, tool_creator, marker):
     assert marker in str(agent.tools[0].model_dump().get("fn_self")), (
         "Expected to have stateful tool arg"
     )
+
+
+async def test_liberal_tool_agent():
+    class NoIdea(BaseModel):
+        def weirdo(self) -> int:
+            return 42
+
+    agent = LiberalToolAgent(
+        name="simple",
+        instructions="Complete tasks to the best of your ability by using the appropriate tool. Follow all instructions carefully.",
+        tools=[NoIdea().weirdo],
+    )
+    assert "weirdo" in agent.tools[0].name
+
+
+@pytest.mark.skipif(
+    not os.environ.get("OPENAI_API_KEY"), reason="OPENAI_API_KEY not set"
+)
+async def test_liberal_tool_agent_call():
+    class NoIdea(BaseModel):
+        def weirdo(self) -> int:
+            return 42
+
+    agent = LiberalToolAgent(
+        name="simple",
+        instructions="Complete tasks to the best of your ability by using the appropriate tool. Follow all instructions carefully.",
+        tools=[NoIdea().weirdo],
+        model=OpenAIModel(model_name="gpt-4o-mini"),
+    )
+    result = await agent.run(
+        "execute `weirdo` tool and pass back its result", output_type=int
+    )
+    assert result["result"] == 42

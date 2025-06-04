@@ -82,6 +82,7 @@ class Agent(BaseModel):
     output_type: Optional[Any] = str
     _runner: PydanticAgent
     conversation_id: Optional[str] = None
+    _allow_unregistered_tools: bool
 
     # args must stay in sync with AgentParams, because we use that model
     # to reconstruct agents
@@ -102,6 +103,7 @@ class Agent(BaseModel):
         output_type: Optional[Any] = str,
         retries: int = 3,
         output_retries: int | None = None,
+        allow_unregistered_tools: bool = False,
         **model_kwargs,
     ):
         """
@@ -142,7 +144,10 @@ class Agent(BaseModel):
                 **kwargs,
             )
 
-        resolved_tools = [self._get_registered_tool(tool) for tool in (tools or ())]
+        resolved_tools = [
+            self._get_registered_tool(tool, allow_unregistered_tools)
+            for tool in (tools or ())
+        ]
 
         if isinstance(model, str):
             model_supports_tool_choice = supports_tool_choice_required(model)
@@ -168,6 +173,7 @@ class Agent(BaseModel):
             base_url=resolved_base_url,
             output_type=output_type,
         )
+        self._allow_unregistered_tools = allow_unregistered_tools
         self._runner = PydanticAgent(
             name=name,
             tools=[
@@ -186,7 +192,9 @@ class Agent(BaseModel):
         self._runner.system_prompt(dynamic=True)(self._make_init_prompt)
 
     @classmethod
-    def _get_registered_tool(cls, tool: str | Tool | Callable) -> Tool:
+    def _get_registered_tool(
+        cls, tool: str | Tool | Callable, allow_unregistered_tools: bool
+    ) -> Tool:
         if isinstance(tool, str):
             if not (registered_tool := TOOLS_REGISTRY.get(tool)):
                 raise ValueError(
@@ -209,9 +217,12 @@ class Agent(BaseModel):
             None,
         )
         if not found_tool:
-            raise ValueError(
-                f"Tool '{registered_tool.name}' not found in registry, did you forget to @register_tool?"
-            )
+            if allow_unregistered_tools:
+                found_tool = registered_tool
+            else:
+                raise ValueError(
+                    f"Tool '{registered_tool.name}' not found in registry, did you forget to @register_tool?"
+                )
         # we need to take tool name and description from the registry,
         # as the user might have passed in an underlying function
         # instead of the registered tool object
@@ -234,7 +245,9 @@ class Agent(BaseModel):
         return combined_instructions
 
     def add_tool(self, tool):
-        registered_tool = self._get_registered_tool(tool)
+        registered_tool = self._get_registered_tool(
+            tool, self._allow_unregistered_tools
+        )
         self.tools += [registered_tool]
         self._runner._register_tool(
             PatchedValidatorTool(registered_tool.get_wrapped_fn())
@@ -413,4 +426,46 @@ class Agent(BaseModel):
         return cls(
             name="default-agent",
             instructions="you are a generalist who is good at everything.",
+        )
+
+
+class LiberalToolAgent(Agent):
+    """
+    A subclass of iointel.Agent that allows passing in arbitrary callables as tools
+    without requiring one to register them first
+    """
+
+    def __init__(
+        self,
+        name: str,
+        instructions: str,
+        persona: Optional[PersonaConfig] = None,
+        context: Optional[Any] = None,
+        tools: Optional[list] = None,
+        model: Optional[Union[OpenAIModel, str]] = None,
+        memory: Optional[AsyncMemory] = None,
+        model_settings: Optional[Dict[str, Any]] = None,
+        api_key: Optional[SecretStr | str] = None,
+        base_url: Optional[str] = None,
+        output_type: Optional[Any] = str,
+        retries: int = 3,
+        output_retries: int | None = None,
+        **model_kwargs,
+    ):
+        super().__init__(
+            name=name,
+            instructions=instructions,
+            persona=persona,
+            context=context,
+            tools=tools,
+            model=model,
+            memory=memory,
+            model_settings=model_settings,
+            api_key=api_key,
+            base_url=base_url,
+            output_type=output_type,
+            retries=retries,
+            output_retries=output_retries,
+            allow_unregistered_tools=True,
+            **model_kwargs,
         )
