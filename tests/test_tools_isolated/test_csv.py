@@ -78,7 +78,6 @@ def test_query_csv_file_integration(csv_tool):
 
     # Test a query with no results
     result = csv_tool.query_csv_file("test", "SELECT * FROM test WHERE age > 100")
-    print("@@@ result:", result)
     assert "John" not in result
     assert "New York" not in result
     assert "London" not in result
