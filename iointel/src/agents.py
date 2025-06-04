@@ -188,7 +188,10 @@ class Agent(BaseModel):
     @classmethod
     def _get_registered_tool(cls, tool: str | Tool | Callable) -> Tool:
         if isinstance(tool, str):
-            registered_tool = TOOLS_REGISTRY.get(tool)
+            if not (registered_tool := TOOLS_REGISTRY.get(tool)):
+                raise ValueError(
+                    f"Tool '{tool}' not found in registry, did you forget to @register_tool?"
+                )
         elif isinstance(tool, Tool):
             registered_tool = tool
         elif callable(tool):
@@ -197,18 +200,20 @@ class Agent(BaseModel):
             raise ValueError(
                 f"Tool '{tool}' is neither a registered name nor a callable."
             )
-        if not registered_tool or not next(
+        found_tool = next(
             (
-                name
-                for name, t in TOOLS_REGISTRY.items()
-                if t.body == registered_tool.body
+                tool
+                for tool in TOOLS_REGISTRY.values()
+                if tool.body == registered_tool.body
             ),
             None,
-        ):
+        )
+        if not found_tool:
             raise ValueError(
-                f"Tool '{tool}' not found in registry, did you forget to @register_tool?"
+                f"Tool '{registered_tool.name}' not found in registry, did you forget to @register_tool?"
             )
-        return registered_tool
+        # if a tool is stateful, we need to preserve its .fn as it is a bound method
+        return found_tool.model_copy(update={"fn": registered_tool.fn})
 
     def _make_init_prompt(self) -> str:
         # Combine user instructions with persona content
