@@ -106,14 +106,14 @@ async def test_csv_with_agent(temp_csv_dir):
     result1 = await my_agent1.run(
         f"Use the tool to read the content of the file {__filename_without_suffix} and reply with the number of lines."
     )
-    assert "" in result1["result"]
+    assert "2" in result1["result"]
 
     result2 = await my_agent1.run(
         "Use the tools to tell me how many CSV files are available for reading"
     )
-    assert "2" in result2["result"]
+    assert "1" in result2["result"]
 
     result3 = await my_agent1.run("What are the columns in csv file?")
-    assert "name" in result3
-    assert "age" in result3
-    assert "city" in result3
+    assert "name" in result3["result"]
+    assert "age" in result3["result"]
+    assert "city" in result3["result"]

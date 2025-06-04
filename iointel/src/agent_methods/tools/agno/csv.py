@@ -1,23 +1,13 @@
-from functools import wraps
-from pydantic import BaseModel
 from agno.tools.csv_toolkit import CsvTools as AgnoCsvTools
-
-from ..utils import register_tool
-from .common import DisableAgnoRegistryMixin
 
 import json
 from pathlib import Path
 from typing import Any, Dict, Optional, List, Union
-# from functools import wraps
 
-# from agno.tools.csv_toolkit import CsvTools as AgnoCsvTools
-# from pydantic import BaseModel
-
-# from ..utils import register_tool
-# from .common import DisableAgnoRegistryMixin
+from .common import make_base, wrap_tool
 
 
-class Csv(BaseModel, DisableAgnoRegistryMixin, AgnoCsvTools):
+class Csv(make_base(AgnoCsvTools)):
     """CSV helper that exposes every CsvTools method as an OpenAI function‑calling
     tool while keeping all runtime parameters (csv paths, duckdb connection, etc.)
     on the specific instance.
@@ -25,63 +15,38 @@ class Csv(BaseModel, DisableAgnoRegistryMixin, AgnoCsvTools):
 
     csvs: Optional[List[Union[str, Path]]] = None
     row_limit: Optional[int] = None
-    read_csvs: bool = True
-    list_csvs: bool = True
-    query_csvs: bool = True
-    read_column_names: bool = True
     duckdb_connection: Optional[Any] = None
     duckdb_kwargs: Optional[Dict[str, Any]] = None
 
-    # --------------------------------------------------------------------- #
-    # Constructor
-    # --------------------------------------------------------------------- #
-    def __init__(
-        self,
-        csvs: Optional[List[Union[str, Path]]] = None,
-        row_limit: Optional[int] = None,
-        read_csvs: bool = True,
-        list_csvs: bool = True,
-        query_csvs: bool = True,
-        read_column_names: bool = True,
-        duckdb_connection: Optional[Any] = None,
-        duckdb_kwargs: Optional[Dict[str, Any]] = None,
-    ):
-        super().__init__(
-            csvs=csvs,
-            row_limit=row_limit,
-            read_csvs=read_csvs,
-            list_csvs=list_csvs,
-            query_csvs=query_csvs,
-            read_column_names=read_column_names,
-            duckdb_connection=duckdb_connection,
-            duckdb_kwargs=duckdb_kwargs,
+    def _get_tool(self):
+        return self.Inner(
+            csvs=self.csvs,
+            row_limit=self.row_limit,
+            read_csvs=True,
+            list_csvs=True,
+            query_csvs=True,
+            read_column_names=True,
+            duckdb_connection=self.duckdb_connection,
+            duckdb_kwargs=self.duckdb_kwargs,
         )
 
-    # --------------------------------------------------------------------- #
-    # Tool‑exposed methods
-    # --------------------------------------------------------------------- #
-
-    @register_tool(name="csv_list_csv_files")
-    @wraps(AgnoCsvTools.list_csv_files)
+    @wrap_tool("csv_list_csv_files", AgnoCsvTools.list_csv_files)
     def list_csv_files(self) -> List[str]:
         """Return a list with the *basename* (no extension) of every tracked CSV."""
-        raw = super().list_csv_files()
+        raw = self._tool.list_csv_files()
         return json.loads(raw)
 
-    @register_tool(name="csv_read_csv_file")
-    @wraps(AgnoCsvTools.read_csv_file)
+    @wrap_tool("csv_read_csv_file", AgnoCsvTools.read_csv_file)
     def read_csv_file(self, csv_name: str, row_limit: Optional[int] = None) -> str:
         """Return the CSV rows as a JSON‑lines string. Optionally limit rows."""
-        return super().read_csv_file(csv_name, row_limit)
+        return self._tool.read_csv_file(csv_name, row_limit)
 
-    @register_tool(name="csv_get_columns")
-    @wraps(AgnoCsvTools.get_columns)
+    @wrap_tool("csv_get_columns", AgnoCsvTools.get_columns)
     def get_columns(self, csv_name: str) -> str:
         """Return the column names of the given CSV as a JSON list."""
-        return super().get_columns(csv_name)
+        return self._tool.get_columns(csv_name)
 
-    @register_tool(name="csv_query_csv_file")
-    @wraps(AgnoCsvTools.query_csv_file)
+    @wrap_tool("csv_query_csv_file", AgnoCsvTools.query_csv_file)
     def query_csv_file(self, csv_name: str, sql_query: str) -> str:
         """Execute a SQL query (DuckDB dialect) against the chosen CSV and return the results as a JSON‑lines string."""
-        return super().query_csv_file(csv_name, sql_query)
+        return self._tool.query_csv_file(csv_name, sql_query)
