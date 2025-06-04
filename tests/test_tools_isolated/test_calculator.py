@@ -52,7 +52,6 @@ def test_calculator_advanced_operations():
     assert json.loads(result)["result"] is False
 
 
-@pytest.mark.asyncio
 @pytest.mark.skipif(
     not os.environ.get("OPENAI_API_KEY"), reason="OPENAI_API_KEY not set"
 )
