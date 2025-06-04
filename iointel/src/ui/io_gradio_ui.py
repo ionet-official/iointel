@@ -156,7 +156,7 @@ class IOGradioUI:
         result = await self.agent.run(combined_message, conversation_id=conversation_id, pretty=True)
 
         for tur in result.get("tool_usage_results", []):
-            if getattr(tur, "tool_name", "") == "_set_css":
+            if getattr(tur, "tool_name", "") == "set_css":
                 css = tur.tool_result.get("css", css)
 
         new_ui_spec = None
