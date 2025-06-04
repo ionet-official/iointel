@@ -74,7 +74,7 @@ jobs:
           timeout 60s bash -c 'until curl -s -f http://localhost:8080/healthz > /dev/null; do sleep 2; done'
 
       - name: Run tests
-        run: pytest -vv tests/ --retries 2 --retry-delay 5 --timeout=480
+        run: pytest -vv tests/ --retries 2 --retry-delay 5
         if: ${{ !(github.event.pull_request.head.repo.fork) }}
 
       - name: Remove containers
