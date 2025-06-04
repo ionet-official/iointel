@@ -1,0 +1,50 @@
+name: Auto Add Reviewers
+
+on:
+  pull_request:
+    types: [opened, ready_for_review]
+
+permissions:
+  pull-requests: write
+
+jobs:
+  auto-reviewers:
+    name: Auto Add Reviewers
+    runs-on: ubuntu-latest
+    steps:
+      - name: Add Reviewers
+        uses: actions/github-script@v7
+        with:
+          script: |
+            // Define reviewers for different areas of the codebase
+            const reviewers = {
+              // Add your team members here
+              default: ['carlos-ionet', 'silkspace', 'vnlitvinov', 'webcoderz'], // Default reviewers for all PRs
+              // You can add more specific reviewers for different paths
+              // 'path/to/specific/area': ['username1', 'username2'],
+            };
+
+            // Get the PR details
+            const pullRequest = context.payload.pull_request;
+            const changedFiles = await github.rest.pulls.listFiles({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number,
+            });
+
+            // Get the default reviewers
+            let selectedReviewers = [...reviewers.default];
+
+            // Add reviewers to the PR
+            if (selectedReviewers.length > 0) {
+              await github.rest.pulls.requestReviewers({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: context.issue.number,
+                reviewers: selectedReviewers,
+              });
+              
+              console.log(`Added reviewers: ${selectedReviewers.join(', ')}`);
+            } else {
+              console.log('No reviewers to add');
+            } 
