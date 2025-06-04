@@ -1,50 +1,40 @@
+# .github/workflows/auto-reviewers.yaml
 name: Auto Add Reviewers
 
 on:
   pull_request:
     types: [opened, ready_for_review]
 
-permissions:
-  pull-requests: write
-
 jobs:
-  auto-reviewers:
-    name: Auto Add Reviewers
+  add-reviewers:
     runs-on: ubuntu-latest
     steps:
-      - name: Add Reviewers
+      - uses: actions/checkout@v4
+
+      - name: Auto-add reviewers
         uses: actions/github-script@v7
         with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            // Define reviewers for different areas of the codebase
-            const reviewers = {
-              // Add your team members here
-              default: ['carlos-ionet', 'silkspace', 'vnlitvinov', 'webcoderz'], // Default reviewers for all PRs
-              // You can add more specific reviewers for different paths
-              // 'path/to/specific/area': ['username1', 'username2'],
-            };
+            // 1. choose your default reviewers any way you like:
+            const defaultReviewers = ['carlos-ionet', 'silkspace',
+                                      'vnlitvinov', 'webcoderz'];
 
-            // Get the PR details
-            const pullRequest = context.payload.pull_request;
-            const changedFiles = await github.rest.pulls.listFiles({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              pull_number: context.issue.number,
-            });
+            // 2. pull-request author
+            const prAuthor = context.payload.pull_request.user.login;
 
-            // Get the default reviewers
-            let selectedReviewers = [...reviewers.default];
+            // 3. filter the list so it no longer contains the author
+            const reviewers = defaultReviewers.filter(r => r !== prAuthor);
 
-            // Add reviewers to the PR
-            if (selectedReviewers.length > 0) {
+            // 4. only call the API if at least one reviewer remains
+            if (reviewers.length) {
               await github.rest.pulls.requestReviewers({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
-                pull_number: context.issue.number,
-                reviewers: selectedReviewers,
+                pull_number: context.payload.pull_request.number,
+                reviewers
               });
-              
-              console.log(`Added reviewers: ${selectedReviewers.join(', ')}`);
+              core.info(`Requested reviews from: ${reviewers.join(', ')}`);
             } else {
-              console.log('No reviewers to add');
-            } 
+              core.info(`All potential reviewers matched the author; nothing to do.`);
+            }
