@@ -86,8 +86,7 @@ Goal Seek Outcome:
 
 
 if __name__ == "__main__":
-    load_dotenv(os.path.join(os.path.dirname(__file__), "../../..", "creds.env"))
-
+    load_dotenv("creds.env")
 
     async def main():
         critic = CriticAgent(

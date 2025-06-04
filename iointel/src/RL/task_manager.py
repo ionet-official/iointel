@@ -16,8 +16,6 @@ from iointel.src.RL.example_tools import (
 from dotenv import load_dotenv
 import json
 
-load_dotenv(os.path.join(os.path.dirname(__file__), "../../..", "creds.env"))
-
 
 class Task(BaseModel):
     """Represents a task for the agent to solve"""
@@ -155,6 +153,10 @@ class TaskManager:
 
 # add a if n
 if __name__ == "__main__":
+
+    # Load environment variables from creds.env
+    load_dotenv("creds.env")
+
 
     async def main():
         task_manager = TaskManager(

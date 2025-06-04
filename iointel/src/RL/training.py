@@ -19,8 +19,6 @@ from iointel.src.RL.example_tools import (
 )
 import random
 
-load_dotenv(os.path.join(os.path.dirname(__file__), "../../..", "creds.env"))
-
 
 class RLState(BaseModel):
     task: Task
@@ -249,6 +247,10 @@ class RLEnvironment:
 
 
 if __name__ == "__main__":
+
+    # Load environment variables from creds.env
+    load_dotenv("creds.env")
+
     PADWAN_INSTRUCTIONS = """
 You are a tool-using assistant."""
 

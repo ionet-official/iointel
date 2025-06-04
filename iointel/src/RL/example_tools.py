@@ -1,6 +1,13 @@
 from iointel import register_tool
 from typing import Dict, Any
+from datetime import datetime
 import random
+
+
+@register_tool
+def get_current_datetime() -> str:
+    """Get the current datetime."""
+    return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
 
 @register_tool

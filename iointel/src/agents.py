@@ -27,6 +27,7 @@ from rich.text import Text
 from rich.markdown import Markdown
 from rich.live import Live
 from rich.columns import Columns
+from rich.console import Group
 
 
 class PatchedValidatorTool(PydanticTool):
@@ -192,7 +193,6 @@ class Agent(BaseModel):
             tool_pil_layout=tool_pil_layout,
             debug=debug,
         )
-        self.tool_pil_layout = tool_pil_layout
         self._runner = PydanticAgent(
             name=name,
             tools=[
@@ -342,9 +342,7 @@ class Agent(BaseModel):
         )
         tool_usage_results = self.extract_tool_usage_results(messages)
         tool_usage_pils = self.tool_usage_results_to_panels(tool_usage_results)
-        if pretty:
-            from rich.console import Group
-
+        if pretty and (pretty_output is not None and pretty_output):
             task_header = Text(
                 f" Objective: {query} ", style="bold white on dark_green"
             )
@@ -542,12 +540,12 @@ class Agent(BaseModel):
                 print(f"Error fetching conversation IDs: {e}")
         return []
 
-    def launch_chat_ui(self, interface_title: str = None, share: bool = False) -> None:
+    async def launch_chat_ui(self, interface_title: str = None, share: bool = False) -> None:
         """
         Launches a Gradio UI for interacting with the agent as a chat interface.
         """
         ui = IOGradioUI(agent=self, interface_title=interface_title)
-        return ui.launch(share=share)
+        return await ui.launch(share=share)
 
 
 if False:
