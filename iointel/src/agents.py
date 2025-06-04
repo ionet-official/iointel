@@ -4,7 +4,7 @@ from .utilities.rich import console, pretty_output
 from .utilities.constants import get_api_url, get_base_model, get_api_key
 from .utilities.registries import TOOLS_REGISTRY
 from .utilities.helpers import supports_tool_choice_required, flatten_union_types
-from .ui.io_gradio_ui import IOGradioUI
+from .ui.io_gradio_ui2 import IOGradioUI
 
 from pydantic_ai.models.openai import OpenAIModel
 from pydantic_ai.providers.openai import OpenAIProvider
@@ -534,7 +534,7 @@ class Agent(BaseModel):
             instructions="you are a generalist who is good at everything.",
         )
 
-    def get_conversation_ids(self) -> list[str]:
+    async def get_conversation_ids(self) -> list[str]:
         if hasattr(self, "memory") and self.memory:
             try:
                 convos = self.memory.list_conversation_ids()
@@ -549,9 +549,9 @@ class Agent(BaseModel):
                 print(f"Error fetching conversation IDs: {e}")
         return []
 
-    def launch_chat_ui(self, interface_title: str = None, share: bool = False) -> None:
+    async def launch_chat_ui(self, interface_title: str = None, share: bool = False) -> None:
         """
         Launches a Gradio UI for interacting with the agent as a chat interface.
         """
         ui = IOGradioUI(agent=self, interface_title=interface_title)
-        return ui.launch(share=share)
+        return await ui.launch(share=share)
