@@ -6,9 +6,9 @@ on:
     types: [opened, ready_for_review]
 
 permissions:
-  contents: read       # safe default for everything else
-  pull-requests: write # <-- lets the script call requestReviewers
-  
+  contents: read
+  pull-requests: write
+
 jobs:
   add-reviewers:
     runs-on: ubuntu-latest
