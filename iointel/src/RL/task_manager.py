@@ -183,11 +183,11 @@ if __name__ == "__main__":
                 context="more difficult tasks can mix weather and arithmetic, and inputs should be floats etc. Must generate a few with difficult ground truths and difficulty>0.8.",
                 goal_seek=False,
             )
-            task_manager.save_tasks("tasks.json")
+            task_manager.save_tasks("iointel/src/RL/tests/tasks.json")
             print("Generated new tasks:")
         else:
             print("Loading saved tasks:")
-            task_manager.load_tasks("tasks.json")
+            task_manager.load_tasks("iointel/src/RL/tests/tasks.json")
             tasks = task_manager.get_all_tasks()
 
         print("Tasks:")

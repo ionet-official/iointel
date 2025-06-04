@@ -1,6 +1,6 @@
 import gradio as gr
 import uuid
-from iointel.src.utilities.formatting import format_result_for_html
+from iointel.src.ui.formatting import format_result_for_html
 from iointel.src.ui.dynamic_ui import (
     MAX_TEXTBOXES,
     MAX_SLIDERS,
@@ -307,7 +307,6 @@ class IOGradioUI:
                 html += "</div>"
                 return html
 
-            # Main chat send (collect dynamic UI values if present)
             async def chat_with_dynamic_ui(
                 chatbot_val,
                 user_input_val,
@@ -317,7 +316,6 @@ class IOGradioUI:
                 dynamic_ui_values_val,
                 dynamic_ui_history_val,
             ):
-                # Stack the current dynamic UI as a static block in chat history if present
                 history = chatbot_val or []
                 new_dynamic_ui_history = list(dynamic_ui_history_val)
                 print("[DEBUG] dynamic_ui_spec_val:", dynamic_ui_spec_val)
@@ -328,14 +326,12 @@ class IOGradioUI:
                         dynamic_ui_spec_val, dynamic_ui_values_val
                     )
                     history = history + [{"role": "system", "content": static_ui_html}]
-                    # Append to dynamic UI history
                     new_dynamic_ui_history.append(
                         {
                             "spec": dynamic_ui_spec_val,
                             "values": list(dynamic_ui_values_val),
                         }
                     )
-                # Call the agent, passing the dynamic_ui_history
                 result = await agent_chat_fn(
                     history,
                     user_input_val,
@@ -343,12 +339,12 @@ class IOGradioUI:
                     css_html_val,
                     dynamic_ui_spec_val,
                     dynamic_ui_values_val,
-                    new_dynamic_ui_history,  # <-- pass to agent
+                    new_dynamic_ui_history,
                 )
                 return (*result, new_dynamic_ui_history, new_dynamic_ui_history)
 
-            # Add a JSON display for debugging dynamic_ui_history_state (optional)
-            debug_dynamic_ui_history = gr.JSON(label="Dynamic UI History (debug)")
+            with gr.Accordion("Debug Info", open=False):
+                debug_dynamic_ui_history = gr.JSON(label="Dynamic UI History (debug)")
 
             send_btn.click(
                 chat_with_dynamic_ui,
@@ -359,7 +355,7 @@ class IOGradioUI:
                     css_html,
                     dynamic_ui_spec_state,
                     dynamic_ui_values_state,
-                    dynamic_ui_history_state,  # <-- new
+                    dynamic_ui_history_state,
                 ],
                 outputs=[
                     chatbot,
@@ -368,8 +364,8 @@ class IOGradioUI:
                     css_html,
                     dynamic_ui_spec_state,
                     dynamic_ui_values_state,
-                    dynamic_ui_history_state,  # <-- new
-                    debug_dynamic_ui_history,  # <-- debug output
+                    dynamic_ui_history_state,
+                    debug_dynamic_ui_history,
                 ],
             )
             user_input.submit(
@@ -381,7 +377,7 @@ class IOGradioUI:
                     css_html,
                     dynamic_ui_spec_state,
                     dynamic_ui_values_state,
-                    dynamic_ui_history_state,  # <-- new
+                    dynamic_ui_history_state,
                 ],
                 outputs=[
                     chatbot,
@@ -390,8 +386,8 @@ class IOGradioUI:
                     css_html,
                     dynamic_ui_spec_state,
                     dynamic_ui_values_state,
-                    dynamic_ui_history_state,  # <-- new
-                    debug_dynamic_ui_history,  # <-- debug output
+                    dynamic_ui_history_state,
+                    debug_dynamic_ui_history,
                 ],
             )
 
@@ -399,12 +395,10 @@ class IOGradioUI:
 
 
 def on_main_submit(main_text, *args, context, spec_input):
-    # args: all textbox and slider values in order
     try:
         ui_spec = ast.literal_eval(spec_input)
     except Exception:
         ui_spec = []
-    # Append the current form and values to the context
     new_context = context + [{"spec": ui_spec, "values": list(args)}]
     print(
         "[TEST] Main input:",

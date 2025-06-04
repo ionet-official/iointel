@@ -266,11 +266,11 @@ class Agent(BaseModel):
 
     def extract_tool_usage_results(
         self, messages: list[ModelMessage]
-    ) -> tuple[list[ToolUsageResult], list[Panel]]:
+    ) -> list[ToolUsageResult]:
         """
-        Given a list of messages, extract ToolUsageResult objects and corresponding Rich Panels.
+        Given a list of messages, extract ToolUsageResult objects.
         Handles multiple tool calls/returns per message.
-        Returns (tool_usage_results, tool_usage_pils)
+        Returns a list of ToolUsageResult.
         """
         # Collect all tool-calls and tool-returns by tool_call_id
         tool_calls = {}
@@ -290,7 +290,6 @@ class Agent(BaseModel):
                         tool_returns[tool_call_id] = part
 
         tool_usage_results: list[ToolUsageResult] = []
-        tool_usage_pils: list[Panel] = []
 
         # Pair tool-calls with their returns
         for tool_call_id, call_part in tool_calls.items():
@@ -312,22 +311,31 @@ class Agent(BaseModel):
                     tool_result=tool_result,
                 )
             )
+        return tool_usage_results
+
+    def tool_usage_results_to_panels(
+        self, tool_usage_results: list[ToolUsageResult]
+    ) -> list[Panel]:
+        """
+        Given a list of ToolUsageResult, return a list of Rich Panels for display.
+        """
+        tool_usage_pils: list[Panel] = []
+        for tur in tool_usage_results:
             pil = Panel(
-                f"[bold cyan]🛠️ Tool: [magenta]{tool_name}[/magenta]\n[yellow]Args: {tool_args}[/yellow]"
+                f"[bold cyan]🛠️ Tool: [magenta]{tur.tool_name}[/magenta]\n[yellow]Args: {tur.tool_args}[/yellow]"
                 + (
-                    f"\n\n[bold green]✅ Result: [white]{tool_result}[/white]"
-                    if tool_result is not None
+                    f"\n\n[bold green]✅ Result: [white]{tur.tool_result}[/white]"
+                    if tur.tool_result is not None
                     else ""
                 ),
                 border_style="cyan",
-                title=f"== {tool_name} ==",
+                title=f"== {tur.tool_name}({tur.tool_args}) ==",
                 title_align="left",
                 padding=(1, 2),
                 style="on black",
             )
             tool_usage_pils.append(pil)
-
-        return tool_usage_results, tool_usage_pils
+        return tool_usage_pils
 
     def _postprocess_agent_result(
         self,
@@ -340,28 +348,33 @@ class Agent(BaseModel):
         messages: list[ModelMessage] = (
             result.all_messages() if hasattr(result, "all_messages") else []
         )
-        tool_usage_results, tool_usage_pils = self.extract_tool_usage_results(messages)
+        tool_usage_results = self.extract_tool_usage_results(messages)
+        tool_usage_pils = self.tool_usage_results_to_panels(tool_usage_results)
         # Logging for debug
         self._logger.debug(f"tool_pil_layout at runtime: {self.tool_pil_layout}")
         self._logger.debug(f"tool_usage_pils length: {len(tool_usage_pils)}")
-        # Only show in UI if show_tool_calls is True
-        if pretty or self.show_tool_calls:
+        if pretty:
             from rich.console import Group
 
             task_header = Text(
                 f" Objective: {query} ", style="bold white on dark_green"
             )
             agent_info = Text(f"Agent(s): {self.name}", style="cyan bold")
-            result_info = Markdown(str(result.output), style="magenta")
-            if tool_usage_pils:
-                if self.tool_pil_layout == "horizontal":
-                    panel_content = Group(
-                        result_info, Text("\n"), Columns(tool_usage_pils, expand=True)
-                    )
-                else:
-                    panel_content = Group(result_info, Text("\n"), *tool_usage_pils)
-            else:
-                panel_content = result_info
+            panel_content = Markdown(str(result.output), style="magenta")
+
+            if self.show_tool_calls:
+                if tool_usage_pils:
+                    if self.tool_pil_layout == "horizontal":
+                        panel_content = Group(
+                            panel_content,
+                            Text("\n"),
+                            Columns(tool_usage_pils, expand=True),
+                        )
+                    else:
+                        panel_content = Group(
+                            panel_content, Text("\n"), *tool_usage_pils
+                        )
+
             panel = Panel(
                 panel_content,
                 title=task_header,

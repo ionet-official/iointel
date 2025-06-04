@@ -41,36 +41,20 @@ def pprint_state(
     best_instructions: str,
     state: RLState,
 ) -> None:
-    print("\n" + "-" * 60)
-    print("=" * 60)
-    print("Final Results:")
-
-    print("\n * Initial Task:")
-    print(f"    {task.description if task else 'No task'}")
-
-    print("\n * Best Query (after critic and oracle feedback):")
-    print(f"    {query if query else 'No query'}")
-
-    if critic_feedback:
-        print("\n * Critic Feedback Metrics:")
-        print(f"    {critic_feedback.metrics}")
-
-    if oracle_result:
-        print("\n * Oracle Result:")
-
-        print(f"    correct:   {oracle_result.correct}")
-        print(f"    score:     {oracle_result.score}")
-        print(f"    feedback:  {oracle_result.feedback}")
-        print(f"    details:   {oracle_result.details}")
-
-    if best_instructions:
-        print("\n * Best Instructions:")
-        print(f"    {best_instructions}")
-
-    print("\n * Done:")
-    print(f"    {state.done if state else False}")
-
-    print("\n" + "=" * 60)
+    print(
+        f"\n{'=' * 60}\n"
+        f"Final Results:\n\n"
+        f" * Initial Task:\n"
+        f"    {task.description if task else 'No task'}\n\n"
+        f" * Best Query (after critic and oracle feedback):\n"
+        f"    {query if query else 'No query'}\n"
+        f"{f'\n * Critic Feedback Metrics:\n    {critic_feedback.metrics}' if critic_feedback else ''}\n"
+        f"{f'\n * Oracle Result:\n    correct:   {oracle_result.correct}\n    score:     {oracle_result.score}\n    feedback:  {oracle_result.feedback}\n    details:   {oracle_result.details}' if oracle_result else ''}\n"
+        f"{f'\n * Best Instructions:\n    {best_instructions}' if best_instructions else ''}\n\n"
+        f" * Done:\n"
+        f"    {state.done if state else False}\n\n"
+        f"{'=' * 60}"
+    )
 
 
 class RLEnvironment:
@@ -88,7 +72,7 @@ class RLEnvironment:
         meta_learn_instructions=True,
         persona=None,
         agent_class=None,
-        task_file_path="tasks.json",
+        task_file_path="iointel/src/RL/tests/tasks.json",
         model=None,
         api_key=None,
         base_url=None,
@@ -162,34 +146,23 @@ class RLEnvironment:
         for step in range(self.max_steps):
             ##########################The Agent Learns###############################
             # 1. Instantiate agent (with updated instructions if meta-learning)
-            if self.model in self.needs_model_settings:
-                agent = self.agent_class(
-                    name=self.name,
-                    instructions=instructions,
-                    tools=self.tools,
-                    context=context,
-                    persona=self.persona,
-                    model=self.model,
-                    api_key=self.api_key,
-                    base_url=self.base_url,
-                    model_settings=ModelSettings(
-                        dict(supports_tool_choice_required=True),
-                        extra_body={"tool_choice": "auto"},
-                    ),
-                    show_tool_calls=True,
+            agent = self.agent_class(
+                name=self.name,
+                instructions=instructions,
+                tools=self.tools,
+                context=context,
+                persona=self.persona,
+                model=self.model,
+                api_key=self.api_key,
+                base_url=self.base_url,
+                model_settings=ModelSettings(
+                    dict(supports_tool_choice_required=True),
+                    extra_body={"tool_choice": "auto"},
                 )
-            else:
-                agent = self.agent_class(
-                    name=self.name,
-                    instructions=instructions,
-                    tools=self.tools,
-                    context=context,
-                    persona=self.persona,
-                    model=self.model,
-                    api_key=self.api_key,
-                    base_url=self.base_url,
-                    show_tool_calls=True,
-                )
+                if self.model in self.needs_model_settings
+                else None,
+                show_tool_calls=True,
+            )
 
             #########################################################
             if use_chat_history:
