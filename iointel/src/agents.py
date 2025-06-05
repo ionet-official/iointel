@@ -4,7 +4,7 @@ from .utilities.rich import pretty_output
 from .utilities.constants import get_api_url, get_base_model, get_api_key
 from .utilities.registries import TOOLS_REGISTRY
 from .utilities.helpers import supports_tool_choice_required, flatten_union_types
-from .ui.io_gradio_ui import IOGradioUI
+from .ui.io_gradio_ui2 import IOGradioUI
 
 from pydantic_ai.models.openai import OpenAIModel
 from pydantic_ai.providers.openai import OpenAIProvider
@@ -301,7 +301,6 @@ class Agent(BaseModel):
         conversation_id: Union[str, int],
         pretty: bool = True,
     ):
-        # Always build tool usage results and pills
         messages: list[ModelMessage] = (
             result.all_messages() if hasattr(result, "all_messages") else []
         )
