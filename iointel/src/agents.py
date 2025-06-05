@@ -547,6 +547,7 @@ class Agent(BaseModel):
                                 content += event.delta.content_delta or ""
                                 yield content
 
+
 class LiberalToolAgent(Agent):
     """
     A subclass of iointel.Agent that allows passing in arbitrary callables as tools

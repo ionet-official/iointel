@@ -96,11 +96,15 @@ DEFAULT_CSS = """
         }
         """
 
+
 class IOGradioUI:
     def __init__(self, agent, interface_title=None):
         from iointel.src.agents import Agent
+
         self.agent: Agent = agent
-        self.interface_title = interface_title or f"Agent: {getattr(agent, 'name', 'Agent')}"
+        self.interface_title = (
+            interface_title or f"Agent: {getattr(agent, 'name', 'Agent')}"
+        )
 
     def _generate_conversation_id(self, conversation_id):
         return conversation_id or str(uuid.uuid4())
@@ -122,36 +126,70 @@ class IOGradioUI:
             if getattr(tur, "tool_name", "") == "set_css":
                 new_css = tur.tool_result.get("css", css)
             elif getattr(tur, "tool_name", "") == "gradio_dynamic_ui":
-                dynamic_ui_spec = tur.tool_result.get("ui", None) if tur.tool_result else None
+                dynamic_ui_spec = (
+                    tur.tool_result.get("ui", None) if tur.tool_result else None
+                )
         return new_css, dynamic_ui_spec
 
-    async def _agent_chat_fn(self, history, user_message, conversation_id, css,
-                             dynamic_ui_spec, dynamic_ui_values, dynamic_ui_history):
+    async def _agent_chat_fn(
+        self,
+        history,
+        user_message,
+        conversation_id,
+        css,
+        dynamic_ui_spec,
+        dynamic_ui_values,
+        dynamic_ui_history,
+    ):
         conversation_id = self._generate_conversation_id(conversation_id)
         if user_message is None:
-            user_message = self._format_dynamic_ui_submission(dynamic_ui_spec, dynamic_ui_values)
+            user_message = self._format_dynamic_ui_submission(
+                dynamic_ui_spec, dynamic_ui_values
+            )
 
-        combined_message = self._combine_message_with_history(dynamic_ui_history, user_message)
-        result = await self.agent.run(combined_message, conversation_id=conversation_id, pretty=True)
+        combined_message = self._combine_message_with_history(
+            dynamic_ui_history, user_message
+        )
+        result = await self.agent.run(
+            combined_message, conversation_id=conversation_id, pretty=True
+        )
 
-        tool_usage_results = result['tool_usage_results']
+        tool_usage_results = result["tool_usage_results"]
         css, dynamic_ui_spec = self._handle_tool_results(tool_usage_results, css)
         agent_html = f'<div class="agent-bubble">{format_result_for_html(result)}</div>'
         history = history or []
         history.append({"role": "user", "content": user_message})
         history.append({"role": "assistant", "content": agent_html})
 
-        return history, "", conversation_id, f"<style>{css}</style>", dynamic_ui_spec, None
+        return (
+            history,
+            "",
+            conversation_id,
+            f"<style>{css}</style>",
+            dynamic_ui_spec,
+            None,
+        )
 
-
-    async def _agent_chat_fn_streaming(self, history, user_message, conversation_id, css,
-                                       dynamic_ui_spec, dynamic_ui_values, dynamic_ui_history):
+    async def _agent_chat_fn_streaming(
+        self,
+        history,
+        user_message,
+        conversation_id,
+        css,
+        dynamic_ui_spec,
+        dynamic_ui_values,
+        dynamic_ui_history,
+    ):
         conversation_id = self._generate_conversation_id(conversation_id)
 
         if user_message is None:
-            user_message = self._format_dynamic_ui_submission(dynamic_ui_spec, dynamic_ui_values)
+            user_message = self._format_dynamic_ui_submission(
+                dynamic_ui_spec, dynamic_ui_values
+            )
 
-        combined_message = self._combine_message_with_history(dynamic_ui_history, user_message)
+        combined_message = self._combine_message_with_history(
+            dynamic_ui_history, user_message
+        )
 
         history = history or []
         history.append({"role": "user", "content": user_message})
@@ -159,15 +197,21 @@ class IOGradioUI:
         history.append(assistant_msg)
 
         full_content = ""
-        async with self.agent._runner.iter(combined_message, conversation_id=conversation_id) as agent_run:
+        async with self.agent._runner.iter(
+            combined_message, conversation_id=conversation_id
+        ) as agent_run:
             async for node in agent_run:
                 if self.agent._runner.is_model_request_node(node):
                     async with node.stream(agent_run.ctx) as request_stream:
                         async for event in request_stream:
-                            if hasattr(event, "delta") and hasattr(event.delta, "content_delta"):
+                            if hasattr(event, "delta") and hasattr(
+                                event.delta, "content_delta"
+                            ):
                                 delta = event.delta.content_delta or ""
                                 full_content += delta
-                                assistant_msg["content"] = f'<div class="agent-bubble">{full_content}</div>'
+                                assistant_msg["content"] = (
+                                    f'<div class="agent-bubble">{full_content}</div>'
+                                )
                                 yield (
                                     history,
                                     "",  # user input
@@ -180,12 +224,21 @@ class IOGradioUI:
                                 )
 
             messages: list[ModelMessage] = (
-                agent_run.result.all_messages() if hasattr(agent_run.result, "all_messages") else []
+                agent_run.result.all_messages()
+                if hasattr(agent_run.result, "all_messages")
+                else []
             )
             tool_usage_results = self.agent.extract_tool_usage_results(messages)
             css, dynamic_ui_spec = self._handle_tool_results(tool_usage_results, css)
-            result = self.agent._postprocess_agent_result(agent_run.result, query=user_message, conversation_id=conversation_id, pretty=True)
-            formatted_html = f'<div class="agent-bubble">{format_result_for_html(result)}</div>'
+            result = self.agent._postprocess_agent_result(
+                agent_run.result,
+                query=user_message,
+                conversation_id=conversation_id,
+                pretty=True,
+            )
+            formatted_html = (
+                f'<div class="agent-bubble">{format_result_for_html(result)}</div>'
+            )
             assistant_msg["content"] = formatted_html
 
             yield (
@@ -201,16 +254,26 @@ class IOGradioUI:
 
     async def _chat_with_dynamic_ui(self, *args):
         (
-            chatbot_val, user_input_val, conv_id_val, css_html_val,
-            dynamic_ui_spec_val, dynamic_ui_values_val, dynamic_ui_history_val, streaming
+            chatbot_val,
+            user_input_val,
+            conv_id_val,
+            css_html_val,
+            dynamic_ui_spec_val,
+            dynamic_ui_values_val,
+            dynamic_ui_history_val,
+            streaming,
         ) = args
         history = chatbot_val or []
         new_dynamic_ui_history = list(dynamic_ui_history_val)
 
         if dynamic_ui_spec_val and dynamic_ui_values_val:
-            static_ui_html = self._format_static_ui_block(dynamic_ui_spec_val, dynamic_ui_values_val)
+            static_ui_html = self._format_static_ui_block(
+                dynamic_ui_spec_val, dynamic_ui_values_val
+            )
             history.append({"role": "system", "content": static_ui_html})
-            new_dynamic_ui_history.append({"spec": dynamic_ui_spec_val, "values": list(dynamic_ui_values_val)})
+            new_dynamic_ui_history.append(
+                {"spec": dynamic_ui_spec_val, "values": list(dynamic_ui_values_val)}
+            )
 
         result = await self._agent_chat_fn(
             history,
@@ -252,7 +315,8 @@ class IOGradioUI:
         convos = await agent.get_conversation_ids()
         conv_id_input = (
             gr.Dropdown(choices=convos, label="Conversation ID", value=convos[0])
-            if convos else gr.Textbox(label="Conversation ID", value="", visible=True)
+            if convos
+            else gr.Textbox(label="Conversation ID", value="", visible=True)
         )
 
         def get_initial_states():
@@ -260,7 +324,8 @@ class IOGradioUI:
 
         io_favicon_url = "https://io.net/favicon.ico"
         favicon_html = gr.HTML(
-            f"<link rel='icon' type='image/x-icon' href='{io_favicon_url}' />", visible=True
+            f"<link rel='icon' type='image/x-icon' href='{io_favicon_url}' />",
+            visible=True,
         )
 
         with gr.Blocks() as demo:
@@ -277,12 +342,18 @@ class IOGradioUI:
                 )
                 conv_id_input
 
-            streaming_checkbox = gr.Checkbox(label="Enable Streaming Mode", value=streaming)
+            streaming_checkbox = gr.Checkbox(
+                label="Enable Streaming Mode", value=streaming
+            )
 
             dynamic_ui_col = gr.Column(visible=True)
             with dynamic_ui_col:
-                predefined_textboxes = [gr.Textbox(visible=False) for _ in range(MAX_TEXTBOXES)]
-                predefined_sliders = [gr.Slider(visible=False) for _ in range(MAX_SLIDERS)]
+                predefined_textboxes = [
+                    gr.Textbox(visible=False) for _ in range(MAX_TEXTBOXES)
+                ]
+                predefined_sliders = [
+                    gr.Slider(visible=False) for _ in range(MAX_SLIDERS)
+                ]
 
             with gr.Row(elem_id="input-row"):
                 user_input = gr.Textbox(label="Ask IO", scale=4)
@@ -291,7 +362,9 @@ class IOGradioUI:
             css_html = gr.HTML(f"<style>{DEFAULT_CSS}</style>", visible=False)
             conv_id_state = gr.State("")
             dynamic_ui_spec_state = gr.State(None)
-            dynamic_ui_values_state = gr.State(["" for _ in range(MAX_TEXTBOXES)] + [0 for _ in range(MAX_SLIDERS)])
+            dynamic_ui_values_state = gr.State(
+                ["" for _ in range(MAX_TEXTBOXES)] + [0 for _ in range(MAX_SLIDERS)]
+            )
             dynamic_ui_history_state = gr.State([])
 
             def update_dynamic_ui_value(idx, is_slider=False):
@@ -299,6 +372,7 @@ class IOGradioUI:
                     new_values = list(values)
                     new_values[idx] = val
                     return new_values
+
                 return _update
 
             for i, tb in enumerate(predefined_textboxes):
@@ -317,27 +391,33 @@ class IOGradioUI:
             def update_dynamic_ui_callback(ui_spec, current_values):
                 updates = []
                 tb_idx = sl_idx = 0
-                values = current_values or (["" for _ in range(MAX_TEXTBOXES)] + [0 for _ in range(MAX_SLIDERS)])
+                values = current_values or (
+                    ["" for _ in range(MAX_TEXTBOXES)] + [0 for _ in range(MAX_SLIDERS)]
+                )
                 for comp in ui_spec or []:
                     if comp["type"] == "textbox" and tb_idx < MAX_TEXTBOXES:
-                        updates.append(gr.update(
-                            label=comp.get("label", f"Textbox {tb_idx + 1}"),
-                            value=values[tb_idx],
-                            visible=True,
-                        ))
+                        updates.append(
+                            gr.update(
+                                label=comp.get("label", f"Textbox {tb_idx + 1}"),
+                                value=values[tb_idx],
+                                visible=True,
+                            )
+                        )
                         tb_idx += 1
                 for i in range(tb_idx, MAX_TEXTBOXES):
                     updates.append(gr.update(visible=False))
 
                 for comp in ui_spec or []:
                     if comp["type"] == "slider" and sl_idx < MAX_SLIDERS:
-                        updates.append(gr.update(
-                            label=comp.get("label", f"Slider {sl_idx + 1}"),
-                            minimum=comp.get("min", 0),
-                            maximum=comp.get("max", 100),
-                            value=values[MAX_TEXTBOXES + sl_idx],
-                            visible=True,
-                        ))
+                        updates.append(
+                            gr.update(
+                                label=comp.get("label", f"Slider {sl_idx + 1}"),
+                                minimum=comp.get("min", 0),
+                                maximum=comp.get("max", 100),
+                                value=values[MAX_TEXTBOXES + sl_idx],
+                                visible=True,
+                            )
+                        )
                         sl_idx += 1
                 for i in range(sl_idx, MAX_SLIDERS):
                     updates.append(gr.update(visible=False))
@@ -347,7 +427,9 @@ class IOGradioUI:
             dynamic_ui_spec_state.change(
                 update_dynamic_ui_callback,
                 inputs=[dynamic_ui_spec_state, dynamic_ui_values_state],
-                outputs=predefined_textboxes + predefined_sliders + [dynamic_ui_values_state],
+                outputs=predefined_textboxes
+                + predefined_sliders
+                + [dynamic_ui_values_state],
             )
 
             with gr.Accordion("Debug Info", open=False):
