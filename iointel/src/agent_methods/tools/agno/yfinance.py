@@ -4,8 +4,6 @@ from .common import make_base, wrap_tool
 
 
 class YFinance(make_base(AgnoYFinanceTools)):
-    # base_dir: Path | None = None
-
     def _get_tool(self):
         return self.Inner()
 
