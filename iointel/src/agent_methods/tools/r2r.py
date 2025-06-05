@@ -78,7 +78,7 @@ class R2RClient(BaseModel):
             else:
                 return response.content
 
-    @register_tool("r2r.create_document")
+    @register_tool("r2r-create_document")
     async def create_document(
         self,
         content: str | bytes | Path,
@@ -135,7 +135,7 @@ class R2RClient(BaseModel):
             response_dict = await self._request("POST", "documents", data=data)
         return response_dict["results"]["document_id"]
 
-    @register_tool("r2r.delete_document")
+    @register_tool("r2r-delete_document")
     async def delete_document(self, id: str | uuid.UUID) -> bool:
         """
         Delete a specific document.
@@ -149,7 +149,7 @@ class R2RClient(BaseModel):
         response_dict = await self._request("DELETE", f"documents/{str(id)}")
         return response_dict["results"]["success"]
 
-    @register_tool("r2r.list_documents")
+    @register_tool("r2r-list_documents")
     async def list_documents(
         self,
         ids: list[str | uuid.UUID] | None = None,
@@ -185,7 +185,7 @@ class R2RClient(BaseModel):
         ]
         return docs, response_dict["total_entries"]
 
-    @register_tool("r2r.rag_search")
+    @register_tool("r2r-rag_search")
     async def rag_search(
         self,
         query: str,

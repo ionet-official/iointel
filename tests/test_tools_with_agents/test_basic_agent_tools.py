@@ -104,11 +104,11 @@ async def test_stateful_tool():
         AgentParams(
             name="simple",
             instructions="Complete tasks to the best of your ability by using the appropriate tool. Follow all instructions carefully.",
-            tools=[("StubTool.more_whatever", {"arg": "hey guys"})],
+            tools=[("StubTool-more_whatever", {"arg": "hey guys"})],
         )
     )
     result = await run_agents(
-        "Call `StubTool.more_whatever` tool exactly once and return its result",
+        "Call `StubTool-more_whatever` tool exactly once and return its result",
         agents=[agent],
     ).execute()
     assert result
@@ -142,7 +142,7 @@ async def test_custom_instantiators(agent_creator, tool_creator, marker):
         AgentParams(
             name="simple",
             instructions="Complete tasks to the best of your ability by using the appropriate tool. Follow all instructions carefully.",
-            tools=[("StubTool.more_whatever", {"arg": "hey guys"})],
+            tools=[("StubTool-more_whatever", {"arg": "hey guys"})],
         ),
         instantiate_agent=agent_creator,
         instantiate_tool=tool_creator,
@@ -153,14 +153,14 @@ async def test_custom_instantiators(agent_creator, tool_creator, marker):
 
 
 async def test_liberal_tool_agent():
-    class NoIdea(BaseModel):
+    class NoIdea1(BaseModel):
         def weirdo(self) -> int:
             return 42
 
     agent = LiberalToolAgent(
         name="simple",
         instructions="Complete tasks to the best of your ability by using the appropriate tool. Follow all instructions carefully.",
-        tools=[NoIdea().weirdo],
+        tools=[NoIdea1().weirdo],
     )
     assert "weirdo" in agent.tools[0].name
 
@@ -169,14 +169,14 @@ async def test_liberal_tool_agent():
     not os.environ.get("OPENAI_API_KEY"), reason="OPENAI_API_KEY not set"
 )
 async def test_liberal_tool_agent_call():
-    class NoIdea(BaseModel):
+    class NoIdea2(BaseModel):
         def weirdo(self) -> int:
             return 42
 
     agent = LiberalToolAgent(
         name="simple",
         instructions="Complete tasks to the best of your ability by using the appropriate tool. Follow all instructions carefully.",
-        tools=[NoIdea().weirdo],
+        tools=[NoIdea2().weirdo],
         model=OpenAIModel(model_name="gpt-4o-mini"),
     )
     result = await agent.run(
