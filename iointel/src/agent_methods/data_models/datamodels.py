@@ -1,5 +1,7 @@
 import functools
+import re
 import sys
+import warnings
 from pydantic import (
     BaseModel,
     Field,
@@ -227,6 +229,17 @@ class PersonaConfig(BaseModel):
         return "\n".join(lines)
 
 
+def compute_fn_name(fn: Callable) -> str:
+    # OpenAI chokes on non-conforming tool names, so scrub them
+    return re.sub(r"[^a-zA-Z0-9_-]", "-", fn.__qualname__)
+
+
+def check_fn_name(name: str | None) -> str | None:
+    if name and not re.match(r"^[a-zA-Z0-9_-]+", name):
+        warnings.warn(f"Tool name {name} is not compatible with OpenAI")
+    return name
+
+
 # mapping from id(instance) to instance
 TOOL_SELF_INSTANCES: dict[int, BaseModel] = weakref.WeakValueDictionary()
 
@@ -365,7 +378,7 @@ class Tool(BaseModel):
     ) -> "Tool":
         if isinstance(fn, cls):
             return fn
-        func_name = name or fn.__qualname__
+        func_name = check_fn_name(name) or compute_fn_name(fn)
         if func_name == "<lambda>":
             raise ValueError("You must provide a name for lambda functions")
         func_doc = description or fn.__doc__ or ""
@@ -400,7 +413,6 @@ class Tool(BaseModel):
 class AgentParams(BaseModel):
     model_config = ConfigDict(
         arbitrary_types_allowed=True,
-        serializers={SecretStr: lambda s: s.get_secret_value()},
     )
     name: Optional[str] = None
     instructions: str = Field(..., description="Instructions for the agent")
@@ -427,6 +439,17 @@ class AgentParams(BaseModel):
 
     model_settings: Optional[Dict[str, Any]] = Field(default_factory=dict)
     output_type: Optional[Any] = str
+
+    @field_serializer("output_type", when_used="json")
+    def dump_output_type(self, v):
+        if isinstance(v, type):
+            # convert builtin and some global-accessible types to their string names
+            from iointel.src.agent_methods.agents.agents_factory import create_agent
+
+            name = v.__name__
+            if v is create_agent.__globals__.get(name, __builtins__.get(name, None)):
+                return name
+        return v
 
 
 # reasoning agent
@@ -548,6 +571,7 @@ WhileStage.model_rebuild()
 class TaskDefinition(BaseModel):
     task_id: str
     name: str
+    type: str = "custom"
     # description: Optional[str] = None
     objective: Optional[str] = None
     agents: Optional[Union[List[AgentParams], AgentSwarm]] = None

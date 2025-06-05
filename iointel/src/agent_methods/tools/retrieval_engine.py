@@ -15,7 +15,7 @@ from iointel.src.utilities.decorators import register_tool
 
 
 class DocumentInfo(TypedDict):
-    """Information about document stored in R2R."""
+    """Information about document stored in Retrieval Engine."""
 
     id: str
     title: str
@@ -41,7 +41,7 @@ class RAGResponse(TypedDict):
     metadata: dict
 
 
-class R2RClient(BaseModel):
+class RetrievalEngine(BaseModel):
     base_url: str
     api_key: str | None
     version: str
@@ -78,7 +78,7 @@ class R2RClient(BaseModel):
             else:
                 return response.content
 
-    @register_tool("r2r.create_document")
+    @register_tool("retrieval-engine-create-document")
     async def create_document(
         self,
         content: str | bytes | Path,
@@ -135,7 +135,7 @@ class R2RClient(BaseModel):
             response_dict = await self._request("POST", "documents", data=data)
         return response_dict["results"]["document_id"]
 
-    @register_tool("r2r.delete_document")
+    @register_tool("retrieval-engine-delete-document")
     async def delete_document(self, id: str | uuid.UUID) -> bool:
         """
         Delete a specific document.
@@ -149,7 +149,7 @@ class R2RClient(BaseModel):
         response_dict = await self._request("DELETE", f"documents/{str(id)}")
         return response_dict["results"]["success"]
 
-    @register_tool("r2r.list_documents")
+    @register_tool("retrieval-engine-list_documents")
     async def list_documents(
         self,
         ids: list[str | uuid.UUID] | None = None,
@@ -185,7 +185,7 @@ class R2RClient(BaseModel):
         ]
         return docs, response_dict["total_entries"]
 
-    @register_tool("r2r.rag_search")
+    @register_tool("retrieval-engine-rag-search")
     async def rag_search(
         self,
         query: str,

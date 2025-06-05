@@ -44,8 +44,10 @@ norecursedirs = [
     "node_modules",
 ]
 
+
 [project.optional-dependencies]
 dev = [
+    "yfinance==0.2.61",
     "pre-commit>=4.1.0",
     "pytest>=8.3.4",
     "pytest-asyncio>=0.21.2",

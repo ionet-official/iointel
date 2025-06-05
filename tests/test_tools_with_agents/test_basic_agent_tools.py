@@ -1,12 +1,20 @@
 from datetime import datetime
 import asyncio
+import os
+from pydantic import BaseModel
+import pytest
+from pydantic_ai.models.openai import OpenAIModel
 
-from iointel import Agent
+from iointel import Agent, LiberalToolAgent
 from iointel.src.utilities.decorators import register_tool
 from iointel.src.utilities.runners import run_agents
-from iointel.src.agent_methods.agents.agents_factory import create_agent
+from iointel.src.agent_methods.agents.agents_factory import (
+    create_agent,
+    instantiate_agent_default,
+)
+from iointel.src.agent_methods.agents.tool_factory import instantiate_stateful_tool
 from iointel.src.agent_methods.data_models.datamodels import AgentParams
-from pydantic import BaseModel
+
 
 _CALLED = []
 
@@ -48,7 +56,7 @@ async def test_basic_tools():
     assert str(numbers[0] - numbers[1]) in result
 
 
-class TestTool(BaseModel):
+class StubTool(BaseModel):
     arg: str
     counter: dict[str, int] = {}
 
@@ -74,7 +82,7 @@ class TestTool(BaseModel):
 
 
 async def test_instancemethod_tool():
-    tool = TestTool(arg="hello")
+    tool = StubTool(arg="hello")
     agent = Agent(
         name="simple",
         instructions="Complete tasks to the best of your ability by using the appropriate tool. Follow all instructions carefully.",
@@ -96,11 +104,82 @@ async def test_stateful_tool():
         AgentParams(
             name="simple",
             instructions="Complete tasks to the best of your ability by using the appropriate tool. Follow all instructions carefully.",
-            tools=[("TestTool.more_whatever", {"arg": "hey guys"})],
+            tools=[("StubTool-more_whatever", {"arg": "hey guys"})],
         )
     )
     result = await run_agents(
-        "Call `TestTool.more_whatever` tool exactly once and return its result",
+        "Call `StubTool-more_whatever` tool exactly once and return its result",
         agents=[agent],
     ).execute()
     assert result
+
+
+def _custom_agent(params: AgentParams) -> Agent:
+    return instantiate_agent_default(
+        params.model_copy(
+            update={"tools": [StubTool(arg="custom agent").more_whatever]}
+        )
+    )
+
+
+def _custom_tool(tool, state_args: dict | None) -> BaseModel | None:
+    return instantiate_stateful_tool(tool, dict(state_args, arg="custom tool"))
+
+
+@pytest.mark.parametrize(
+    "agent_creator,tool_creator,marker",
+    [
+        (None, None, "hey guys"),
+        (instantiate_agent_default, None, "hey guys"),
+        (instantiate_agent_default, instantiate_stateful_tool, "hey guys"),
+        (None, instantiate_stateful_tool, "hey guys"),
+        (_custom_agent, None, "custom agent"),
+        (None, _custom_tool, "custom tool"),
+    ],
+)
+async def test_custom_instantiators(agent_creator, tool_creator, marker):
+    agent = create_agent(
+        AgentParams(
+            name="simple",
+            instructions="Complete tasks to the best of your ability by using the appropriate tool. Follow all instructions carefully.",
+            tools=[("StubTool-more_whatever", {"arg": "hey guys"})],
+        ),
+        instantiate_agent=agent_creator,
+        instantiate_tool=tool_creator,
+    )
+    assert marker in str(agent.tools[0].model_dump().get("fn_self")), (
+        "Expected to have stateful tool arg"
+    )
+
+
+async def test_liberal_tool_agent():
+    class NoIdea1(BaseModel):
+        def weirdo(self) -> int:
+            return 42
+
+    agent = LiberalToolAgent(
+        name="simple",
+        instructions="Complete tasks to the best of your ability by using the appropriate tool. Follow all instructions carefully.",
+        tools=[NoIdea1().weirdo],
+    )
+    assert "weirdo" in agent.tools[0].name
+
+
+@pytest.mark.skipif(
+    not os.environ.get("OPENAI_API_KEY"), reason="OPENAI_API_KEY not set"
+)
+async def test_liberal_tool_agent_call():
+    class NoIdea2(BaseModel):
+        def weirdo(self) -> int:
+            return 42
+
+    agent = LiberalToolAgent(
+        name="simple",
+        instructions="Complete tasks to the best of your ability by using the appropriate tool. Follow all instructions carefully.",
+        tools=[NoIdea2().weirdo],
+        model=OpenAIModel(model_name="gpt-4o-mini"),
+    )
+    result = await agent.run(
+        "execute `weirdo` tool and pass back its result", output_type=int
+    )
+    assert result["result"] == 42

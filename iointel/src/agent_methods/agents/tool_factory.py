@@ -1,7 +1,7 @@
 import inspect
 from pydantic import BaseModel
 from ..data_models.datamodels import AgentParams
-from typing import Callable, List, Optional
+from typing import Callable, List
 import re
 from ...utilities.registries import TOOLS_REGISTRY
 from ...utilities.helpers import make_logger
@@ -69,7 +69,7 @@ def resolve_tools(
     tool_instantiator: Callable[
         [Tool, dict | None], BaseModel | None
     ] = instantiate_stateful_tool,
-) -> List[Optional[Callable]]:
+) -> List[Tool]:
     """
     Resolve the tools in an AgentParams object.
     Each tool in params.tools is expected to be either:
