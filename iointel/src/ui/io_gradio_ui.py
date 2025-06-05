@@ -6,32 +6,11 @@ from iointel.src.ui.dynamic_ui import (
     MAX_SLIDERS,
     map_dynamic_ui_values_to_labels,
 )
-import ast
+
 import json
 
 
-class IOGradioUI:
-    def __init__(self, agent, interface_title=None):
-        self.agent = agent
-        self.interface_title = (
-            interface_title or f"Agent: {getattr(agent, 'name', 'Agent')}"
-        )
-
-    async def launch(self, share=False):
-        agent = self.agent
-        interface_title = self.interface_title
-
-        convos = await agent.get_conversation_ids()
-        if convos:
-            conv_id_input = gr.Dropdown(
-                choices=convos,
-                label="Conversation ID",
-                value=convos[0] if convos else "",
-            )
-        else:
-            conv_id_input = gr.Textbox(label="Conversation ID", value="", visible=True)
-
-        default_css = """
+DEFAULT_CSS = """
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap');
         body, .gradio-container {
             font-family: 'Inter', sans-serif;
@@ -117,9 +96,30 @@ class IOGradioUI:
         }
         """
 
+class IOGradioUI:
+    def __init__(self, agent, interface_title=None):
+        self.agent = agent
+        self.interface_title = (
+            interface_title or f"Agent: {getattr(agent, 'name', 'Agent')}"
+        )
+
+    async def launch(self, share=False, streaming=False):
+        agent = self.agent
+        interface_title = self.interface_title
+
+        convos = await agent.get_conversation_ids()
+        if convos:
+            conv_id_input = gr.Dropdown(
+                choices=convos,
+                label="Conversation ID",
+                value=convos[0] if convos else "",
+            )
+        else:
+            conv_id_input = gr.Textbox(label="Conversation ID", value="", visible=True)
+
         def get_initial_states():
             # history, conversation_id, css, dynamic_ui_spec, dynamic_ui_values
-            return [], "", f"<style>{default_css}</style>", None, None
+            return [], "", f"<style>{DEFAULT_CSS}</style>", None, None
 
         async def agent_chat_fn(
             history,
@@ -129,6 +129,7 @@ class IOGradioUI:
             dynamic_ui_spec,
             dynamic_ui_values,
             dynamic_ui_history,
+            streaming=streaming,
         ):
             if not conversation_id:
                 conversation_id = str(uuid.uuid4())
@@ -152,9 +153,8 @@ class IOGradioUI:
             combined_message = (
                 f"DYNAMIC_UI_HISTORY: {history_str}\nUSER: {user_message}"
             )
-            # Run the agent asynchronously and append the result to the chat
             result = await agent.run(
-                combined_message, conversation_id=conversation_id, pretty=True
+                    combined_message, conversation_id=conversation_id, pretty=True
             )
             # Check for set_css tool usage
             for tur in result.get("tool_usage_results", []):
@@ -181,6 +181,55 @@ class IOGradioUI:
                 None,
             )
 
+        async def agent_chat_fn_streaming(
+            history,
+            user_message,
+            conversation_id,
+            css,
+            dynamic_ui_spec,
+            dynamic_ui_values,
+            dynamic_ui_history,
+        ):
+            if not conversation_id:
+                conversation_id = str(uuid.uuid4())
+
+            if (
+                user_message is None
+                and dynamic_ui_spec is not None
+                and dynamic_ui_values is not None
+            ):
+                value_map = map_dynamic_ui_values_to_labels(
+                    dynamic_ui_spec, dynamic_ui_values
+                )
+                user_message = (
+                    f"[DYNAMIC_UI_SUBMIT] {json.dumps(value_map, ensure_ascii=False)}"
+                )
+
+            history_str = json.dumps(dynamic_ui_history, ensure_ascii=False)
+            combined_message = (
+                f"DYNAMIC_UI_HISTORY: {history_str}\nUSER: {user_message}"
+            )
+            # Add user message to history
+            history = history or []
+            history.append({"role": "user", "content": user_message})
+            assistant_msg = {"role": "assistant", "content": ""}
+            history.append(assistant_msg)
+            # Stream tokens from agent
+            async for partial_content in agent.stream_tokens(
+                combined_message, conversation_id=conversation_id
+            ):
+                assistant_msg["content"] = f'<div class="agent-bubble">{partial_content}</div>'
+                yield (
+                    history,
+                    "",  # user_input
+                    conversation_id,
+                    f"<style>{css}</style>",
+                    dynamic_ui_spec,
+                    dynamic_ui_values,
+                    dynamic_ui_history,
+                    dynamic_ui_history,  # for debug_dynamic_ui_history
+                )
+
         io_favicon_url = "https://io.net/favicon.ico"
         favicon_html = gr.HTML(
             f"""
@@ -201,6 +250,7 @@ class IOGradioUI:
                     type="messages",
                 )
                 conv_id_input
+            streaming_checkbox = gr.Checkbox(label="Enable Streaming Mode", value=streaming)
             # Place the dynamic UI column directly in the layout so it always renders
             dynamic_ui_col = gr.Column(visible=True)
             with dynamic_ui_col:
@@ -213,7 +263,7 @@ class IOGradioUI:
             with gr.Row(elem_id="input-row"):
                 user_input = gr.Textbox(label="Ask IO", scale=4)
                 send_btn = gr.Button("Send", scale=1, elem_classes=["io-chat-btn"])
-            css_html = gr.HTML(f"<style>{default_css}</style>", visible=False)
+            css_html = gr.HTML(f"<style>{DEFAULT_CSS}</style>", visible=False)
             conv_id_state = gr.State("")
             dynamic_ui_spec_state = gr.State(None)
             dynamic_ui_values_state = gr.State(
@@ -315,6 +365,7 @@ class IOGradioUI:
                 dynamic_ui_spec_val,
                 dynamic_ui_values_val,
                 dynamic_ui_history_val,
+                streaming_checkbox,
             ):
                 history = chatbot_val or []
                 new_dynamic_ui_history = list(dynamic_ui_history_val)
@@ -340,14 +391,24 @@ class IOGradioUI:
                     dynamic_ui_spec_val,
                     dynamic_ui_values_val,
                     new_dynamic_ui_history,
+                    streaming=streaming_checkbox,
                 )
                 return (*result, new_dynamic_ui_history, new_dynamic_ui_history)
+
+            async def gradio_dispatcher(*args):
+                if args[-1]:
+                    # streaming enabled
+                    async for result in agent_chat_fn_streaming(*args[:-1]):
+                        yield result
+                else:
+                    result = await chat_with_dynamic_ui(*args)
+                    yield result
 
             with gr.Accordion("Debug Info", open=False):
                 debug_dynamic_ui_history = gr.JSON(label="Dynamic UI History (debug)")
 
             send_btn.click(
-                chat_with_dynamic_ui,
+                gradio_dispatcher,
                 inputs=[
                     chatbot,
                     user_input,
@@ -356,6 +417,7 @@ class IOGradioUI:
                     dynamic_ui_spec_state,
                     dynamic_ui_values_state,
                     dynamic_ui_history_state,
+                    streaming_checkbox,
                 ],
                 outputs=[
                     chatbot,
@@ -369,7 +431,7 @@ class IOGradioUI:
                 ],
             )
             user_input.submit(
-                chat_with_dynamic_ui,
+                gradio_dispatcher,
                 inputs=[
                     chatbot,
                     user_input,
@@ -378,6 +440,7 @@ class IOGradioUI:
                     dynamic_ui_spec_state,
                     dynamic_ui_values_state,
                     dynamic_ui_history_state,
+                    streaming_checkbox,
                 ],
                 outputs=[
                     chatbot,

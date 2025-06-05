@@ -1,6 +1,6 @@
 from .memory import AsyncMemory
-from .agent_methods.data_models.datamodels import PersonaConfig, Tool
-from .utilities.rich import console, pretty_output  # pretty needs to be here
+from .agent_methods.data_models.datamodels import PersonaConfig, Tool, ToolUsageResult
+from .utilities.rich import console, pretty_output
 from .utilities.constants import get_api_url, get_base_model, get_api_key
 from .utilities.registries import TOOLS_REGISTRY
 from .utilities.helpers import supports_tool_choice_required, flatten_union_types
@@ -21,13 +21,6 @@ import dataclasses
 
 import uuid
 import asyncio
-
-from rich.panel import Panel
-from rich.text import Text
-from rich.markdown import Markdown
-from rich.live import Live
-from rich.columns import Columns
-from rich.console import Group
 
 
 class PatchedValidatorTool(PydanticTool):
@@ -61,12 +54,6 @@ class PatchedValidatorTool(PydanticTool):
                             message, args=json.dumps(margs_dict)
                         )
         return await super().run(message, *args, **kw)
-
-
-class ToolUsageResult(BaseModel):
-    tool_name: str
-    tool_args: dict
-    tool_result: Any = None
 
 
 class Agent(BaseModel):
@@ -117,6 +104,7 @@ class Agent(BaseModel):
         api_key: Optional[SecretStr | str] = None,
         base_url: Optional[str] = None,
         output_type: Optional[Any] = str,
+        conversation_id: Optional[str] = None,
         retries: int = 3,
         output_retries: int | None = None,
         show_tool_calls: bool = True,
@@ -192,6 +180,7 @@ class Agent(BaseModel):
             show_tool_calls=show_tool_calls,
             tool_pil_layout=tool_pil_layout,
             debug=debug,
+            conversation_id=conversation_id,
         )
         self._runner = PydanticAgent(
             name=name,
@@ -305,30 +294,6 @@ class Agent(BaseModel):
             )
         return tool_usage_results
 
-    def tool_usage_results_to_panels(
-        self, tool_usage_results: list[ToolUsageResult]
-    ) -> list[Panel]:
-        """
-        Given a list of ToolUsageResult, return a list of Rich Panels for display.
-        """
-        tool_usage_pils: list[Panel] = []
-        for tur in tool_usage_results:
-            pil = Panel(
-                f"[bold cyan]🛠️ Tool: [magenta]{tur.tool_name}[/magenta]\n[yellow]Args: {tur.tool_args}[/yellow]"
-                + (
-                    f"\n\n[bold green]✅ Result: [white]{tur.tool_result}[/white]"
-                    if tur.tool_result is not None
-                    else ""
-                ),
-                border_style="cyan",
-                title=f"== {tur.tool_name}({tur.tool_args}) ==",
-                title_align="left",
-                padding=(1, 2),
-                style="on black",
-            )
-            tool_usage_pils.append(pil)
-        return tool_usage_pils
-
     def _postprocess_agent_result(
         self,
         result: AgentRunResult,
@@ -341,46 +306,54 @@ class Agent(BaseModel):
             result.all_messages() if hasattr(result, "all_messages") else []
         )
         tool_usage_results = self.extract_tool_usage_results(messages)
-        tool_usage_pils = self.tool_usage_results_to_panels(tool_usage_results)
+
         if pretty and (pretty_output is not None and pretty_output):
-            task_header = Text(
-                f" Objective: {query} ", style="bold white on dark_green"
+            from iointel.src.ui.rich_panels import render_agent_result_panel
+            render_agent_result_panel(
+                result_output=result.output,
+                query=query,
+                agent_name=self.name,
+                tool_usage_results=tool_usage_results,
+                show_tool_calls=self.show_tool_calls,
+                tool_pil_layout=self.tool_pil_layout,
             )
-            agent_info = Text(f"Agent(s): {self.name}", style="cyan bold")
-            panel_content = Markdown(str(result.output), style="magenta")
-
-            if self.show_tool_calls:
-                if tool_usage_pils:
-                    if self.tool_pil_layout == "horizontal":
-                        panel_content = Group(
-                            panel_content,
-                            Text("\n"),
-                            Columns(tool_usage_pils, expand=True),
-                        )
-                    else:
-                        panel_content = Group(
-                            panel_content, Text("\n"), *tool_usage_pils
-                        )
-
-            panel = Panel(
-                panel_content,
-                title=task_header,
-                subtitle=agent_info,
-                border_style="electric_blue",
-            )
-            console.print(panel)
         return dict(
             result=result.output,
-            conversation_id=conversation_id or self.conversation_id,
+            conversation_id=conversation_id,
             full_result=result,
             tool_usage_results=tool_usage_results,
         )
+    
+
+    async def _load_message_history(
+        self, conversation_id: Optional[str], message_history_limit: int
+    ) -> Optional[list[dict[str, Any]]]:
+        if self.memory and conversation_id:
+            try:
+                return await self.memory.get_message_history(conversation_id, message_history_limit)
+            except Exception as e:
+                print("Error loading message history:", e)
+        return None
+
+
+    def _resolve_conversation_id(self, conversation_id: Optional[str]) -> str:
+        return conversation_id or self.conversation_id or str(uuid.uuid4())
+
+
+    def _adjust_output_type(self, kwargs: dict[str, Any]) -> None:
+        if not self.model_settings.get("supports_tool_choice_required"):
+            output_type = kwargs.get("output_type")
+            if output_type is not None and output_type is not str:
+                flat_types = flatten_union_types(output_type)
+                if str not in flat_types:
+                    flat_types = [str] + flat_types
+                kwargs["output_type"] = Union[tuple(flat_types)]
 
     async def run(
         self,
         query: str,
         conversation_id: Optional[str] = None,
-        pretty=None,
+        pretty: bool = True,
         message_history_limit=100,
         **kwargs,
     ) -> dict[str, Any]:
@@ -388,44 +361,30 @@ class Agent(BaseModel):
         Run the agent asynchronously.
         :param query: The query to run the agent on.
         :param conversation_id: The conversation ID to use for the agent.
+        :param pretty: Whether to pretty print the result as a rich panel, useful for cli or notebook.
+        :param message_history_limit: The number of messages to load from the memory.
         :param kwargs: Additional keyword arguments to pass to the agent.
         :return: The result of the agent run.
         """
-        self.conversation_id = conversation_id
 
-        if self.memory and conversation_id:
-            try:
-                stored_messages_json = await self.memory.get_message_history(
-                    conversation_id, message_history_limit
-                )
-                if stored_messages_json:
-                    message_history = stored_messages_json
-                    kwargs["message_history"] = message_history
-            except Exception as e:
-                print("Error loading message history:", e)
+        message_history = await self._load_message_history(conversation_id, message_history_limit)
+        if message_history:
+            kwargs["message_history"] = message_history
 
-        if not self.model_settings.get("supports_tool_choice_required"):
-            if (output_type := kwargs.get("output_type")) is not None:
-                if output_type is not str:
-                    flat_types = flatten_union_types(output_type)
-                    if str not in flat_types:
-                        flat_types = [str] + flat_types
-                    kwargs["output_type"] = Union[tuple(flat_types)]
-        result: AgentRunResult = await self._runner.run(query, **kwargs)
+        self._adjust_output_type(kwargs)
+
+        result = await self._runner.run(query, **kwargs)
+
+        conversation_id = self._resolve_conversation_id(conversation_id)
 
         if self.memory:
-            conversation_id = (
-                conversation_id or self.conversation_id or str(uuid.uuid4())
-            )
-
             try:
                 await self.memory.store_run_history(conversation_id, result)
             except Exception as e:
                 print("Error storing run history:", e)
 
-        return self._postprocess_agent_result(
-            result, query, conversation_id, pretty=pretty
-        )
+        return self._postprocess_agent_result(result, query, conversation_id, pretty=pretty)
+
 
     async def run_stream(
         self,
@@ -433,21 +392,27 @@ class Agent(BaseModel):
         conversation_id: Optional[str] = None,
         return_markdown=False,
         message_history_limit=100,
+        pretty: bool = True,
         **kwargs,
     ) -> dict[str, Any]:
-        task_header = Text(f" Objective: {query} ", style="bold white on dark_green")
-        agent_info = Text(f"Agent: {self.name}", style="cyan bold")
-        markdown_content = ""
+        """
+        Run the agent with streaming output.
+        :param query: The query to run the agent on.
+        :param conversation_id: The optional conversation ID to use for the agent.
+        :param return_markdown: Whether to return the result as markdown.
+        :param message_history_limit: The number of messages to load from the memory.
+        :param pretty: Whether to pretty print the result as a rich panel, useful for cli or notebook.
+        :param kwargs: Additional keyword arguments to pass to the agent.
+        :return: The result of the agent run.
+        """
+        from iointel.src.ui.rich_panels import update_live_panel
+        from iointel.src.utilities.rich import console
+        from rich.live import Live
 
-        if self.memory and conversation_id:
-            try:
-                stored_messages = await self.memory.get_message_history(
-                    conversation_id, message_history_limit
-                )
-                if stored_messages:
-                    kwargs["message_history"] = stored_messages
-            except Exception as e:
-                console.print(f"[red]Error loading message history:[/red] {e}")
+        markdown_content = ""
+        message_history = await self._load_message_history(conversation_id, message_history_limit)
+        if message_history:
+            kwargs["message_history"] = message_history
 
         async with self._runner.iter(query, **kwargs) as agent_run:
             with Live(console=console, vertical_overflow="visible") as live:
@@ -455,67 +420,35 @@ class Agent(BaseModel):
                     if self._runner.is_model_request_node(node):
                         async with node.stream(agent_run.ctx) as request_stream:
                             async for event in request_stream:
-                                if isinstance(event, PartDeltaEvent) and isinstance(
-                                    event.delta, TextPartDelta
-                                ):
+                                if isinstance(event, PartDeltaEvent) and isinstance(event.delta, TextPartDelta):
                                     markdown_content += event.delta.content_delta or ""
-                                    markdown_render = Markdown(
-                                        markdown_content, style="magenta"
-                                    )
-                                    panel = Panel(
-                                        markdown_render,
-                                        title=task_header,
-                                        subtitle=agent_info,
-                                        border_style="electric_blue",
-                                    )
-                                    live.update(panel)
+                                    update_live_panel(live, markdown_content, query, self.name)
 
-                # Explicitly ensure final markdown is exactly right:
-                final_result = (
-                    agent_run.result.output if hasattr(agent_run.result, "data") else ""
-                )
+                final_result = agent_run.result.output if hasattr(agent_run.result, "data") else ""
+                final_result_str = (
+                    final_result.model_dump_json(indent=2)
+                    if hasattr(final_result, "model_dump_json")
+                    else str(final_result)
+                ) if not isinstance(final_result, str) else final_result
 
-                if not isinstance(final_result, str):
-                    final_result_str = (
-                        final_result.model_dump_json(indent=2)
-                        if hasattr(final_result, "model_dump_json")
-                        else str(final_result)
-                    )
-                else:
-                    final_result_str = final_result
-
-                # Safely compare lengths and update markdown_content
                 if len(final_result_str) > len(markdown_content):
-                    markdown_content += final_result_str[len(markdown_content) :]
+                    markdown_content += final_result_str[len(markdown_content):]
 
-                markdown_render = Markdown(markdown_content, style="magenta")
-                panel = Panel(
-                    markdown_render,
-                    title=task_header,
-                    subtitle=agent_info,
-                    border_style="electric_blue",
-                )
-                live.update(panel)
-
+                update_live_panel(live, markdown_content, query, self.name)
                 await asyncio.sleep(0.3)
 
-        # Store updated conversation history.
+        conversation_id = self._resolve_conversation_id(conversation_id)
         if self.memory:
-            conversation_id = (
-                conversation_id or self.conversation_id or str(uuid.uuid4())
-            )
             try:
                 await self.memory.store_run_history(conversation_id, agent_run.result)
             except Exception as e:
                 console.print(f"[red]Error storing run history:[/red] {e}")
 
-        # Postprocess and return
-        result_dict = self._postprocess_agent_result(
-            agent_run.result, query, conversation_id, pretty=True
-        )
+        result_dict = self._postprocess_agent_result(agent_run.result, query, conversation_id, pretty=pretty)
         if return_markdown:
             result_dict["result"] = markdown_content
         return result_dict
+
 
     def set_context(self, context: Any) -> None:
         """
@@ -547,7 +480,27 @@ class Agent(BaseModel):
         ui = IOGradioUI(agent=self, interface_title=interface_title)
         return await ui.launch(share=share)
 
+    async def stream_tokens(
+        self,
+        query: str,
+        conversation_id: Optional[str] = None,
+        message_history_limit=100,
+        **kwargs,
+    ):
+        """
+        Async generator that yields partial content as tokens are streamed from the model.
+        """
+        message_history = await self._load_message_history(conversation_id, message_history_limit)
+        if message_history:
+            kwargs["message_history"] = message_history
 
-if False:
-    # Prevent unused import warning for pretty_output, needed for linting
-    pretty_output(None)
+        async with self._runner.iter(query, **kwargs) as agent_run:
+            content = ""
+            async for node in agent_run:
+                if self._runner.is_model_request_node(node):
+                    async with node.stream(agent_run.ctx) as request_stream:
+                        async for event in request_stream:
+                            if isinstance(event, PartDeltaEvent) and isinstance(event.delta, TextPartDelta):
+                                content += event.delta.content_delta or ""
+                                yield content
+
