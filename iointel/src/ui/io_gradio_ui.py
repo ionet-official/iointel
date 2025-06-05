@@ -96,6 +96,7 @@ DEFAULT_CSS = """
         }
         """
 
+
 class IOGradioUI:
     def __init__(self, agent, interface_title=None):
         self.agent = agent
@@ -154,7 +155,7 @@ class IOGradioUI:
                 f"DYNAMIC_UI_HISTORY: {history_str}\nUSER: {user_message}"
             )
             result = await agent.run(
-                    combined_message, conversation_id=conversation_id, pretty=True
+                combined_message, conversation_id=conversation_id, pretty=True
             )
             # Check for set_css tool usage
             for tur in result.get("tool_usage_results", []):
@@ -218,7 +219,9 @@ class IOGradioUI:
             async for partial_content in agent.stream_tokens(
                 combined_message, conversation_id=conversation_id
             ):
-                assistant_msg["content"] = f'<div class="agent-bubble">{partial_content}</div>'
+                assistant_msg["content"] = (
+                    f'<div class="agent-bubble">{partial_content}</div>'
+                )
                 yield (
                     history,
                     "",  # user_input
@@ -250,7 +253,9 @@ class IOGradioUI:
                     type="messages",
                 )
                 conv_id_input
-            streaming_checkbox = gr.Checkbox(label="Enable Streaming Mode", value=streaming)
+            streaming_checkbox = gr.Checkbox(
+                label="Enable Streaming Mode", value=streaming
+            )
             # Place the dynamic UI column directly in the layout so it always renders
             dynamic_ui_col = gr.Column(visible=True)
             with dynamic_ui_col:

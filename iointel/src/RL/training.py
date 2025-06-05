@@ -247,7 +247,6 @@ class RLEnvironment:
 
 
 if __name__ == "__main__":
-
     # Load environment variables from creds.env
     load_dotenv("creds.env")
 

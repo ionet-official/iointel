@@ -1,6 +1,6 @@
 from .memory import AsyncMemory
 from .agent_methods.data_models.datamodels import PersonaConfig, Tool, ToolUsageResult
-from .utilities.rich import console, pretty_output
+from .utilities.rich import pretty_output
 from .utilities.constants import get_api_url, get_base_model, get_api_key
 from .utilities.registries import TOOLS_REGISTRY
 from .utilities.helpers import supports_tool_choice_required, flatten_union_types
@@ -309,6 +309,7 @@ class Agent(BaseModel):
 
         if pretty and (pretty_output is not None and pretty_output):
             from iointel.src.ui.rich_panels import render_agent_result_panel
+
             render_agent_result_panel(
                 result_output=result.output,
                 query=query,
@@ -323,22 +324,21 @@ class Agent(BaseModel):
             full_result=result,
             tool_usage_results=tool_usage_results,
         )
-    
 
     async def _load_message_history(
         self, conversation_id: Optional[str], message_history_limit: int
     ) -> Optional[list[dict[str, Any]]]:
         if self.memory and conversation_id:
             try:
-                return await self.memory.get_message_history(conversation_id, message_history_limit)
+                return await self.memory.get_message_history(
+                    conversation_id, message_history_limit
+                )
             except Exception as e:
                 print("Error loading message history:", e)
         return None
 
-
     def _resolve_conversation_id(self, conversation_id: Optional[str]) -> str:
         return conversation_id or self.conversation_id or str(uuid.uuid4())
-
 
     def _adjust_output_type(self, kwargs: dict[str, Any]) -> None:
         if not self.model_settings.get("supports_tool_choice_required"):
@@ -367,7 +367,9 @@ class Agent(BaseModel):
         :return: The result of the agent run.
         """
 
-        message_history = await self._load_message_history(conversation_id, message_history_limit)
+        message_history = await self._load_message_history(
+            conversation_id, message_history_limit
+        )
         if message_history:
             kwargs["message_history"] = message_history
 
@@ -383,8 +385,9 @@ class Agent(BaseModel):
             except Exception as e:
                 print("Error storing run history:", e)
 
-        return self._postprocess_agent_result(result, query, conversation_id, pretty=pretty)
-
+        return self._postprocess_agent_result(
+            result, query, conversation_id, pretty=pretty
+        )
 
     async def run_stream(
         self,
@@ -410,7 +413,9 @@ class Agent(BaseModel):
         from rich.live import Live
 
         markdown_content = ""
-        message_history = await self._load_message_history(conversation_id, message_history_limit)
+        message_history = await self._load_message_history(
+            conversation_id, message_history_limit
+        )
         if message_history:
             kwargs["message_history"] = message_history
 
@@ -420,19 +425,29 @@ class Agent(BaseModel):
                     if self._runner.is_model_request_node(node):
                         async with node.stream(agent_run.ctx) as request_stream:
                             async for event in request_stream:
-                                if isinstance(event, PartDeltaEvent) and isinstance(event.delta, TextPartDelta):
+                                if isinstance(event, PartDeltaEvent) and isinstance(
+                                    event.delta, TextPartDelta
+                                ):
                                     markdown_content += event.delta.content_delta or ""
-                                    update_live_panel(live, markdown_content, query, self.name)
+                                    update_live_panel(
+                                        live, markdown_content, query, self.name
+                                    )
 
-                final_result = agent_run.result.output if hasattr(agent_run.result, "data") else ""
+                final_result = (
+                    agent_run.result.output if hasattr(agent_run.result, "data") else ""
+                )
                 final_result_str = (
-                    final_result.model_dump_json(indent=2)
-                    if hasattr(final_result, "model_dump_json")
-                    else str(final_result)
-                ) if not isinstance(final_result, str) else final_result
+                    (
+                        final_result.model_dump_json(indent=2)
+                        if hasattr(final_result, "model_dump_json")
+                        else str(final_result)
+                    )
+                    if not isinstance(final_result, str)
+                    else final_result
+                )
 
                 if len(final_result_str) > len(markdown_content):
-                    markdown_content += final_result_str[len(markdown_content):]
+                    markdown_content += final_result_str[len(markdown_content) :]
 
                 update_live_panel(live, markdown_content, query, self.name)
                 await asyncio.sleep(0.3)
@@ -444,11 +459,12 @@ class Agent(BaseModel):
             except Exception as e:
                 console.print(f"[red]Error storing run history:[/red] {e}")
 
-        result_dict = self._postprocess_agent_result(agent_run.result, query, conversation_id, pretty=pretty)
+        result_dict = self._postprocess_agent_result(
+            agent_run.result, query, conversation_id, pretty=pretty
+        )
         if return_markdown:
             result_dict["result"] = markdown_content
         return result_dict
-
 
     def set_context(self, context: Any) -> None:
         """
@@ -473,7 +489,9 @@ class Agent(BaseModel):
                 print(f"Error fetching conversation IDs: {e}")
         return []
 
-    async def launch_chat_ui(self, interface_title: str = None, share: bool = False) -> None:
+    async def launch_chat_ui(
+        self, interface_title: str = None, share: bool = False
+    ) -> None:
         """
         Launches a Gradio UI for interacting with the agent as a chat interface.
         """
@@ -490,7 +508,9 @@ class Agent(BaseModel):
         """
         Async generator that yields partial content as tokens are streamed from the model.
         """
-        message_history = await self._load_message_history(conversation_id, message_history_limit)
+        message_history = await self._load_message_history(
+            conversation_id, message_history_limit
+        )
         if message_history:
             kwargs["message_history"] = message_history
 
@@ -500,7 +520,8 @@ class Agent(BaseModel):
                 if self._runner.is_model_request_node(node):
                     async with node.stream(agent_run.ctx) as request_stream:
                         async for event in request_stream:
-                            if isinstance(event, PartDeltaEvent) and isinstance(event.delta, TextPartDelta):
+                            if isinstance(event, PartDeltaEvent) and isinstance(
+                                event.delta, TextPartDelta
+                            ):
                                 content += event.delta.content_delta or ""
                                 yield content
-

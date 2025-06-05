@@ -6,6 +6,7 @@ from rich.console import Group
 from iointel.src.agent_methods.data_models.datamodels import ToolUsageResult
 from typing import Literal
 
+
 def render_agent_result_panel(
     result_output: str,
     query: str,
@@ -19,6 +20,7 @@ def render_agent_result_panel(
     Render the agent result panel using Rich. If no console is provided, use the shared console.
     """
     from iointel.src.utilities.rich import console as default_console
+
     if console is None:
         console = default_console
     tool_usage_pils = tool_usage_results_to_panels(tool_usage_results)
@@ -42,7 +44,10 @@ def render_agent_result_panel(
     )
     console.print(panel)
 
-def tool_usage_results_to_panels(tool_usage_results: list[ToolUsageResult]) -> list[Panel]:
+
+def tool_usage_results_to_panels(
+    tool_usage_results: list[ToolUsageResult],
+) -> list[Panel]:
     """
     Given a list of ToolUsageResult, return a list of Rich Panels for display.
     """
@@ -64,6 +69,7 @@ def tool_usage_results_to_panels(tool_usage_results: list[ToolUsageResult]) -> l
         tool_usage_pils.append(pil)
     return tool_usage_pils
 
+
 def update_live_panel(live, markdown_content: str, query: str, agent_name: str):
     """
     Update a Rich Live panel with the current markdown content, query, and agent name.
@@ -71,6 +77,7 @@ def update_live_panel(live, markdown_content: str, query: str, agent_name: str):
     from rich.markdown import Markdown
     from rich.panel import Panel
     from rich.text import Text
+
     task_header = Text(f" Objective: {query} ", style="bold white on dark_green")
     agent_info = Text(f"Agent: {agent_name}", style="cyan bold")
     markdown_render = Markdown(markdown_content, style="magenta")
@@ -80,4 +87,4 @@ def update_live_panel(live, markdown_content: str, query: str, agent_name: str):
         subtitle=agent_info,
         border_style="electric_blue",
     )
-    live.update(panel) 
+    live.update(panel)

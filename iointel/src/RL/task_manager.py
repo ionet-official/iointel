@@ -153,10 +153,8 @@ class TaskManager:
 
 # add a if n
 if __name__ == "__main__":
-
     # Load environment variables from creds.env
     load_dotenv("creds.env")
-
 
     async def main():
         task_manager = TaskManager(

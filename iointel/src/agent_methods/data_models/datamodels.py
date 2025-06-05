@@ -46,6 +46,12 @@ def patched_get_json_schema(cls, core_schema, handler):
 OpenAIModel.__get_pydantic_json_schema__ = classmethod(patched_get_json_schema)
 
 
+class ToolUsageResult(BaseModel):
+    tool_name: str
+    tool_args: dict
+    tool_result: Any = None
+
+
 ###### persona ########
 class PersonaConfig(BaseModel):
     """
