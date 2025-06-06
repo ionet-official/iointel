@@ -197,7 +197,7 @@ class IOGradioUI:
 
         agent_result = None
         last_content = ""
-        async for partial in self.agent.stream_tokens(
+        async for partial in self.agent._stream_tokens(
             combined_message, conversation_id=conversation_id
         ):
             if isinstance(partial, dict) and partial.get("__final__"):
@@ -295,12 +295,39 @@ class IOGradioUI:
                 sl_idx += 1
         return html + "</div>"
 
-    async def _gradio_dispatcher(self, *args):
-        if args[-1]:
-            async for result in self._agent_chat_fn_streaming(*args[:-1]):
+    async def _gradio_dispatcher(
+        self,
+        chatbot_val,
+        user_input,
+        conv_id_state,
+        css_html,
+        dynamic_ui_spec_state,
+        dynamic_ui_values_state,
+        dynamic_ui_history_state,
+        streaming_checkbox,
+    ):
+        if streaming_checkbox:
+            async for result in self._agent_chat_fn_streaming(
+                chatbot_val,
+                user_input,
+                conv_id_state,
+                css_html,
+                dynamic_ui_spec_state,
+                dynamic_ui_values_state,
+                dynamic_ui_history_state,
+            ):
                 yield result
         else:
-            result = await self._chat_with_dynamic_ui(*args)
+            result = await self._chat_with_dynamic_ui(
+                chatbot_val,
+                user_input,
+                conv_id_state,
+                css_html,
+                dynamic_ui_spec_state,
+                dynamic_ui_values_state,
+                dynamic_ui_history_state,
+                streaming_checkbox,
+            )
             yield result
 
     async def launch(self, share=False, streaming=True):

@@ -1,10 +1,14 @@
+
+from typing import Literal
+
 from rich.panel import Panel
 from rich.text import Text
 from rich.markdown import Markdown
 from rich.columns import Columns
 from rich.console import Group
+
 from iointel.src.agent_methods.data_models.datamodels import ToolUsageResult
-from typing import Literal
+from iointel.src.utilities.rich import console as default_console
 
 
 def render_agent_result_panel(
@@ -19,7 +23,6 @@ def render_agent_result_panel(
     """
     Render the agent result panel using Rich. If no console is provided, use the shared console.
     """
-    from iointel.src.utilities.rich import console as default_console
 
     if console is None:
         console = default_console

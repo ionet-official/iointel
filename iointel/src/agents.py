@@ -1,3 +1,8 @@
+import asyncio
+import dataclasses
+import json
+import uuid
+
 from .memory import AsyncMemory
 from .agent_methods.data_models.datamodels import PersonaConfig, Tool, ToolUsageResult
 from .utilities.rich import pretty_output
@@ -16,11 +21,10 @@ from pydantic_ai.settings import ModelSettings
 from pydantic import ConfigDict, SecretStr, BaseModel, ValidationError
 from pydantic_ai.messages import PartDeltaEvent, TextPartDelta, ToolCallPart
 from typing import Callable, Dict, Any, Optional, Union, Literal
-import json
-import dataclasses
 
-import uuid
-import asyncio
+from iointel.src.ui.rich_panels import update_live_panel
+from iointel.src.utilities.rich import console
+from rich.live import Live
 
 
 class PatchedValidatorTool(PydanticTool):
@@ -410,6 +414,41 @@ class Agent(BaseModel):
             result, query, conversation_id, pretty=pretty
         )
 
+    async def _stream_tokens(
+        self,
+        query: str,
+        conversation_id: Optional[str] = None,
+        message_history_limit=100,
+        **kwargs,
+    ):
+        """
+        Async generator that yields partial content as tokens are streamed from the model.
+        At the end, yields a dict with '__final__', 'content', and 'agent_result'.
+        """
+        message_history = await self._load_message_history(
+            conversation_id, message_history_limit
+        )
+        if message_history:
+            kwargs["message_history"] = message_history
+
+        async with self._runner.iter(query, **kwargs) as agent_run:
+            content = ""
+            async for node in agent_run:
+                if self._runner.is_model_request_node(node):
+                    async with node.stream(agent_run.ctx) as request_stream:
+                        async for event in request_stream:
+                            if isinstance(event, PartDeltaEvent) and isinstance(
+                                event.delta, TextPartDelta
+                            ):
+                                content += event.delta.content_delta or ""
+                                yield content
+            # After streaming, yield a special marker with the final result
+            yield {
+                "__final__": True,
+                "content": content,
+                "agent_result": agent_run.result,
+            }
+
     async def run_stream(
         self,
         query: str,
@@ -429,60 +468,31 @@ class Agent(BaseModel):
         :param kwargs: Additional keyword arguments to pass to the agent.
         :return: The result of the agent run.
         """
-        from iointel.src.ui.rich_panels import update_live_panel
-        from iointel.src.utilities.rich import console
-        from rich.live import Live
 
         markdown_content = ""
-        message_history = await self._load_message_history(
-            conversation_id, message_history_limit
-        )
-        if message_history:
-            kwargs["message_history"] = message_history
+        agent_result = None
 
-        async with self._runner.iter(query, **kwargs) as agent_run:
-            with Live(console=console, vertical_overflow="visible") as live:
-                async for node in agent_run:
-                    if self._runner.is_model_request_node(node):
-                        async with node.stream(agent_run.ctx) as request_stream:
-                            async for event in request_stream:
-                                if isinstance(event, PartDeltaEvent) and isinstance(
-                                    event.delta, TextPartDelta
-                                ):
-                                    markdown_content += event.delta.content_delta or ""
-                                    update_live_panel(
-                                        live, markdown_content, query, self.name
-                                    )
-
-                final_result = (
-                    agent_run.result.output if hasattr(agent_run.result, "data") else ""
-                )
-                final_result_str = (
-                    (
-                        final_result.model_dump_json(indent=2)
-                        if hasattr(final_result, "model_dump_json")
-                        else str(final_result)
-                    )
-                    if not isinstance(final_result, str)
-                    else final_result
-                )
-
-                if len(final_result_str) > len(markdown_content):
-                    markdown_content += final_result_str[len(markdown_content) :]
-
-                update_live_panel(live, markdown_content, query, self.name)
-                await asyncio.sleep(0.3)
+        async for partial in self._stream_tokens(
+            query,
+            conversation_id=conversation_id,
+            message_history_limit=message_history_limit,
+            **kwargs,
+        ):
+            if isinstance(partial, dict) and partial.get("__final__"):
+                markdown_content = partial["content"]
+                agent_result = partial["agent_result"]
+                break
+            else:
+                markdown_content = partial  # or accumulate if you want
 
         conversation_id = self._resolve_conversation_id(conversation_id)
         if self.memory:
             try:
-                await self.memory.store_run_history(conversation_id, agent_run.result)
+                await self.memory.store_run_history(conversation_id, agent_result)
             except Exception as e:
-                console.print(f"[red]Error storing run history:[/red] {e}")
+                print("Error storing run history:", e)
 
-        result_dict = self._postprocess_agent_result(
-            agent_run.result, query, conversation_id, pretty=pretty
-        )
+        result_dict = self._postprocess_agent_result(agent_result, query, conversation_id, pretty=pretty)
         if return_markdown:
             result_dict["result"] = markdown_content
         return result_dict
@@ -518,41 +528,6 @@ class Agent(BaseModel):
         """
         ui = IOGradioUI(agent=self, interface_title=interface_title)
         return await ui.launch(share=share)
-
-    async def stream_tokens(
-        self,
-        query: str,
-        conversation_id: Optional[str] = None,
-        message_history_limit=100,
-        **kwargs,
-    ):
-        """
-        Async generator that yields partial content as tokens are streamed from the model.
-        At the end, yields a dict with '__final__', 'content', and 'agent_result'.
-        """
-        message_history = await self._load_message_history(
-            conversation_id, message_history_limit
-        )
-        if message_history:
-            kwargs["message_history"] = message_history
-
-        async with self._runner.iter(query, **kwargs) as agent_run:
-            content = ""
-            async for node in agent_run:
-                if self._runner.is_model_request_node(node):
-                    async with node.stream(agent_run.ctx) as request_stream:
-                        async for event in request_stream:
-                            if isinstance(event, PartDeltaEvent) and isinstance(
-                                event.delta, TextPartDelta
-                            ):
-                                content += event.delta.content_delta or ""
-                                yield content
-            # After streaming, yield a special marker with the final result
-            yield {
-                "__final__": True,
-                "content": content,
-                "agent_result": agent_run.result,
-            }
 
 
 class LiberalToolAgent(Agent):
