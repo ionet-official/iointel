@@ -8,6 +8,7 @@ from .utilities.rich import pretty_output
 from .utilities.constants import get_api_url, get_base_model, get_api_key
 from .utilities.registries import TOOLS_REGISTRY
 from .utilities.helpers import supports_tool_choice_required, flatten_union_types
+from .ui.rich_panels import render_agent_result_panel
 from .ui.io_gradio_ui import IOGradioUI
 
 from pydantic_ai.models.openai import OpenAIModel
@@ -328,7 +329,6 @@ class Agent(BaseModel):
         tool_usage_results = self.extract_tool_usage_results(messages)
 
         if pretty and (pretty_output is not None and pretty_output):
-            from iointel.src.ui.rich_panels import render_agent_result_panel
 
             render_agent_result_panel(
                 result_output=result.output,
