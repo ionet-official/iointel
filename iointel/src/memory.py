@@ -200,3 +200,18 @@ class AsyncMemory:
                     parsed_history.append(parse_response(item))
             return parsed_history
         return None
+
+    async def list_conversation_ids(self) -> list[str]:
+        """
+        Asynchronously list all unique conversation IDs stored in the database.
+        """
+        async with self.SessionLocal() as session:
+            try:
+                result = await session.execute(
+                    select(ConversationHistory.conversation_id)
+                )
+                ids = result.scalars().all()
+                return ids
+            except Exception as e:
+                print(f"Error listing conversation IDs: {e}")
+                return []

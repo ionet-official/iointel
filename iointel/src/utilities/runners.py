@@ -16,8 +16,8 @@ def _to_task_definition(
     **kwargs,
 ) -> TaskDefinition:
     """
-    Helper that merges the user’s provided fields into a TaskDefinition.
-    If your code doesn’t revolve around TaskDefinition yet,
+    Helper that merges the user's provided fields into a TaskDefinition.
+    If your code doesn't revolve around TaskDefinition yet,
     you can keep this minimal.
     """
     if isinstance(agents, Sequence):

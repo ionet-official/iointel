@@ -4,7 +4,10 @@ from iointel.src.utilities.constants import get_api_url, get_base_model, get_api
 from pydantic_ai.models.openai import OpenAIModel
 from pydantic_ai.providers.openai import OpenAIProvider
 from iointel import Agent, Workflow, register_custom_task, run_agents
-from iointel.src.agent_methods.data_models.datamodels import ModerationException
+from iointel.src.agent_methods.data_models.datamodels import (
+    ModerationException,
+    PersonaConfig,
+)
 
 text = """A long time ago, In a galaxy far, far away, 
 It is a period of civil wars in the galaxy. 
@@ -40,6 +43,7 @@ def custom_hi_task():
 @pytest.fixture
 def poet() -> Agent:
     agent = Agent(
+        persona=PersonaConfig(name="garbage guy", bio="arcane janitor"),
         name="ArcanePoetAgent",
         instructions="You are an assistant specialized in arcane knowledge.",
         model=llm,
@@ -181,7 +185,7 @@ def _ensure_agents_equal(
         if not check_api_key:
             base = base.model_copy(update={"api_key": ""})
             unpacked = unpacked.model_copy(update={"api_key": ""})
-        for key, value in base.model_dump().items():
+        for key in base.model_dump():
             if key == "model":
                 # OpenAIModels cannot be compared by simple `==`, need more complex checks
                 assert isinstance(base.model, OpenAIModel)
@@ -189,7 +193,7 @@ def _ensure_agents_equal(
                 assert base.model.model_name == unpacked.model.model_name
                 assert base.model.base_url == unpacked.model.base_url
             else:
-                assert getattr(unpacked, key) == value, (
+                assert getattr(unpacked, key) == getattr(base, key), (
                     "Expected roundtrip to retain agent parameters"
                 )
 

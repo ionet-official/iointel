@@ -1,13 +1,10 @@
 import asyncio
 import os
 from typing import Optional
-from typing import TypeVar
 
 from firecrawl import FirecrawlApp
 from iointel.src.utilities.decorators import register_tool
 from pydantic import BaseModel
-
-T = TypeVar("T", bound=BaseModel)
 
 FIRECRAWL_API_KEY = os.getenv("FIRECRAWL_API_KEY")
 
