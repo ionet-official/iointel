@@ -247,17 +247,17 @@ class IOGradioUI:
             dynamic_ui_history,
         )
 
-    async def _chat_with_dynamic_ui(self, *args):
-        (
-            chatbot_val,
-            user_input_val,
-            conv_id_val,
-            css_html_val,
-            dynamic_ui_spec_val,
-            dynamic_ui_values_val,
-            dynamic_ui_history_val,
-            streaming,
-        ) = args
+    async def _chat_with_dynamic_ui(
+        self,
+        chatbot_val,
+        user_input_val,
+        conv_id_val,
+        css_html_val,
+        dynamic_ui_spec_val,
+        dynamic_ui_values_val,
+        dynamic_ui_history_val,
+        streaming,
+    ):
         history = chatbot_val or []
         new_dynamic_ui_history = list(dynamic_ui_history_val)
 
