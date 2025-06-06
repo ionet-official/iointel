@@ -6,7 +6,6 @@ from iointel.src.ui.dynamic_ui import (
     MAX_SLIDERS,
     map_dynamic_ui_values_to_labels,
 )
-from pydantic_ai.messages import ModelMessage
 import json
 from iointel.src.agent_methods.data_models.datamodels import ToolUsageResult
 
@@ -196,61 +195,57 @@ class IOGradioUI:
         assistant_msg = {"role": "assistant", "content": ""}
         history.append(assistant_msg)
 
-        full_content = ""
-        async with self.agent._runner.iter(
+        agent_result = None
+        last_content = ""
+        async for partial in self.agent.stream_tokens(
             combined_message, conversation_id=conversation_id
-        ) as agent_run:
-            async for node in agent_run:
-                if self.agent._runner.is_model_request_node(node):
-                    async with node.stream(agent_run.ctx) as request_stream:
-                        async for event in request_stream:
-                            if hasattr(event, "delta") and hasattr(
-                                event.delta, "content_delta"
-                            ):
-                                delta = event.delta.content_delta or ""
-                                full_content += delta
-                                assistant_msg["content"] = (
-                                    f'<div class="agent-bubble">{full_content}</div>'
-                                )
-                                yield (
-                                    history,
-                                    "",  # user input
-                                    conversation_id,
-                                    f"<style>{css}</style>",
-                                    dynamic_ui_spec,
-                                    dynamic_ui_values,
-                                    dynamic_ui_history,
-                                    dynamic_ui_history,
-                                )
+        ):
+            if isinstance(partial, dict) and partial.get("__final__"):
+                last_content = partial["content"]
+                agent_result = partial["agent_result"]
+                break
+            else:
+                last_content = partial
+                assistant_msg["content"] = (
+                    f'<div class="agent-bubble">{last_content}</div>'
+                )
+                yield (
+                    history,
+                    "",  # user input
+                    conversation_id,
+                    f"<style>{css}</style>",
+                    dynamic_ui_spec,
+                    dynamic_ui_values,
+                    dynamic_ui_history,
+                    dynamic_ui_history,
+                )
 
-            messages: list[ModelMessage] = (
-                agent_run.result.all_messages()
-                if hasattr(agent_run.result, "all_messages")
-                else []
-            )
-            tool_usage_results = self.agent.extract_tool_usage_results(messages)
-            css, dynamic_ui_spec = self._handle_tool_results(tool_usage_results, css)
-            result = self.agent._postprocess_agent_result(
-                agent_run.result,
-                query=user_message,
-                conversation_id=conversation_id,
-                pretty=True,
-            )
-            formatted_html = (
-                f'<div class="agent-bubble">{format_result_for_html(result)}</div>'
-            )
-            assistant_msg["content"] = formatted_html
-
-            yield (
-                history,
-                "",  # user input empty, as not needed for streaming
-                conversation_id,
-                f"<style>{css}</style>",
-                dynamic_ui_spec,
-                dynamic_ui_values,
-                dynamic_ui_history,
-                dynamic_ui_history,
-            )
+        # Now use agent_result for postprocessing
+        messages = (
+            agent_result.all_messages() if hasattr(agent_result, "all_messages") else []
+        )
+        tool_usage_results = self.agent.extract_tool_usage_results(messages)
+        css, dynamic_ui_spec = self._handle_tool_results(tool_usage_results, css)
+        result = self.agent._postprocess_agent_result(
+            agent_result,
+            query=user_message,
+            conversation_id=conversation_id,
+            pretty=True,
+        )
+        formatted_html = (
+            f'<div class="agent-bubble">{format_result_for_html(result)}</div>'
+        )
+        assistant_msg["content"] = formatted_html
+        yield (
+            history,
+            "",  # user input
+            conversation_id,
+            f"<style>{css}</style>",
+            dynamic_ui_spec,
+            dynamic_ui_values,
+            dynamic_ui_history,
+            dynamic_ui_history,
+        )
 
     async def _chat_with_dynamic_ui(self, *args):
         (

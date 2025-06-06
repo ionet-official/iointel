@@ -528,6 +528,7 @@ class Agent(BaseModel):
     ):
         """
         Async generator that yields partial content as tokens are streamed from the model.
+        At the end, yields a dict with '__final__', 'content', and 'agent_result'.
         """
         message_history = await self._load_message_history(
             conversation_id, message_history_limit
@@ -546,6 +547,12 @@ class Agent(BaseModel):
                             ):
                                 content += event.delta.content_delta or ""
                                 yield content
+            # After streaming, yield a special marker with the final result
+            yield {
+                "__final__": True,
+                "content": content,
+                "agent_result": agent_run.result,
+            }
 
 
 class LiberalToolAgent(Agent):
