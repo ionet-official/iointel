@@ -569,6 +569,9 @@ class LiberalToolAgent(Agent):
         output_type: Optional[Any] = str,
         retries: int = 3,
         output_retries: int | None = None,
+        show_tool_calls: bool = True,
+        tool_pil_layout: Literal["vertical", "horizontal"] = "horizontal",
+        debug: bool = False,
         **model_kwargs,
     ):
         super().__init__(
@@ -586,5 +589,8 @@ class LiberalToolAgent(Agent):
             retries=retries,
             output_retries=output_retries,
             allow_unregistered_tools=True,
+            show_tool_calls=show_tool_calls,
+            tool_pil_layout=tool_pil_layout,
+            debug=debug,
             **model_kwargs,
         )
