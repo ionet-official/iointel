@@ -16,3 +16,6 @@ dist
 # virtual environments
 venv
 .venv
+
+# RL test reports
+iointel/src/RL/tests/reports/*
