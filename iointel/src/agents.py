@@ -1,4 +1,3 @@
-import asyncio
 import dataclasses
 import json
 import uuid
@@ -21,10 +20,6 @@ from pydantic_ai.settings import ModelSettings
 from pydantic import ConfigDict, SecretStr, BaseModel, ValidationError
 from pydantic_ai.messages import PartDeltaEvent, TextPartDelta, ToolCallPart
 from typing import Callable, Dict, Any, Optional, Union, Literal
-
-from iointel.src.ui.rich_panels import update_live_panel
-from iointel.src.utilities.rich import console
-from rich.live import Live
 
 
 class PatchedValidatorTool(PydanticTool):
@@ -378,7 +373,7 @@ class Agent(BaseModel):
         self,
         query: str,
         conversation_id: Optional[str] = None,
-        pretty: bool = True,
+        pretty: bool = None,
         message_history_limit=100,
         **kwargs,
     ) -> dict[str, Any]:
@@ -455,7 +450,7 @@ class Agent(BaseModel):
         conversation_id: Optional[str] = None,
         return_markdown=False,
         message_history_limit=100,
-        pretty: bool = True,
+        pretty: bool = None,
         **kwargs,
     ) -> dict[str, Any]:
         """
@@ -492,7 +487,9 @@ class Agent(BaseModel):
             except Exception as e:
                 print("Error storing run history:", e)
 
-        result_dict = self._postprocess_agent_result(agent_result, query, conversation_id, pretty=pretty)
+        result_dict = self._postprocess_agent_result(
+            agent_result, query, conversation_id, pretty=pretty
+        )
         if return_markdown:
             result_dict["result"] = markdown_content
         return result_dict

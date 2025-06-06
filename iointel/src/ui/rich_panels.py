@@ -1,4 +1,3 @@
-
 from typing import Literal
 
 from rich.panel import Panel
