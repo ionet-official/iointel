@@ -1,16 +1,30 @@
 # from agno.tools.duckduckgo import DuckDuckGoTools as AgnoDuckDuckGoTools
 from typing import Optional, Union
 from agno.tools.eleven_labs import ElevenLabsTools as AgnoElevenLabsTools
+from agno.tools.eleven_labs import ElevenLabsAudioOutputFormat
 from agno.agent import Agent
 from agno.team import Team
 from .common import make_base, wrap_tool
+from pydantic import Field
 
 
 class ElevenLabs(make_base(AgnoElevenLabsTools)):
-    base_dir: str | None = None
+    voice_id: str = Field(required="JBFqnCBsd6RMkjVDRZzb", fronzen=True)
+    api_key: Optional[str] = Field(required=None, fronzen=True)
+    target_directory: Optional[str] = Field(required=None, fronzen=True)
+    model_id: str = Field(required="eleven_multilingual_v2", fronzen=True)
+    output_format: ElevenLabsAudioOutputFormat = Field(
+        required="mp3_44100_64", fronzen=True
+    )
 
     def _get_tool(self):
-        return self.Inner(base_dir=self.base_dir)
+        return self.Inner(
+            voice_id=self.voice_id,
+            api_key=self.api_key,
+            target_directory=self.target_directory,
+            model_id=self.model_id,
+            output_format=self.output_format,
+        )
 
     @wrap_tool("agno_elevenlabs_get_voices", AgnoElevenLabsTools.get_voices)
     def get_voices(self) -> str:

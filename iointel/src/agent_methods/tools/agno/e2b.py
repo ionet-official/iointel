@@ -1,17 +1,38 @@
-from typing import Any, Callable, Optional, Union
+from typing import Any, Callable, Dict, Optional, Union
 from agno.tools.e2b import E2BTools as AgnoE2BTools
 
 from agno.agent import Agent
 from agno.team import Team
+from pydantic import Field
 
 from .common import make_base, wrap_tool
 
 
 class E2B(make_base(AgnoE2BTools)):
-    base_dir: str | None = None
+    api_key: Optional[str] = Field(default=None, frozen=True)
+    run_code: bool = Field(default=True, frozen=True)
+    upload_file_: bool = Field(default=True, frozen=True)
+    download_result: bool = Field(default=True, frozen=True)
+    filesystem: bool = Field(default=False, frozen=True)
+    internet_access: bool = Field(default=False, frozen=True)
+    sandbox_management: bool = Field(default=False, frozen=True)
+    timeout: int = Field(default=300, frozen=True)
+    sandbox_options: Optional[Dict[str, Any]] = Field(default=None, frozen=True)
+    command_execution: bool = Field(default=False, frozen=True)
 
     def _get_tool(self):
-        return self.Inner(base_dir=self.base_dir)
+        return self.Inner(
+            api_key=self.api_key,
+            run_code=self.run_code,
+            upload_file=self.upload_file_,
+            download_result=self.download_result,
+            filesystem=self.filesystem,
+            internet_access=self.internet_access,
+            sandbox_management=self.sandbox_management,
+            timeout=self.timeout,
+            sandbox_options=self.sandbox_options,
+            command_execution=self.command_execution,
+        )
 
     @wrap_tool("agno_e2b_", AgnoE2BTools.duckduckgo_search)
     def run_python_code(self, code: str) -> str:
