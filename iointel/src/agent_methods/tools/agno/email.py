@@ -21,10 +21,4 @@ class Email(make_base(AgnoEmailTools)):
 
     @wrap_tool("email_user", AgnoEmailTools.email_user)
     def email_user(self, subject: str, body: str) -> str:
-        """
-        Send an email message to the user.
-
-        Args:
-            message: The message content to send
-        """
         return super().email_user(subject=subject, body=body)
