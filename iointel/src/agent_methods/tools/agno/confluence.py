@@ -1,12 +1,24 @@
 from typing import Optional
 from agno.tools.confluence import ConfluenceTools as AgnoConfluenceTools
-
+from pydantic import Field
 from .common import make_base, wrap_tool
 
 
 class Confluence(make_base(AgnoConfluenceTools)):
+    username: Optional[str] = Field(default=None, frozen=True)
+    password: Optional[str] = Field(default=None, frozen=True)
+    url: Optional[str] = Field(default=None, frozen=True)
+    api_key: Optional[str] = Field(default=None, frozen=True)
+    verify_ssl: bool = Field(default=True, frozen=True)
+
     def _get_tool(self):
-        return self.Inner()
+        return self.Inner(
+            username=self.username,
+            password=self.password,
+            url=self.url,
+            api_key=self.api_key,
+            verify_ssl=self.verify_ssl,
+        )
 
     @wrap_tool(
         "agno__confluence__get_page_content", AgnoConfluenceTools.get_page_content
