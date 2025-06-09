@@ -1,11 +1,24 @@
+from typing import Optional
 from agno.tools.discord import DiscordTools as AgnoDiscordTools
-
+from pydantic import Field
 from .common import make_base, wrap_tool
 
 
 class Discord(make_base(AgnoDiscordTools)):
+    bot_token: Optional[str] = (None,)
+    enable_messaging: bool = Field(required=True, frozen=True)
+    enable_history: bool = Field(required=True, frozen=True)
+    enable_channel_management: bool = Field(required=True, frozen=True)
+    enable_message_management: bool = Field(required=True, frozen=True)
+
     def _get_tool(self):
-        return self.Inner()
+        return self.Inner(
+            bot_token=self.bot_token,
+            enable_messaging=self.enable_messaging,
+            enable_history=self.enable_history,
+            enable_channel_management=self.enable_channel_management,
+            enable_message_management=self.enable_message_management,
+        )
 
     @wrap_tool("agno__discord__send_message", AgnoDiscordTools.send_message)
     def send_message(self, channel_id: int, message: str) -> str:

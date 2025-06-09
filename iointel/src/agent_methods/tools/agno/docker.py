@@ -1,14 +1,24 @@
 from typing import Dict, Optional, Union
 
-# from agno.tools.discord import DiscordTools as AgnoDiscordTools
+from pydantic import Field
 from agno.tools.docker import DockerTools as AgnoDockerTools
 
 from .common import make_base, wrap_tool
 
 
 class Docker(make_base(AgnoDockerTools)):
+    enable_container_management: bool = Field(required=True, frozen=True)
+    enable_image_management: bool = Field(required=True, frozen=True)
+    enable_volume_management: bool = Field(required=False, frozen=True)
+    enable_network_management: bool = Field(required=False, frozen=True)
+
     def _get_tool(self):
-        return self.Inner()
+        return self.Inner(
+            enable_container_management=self.enable_container_management,
+            enable_image_management=self.enable_image_management,
+            enable_volume_management=self.enable_volume_management,
+            enable_network_management=self.enable_network_management,
+        )
 
     @wrap_tool("agno__docker__list_containers", AgnoDockerTools.list_containers)
     def list_containers(self, all: bool = False) -> str:

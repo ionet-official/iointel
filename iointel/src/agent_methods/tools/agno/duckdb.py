@@ -1,16 +1,39 @@
-from typing import Optional, Tuple
+from typing import List, Optional, Tuple
 from agno.tools.duckdb import DuckDbTools as AgnoDuckDbTools
 import duckdb
+from pydantic import Field
 
 from .common import make_base, wrap_tool
 
 
 class DuckDbTools(make_base(AgnoDuckDbTools)):
+    db_path: Optional[str] = Field(default=None, frozen=True)
+    connection_: Optional[duckdb.DuckDBPyConnection] = Field(default=None, frozen=True)
+    init_commands: Optional[List] = Field(default=None, frozen=True)
+    read_only: bool = Field(default=False, frozen=True)
+    config: Optional[dict] = Field(default=None, frozen=True)
+    run_queries: bool = Field(default=True, frozen=True)
+    inspect_queries: bool = Field(default=False, frozen=True)
+    create_tables: bool = Field(default=True, frozen=True)
+    summarize_tables: bool = Field(default=True, frozen=True)
+    export_tables: bool = Field(default=False, frozen=True)
+
     def _get_tool(self):
-        return self.Inner()
+        return self.Inner(
+            db_path=self.db_path,
+            connection=self.connection_,
+            init_commands=self.init_commands,
+            read_only=self.read_only,
+            config=self.config,
+            run_queries=self.run_queries,
+            inspect_queries=self.inspect_queries,
+            create_tables=self.create_tables,
+            summarize_tables=self.summarize_tables,
+            export_tables=self.export_tables,
+        )
 
     @property
-    def connection(self) -> duckdb.DuckDBPyConnection:
+    def get_connection(self) -> duckdb.DuckDBPyConnection:
         return self._tool.connection()
 
     @wrap_tool("agno__duckdb__show_tables", AgnoDuckDbTools.show_tables)
