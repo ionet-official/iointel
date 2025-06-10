@@ -20,8 +20,6 @@ dependencies = [
     "firecrawl>=2.2.0",
     "backoff==2.2.1",
     "agno[tools]==1.5.5",
-    "gradio>=5.32.1",
-    "matplotlib>=3.10.3",
     "aiosqlite>=0.21.0",
 ]
 keywords = ["Agents", "LLM", "framework", "AI", "tools"]
@@ -46,6 +44,7 @@ norecursedirs = [
 
 
 [project.optional-dependencies]
+ui = ["gradio>=5.32.1", "matplotlib>=3.10.3"]
 dev = [
     "yfinance==0.2.61",
     "pre-commit>=4.1.0",
@@ -90,6 +89,10 @@ substitutions = [
     # replace Github-styled callout (not supported on pypi) with just bold
     {pattern = '\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]', replacement = '**\1**:'},
 ]
+
+[tool.uv]
+# audioop was deprecated in python 3.13 - this only gets called if the user has python 3.13+
+override-dependencies = ["audioop-lts; python_version >= '3.13'"]
 
 # [tool.uv.sources]
 # pydantic-ai = { git = "https://github.com/webcoderz/pydantic-ai", rev = "webcoderz-model-settings" }
