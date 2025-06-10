@@ -21,4 +21,4 @@ class Email(make_base(AgnoEmailTools)):
 
     @wrap_tool("email_user", AgnoEmailTools.email_user)
     def email_user(self, subject: str, body: str) -> str:
-        return super().email_user(subject=subject, body=body)
+        return self._tool.email_user(subject=subject, body=body)
