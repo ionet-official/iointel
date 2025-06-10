@@ -14,7 +14,6 @@ from .utilities.constants import get_api_url, get_base_model, get_api_key
 from .utilities.registries import TOOLS_REGISTRY
 from .utilities.helpers import supports_tool_choice_required, flatten_union_types
 from .ui.rich_panels import render_agent_result_panel
-from .ui.io_gradio_ui import IOGradioUI
 
 from pydantic_ai.models.openai import OpenAIModel
 from pydantic_ai.providers.openai import OpenAIProvider
@@ -592,6 +591,13 @@ class Agent(BaseModel):
         """
         Launches a Gradio UI for interacting with the agent as a chat interface.
         """
+        try:
+            from .ui.io_gradio_ui import IOGradioUI
+        except ImportError as e:
+            raise ImportError(
+                "UI dependencies are not installed. Install with: pip install 'iointel[ui]'"
+            ) from e
+
         ui = IOGradioUI(agent=self, interface_title=interface_title)
         return await ui.launch(share=share)
 

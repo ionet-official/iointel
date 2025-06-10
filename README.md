@@ -62,10 +62,16 @@ Users can define tasks (like `sentiment`, `translate_text`, etc.) in a **local**
   pip install --upgrade iointel
   ```
 
-2. **Set Required Environment Variable**:
+2. **For UI features (Gradio interface)**, install with UI dependencies:
+
+  ```bash
+  pip install --upgrade "iointel[ui]"
+  ```
+
+3. **Set Required Environment Variable**:
     - `OPENAI_API_KEY` or `IO_API_KEY` for the default OpenAI-based `ChatOpenAI`.
 
-3. **Optional Environment Variables**:
+4. **Optional Environment Variables**:
     - `AGENT_LOGGING_LEVEL` (optional) to configure logging verbosity: `DEBUG`, `INFO`, etc.
     - `OPENAI_API_BASE_URL` or `IO_API_BASE_URL` to point to OpenAI-compatible API implementation, like `https://api.intelligence.io.solutions/api/v1`
     - `OPENAI_API_MODEL` or `IO_API_MODEL` to pick specific LLM model as "agent brain", like `meta-llama/Llama-3.3-70B-Instruct`
@@ -368,6 +374,8 @@ Check your model provider's documentation for specific format support and limita
 
 ## Quickstart: Gradio UI
 
+> **Note**: To use the Gradio UI, install with UI dependencies: `pip install "iointel[ui]"`
+
 ```python
 from iointel import Agent, register_tool
 
@@ -385,12 +393,12 @@ agent = Agent(
 )
 
 # Launch the beautiful Gradio Chat UI (works in Jupyter too!)
-agent.launch_gradio_ui(interface_title="Iointel Gradio Solar")
+await agent.launch_chat_ui(interface_title="Iointel Gradio Solar")
 
 # Or, for more control across different agents:
 # from iointel.src.ui.io_gradio_ui import IOGradioUI
 # ui = IOGradioUI(agent, interface_title="Iointel GradioSolar")
-# ui.launch(share=True)
+# await ui.launch(share=True)
 ```
 
 ![Screenshot 2025-06-02 at 5 44 49 PM](https://github.com/user-attachments/assets/1b6f834c-1ff3-4475-b581-c1b5233a099e)
