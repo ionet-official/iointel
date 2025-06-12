@@ -23,7 +23,7 @@ class BaiduSearch(make_base(AgnoBaiduSearchTools)):
             debug=self.debug,
         )
 
-    @wrap_tool("agno__baidu__make_request", AgnoBaiduSearchTools.baidu_search)
+    @wrap_tool("agno__baidu__baidu_search", AgnoBaiduSearchTools.baidu_search)
     def baidu_search(
         self, query: str, max_results: int = 5, language: str = "zh"
     ) -> str:

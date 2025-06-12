@@ -17,7 +17,7 @@ class Browserbase(make_base(AgnoBrowserbaseTools)):
             base_url=self.base_url,
         )
 
-    @wrap_tool("agno__browserbase__make_request", AgnoBrowserbaseTools.navigate_to)
+    @wrap_tool("agno__browserbase__navigate_to", AgnoBrowserbaseTools.navigate_to)
     def navigate_to(self, url: str, connect_url: Optional[str] = None) -> str:
         return self._tool.navigate_to(url, connect_url)
 

@@ -4,7 +4,7 @@ from pydantic import Field
 from .common import make_base, wrap_tool
 
 
-class Api(make_base(AgnoApifyTools)):
+class Apify(make_base(AgnoApifyTools)):
     actors: Optional[Union[str, List[str]]] = Field(default=None, frozen=True)
     apify_api_token: Optional[str] = Field(default=None, frozen=True)
 
