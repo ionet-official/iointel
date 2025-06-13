@@ -26,7 +26,7 @@ class OpenAI(make_base(AgnoOpenAITools)):
 
     @wrap_tool("agno__openai__generate_image", AgnoOpenAITools.generate_image)
     def generate_image(self, agent: Agent, prompt: str) -> str:
-        return self.generate_image(self, agent, prompt)
+        return self._tool.generate_image(agent, prompt)
 
     @wrap_tool("agno__openai__generate_speech", AgnoOpenAITools.generate_speech)
     def generate_speech(self, agent: Agent, text_input: str) -> str:
