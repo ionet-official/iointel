@@ -1,5 +1,7 @@
 import functools
+import re
 import sys
+import warnings
 from pydantic import (
     BaseModel,
     Field,
@@ -44,6 +46,12 @@ def patched_get_json_schema(cls, core_schema, handler):
 
 # Monkey-patch the __get_pydantic_json_schema__ on OpenAIModel.
 OpenAIModel.__get_pydantic_json_schema__ = classmethod(patched_get_json_schema)
+
+
+class ToolUsageResult(BaseModel):
+    tool_name: str
+    tool_args: dict
+    tool_result: Any = None
 
 
 ###### persona ########
@@ -221,6 +229,17 @@ class PersonaConfig(BaseModel):
         return "\n".join(lines)
 
 
+def compute_fn_name(fn: Callable) -> str:
+    # OpenAI chokes on non-conforming tool names, so scrub them
+    return re.sub(r"[^a-zA-Z0-9_-]", "-", fn.__qualname__)
+
+
+def check_fn_name(name: str | None) -> str | None:
+    if name and not re.match(r"^[a-zA-Z0-9_-]+", name):
+        warnings.warn(f"Tool name {name} is not compatible with OpenAI")
+    return name
+
+
 # mapping from id(instance) to instance
 TOOL_SELF_INSTANCES: dict[int, BaseModel] = weakref.WeakValueDictionary()
 
@@ -359,7 +378,7 @@ class Tool(BaseModel):
     ) -> "Tool":
         if isinstance(fn, cls):
             return fn
-        func_name = name or fn.__qualname__
+        func_name = check_fn_name(name) or compute_fn_name(fn)
         if func_name == "<lambda>":
             raise ValueError("You must provide a name for lambda functions")
         func_doc = description or fn.__doc__ or ""

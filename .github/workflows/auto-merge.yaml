@@ -1,0 +1,28 @@
+# .github/workflows/automerge.yml
+name: Auto-merge after CI
+
+on:
+  workflow_run:
+    workflows: ["CI"]            # name of your main test workflow
+    types: [completed]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  merge:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Merge the pull request
+        uses: peter-evans/merge-pull-request@v3
+        with:
+          # PR number that triggered the CI run
+          pull-request: ${{ github.event.workflow_run.pull_requests[0].number }}
+          merge-method: squash           # or merge / rebase
+          required-approvals: 1
+          required-labels: automerge
+          # optional – fail fast if label is missing instead of silently skipping
+          # required-labels-mode: all

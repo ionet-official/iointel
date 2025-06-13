@@ -1,4 +1,4 @@
-from .src.agents import Agent
+from .src.agents import Agent, LiberalToolAgent
 from .src.memory import AsyncMemory
 from .src.workflow import Workflow
 from .src.utilities.runners import run_agents, run_agents_stream
@@ -18,6 +18,7 @@ from .src.code_parsers.pycode_parser import (
 __all__ = [
     ###agents###
     "Agent",
+    "LiberalToolAgent",
     ###memory###
     "AsyncMemory",
     ###workflow###
