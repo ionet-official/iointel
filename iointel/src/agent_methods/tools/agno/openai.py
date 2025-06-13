@@ -30,4 +30,4 @@ class OpenAI(make_base(AgnoOpenAITools)):
 
     @wrap_tool("agno__openai__generate_speech", AgnoOpenAITools.generate_speech)
     def generate_speech(self, agent: Agent, text_input: str) -> str:
-        return self.generate_speech(self, agent, text_input)
+        return self._tool.generate_speech(agent, text_input)
