@@ -19,11 +19,12 @@ class DesiVocal(make_base(AgnoDesiVocalTools)):
             voice_id=self.voice_id,
         )
 
-    @wrap_tool("calculator_add", AgnoDesiVocalTools.add)
+    @wrap_tool("agno__desivocal__get_voices", AgnoDesiVocalTools.get_voices)
     def get_voices(self) -> str:
         return self._tool.get_voices()
 
+    @wrap_tool("agno__desivocal__text_to_speech", AgnoDesiVocalTools.text_to_speech)
     def text_to_speech(
         self, agent: Union[Agent, Team], prompt: str, voice_id: Optional[str] = None
     ) -> str:
-        return self._tool.get_voices()
+        return self._tool.get_voices(agent, prompt, voice_id)
