@@ -46,7 +46,7 @@ class Zoom(make_base(AgnoZoomTools)):
     def delete_meeting(
         self, meeting_id: str, schedule_for_reminder: bool = True
     ) -> str:
-        return self.delete_meeting(self, meeting_id, schedule_for_reminder)
+        return self._tool.delete_meeting(meeting_id, schedule_for_reminder)
 
     @wrap_tool("agno__zoom__get_meeting", AgnoZoomTools.get_meeting)
     def get_meeting(self, meeting_id: str) -> str:
