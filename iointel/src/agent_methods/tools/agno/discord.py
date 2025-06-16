@@ -24,7 +24,7 @@ class Discord(make_base(AgnoDiscordTools)):
     def send_message(self, channel_id: int, message: str) -> str:
         return self._tool.send_message(channel_id, message)
 
-    @wrap_tool("agno__discord__send_message", AgnoDiscordTools.send_message)
+    @wrap_tool("agno__discord__get_channel_info", AgnoDiscordTools.get_channel_info)
     def get_channel_info(self, channel_id: int) -> str:
         return self._tool.get_channel_info(channel_id)
 
