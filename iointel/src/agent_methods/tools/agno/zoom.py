@@ -54,4 +54,4 @@ class Zoom(make_base(AgnoZoomTools)):
 
     @wrap_tool("agno__zoom__instructions", AgnoZoomTools.instructions)
     def instructions(self) -> str:
-        return self.instructions(self)
+        return self._tool.instructions()
