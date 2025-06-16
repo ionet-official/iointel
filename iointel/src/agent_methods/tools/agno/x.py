@@ -14,7 +14,7 @@ class X(make_base(AgnoXTools)):
 
     @wrap_tool("agno__x__create_post", AgnoXTools.create_post)
     def create_post(self, text: str) -> str:
-        return self.create_post(self, text)
+        return self._tool.create_post(text)
 
     @wrap_tool("agno__x__reply_to_post", AgnoXTools.reply_to_post)
     def reply_to_post(self, post_id: str, text: str) -> str:
