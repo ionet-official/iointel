@@ -30,7 +30,7 @@ class X(make_base(AgnoXTools)):
 
     @wrap_tool("agno__x__get_user_info", AgnoXTools.get_user_info)
     def get_user_info(self, username: str) -> str:
-        return self.get_user_info(self, username)
+        return self._tool.get_user_info(username)
 
     @wrap_tool("agno__x__get_home_timeline", AgnoXTools.get_home_timeline)
     def get_home_timeline(self, max_results: int = 10) -> str:
