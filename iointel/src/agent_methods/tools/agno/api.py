@@ -37,10 +37,10 @@ class Api(make_base(AgnoCustomApiTools)):
         json_data: Optional[Dict[str, Any]] = None,
     ) -> str:
         return self._tool.make_request(
-            endpoint=self.endpoint,
-            method=self.method,
-            params=self.params,
-            data=self.data,
-            headers=self.headers,
-            json_data=self.json_data,
+            endpoint=endpoint,
+            method=method,
+            params=params,
+            data=data,
+            headers=headers,
+            json_data=json_data,
         )
