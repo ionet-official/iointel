@@ -33,7 +33,7 @@ class Discord(make_base(AgnoDiscordTools)):
         return self._tool.list_channels(guild_id)
 
     @wrap_tool(
-        "agno__discord__list_get_channel_messages",
+        "agno__discord__get_channel_messages",
         AgnoDiscordTools.get_channel_messages,
     )
     def get_channel_messages(self, channel_id: int, limit: int = 100) -> str:
