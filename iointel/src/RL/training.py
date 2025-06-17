@@ -171,15 +171,15 @@ class RLEnvironment:
                 print(f"=== Not using chat history for task {task.id}")
                 result = await agent.run(query)
             ##########################The Agent Learns###############################
-            state.agent_result = result["full_result"]
+            state.agent_result = result.full_result
             state.step_count = step + 1
 
             # 2. Oracle evaluation
             oracle_result: EvaluationResult = await self.oracle.evaluate(
-                agent_response=result.get("result"),
+                agent_response=result.result,
                 ground_truth=task.ground_truth,
                 task_description=task.description,
-                agent_actions=result.get("tool_usage_results", []),
+                agent_actions=result.tool_usage_results,
                 required_tools=task.required_tools,
             )
             if oracle_result.correct:  # skip the rest of the steps if the task is solved, no more learning is needed
@@ -199,8 +199,8 @@ class RLEnvironment:
             critic_feedback: CriticFeedback = (
                 await self.critic.generate_critical_feedback(
                     task=task.description,
-                    agent_actions=result.get("tool_usage_results", []),
-                    final_response=result.get("result"),
+                    agent_actions=result.tool_usage_results,
+                    final_response=result.result,
                     feedback=feedback,
                 )
             )

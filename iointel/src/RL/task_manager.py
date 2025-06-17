@@ -78,7 +78,7 @@ class TaskGeneratorAgent:
         if self.verbose:
             print(f"TaskGenerator prompt:\n{prompt}")
         res = await self.agent.run(prompt)
-        return res["result"]  # .output
+        return res.result
 
 
 class TaskManager:
