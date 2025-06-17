@@ -1,4 +1,4 @@
-from typing import Any, Optional, List, Dict
+from typing import Optional, List
 from agno.tools.todoist import TodoistTools as AgnoTodoistTools
 from .common import make_base, wrap_tool
 
@@ -16,10 +16,6 @@ class Todoist(make_base(AgnoTodoistTools)):
             get_projects=self.get_projects,
         )
 
-    @wrap_tool("agno__todoist___task_to_dict", AgnoTodoistTools._task_to_dict)
-    def _task_to_dict(self, task: Any) -> Dict[str, Any]:
-        return self._task_to_dict(self, task)
-
     @wrap_tool("agno__todoist__create_task", AgnoTodoistTools.create_task)
     def create_task(
         self,
@@ -29,11 +25,13 @@ class Todoist(make_base(AgnoTodoistTools)):
         priority: Optional[int] = None,
         labels: Optional[List[str]] = None,
     ) -> str:
-        return self.create_task(self, content, project_id, due_string, priority, labels)
+        return self._tool.create_task(
+            self, content, project_id, due_string, priority, labels
+        )
 
     @wrap_tool("agno__todoist__get_task", AgnoTodoistTools.get_task)
     def get_task(self, task_id: str) -> str:
-        return self.get_task(self, task_id)
+        return self._tool.get_task(self, task_id)
 
     @wrap_tool("agno__todoist__update_task", AgnoTodoistTools.update_task)
     def update_task(
@@ -50,7 +48,7 @@ class Todoist(make_base(AgnoTodoistTools)):
         assignee_id: Optional[str] = None,
         section_id: Optional[str] = None,
     ) -> str:
-        return self.update_task(
+        return self._tool.update_task(
             self,
             task_id,
             content,
@@ -67,16 +65,16 @@ class Todoist(make_base(AgnoTodoistTools)):
 
     @wrap_tool("agno__todoist__close_task", AgnoTodoistTools.close_task)
     def close_task(self, task_id: str) -> str:
-        return self.close_task(self, task_id)
+        return self._tool.close_task(self, task_id)
 
     @wrap_tool("agno__todoist__delete_task", AgnoTodoistTools.delete_task)
     def delete_task(self, task_id: str) -> str:
-        return self.delete_task(self, task_id)
+        return self._tool.delete_task(self, task_id)
 
     @wrap_tool("agno__todoist__get_active_tasks", AgnoTodoistTools.get_active_tasks)
     def get_active_tasks(self) -> str:
-        return self.get_active_tasks(self)
+        return self._tool.get_active_tasks(self)
 
     @wrap_tool("agno__todoist__get_projects", AgnoTodoistTools.get_projects)
     def get_projects(self) -> str:
-        return self.get_projects(self)
+        return self._tool.get_projects(self)

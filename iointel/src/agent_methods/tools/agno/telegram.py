@@ -9,10 +9,6 @@ class Telegram(make_base(AgnoTelegramTools)):
             token=self.token_,
         )
 
-    @wrap_tool("agno__telegram___call_post_method", AgnoTelegramTools._call_post_method)
-    def _call_post_method(self, method, *args, **kwargs):
-        return self._call_post_method(self, method, args, kwargs)
-
     @wrap_tool("agno__telegram__send_message", AgnoTelegramTools.send_message)
     def send_message(self, message: str) -> str:
-        return self.send_message(self, message)
+        return self._tool.send_message(self, message)
