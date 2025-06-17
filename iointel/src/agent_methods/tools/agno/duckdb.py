@@ -12,11 +12,6 @@ class DuckDbTools(make_base(AgnoDuckDbTools)):
     init_commands: Optional[List] = Field(default=None, frozen=True)
     read_only: bool = Field(default=False, frozen=True)
     config: Optional[dict] = Field(default=None, frozen=True)
-    run_queries: bool = Field(default=True, frozen=True)
-    inspect_queries: bool = Field(default=False, frozen=True)
-    create_tables: bool = Field(default=True, frozen=True)
-    summarize_tables: bool = Field(default=True, frozen=True)
-    export_tables: bool = Field(default=False, frozen=True)
 
     def _get_tool(self):
         return self.Inner(
@@ -25,11 +20,11 @@ class DuckDbTools(make_base(AgnoDuckDbTools)):
             init_commands=self.init_commands,
             read_only=self.read_only,
             config=self.config,
-            run_queries=self.run_queries,
-            inspect_queries=self.inspect_queries,
-            create_tables=self.create_tables,
-            summarize_tables=self.summarize_tables,
-            export_tables=self.export_tables,
+            run_queries=True,
+            inspect_queries=True,
+            create_tables=True,
+            summarize_tables=True,
+            export_tables=True,
         )
 
     @property
