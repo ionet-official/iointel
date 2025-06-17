@@ -6,8 +6,6 @@ from .common import make_base, wrap_tool
 
 
 class DuckDuckGo(make_base(AgnoDuckDuckGoTools)):
-    search: bool = Field(default=True, frozen=True)
-    news: bool = Field(default=True, frozen=True)
     modifier: Optional[str] = Field(default=None, frozen=True)
     fixed_max_results: Optional[int] = Field(default=None, frozen=True)
     headers: Optional[Any] = Field(default=None, frozen=True)
@@ -18,8 +16,8 @@ class DuckDuckGo(make_base(AgnoDuckDuckGoTools)):
 
     def _get_tool(self):
         return self.Inner(
-            search=self.search,
-            news=self.news,
+            search=True,
+            news=True,
             modifier=self.modifier,
             fixed_max_results=self.fixed_max_results,
             headers=self.headers,
