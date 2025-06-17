@@ -9,12 +9,12 @@ from pydantic import Field
 
 
 class ElevenLabs(make_base(AgnoElevenLabsTools)):
-    voice_id: str = Field(required="JBFqnCBsd6RMkjVDRZzb", fronzen=True)
-    api_key: Optional[str] = Field(required=None, fronzen=True)
-    target_directory: Optional[str] = Field(required=None, fronzen=True)
-    model_id: str = Field(required="eleven_multilingual_v2", fronzen=True)
+    voice_id: str = Field(default="JBFqnCBsd6RMkjVDRZzb", fronzen=True)
+    api_key: Optional[str] = Field(default=None, fronzen=True)
+    target_directory: Optional[str] = Field(default=None, fronzen=True)
+    model_id: str = Field(default="eleven_multilingual_v2", fronzen=True)
     output_format: ElevenLabsAudioOutputFormat = Field(
-        required="mp3_44100_64", fronzen=True
+        default="mp3_44100_64", fronzen=True
     )
 
     def _get_tool(self):

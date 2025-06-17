@@ -15,10 +15,8 @@ class E2B(make_base(AgnoE2BTools)):
     download_result: bool = Field(default=True, frozen=True)
     filesystem: bool = Field(default=False, frozen=True)
     internet_access: bool = Field(default=False, frozen=True)
-    sandbox_management: bool = Field(default=False, frozen=True)
     timeout: int = Field(default=300, frozen=True)
     sandbox_options: Optional[Dict[str, Any]] = Field(default=None, frozen=True)
-    command_execution: bool = Field(default=False, frozen=True)
 
     def _get_tool(self):
         return self.Inner(
@@ -28,10 +26,10 @@ class E2B(make_base(AgnoE2BTools)):
             download_result=self.download_result,
             filesystem=self.filesystem,
             internet_access=self.internet_access,
-            sandbox_management=self.sandbox_management,
+            sandbox_management=True,
             timeout=self.timeout,
             sandbox_options=self.sandbox_options,
-            command_execution=self.command_execution,
+            command_execution=True,
         )
 
     @wrap_tool("agno__e2b__run_python_code", AgnoE2BTools.run_python_code)

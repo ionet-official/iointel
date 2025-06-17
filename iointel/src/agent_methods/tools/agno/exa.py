@@ -10,7 +10,6 @@ class Exa(make_base(AgnoExaTools)):
     get_contents_: bool = Field(default=True, frozen=True)
     find_similar_: bool = Field(default=True, frozen=True)
     answer: bool = Field(default=True, frozen=True)
-    text: bool = Field(default=True, frozen=True)
     text_length_limit: int = Field(default=1000, frozen=True)
     highlights: bool = Field(default=True, frozen=True)
     summary: bool = Field(default=False, frozen=True)
@@ -36,7 +35,7 @@ class Exa(make_base(AgnoExaTools)):
             get_contents=self.get_contents_,
             find_similar=self.find_similar_,
             answer=self.answer,
-            text=self.text,
+            text=True,
             text_length_limit=self.text_length_limit,
             highlights=self.highlights,
             summary=self.summary,
