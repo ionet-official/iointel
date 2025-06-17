@@ -10,13 +10,11 @@ from pydantic import Field
 class Giphy(make_base(AgnoGiphyTools)):
     api_key: Optional[str] = Field(default=None, frozen=True)
     limit: int = Field(default=1, frozen=True)
-    # base_dir: str | None = None
 
     def _get_tool(self):
         return self.Inner(
             api_key=self.api_key,
             limit=self.limit,
-            # base_dir=self.base_dir
         )
 
     @wrap_tool("agno__giphy__search_gifs", AgnoGiphyTools.search_gifs)
