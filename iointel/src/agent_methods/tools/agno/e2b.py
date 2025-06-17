@@ -34,14 +34,15 @@ class E2B(make_base(AgnoE2BTools)):
             command_execution=self.command_execution,
         )
 
-    @wrap_tool("agno_e2b_", AgnoE2BTools.duckduckgo_search)
+    @wrap_tool("agno__e2b__run_python_code", AgnoE2BTools.run_python_code)
     def run_python_code(self, code: str) -> str:
         return self.__tool.run_python_code(code)
 
-    @wrap_tool("agno_e2b_", AgnoE2BTools.duckduckgo_search)
+    @wrap_tool("agno__e2b__upload_file", AgnoE2BTools.upload_file)
     def upload_file(self, file_path: str, sandbox_path: Optional[str] = None) -> str:
         return self.__tool.upload_file(file_path, sandbox_path)
 
+    @wrap_tool("agno__e2b__download_png_result", AgnoE2BTools.download_png_result)
     def download_png_result(
         self,
         agent: Union[Agent, Team],
@@ -50,6 +51,7 @@ class E2B(make_base(AgnoE2BTools)):
     ) -> str:
         return self.__tool.download_png_result(agent, result_index, output_path)
 
+    @wrap_tool("agno__e2b__download_chart_data", AgnoE2BTools.download_chart_data)
     def download_chart_data(
         self,
         agent: Agent,
@@ -61,11 +63,15 @@ class E2B(make_base(AgnoE2BTools)):
             agent, result_index, output_path, add_as_artifact
         )
 
+    @wrap_tool(
+        "agno__e2b__download_file_from_sandbox", AgnoE2BTools.download_file_from_sandbox
+    )
     def download_file_from_sandbox(
         self, sandbox_path: str, local_path: Optional[str] = None
     ) -> str:
         return self.__tool.download_file_from_sandbox(sandbox_path, local_path)
 
+    @wrap_tool("agno__e2b__run_command", AgnoE2BTools.run_command)
     def run_command(
         self,
         command: str,
@@ -75,41 +81,56 @@ class E2B(make_base(AgnoE2BTools)):
     ) -> str:
         return self.__tool.run_command(command, on_stdout, on_stderr, background)
 
+    @wrap_tool("agno__e2b__stream_command", AgnoE2BTools.stream_command)
     def stream_command(self, command: str) -> str:
         return self.__tool.stream_command(command)
 
+    @wrap_tool("agno__e2b__run_background_command", AgnoE2BTools.run_background_command)
     def run_background_command(self, command: str) -> Any:
         return self.__tool.run_background_command(command)
 
+    @wrap_tool(
+        "agno__e2b__kill_background_command", AgnoE2BTools.kill_background_command
+    )
     def kill_background_command(self, command_obj: Any) -> str:
         return self.__tool.kill_background_command(command_obj)
 
+    @wrap_tool("agno__e2b__list_files", AgnoE2BTools.list_files)
     def list_files(self, directory_path: str = "/") -> str:
         return self.__tool.list_files(directory_path)
 
+    @wrap_tool("agno__e2b__read_file_content", AgnoE2BTools.read_file_content)
     def read_file_content(self, file_path: str, encoding: str = "utf-8") -> str:
         return self.__tool.read_file_content(file_path, encoding)
 
+    @wrap_tool("agno__e2b__write_file_content", AgnoE2BTools.write_file_content)
     def write_file_content(self, file_path: str, content: str) -> str:
         return self.__tool.write_file_content(file_path, content)
 
+    @wrap_tool("agno__e2b__watch_directory", AgnoE2BTools.watch_directory)
     def watch_directory(self, directory_path: str, duration_seconds: int = 5) -> str:
         return self._tool.watch_directory(directory_path, duration_seconds)
 
+    @wrap_tool("agno__e2b__get_public_url", AgnoE2BTools.get_public_url)
     def get_public_url(self, port: int) -> str:
         return self._tool.get_public_url(port)
 
+    @wrap_tool("agno__e2b__run_server", AgnoE2BTools.run_server)
     def run_server(self, command: str, port: int) -> str:
         return self._tool.run_server(command, port)
 
+    @wrap_tool("agno__e2b__set_sandbox_timeout", AgnoE2BTools.set_sandbox_timeout)
     def set_sandbox_timeout(self, timeout: int) -> str:
         return self._tool.set_sandbox_timeout(timeout)
 
+    @wrap_tool("agno__e2b__get_sandbox_status", AgnoE2BTools.get_sandbox_status)
     def get_sandbox_status(self) -> str:
         return self._tool.get_sandbox_status()
 
+    @wrap_tool("agno__e2b__shutdown_sandbox", AgnoE2BTools.shutdown_sandbox)
     def shutdown_sandbox(self) -> str:
         return self._tool.shutdown_sandbox()
 
+    @wrap_tool("agno__e2b__list_running_sandboxes", AgnoE2BTools.list_running_sandboxes)
     def list_running_sandboxes(self) -> str:
         return self._tool.list_running_sandboxes()
