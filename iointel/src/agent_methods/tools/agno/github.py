@@ -6,7 +6,6 @@ from pydantic import Field
 
 
 class Github(make_base(AgnoGithubTools)):
-    # test
     access_token: Optional[str] = Field(default=None, frozen=True)
     base_url: Optional[str] = Field(default=None, frozen=True)
 
