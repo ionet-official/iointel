@@ -117,7 +117,7 @@ class Docker(make_base(AgnoDockerTools)):
     def inspect_volume(self, volume_name: str) -> str:
         return self._tool.inspect_volume(volume_name)
 
-    @wrap_tool("agno__docker__inspect_volume", AgnoDockerTools.inspect_volume)
+    @wrap_tool("agno__docker__list_networks", AgnoDockerTools.inspect_volume)
     def list_networks(self) -> str:
         return self._tool.list_networks()
 
@@ -131,7 +131,7 @@ class Docker(make_base(AgnoDockerTools)):
     ) -> str:
         return self.create_network(network_name, driver, internal, labels)
 
-    @wrap_tool("agno__docker__create_network", AgnoDockerTools.create_network)
+    @wrap_tool("agno__docker__remove_network", AgnoDockerTools.create_network)
     def remove_network(self, network_name: str) -> str:
         return self.remove_network(network_name)
 

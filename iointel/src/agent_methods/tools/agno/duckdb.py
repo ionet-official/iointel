@@ -86,7 +86,7 @@ class DuckDbTools(make_base(AgnoDuckDbTools)):
     def load_local_path_to_table(
         self, path: str, table: Optional[str] = None
     ) -> Tuple[str, str]:
-        return self._tool.export_table_to_path(path, table)
+        return self._tool.load_local_path_to_table(path, table)
 
     @wrap_tool(
         "agno__duckdb__load_local_csv_to_table", AgnoDuckDbTools.load_local_csv_to_table
@@ -94,7 +94,7 @@ class DuckDbTools(make_base(AgnoDuckDbTools)):
     def load_local_csv_to_table(
         self, path: str, table: Optional[str] = None, delimiter: Optional[str] = None
     ) -> Tuple[str, str]:
-        return self._tool.export_table_to_path(path, table, delimiter)
+        return self._tool.load_local_csv_to_table(path, table, delimiter)
 
     @wrap_tool(
         "agno__duckdb__load_s3_path_to_table", AgnoDuckDbTools.load_s3_path_to_table
