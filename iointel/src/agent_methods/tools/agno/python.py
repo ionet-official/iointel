@@ -13,7 +13,6 @@ class Python(make_base(AgnoPythonTools)):
     run_code: bool = Field(default=False, frozen=True)
     list_files_: bool = Field(default=False, frozen=True)
     run_files: bool = Field(default=False, frozen=True)
-    read_files: bool = Field(default=False, frozen=True)
     safe_globals: Optional[dict] = Field(default=None, frozen=True)
     safe_locals: Optional[dict] = Field(default=None, frozen=True)
 
@@ -26,7 +25,7 @@ class Python(make_base(AgnoPythonTools)):
             run_code=self.run_code,
             list_files=self.list_files_,
             run_files=self.run_files,
-            read_files=self.read_files,
+            read_files=True,
             safe_globals=self.safe_globals,
             safe_locals=self.safe_locals,
         )

@@ -13,7 +13,6 @@ class Api(make_base(AgnoCustomApiTools)):
     headers: Optional[Dict[str, str]] = Field(default=None, frozen=True)
     verify_ssl: bool = Field(default=True, frozen=True)
     timeout: int = Field(default=30, frozen=True)
-    make_a_request: bool = Field(default=True, frozen=True)
 
     def _get_tool(self):
         return self.Inner(
@@ -24,7 +23,7 @@ class Api(make_base(AgnoCustomApiTools)):
             headers=self.headers,
             verify_ssl=self.verify_ssl,
             timeout=self.timeout,
-            make_request=self.make_a_request,
+            make_request=True,
         )
 
     @wrap_tool("agno__api__make_request", AgnoCustomApiTools.make_request)
