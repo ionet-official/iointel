@@ -329,7 +329,6 @@ class Agent(BaseModel):
         tool_usage_results = self.extract_tool_usage_results(messages)
 
         if pretty and (pretty_output is not None and pretty_output):
-
             render_agent_result_panel(
                 result_output=result.output,
                 query=query,
