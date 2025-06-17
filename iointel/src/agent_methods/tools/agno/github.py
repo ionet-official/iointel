@@ -8,87 +8,49 @@ from pydantic import Field
 class Github(make_base(AgnoGithubTools)):
     access_token: Optional[str] = Field(default=None, frozen=True)
     base_url: Optional[str] = Field(default=None, frozen=True)
-    search_repositories_: bool = Field(default=True, frozen=True)
-    get_repository_: bool = Field(default=False, frozen=True)
-    get_pull_request_: bool = Field(default=False, frozen=True)
-    get_pull_request_changes_: bool = Field(default=False, frozen=True)
-    create_issue_: bool = Field(default=False, frozen=True)
-    create_repository_: bool = Field(default=False, frozen=True)
-    delete_repository_: bool = Field(default=False, frozen=True)
-    get_repository_languages_: bool = Field(default=False, frozen=True)
-    list_branches_: bool = Field(default=False, frozen=True)
-    get_pull_request_count_: bool = Field(default=False, frozen=True)
-    get_repository_stars_: bool = Field(default=False, frozen=True)
-    get_pull_requests_: bool = Field(default=False, frozen=True)
-    get_pull_request_comments_: bool = Field(default=False, frozen=True)
-    create_pull_request_comment_: bool = Field(default=False, frozen=True)
-    edit_pull_request_comment_: bool = Field(default=False, frozen=True)
-    get_pull_request_with_details_: bool = Field(default=False, frozen=True)
-    get_repository_with_stats_: bool = Field(default=False, frozen=True)
-    list_issues_: bool = Field(default=False, frozen=True)
-    get_issue_: bool = Field(default=False, frozen=True)
-    comment_on_issue_: bool = Field(default=False, frozen=True)
-    close_issue_: bool = Field(default=False, frozen=True)
-    reopen_issue_: bool = Field(default=False, frozen=True)
-    assign_issue_: bool = Field(default=False, frozen=True)
-    label_issue_: bool = Field(default=False, frozen=True)
-    list_issue_comments_: bool = Field(default=False, frozen=True)
-    edit_issue_: bool = Field(default=False, frozen=True)
-    create_pull_request_: bool = Field(default=False, frozen=True)
-    create_file_: bool = Field(default=False, frozen=True)
-    get_file_content_: bool = Field(default=False, frozen=True)
-    update_file_: bool = Field(default=True, frozen=True)
-    delete_file_: bool = Field(default=False, frozen=True)
-    get_directory_content_: bool = Field(default=False, frozen=True)
-    get_branch_content_: bool = Field(default=False, frozen=True)
-    create_branch_: bool = Field(default=False, frozen=True)
-    set_default_branch_: bool = Field(default=False, frozen=True)
-    search_code_: bool = Field(default=False, frozen=True)
-    search_issues_and_prs_: bool = Field(default=False, frozen=True)
-    create_review_request_: bool = Field(default=False, frozen=True)
 
     def _get_tool(self):
         return self.Inner(
             access_token=self.access_token,
             base_url=self.base_url,
-            search_repositories=self.search_repositories,
-            get_repository=self.get_repository_,
-            get_pull_request=self.get_pull_request_,
-            get_pull_request_changes=self.get_pull_request_changes_,
-            create_issue=self.create_issue_,
-            create_repository=self.create_repository_,
-            delete_repository=self.delete_repository_,
-            get_repository_languages=self.get_repository_languages_,
-            list_branches=self.list_branches_,
-            get_pull_request_count=self.get_pull_request_count_,
-            get_repository_stars=self.get_repository_stars_,
-            get_pull_requests=self.get_pull_requests_,
-            get_pull_request_comments=self.get_pull_request_comments_,
-            create_pull_request_comment=self.create_pull_request_comment_,
-            edit_pull_request_comment=self.edit_pull_request_comment_,
-            get_pull_request_with_details=self.get_pull_request_with_details_,
-            get_repository_with_stats=self.get_repository_with_stats_,
-            list_issues=self.list_issues_,
-            get_issue=self.get_issue_,
-            comment_on_issue=self.comment_on_issue_,
-            close_issue=self.close_issue_,
-            reopen_issue=self.reopen_issue_,
-            assign_issue=self.assign_issue_,
-            label_issue=self.label_issue_,
-            list_issue_comments=self.list_issue_comments_,
-            edit_issue=self.edit_issue_,
-            create_pull_request=self.create_pull_request_,
-            create_file=self.create_file_,
-            get_file_content=self.get_file_content_,
-            update_file=self.update_file_,
-            delete_file=self.delete_file_,
-            get_directory_content=self.get_directory_content_,
-            get_branch_content=self.get_branch_content_,
-            create_branch=self.create_branch_,
-            set_default_branch=self.set_default_branch_,
-            search_code=self.search_code_,
-            search_issues_and_prs=self.search_issues_and_prs_,
-            create_review_request=self.create_review_request_,
+            search_repositories=True,
+            get_repository=True,
+            get_pull_request=True,
+            get_pull_request_changes=True,
+            create_issue=True,
+            create_repository=True,
+            delete_repository=True,
+            get_repository_languages=True,
+            list_branches=True,
+            get_pull_request_count=True,
+            get_repository_stars=True,
+            get_pull_requests=True,
+            get_pull_request_comments=True,
+            create_pull_request_comment=True,
+            edit_pull_request_comment=True,
+            get_pull_request_with_details=True,
+            get_repository_with_stats=True,
+            list_issues=True,
+            get_issue=True,
+            comment_on_issue=True,
+            close_issue=True,
+            reopen_issue=True,
+            assign_issue=True,
+            label_issue=True,
+            list_issue_comments=True,
+            edit_issue=True,
+            create_pull_request=True,
+            create_file=True,
+            get_file_content=True,
+            update_file=True,
+            delete_file=True,
+            get_directory_content=True,
+            get_branch_content=True,
+            create_branch=True,
+            set_default_branch=True,
+            search_code=True,
+            search_issues_and_prs=True,
+            create_review_request=True,
         )
 
     @wrap_tool("agno__github__authenticate", AgnoGithubTools.authenticate)
