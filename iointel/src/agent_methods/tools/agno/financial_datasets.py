@@ -8,26 +8,18 @@ from .common import make_base, wrap_tool
 
 class FinancialDatasetsTools(make_base(AgnoFinancialDatasetsTools)):
     api_key: Optional[str] = Field(default=None, frozen=True)
-    enable_financial_statements: bool = Field(default=True, frozen=True)
-    enable_company_info: bool = Field(default=True, frozen=True)
-    enable_market_data: bool = Field(default=True, frozen=True)
-    enable_ownership_data: bool = Field(default=True, frozen=True)
-    enable_news: bool = Field(default=True, frozen=True)
-    enable_sec_filings: bool = Field(default=True, frozen=True)
-    enable_crypto: bool = Field(default=True, frozen=True)
-    enable_search: bool = Field(default=True, frozen=True)
 
     def _get_tool(self):
         return self.Inner(
             api_key=self.api_key,
-            enable_financial_statements=self.enable_financial_statements,
-            enable_company_info=self.enable_company_info,
-            enable_market_data=self.enable_market_data,
-            enable_ownership_data=self.enable_ownership_data,
-            enable_news=self.enable_news,
-            enable_sec_filings=self.enable_sec_filings,
-            enable_crypto=self.enable_crypto,
-            enable_search=self.enable_search,
+            enable_financial_statements=True,
+            enable_company_info=True,
+            enable_market_data=True,
+            enable_ownership_data=True,
+            enable_news=True,
+            enable_sec_filings=True,
+            enable_crypto=True,
+            enable_search=True,
         )
 
     @wrap_tool(
