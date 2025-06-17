@@ -8,7 +8,7 @@ from .registries import (
     TOOLS_REGISTRY,
 )
 from ..workflow import Workflow
-from ..agent_methods.data_models.datamodels import Tool
+from ..agent_methods.data_models.datamodels import Tool, check_fn_name, compute_fn_name
 from ..utilities.helpers import make_logger
 
 
@@ -86,7 +86,7 @@ def register_tool(_fn=None, name: Optional[str] = None):
     """
 
     def decorator(executor_fn: Callable):
-        tool_name = name or executor_fn.__qualname__
+        tool_name = check_fn_name(name) or compute_fn_name(executor_fn)
         if executor_fn.__qualname__.count(".") > 1:
             logger.warning(
                 f"Tool name {tool_name} is too deeply nested: qualified name {executor_fn.__qualname__}"
