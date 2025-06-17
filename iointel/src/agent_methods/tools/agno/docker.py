@@ -42,7 +42,7 @@ class Docker(make_base(AgnoDockerTools)):
     def get_container_logs(
         self, container_id: str, tail: int = 100, stream: bool = False
     ) -> str:
-        return self._tool.removeget_container_logs(container_id, tail, stream)
+        return self._tool.get_container_logs(container_id, tail, stream)
 
     @wrap_tool("agno__docker__inspect_container", AgnoDockerTools.inspect_container)
     def inspect_container(self, container_id: str) -> str:
