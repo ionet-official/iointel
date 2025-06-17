@@ -1,5 +1,5 @@
 from os import getenv
-from typing import Dict, Optional
+from typing import Optional
 from agno.tools.jina import JinaReaderTools as AgnoJinaReaderTools
 from .common import make_base, wrap_tool
 from pydantic import Field
@@ -25,18 +25,8 @@ class JinaReader(make_base(AgnoJinaReaderTools)):
 
     @wrap_tool("agno__jinareader__read_url", AgnoJinaReaderTools.read_url)
     def read_url(self, url: str) -> str:
-        return self.read_url(self, url)
+        return self._tool.read_url(self, url)
 
     @wrap_tool("agno__jinareader__search_query", AgnoJinaReaderTools.search_query)
     def search_query(self, query: str) -> str:
-        return self.search_query(self, query)
-
-    @wrap_tool("agno__jinareader___get_headers", AgnoJinaReaderTools._get_headers)
-    def _get_headers(self) -> Dict[str, str]:
-        return self._get_headers(self)
-
-    @wrap_tool(
-        "agno__jinareader___truncate_content", AgnoJinaReaderTools._truncate_content
-    )
-    def _truncate_content(self, content: str) -> str:
-        return self._truncate_content(self, content)
+        return self._tool.search_query(self, query)
