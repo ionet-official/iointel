@@ -1,14 +1,21 @@
+from typing import Optional
 from agno.tools.jira import JiraTools as AgnoJiraTools
 from .common import make_base, wrap_tool
+from pydantic import Field
 
 
 class Jira(make_base(AgnoJiraTools)):
+    server_url: Optional[str] = Field(default=None, frozen=True)
+    username: Optional[str] = Field(default=None, frozen=True)
+    password: Optional[str] = Field(default=None, frozen=True)
+    token: Optional[str] = Field(default=None, frozen=True)
+
     def _get_tool(self):
         return self.Inner(
-            server_url=self.server_url_,
-            username=self.username_,
-            password=self.password_,
-            token=self.token_,
+            server_url=self.server_url,
+            username=self.username,
+            password=self.password,
+            token=self.token,
         )
 
     @wrap_tool("agno__jira__get_issue", AgnoJiraTools.get_issue)
