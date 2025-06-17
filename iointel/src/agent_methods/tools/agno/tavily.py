@@ -1,8 +1,18 @@
+from typing import Literal, Optional
 from agno.tools.tavily import TavilyTools as AgnoTavilyTools
 from .common import make_base, wrap_tool
+from pydantic import Field
 
 
 class Tavily(make_base(AgnoTavilyTools)):
+    api_key: Optional[str] = Field(default=None, frozen=True)
+    search: bool = Field(default=True, frozen=True)
+    max_tokens: int = Field(default=6000, frozen=True)
+    include_answer: bool = Field(default=True, frozen=True)
+    search_depth: Literal["basic", "advanced"] = Field(default="advanced", frozen=True)
+    format: Literal["json", "markdown"] = Field(default="markdown", frozen=True)
+    use_search_context: bool = Field(default=False, frozen=True)
+
     def _get_tool(self):
         return self.Inner(
             api_key=self.api_key_,
