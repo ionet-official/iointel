@@ -5,7 +5,7 @@ from .common import make_base, wrap_tool
 from pydantic import Field
 
 
-class GoogleSearch(make_base(AgnoGoogleSheetsTools)):
+class GoogleSheets(make_base(AgnoGoogleSheetsTools)):
     scopes: Optional[List[str]] = Field(default=None, frozen=True)
     spreadsheet_id: Optional[str] = Field(default=None, frozen=True)
     spreadsheet_range: Optional[str] = Field(default=None, frozen=True)
