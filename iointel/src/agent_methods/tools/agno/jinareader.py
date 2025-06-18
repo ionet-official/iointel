@@ -25,8 +25,8 @@ class JinaReader(make_base(AgnoJinaReaderTools)):
 
     @wrap_tool("agno__jinareader__read_url", AgnoJinaReaderTools.read_url)
     def read_url(self, url: str) -> str:
-        return self._tool.read_url(self, url)
+        return self._tool.read_url(url)
 
     @wrap_tool("agno__jinareader__search_query", AgnoJinaReaderTools.search_query)
     def search_query(self, query: str) -> str:
-        return self._tool.search_query(self, query)
+        return self._tool.search_query(query)
