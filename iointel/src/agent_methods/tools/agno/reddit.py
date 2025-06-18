@@ -35,10 +35,6 @@ class Reddit(make_base(AgnoRedditTools)):
             reply_to_comment=True,
         )
 
-    @wrap_tool("agno__reddit___check_user_auth", AgnoRedditTools._check_user_auth)
-    def _check_user_auth(self) -> bool:
-        return self._check_user_auth(self)
-
     @wrap_tool("agno__reddit__get_user_info", AgnoRedditTools.get_user_info)
     def get_user_info(self, username: str) -> str:
         return self.get_user_info(self, username)
