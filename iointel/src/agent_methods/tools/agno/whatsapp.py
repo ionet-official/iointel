@@ -19,26 +19,6 @@ class WhatsApp(make_base(AgnoWhatsAppTools)):
             async_mode=True,
         )
 
-    @wrap_tool("agno__whatsapp___get_headers", AgnoWhatsAppTools._get_headers)
-    def _get_headers(self) -> Dict[str, str]:
-        return self._get_headers(self)
-
-    @wrap_tool("agno__whatsapp___get_messages_url", AgnoWhatsAppTools._get_messages_url)
-    def _get_messages_url(self) -> str:
-        return self._get_messages_url()
-
-    @wrap_tool(
-        "agno__whatsapp___send_message_async", AgnoWhatsAppTools._send_message_async
-    )
-    def _send_message_async(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        return self._send_message_async(data)
-
-    @wrap_tool(
-        "agno__whatsapp___send_message_sync", AgnoWhatsAppTools._send_message_sync
-    )
-    def _send_message_sync(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        return self._send_message_sync(data)
-
     @wrap_tool(
         "agno__whatsapp__send_text_message_sync",
         AgnoWhatsAppTools.send_text_message_sync,
@@ -50,7 +30,9 @@ class WhatsApp(make_base(AgnoWhatsAppTools)):
         preview_url: bool = False,
         recipient_type: str = "individual",
     ) -> str:
-        return self.send_text_message_sync(text, recipient, preview_url, recipient_type)
+        return self._tool.send_text_message_sync(
+            text, recipient, preview_url, recipient_type
+        )
 
     @wrap_tool(
         "agno__whatsapp__send_template_message_sync",
@@ -63,7 +45,7 @@ class WhatsApp(make_base(AgnoWhatsAppTools)):
         language_code: str = "en_US",
         components: Optional[List[Dict[str, Any]]] = None,
     ) -> str:
-        return self.send_template_message_sync(
+        return self._tool.send_template_message_sync(
             recipient, template_name, language_code, components
         )
 
@@ -78,7 +60,7 @@ class WhatsApp(make_base(AgnoWhatsAppTools)):
         preview_url: bool = False,
         recipient_type: str = "individual",
     ) -> str:
-        return self.send_text_message_async(
+        return self._tool.send_text_message_async(
             text, recipient, preview_url, recipient_type
         )
 
@@ -93,6 +75,6 @@ class WhatsApp(make_base(AgnoWhatsAppTools)):
         language_code: str = "en_US",
         components: Optional[List[Dict[str, Any]]] = None,
     ) -> str:
-        return self.send_template_message_async(
+        return self._tool.send_template_message_async(
             recipient, template_name, language_code, components
         )
