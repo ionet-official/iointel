@@ -17,11 +17,11 @@ class Linear(make_base(AgnoLinearTools)):
 
     @wrap_tool("agno__linear__get_user_details", AgnoLinearTools.get_user_details)
     def get_user_details(self) -> Optional[str]:
-        return self._tool.get_user_details(self)
+        return self._tool.get_user_details()
 
     @wrap_tool("agno__linear__get_issue_details", AgnoLinearTools.get_issue_details)
     def get_issue_details(self, issue_id: str) -> Optional[str]:
-        return self._tool.get_issue_details(self, issue_id)
+        return self._tool.get_issue_details(issue_id)
 
     @wrap_tool("agno__linear__create_issue", AgnoLinearTools.create_issue)
     def create_issue(
@@ -33,7 +33,7 @@ class Linear(make_base(AgnoLinearTools)):
         assignee_id: str,
     ) -> Optional[str]:
         return self._tool.create_issue(
-            self, title, description, team_id, project_id, assignee_id
+            title, description, team_id, project_id, assignee_id
         )
 
     @wrap_tool("agno__linear__update_issue", AgnoLinearTools.update_issue)
@@ -45,11 +45,11 @@ class Linear(make_base(AgnoLinearTools)):
         AgnoLinearTools.get_user_assigned_issues,
     )
     def get_user_assigned_issues(self, user_id: str) -> Optional[str]:
-        return self._tool.get_user_assigned_issues(self, user_id)
+        return self._tool.get_user_assigned_issues(user_id)
 
     @wrap_tool("agno__linear__get_workflow_issues", AgnoLinearTools.get_workflow_issues)
     def get_workflow_issues(self, workflow_id: str) -> Optional[str]:
-        return self._tool.get_workflow_issues(self, workflow_id)
+        return self._tool.get_workflow_issues(workflow_id)
 
     @wrap_tool(
         "agno__linear__get_high_priority_issues",
