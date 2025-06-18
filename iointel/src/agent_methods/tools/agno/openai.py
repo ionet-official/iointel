@@ -36,7 +36,7 @@ class OpenAI(make_base(AgnoOpenAITools)):
 
     @wrap_tool("agno__openai__transcribe_audio", AgnoOpenAITools.transcribe_audio)
     def transcribe_audio(self, audio_path: str) -> str:
-        return self.transcribe_audio(self, audio_path)
+        return self._tool.transcribe_audio(audio_path)
 
     @wrap_tool("agno__openai__generate_image", AgnoOpenAITools.generate_image)
     def generate_image(self, agent: Agent, prompt: str) -> str:
