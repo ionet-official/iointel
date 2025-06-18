@@ -1,14 +1,19 @@
 from typing import Optional
 from agno.tools.zoom import ZoomTools as AgnoZoomTools
 from .common import make_base, wrap_tool
+from pydantic import Field
 
 
 class Zoom(make_base(AgnoZoomTools)):
+    account_id: Optional[str] = Field(default=None, frozen=True)
+    client_id: Optional[str] = Field(default=None, frozen=True)
+    client_secret: Optional[str] = Field(default=None, frozen=True)
+
     def _get_tool(self):
         return self.Inner(
-            account_id=self.account_id_,
-            client_id=self.client_id_,
-            client_secret=self.client_secret_,
+            account_id=self.account_id,
+            client_id=self.client_id,
+            client_secret=self.client_secret,
         )
 
     @wrap_tool("agno__zoom__get_access_token", AgnoZoomTools.get_access_token)
