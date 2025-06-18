@@ -8,4 +8,4 @@ class Sleep(make_base(AgnoSleepTools)):
 
     @wrap_tool("agno__sleep__sleep", AgnoSleepTools.sleep)
     def sleep(self, seconds: int) -> str:
-        return self.sleep(self, seconds)
+        return self._tool.sleep(seconds)
