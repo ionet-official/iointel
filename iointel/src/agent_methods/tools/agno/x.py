@@ -30,7 +30,7 @@ class X(make_base(AgnoXTools)):
 
     @wrap_tool("agno__x__send_dm", AgnoXTools.send_dm)
     def send_dm(self, recipient: str, text: str) -> str:
-        return self._tool.send_dm(self, recipient, text)
+        return self._tool.send_dm(recipient, text)
 
     @wrap_tool("agno__x__get_my_info", AgnoXTools.get_my_info)
     def get_my_info(self) -> str:
@@ -42,4 +42,4 @@ class X(make_base(AgnoXTools)):
 
     @wrap_tool("agno__x__get_home_timeline", AgnoXTools.get_home_timeline)
     def get_home_timeline(self, max_results: int = 10) -> str:
-        return self._tool.get_home_timeline(self, max_results)
+        return self._tool.get_home_timeline(max_results)
