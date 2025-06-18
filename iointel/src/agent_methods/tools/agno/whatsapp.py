@@ -19,19 +19,19 @@ class WhatsApp(make_base(AgnoWhatsAppTools)):
 
     @wrap_tool("agno__whatsapp___get_messages_url", AgnoWhatsAppTools._get_messages_url)
     def _get_messages_url(self) -> str:
-        return self._get_messages_url(self)
+        return self._get_messages_url()
 
     @wrap_tool(
         "agno__whatsapp___send_message_async", AgnoWhatsAppTools._send_message_async
     )
     def _send_message_async(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        return self._send_message_async(self, data)
+        return self._send_message_async(data)
 
     @wrap_tool(
         "agno__whatsapp___send_message_sync", AgnoWhatsAppTools._send_message_sync
     )
     def _send_message_sync(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        return self._send_message_sync(self, data)
+        return self._send_message_sync(data)
 
     @wrap_tool(
         "agno__whatsapp__send_text_message_sync",

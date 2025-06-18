@@ -8,4 +8,4 @@ class WebBrowser(make_base(AgnoWebBrowserTools)):
 
     @wrap_tool("agno__webbrowser__open_page", AgnoWebBrowserTools.open_page)
     def open_page(self, url: str, new_window: bool = False):
-        return self.open_page(self, url, new_window)
+        return self.open_page(url, new_window)

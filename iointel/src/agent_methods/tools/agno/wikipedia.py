@@ -13,8 +13,8 @@ class Wikipedia(make_base(AgnoWikipediaTools)):
         AgnoWikipediaTools.search_wikipedia_and_update_knowledge_base,
     )
     def search_wikipedia_and_update_knowledge_base(self, topic: str) -> str:
-        return self.search_wikipedia_and_update_knowledge_base(self, topic)
+        return self.search_wikipedia_and_update_knowledge_base(topic)
 
     @wrap_tool("agno__wikipedia__search_wikipedia", AgnoWikipediaTools.search_wikipedia)
     def search_wikipedia(self, query: str) -> str:
-        return self.search_wikipedia(self, query)
+        return self.search_wikipedia(query)
