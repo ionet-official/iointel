@@ -10,8 +10,8 @@ class Resend(make_base(AgnoResendTools)):
 
     def _get_tool(self):
         return self.Inner(
-            api_key=self.api_key_,
-            from_email=self.from_email_,
+            api_key=self.api_key,
+            from_email=self.from_email,
         )
 
     @wrap_tool("agno__resend__send_email", AgnoResendTools.send_email)
