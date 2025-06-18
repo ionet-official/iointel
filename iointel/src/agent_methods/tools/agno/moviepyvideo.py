@@ -2,14 +2,18 @@ from typing import Optional, List, Dict
 from agno.tools.moviepy_video import MoviePyVideoTools as AgnoMoviePyVideoTools
 from .common import make_base, wrap_tool
 from moviepy.video.VideoClip import TextClip
+from pydantic import Field
 
 
 class MoviePyVideo(make_base(AgnoMoviePyVideoTools)):
+    process_video: bool = Field(default=True, frozen=True)
+    generate_captions: bool = Field(default=True, frozen=True)
+
     def _get_tool(self):
         return self.Inner(
-            process_video=self.process_video_,
-            generate_captions=self.generate_captions_,
-            embed_captions=self.embed_captions,
+            process_video=self.process_video,
+            generate_captions=self.generate_captions,
+            embed_captions=True,
         )
 
     @wrap_tool(
@@ -17,7 +21,7 @@ class MoviePyVideo(make_base(AgnoMoviePyVideoTools)):
         AgnoMoviePyVideoTools.split_text_into_lines,
     )
     def split_text_into_lines(self, words: List[Dict]) -> List[Dict]:
-        return self.split_text_into_lines(self, words)
+        return self._tool.split_text_into_lines(words)
 
     @wrap_tool(
         "agno__moviepyvideo__create_caption_clips",
@@ -33,8 +37,7 @@ class MoviePyVideo(make_base(AgnoMoviePyVideoTools)):
         stroke_color="black",
         stroke_width=1.5,
     ) -> List[TextClip]:
-        return self.create_caption_clips(
-            self,
+        return self._tool.create_caption_clips(
             text_json,
             frame_size,
             font,
@@ -46,15 +49,15 @@ class MoviePyVideo(make_base(AgnoMoviePyVideoTools)):
 
     @wrap_tool("agno__moviepyvideo__parse_srt", AgnoMoviePyVideoTools.parse_srt)
     def parse_srt(self, srt_content: str) -> List[Dict]:
-        return self.parse_srt(self, srt_content)
+        return self._tool.parse_srt(srt_content)
 
     @wrap_tool("agno__moviepyvideo__extract_audio", AgnoMoviePyVideoTools.extract_audio)
     def extract_audio(self, video_path: str, output_path: str) -> str:
-        return self.extract_audio(self, video_path, output_path)
+        return self._tool.extract_audio(video_path, output_path)
 
     @wrap_tool("agno__moviepyvideo__create_srt", AgnoMoviePyVideoTools.create_srt)
     def create_srt(self, transcription: str, output_path: str) -> str:
-        return self.create_srt(self, transcription, output_path)
+        return self._tool.create_srt(transcription, output_path)
 
     @wrap_tool(
         "agno__moviepyvideo__embed_captions", AgnoMoviePyVideoTools.embed_captions
@@ -69,8 +72,7 @@ class MoviePyVideo(make_base(AgnoMoviePyVideoTools)):
         stroke_color: str = "black",
         stroke_width: int = 1,
     ) -> str:
-        return self.embed_captions(
-            self,
+        return self._tool.embed_captions(
             video_path,
             srt_path,
             output_path,
