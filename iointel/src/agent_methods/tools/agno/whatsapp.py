@@ -1,16 +1,22 @@
 from typing import Any, Optional, List, Dict
 from agno.tools.whatsapp import WhatsAppTools as AgnoWhatsAppTools
 from .common import make_base, wrap_tool
+from pydantic import Field
 
 
 class WhatsApp(make_base(AgnoWhatsAppTools)):
+    access_token: Optional[str] = Field(default=None, frozen=True)
+    phone_number_id: Optional[str] = Field(default=None, frozen=True)
+    version: str = Field(default="v22.0", frozen=True)
+    recipient_waid: Optional[str] = Field(default=None, frozen=True)
+
     def _get_tool(self):
         return self.Inner(
-            access_token=self.access_token_,
-            phone_number_id=self.phone_number_id_,
-            version=self.version_,
-            recipient_waid=self.recipient_waid_,
-            async_mode=self.async_mode_,
+            access_token=self.access_token,
+            phone_number_id=self.phone_number_id,
+            version=self.version,
+            recipient_waid=self.recipient_waid,
+            async_mode=True,
         )
 
     @wrap_tool("agno__whatsapp___get_headers", AgnoWhatsAppTools._get_headers)
