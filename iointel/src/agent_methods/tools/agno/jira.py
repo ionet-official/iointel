@@ -27,7 +27,7 @@ class Jira(make_base(AgnoJiraTools)):
         self, project_key: str, summary: str, description: str, issuetype: str = "Task"
     ) -> str:
         return self._tool.create_issue(
-            self, project_key, summary, description, issuetype
+            project_key, summary, description, issuetype
         )
 
     @wrap_tool("agno__jira__search_issues", AgnoJiraTools.search_issues)
