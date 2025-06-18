@@ -1,19 +1,28 @@
+from typing import Optional
 from agno.tools.zep import ZepTools as AgnoZepTools
 from .common import make_base, wrap_tool
+from pydantic import Field
 
 
 class Zep(make_base(AgnoZepTools)):
+    session_id: Optional[str] = Field(default=None, frozen=True)
+    user_id: Optional[str] = Field(default=None, frozen=True)
+    api_key: Optional[str] = Field(default=None, frozen=True)
+    ignore_assistant_messages: bool = Field(default=False, frozen=True)
+    instructions: Optional[str] = Field(default=None, frozen=True)
+    add_instructions: bool = Field(default=False, frozen=True)
+
     def _get_tool(self):
         return self.Inner(
-            session_id=self.session_id_,
-            user_id=self.user_id_,
-            api_key=self.api_key_,
-            ignore_assistant_messages=self.ignore_assistant_messages_,
-            add_zep_message=self.add_zep_message_,
-            get_zep_memory=self.get_zep_memory_,
-            search_zep_memory=self.search_zep_memory,
-            instructions=self.instructions_,
-            add_instructions=self.add_instructions_,
+            session_id=self.session_id,
+            user_id=self.user_id,
+            api_key=self.api_key,
+            ignore_assistant_messages=self.ignore_assistant_messages,
+            add_zep_message=True,
+            get_zep_memory=True,
+            search_zep_memory=True,
+            instructions=self.instructions,
+            add_instructions=self.add_instructions,
         )
 
     @wrap_tool("agno__zep__initialize", AgnoZepTools.initialize)
