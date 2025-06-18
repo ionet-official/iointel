@@ -44,9 +44,7 @@ class WhatsApp(make_base(AgnoWhatsAppTools)):
         preview_url: bool = False,
         recipient_type: str = "individual",
     ) -> str:
-        return self.send_text_message_sync(
-            self, text, recipient, preview_url, recipient_type
-        )
+        return self.send_text_message_sync(text, recipient, preview_url, recipient_type)
 
     @wrap_tool(
         "agno__whatsapp__send_template_message_sync",
@@ -60,7 +58,7 @@ class WhatsApp(make_base(AgnoWhatsAppTools)):
         components: Optional[List[Dict[str, Any]]] = None,
     ) -> str:
         return self.send_template_message_sync(
-            self, recipient, template_name, language_code, components
+            recipient, template_name, language_code, components
         )
 
     @wrap_tool(
@@ -75,7 +73,7 @@ class WhatsApp(make_base(AgnoWhatsAppTools)):
         recipient_type: str = "individual",
     ) -> str:
         return self.send_text_message_async(
-            self, text, recipient, preview_url, recipient_type
+            text, recipient, preview_url, recipient_type
         )
 
     @wrap_tool(
@@ -90,5 +88,5 @@ class WhatsApp(make_base(AgnoWhatsAppTools)):
         components: Optional[List[Dict[str, Any]]] = None,
     ) -> str:
         return self.send_template_message_async(
-            self, recipient, template_name, language_code, components
+            recipient, template_name, language_code, components
         )
