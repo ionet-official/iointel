@@ -4,16 +4,18 @@ from .common import make_base, wrap_tool
 
 
 class Todoist(make_base(AgnoTodoistTools)):
+    api_token: Optional[str] = (None,)
+
     def _get_tool(self):
         return self.Inner(
-            api_token=self.api_token_,
-            create_task=self.create_task_,
-            get_task=self.get_task_,
-            update_task=self.update_task_,
-            close_task=self.close_task_,
-            delete_task=self.delete_task_,
-            get_active_tasks=self.get_active_tasks_,
-            get_projects=self.get_projects,
+            api_token=self.api_token,
+            create_task=True,
+            get_task=True,
+            update_task=True,
+            close_task=True,
+            delete_task=True,
+            get_active_tasks=True,
+            get_projects=True,
         )
 
     @wrap_tool("agno__todoist__create_task", AgnoTodoistTools.create_task)

@@ -6,22 +6,20 @@ from pydantic import Field
 
 class Tavily(make_base(AgnoTavilyTools)):
     api_key: Optional[str] = Field(default=None, frozen=True)
-    search: bool = Field(default=True, frozen=True)
     max_tokens: int = Field(default=6000, frozen=True)
     include_answer: bool = Field(default=True, frozen=True)
     search_depth: Literal["basic", "advanced"] = Field(default="advanced", frozen=True)
     format: Literal["json", "markdown"] = Field(default="markdown", frozen=True)
-    use_search_context: bool = Field(default=False, frozen=True)
 
     def _get_tool(self):
         return self.Inner(
-            api_key=self.api_key_,
-            search=self.search_,
-            max_tokens=self.max_tokens_,
-            include_answer=self.include_answer_,
-            search_depth=self.search_depth_,
-            format=self.format_,
-            use_search_context=self.use_search_context_,
+            api_key=self.api_key,
+            search=True,
+            max_tokens=self.max_tokens,
+            include_answer=self.include_answer,
+            search_depth=self.search_depth,
+            format=self.format,
+            use_search_context=True,
         )
 
     @wrap_tool(
