@@ -16,8 +16,8 @@ class Pandas(make_base(AgnoPandasTools)):
         create_using_function: str,
         function_parameters: Dict[str, Any],
     ) -> str:
-        return self.create_pandas_dataframe(
-            self, dataframe_name, create_using_function, function_parameters
+        return self._tool.create_pandas_dataframe(
+            dataframe_name, create_using_function, function_parameters
         )
 
     @wrap_tool(
@@ -26,6 +26,6 @@ class Pandas(make_base(AgnoPandasTools)):
     def run_dataframe_operation(
         self, dataframe_name: str, operation: str, operation_parameters: Dict[str, Any]
     ) -> str:
-        return self.run_dataframe_operation(
-            self, dataframe_name, operation, operation_parameters
+        return self._tool.run_dataframe_operation(
+            dataframe_name, operation, operation_parameters
         )
