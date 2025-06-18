@@ -38,7 +38,7 @@ class Linear(make_base(AgnoLinearTools)):
 
     @wrap_tool("agno__linear__update_issue", AgnoLinearTools.update_issue)
     def update_issue(self, issue_id: str, title: Optional[str]) -> Optional[str]:
-        return self._tool.update_issue(self, issue_id, title)
+        return self._tool.update_issue(issue_id, title)
 
     @wrap_tool(
         "agno__linear__get_user_assigned_issues",
