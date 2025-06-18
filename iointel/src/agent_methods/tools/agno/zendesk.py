@@ -11,9 +11,9 @@ class Zendesk(make_base(AgnoZendeskTools)):
 
     def _get_tool(self):
         return self.Inner(
-            username=self.username_,
-            password=self.password_,
-            company_name=self.company_name_,
+            username=self.username,
+            password=self.password,
+            company_name=self.company_name,
         )
 
     @wrap_tool("agno__zendesk__search_zendesk", AgnoZendeskTools.search_zendesk)
