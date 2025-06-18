@@ -32,7 +32,7 @@ class Todoist(make_base(AgnoTodoistTools)):
 
     @wrap_tool("agno__todoist__get_task", AgnoTodoistTools.get_task)
     def get_task(self, task_id: str) -> str:
-        return self._tool.get_task(self, task_id)
+        return self._tool.get_task(task_id)
 
     @wrap_tool("agno__todoist__update_task", AgnoTodoistTools.update_task)
     def update_task(
