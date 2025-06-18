@@ -5,7 +5,6 @@ from pydantic import Field
 
 
 class Newspaper4k(make_base(AgnoNewspaper4kTools)):
-    # read_article: bool = Field(default=True, frozen=True)
     include_summary: bool = Field(default=False, frozen=True)
     article_length: Optional[int] = Field(default=None, frozen=True)
 
