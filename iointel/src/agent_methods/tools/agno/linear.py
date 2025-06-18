@@ -56,4 +56,4 @@ class Linear(make_base(AgnoLinearTools)):
         AgnoLinearTools.get_high_priority_issues,
     )
     def get_high_priority_issues(self) -> Optional[str]:
-        return self._tool.get_high_priority_issues(self)
+        return self._tool.get_high_priority_issues()
