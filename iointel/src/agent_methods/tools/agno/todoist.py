@@ -28,9 +28,7 @@ class Todoist(make_base(AgnoTodoistTools)):
         priority: Optional[int] = None,
         labels: Optional[List[str]] = None,
     ) -> str:
-        return self._tool.create_task(
-            self, content, project_id, due_string, priority, labels
-        )
+        return self._tool.create_task(content, project_id, due_string, priority, labels)
 
     @wrap_tool("agno__todoist__get_task", AgnoTodoistTools.get_task)
     def get_task(self, task_id: str) -> str:
@@ -52,7 +50,6 @@ class Todoist(make_base(AgnoTodoistTools)):
         section_id: Optional[str] = None,
     ) -> str:
         return self._tool.update_task(
-            self,
             task_id,
             content,
             description,
@@ -68,16 +65,16 @@ class Todoist(make_base(AgnoTodoistTools)):
 
     @wrap_tool("agno__todoist__close_task", AgnoTodoistTools.close_task)
     def close_task(self, task_id: str) -> str:
-        return self._tool.close_task(self, task_id)
+        return self._tool.close_task(task_id)
 
     @wrap_tool("agno__todoist__delete_task", AgnoTodoistTools.delete_task)
     def delete_task(self, task_id: str) -> str:
-        return self._tool.delete_task(self, task_id)
+        return self._tool.delete_task(task_id)
 
     @wrap_tool("agno__todoist__get_active_tasks", AgnoTodoistTools.get_active_tasks)
     def get_active_tasks(self) -> str:
-        return self._tool.get_active_tasks(self)
+        return self._tool.get_active_tasks()
 
     @wrap_tool("agno__todoist__get_projects", AgnoTodoistTools.get_projects)
     def get_projects(self) -> str:
-        return self._tool.get_projects(self)
+        return self._tool.get_projects()

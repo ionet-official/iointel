@@ -16,4 +16,4 @@ class Telegram(make_base(AgnoTelegramTools)):
 
     @wrap_tool("agno__telegram__send_message", AgnoTelegramTools.send_message)
     def send_message(self, message: str) -> str:
-        return self._tool.send_message(self, message)
+        return self._tool.send_message(message)

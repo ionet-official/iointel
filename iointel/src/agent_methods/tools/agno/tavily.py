@@ -26,10 +26,10 @@ class Tavily(make_base(AgnoTavilyTools)):
         "agno__tavily__web_search_using_tavily", AgnoTavilyTools.web_search_using_tavily
     )
     def web_search_using_tavily(self, query: str, max_results: int = 5) -> str:
-        return self._tool.web_search_using_tavily(self, query, max_results)
+        return self._tool.web_search_using_tavily(query, max_results)
 
     @wrap_tool(
         "agno__tavily__web_search_with_tavily", AgnoTavilyTools.web_search_with_tavily
     )
     def web_search_with_tavily(self, query: str) -> str:
-        return self._tool.web_search_with_tavily(self, query)
+        return self._tool.web_search_with_tavily(query)
