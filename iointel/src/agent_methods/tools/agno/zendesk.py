@@ -1,12 +1,13 @@
 from typing import Optional
 from agno.tools.zendesk import ZendeskTools as AgnoZendeskTools
 from .common import make_base, wrap_tool
+from pydantic import Field
 
 
 class Zendesk(make_base(AgnoZendeskTools)):
-    username: Optional[str] = (None,)
-    password: Optional[str] = (None,)
-    company_name: Optional[str] = (None,)
+    username: Optional[str] = Field(defaul=None, frozen=True)
+    password: Optional[str] = Field(defaul=None, frozen=True)
+    company_name: Optional[str] = Field(defaul=None, frozen=True)
 
     def _get_tool(self):
         return self.Inner(
