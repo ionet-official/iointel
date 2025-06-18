@@ -1,10 +1,11 @@
 from typing import Optional, List
 from agno.tools.todoist import TodoistTools as AgnoTodoistTools
 from .common import make_base, wrap_tool
+from pydantic import Field
 
 
 class Todoist(make_base(AgnoTodoistTools)):
-    api_token: Optional[str] = (None,)
+    api_token: Optional[str] = Field(default=None, frozen=True)
 
     def _get_tool(self):
         return self.Inner(
