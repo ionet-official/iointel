@@ -13,11 +13,11 @@ class X(make_base(AgnoXTools)):
 
     def _get_tool(self):
         return self.Inner(
-            bearer_token=self.bearer_token_,
-            consumer_key=self.consumer_key_,
-            consumer_secret=self.consumer_secret_,
-            access_token=self.access_token_,
-            access_token_secret=self.access_token_secret_,
+            bearer_token=self.bearer_token,
+            consumer_key=self.consumer_key,
+            consumer_secret=self.consumer_secret,
+            access_token=self.access_tokens,
+            access_token_secret=self.access_token_secret,
         )
 
     @wrap_tool("agno__x__create_post", AgnoXTools.create_post)
