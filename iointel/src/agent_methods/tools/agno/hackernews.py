@@ -14,7 +14,7 @@ class HackerNews(make_base(AgnoHackerNewsTools)):
         AgnoHackerNewsTools.get_top_hackernews_stories,
     )
     def get_top_hackernews_stories(self, num_stories: int = 10) -> str:
-        return self._tool.get_top_hackernews_stories(self, num_stories)
+        return self._tool.get_top_hackernews_stories(num_stories)
 
     @wrap_tool(
         "agno__hackernews__get_user_details", AgnoHackerNewsTools.get_user_details
