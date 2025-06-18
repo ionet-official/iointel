@@ -15,8 +15,8 @@ class Webex(make_base(AgnoWebexTools)):
 
     @wrap_tool("agno__webex__send_message", AgnoWebexTools.send_message)
     def send_message(self, room_id: str, text: str) -> str:
-        return self.send_message(room_id, text)
+        return self._tool.send_message(room_id, text)
 
     @wrap_tool("agno__webex__list_rooms", AgnoWebexTools.list_rooms)
     def list_rooms(self) -> str:
-        return self.list_rooms()
+        return self._tool.list_rooms()
