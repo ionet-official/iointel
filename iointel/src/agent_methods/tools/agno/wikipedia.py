@@ -1,11 +1,16 @@
+from typing import Optional
 from agno.tools.wikipedia import WikipediaTools as AgnoWikipediaTools
 from .common import make_base, wrap_tool
+from agno.knowledge.wikipedia import WikipediaKnowledgeBase
+from pydantic import Field
 
 
 class Wikipedia(make_base(AgnoWikipediaTools)):
+    knowledge_base: Optional[WikipediaKnowledgeBase] = Field(default=None, frozen=True)
+
     def _get_tool(self):
         return self.Inner(
-            knowledge_base=self.knowledge_base_,
+            knowledge_base=self.knowledge_base,
         )
 
     @wrap_tool(
