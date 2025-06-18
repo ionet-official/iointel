@@ -2,24 +2,37 @@ from typing import Optional
 from agno.tools.reddit import RedditTools as AgnoRedditTools
 from .common import make_base, wrap_tool
 
+try:
+    import praw  # type: ignore
+except ImportError:
+    raise ImportError("praw` not installed. Please install using `pip install praw`")
+from pydantic import Field
+
 
 class Reddit(make_base(AgnoRedditTools)):
+    reddit_instance: Optional[praw.Reddit] = Field(default=None, frozen=True)
+    client_id: Optional[str] = Field(default=None, frozen=True)
+    client_secret: Optional[str] = Field(default=None, frozen=True)
+    user_agent: Optional[str] = Field(default=None, frozen=True)
+    username: Optional[str] = Field(default=None, frozen=True)
+    password: Optional[str] = Field(default=None, frozen=True)
+
     def _get_tool(self):
         return self.Inner(
-            reddit_instance=self.reddit_instance_,
-            client_id=self.client_id_,
-            client_secret=self.client_secret_,
-            user_agent=self.user_agent_,
-            username=self.username_,
-            password=self.password_,
-            get_user_info=self.get_user_info_,
-            get_top_posts=self.get_top_posts_,
-            get_subreddit_info=self.get_subreddit_info_,
-            get_trending_subreddits=self.get_trending_subreddits_,
-            get_subreddit_stats=self.get_subreddit_stats_,
-            create_post=self.create_post_,
-            reply_to_post=self.reply_to_post_,
-            reply_to_comment=self.reply_to_comment_,
+            reddit_instance=self.reddit_instance,
+            client_id=self.client_id,
+            client_secret=self.client_secret,
+            user_agent=self.user_agent,
+            username=self.username,
+            password=self.password,
+            get_user_info=True,
+            get_top_posts=True,
+            get_subreddit_info=True,
+            get_trending_subreddits=True,
+            get_subreddit_stats=True,
+            create_post=True,
+            reply_to_post=True,
+            reply_to_comment=True,
         )
 
     @wrap_tool("agno__reddit___check_user_auth", AgnoRedditTools._check_user_auth)
