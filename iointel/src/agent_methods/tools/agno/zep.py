@@ -18,16 +18,16 @@ class Zep(make_base(AgnoZepTools)):
 
     @wrap_tool("agno__zep__initialize", AgnoZepTools.initialize)
     def initialize(self) -> bool:
-        return self.initialize(self)
+        return self._tool.initialize()
 
     @wrap_tool("agno__zep__add_zep_message", AgnoZepTools.add_zep_message)
     def add_zep_message(self, role: str, content: str) -> str:
-        return self.add_zep_message(self, role, content)
+        return self._tool.add_zep_message(role, content)
 
     @wrap_tool("agno__zep__get_zep_memory", AgnoZepTools.get_zep_memory)
     def get_zep_memory(self, memory_type: str = "context") -> str:
-        return self.get_zep_memory(self, memory_type)
+        return self._tool.get_zep_memory(memory_type)
 
     @wrap_tool("agno__zep__search_zep_memory", AgnoZepTools.search_zep_memory)
     def search_zep_memory(self, query: str, search_scope: str = "messages") -> str:
-        return self.search_zep_memory(self, query, search_scope)
+        return self._tool.search_zep_memory(query, search_scope)

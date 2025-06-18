@@ -12,4 +12,4 @@ class Zendesk(make_base(AgnoZendeskTools)):
 
     @wrap_tool("agno__zendesk__search_zendesk", AgnoZendeskTools.search_zendesk)
     def search_zendesk(self, search_string: str) -> str:
-        return self.search_zendesk(self, search_string)
+        return self._tool.search_zendesk(self, search_string)
