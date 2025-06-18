@@ -20,4 +20,4 @@ class HackerNews(make_base(AgnoHackerNewsTools)):
         "agno__hackernews__get_user_details", AgnoHackerNewsTools.get_user_details
     )
     def get_user_details(self, username: str) -> str:
-        return self._tool.get_user_details(self, username)
+        return self._tool.get_user_details(username)
