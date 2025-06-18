@@ -11,9 +11,9 @@ class Trello(make_base(AgnoTrelloTools)):
 
     def _get_tool(self):
         return self.Inner(
-            api_key=self.api_key_,
-            api_secret=self.api_secret_,
-            token=self.token_,
+            api_key=self.api_key,
+            api_secret=self.api_secret,
+            token=self.token,
             create_card=True,
             get_board_lists=True,
             move_card=True,
