@@ -28,12 +28,12 @@ class Knowledge(make_base(AgnoKnowledgeTools)):
 
     @wrap_tool("agno__knowledge__think", AgnoKnowledgeTools.think)
     def think(self, agent: Union[Agent, Team], thought: str) -> str:
-        return self._tool.think(self, agent, thought)
+        return self._tool.think(agent, thought)
 
     @wrap_tool("agno__knowledge__search", AgnoKnowledgeTools.search)
     def search(self, agent: Union[Agent, Team], query: str) -> str:
-        return self._tool.search(self, agent, query)
+        return self._tool.search(agent, query)
 
     @wrap_tool("agno__knowledge__analyze", AgnoKnowledgeTools.analyze)
     def analyze(self, agent: Union[Agent, Team], analysis: str) -> str:
-        return self._tool.analyze(self, agent, analysis)
+        return self._tool.analyze(agent, analysis)
