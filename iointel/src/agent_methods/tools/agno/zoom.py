@@ -13,21 +13,21 @@ class Zoom(make_base(AgnoZoomTools)):
 
     @wrap_tool("agno__zoom__get_access_token", AgnoZoomTools.get_access_token)
     def get_access_token(self) -> str:
-        return self.get_access_token(self)
+        return self._tool.get_access_token()
 
     @wrap_tool("agno__zoom__schedule_meeting", AgnoZoomTools.schedule_meeting)
     def schedule_meeting(
         self, topic: str, start_time: str, duration: int, timezone: str = "UTC"
     ) -> str:
-        return self.schedule_meeting(self, topic, start_time, duration, timezone)
+        return self._tool.schedule_meeting(topic, start_time, duration, timezone)
 
     @wrap_tool("agno__zoom__get_upcoming_meetings", AgnoZoomTools.get_upcoming_meetings)
     def get_upcoming_meetings(self, user_id: str = "me") -> str:
-        return self.get_upcoming_meetings(self, user_id)
+        return self._tool.get_upcoming_meetings(user_id)
 
     @wrap_tool("agno__zoom__list_meetings", AgnoZoomTools.list_meetings)
     def list_meetings(self, user_id: str = "me", type: str = "scheduled") -> str:
-        return self.list_meetings(self, user_id, type)
+        return self._tool.list_meetings(user_id, type)
 
     @wrap_tool(
         "agno__zoom__get_meeting_recordings", AgnoZoomTools.get_meeting_recordings
@@ -50,7 +50,7 @@ class Zoom(make_base(AgnoZoomTools)):
 
     @wrap_tool("agno__zoom__get_meeting", AgnoZoomTools.get_meeting)
     def get_meeting(self, meeting_id: str) -> str:
-        return self.get_meeting(self, meeting_id)
+        return self._tool.get_meeting(meeting_id)
 
     @wrap_tool("agno__zoom__instructions", AgnoZoomTools.instructions)
     def instructions(self) -> str:
