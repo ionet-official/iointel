@@ -39,7 +39,7 @@ class Zoom(make_base(AgnoZoomTools)):
         token_ttl: Optional[int] = None,
     ) -> str:
         return self.get_meeting_recordings(
-            self, meeting_id, include_download_token, token_ttl
+            meeting_id, include_download_token, token_ttl
         )
 
     @wrap_tool("agno__zoom__delete_meeting", AgnoZoomTools.delete_meeting)
