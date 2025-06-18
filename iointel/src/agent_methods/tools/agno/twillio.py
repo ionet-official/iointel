@@ -1,16 +1,17 @@
 from typing import Any, List, Dict, Optional
 from agno.tools.twilio import TwilioTools as AgnoTwilioTools
 from .common import make_base, wrap_tool
+from pydantic import Field
 
 
 class Twilio(make_base(AgnoTwilioTools)):
-    account_sid: Optional[str] = (None,)
-    auth_token: Optional[str] = (None,)
-    api_key: Optional[str] = (None,)
-    api_secret: Optional[str] = (None,)
-    region: Optional[str] = (None,)
-    edge: Optional[str] = (None,)
-    debug: bool = (False,)
+    account_sid: Optional[str] = Field(default=None, frozen=True)
+    auth_token: Optional[str] = Field(default=None, frozen=True)
+    api_key: Optional[str] = Field(default=None, frozen=True)
+    api_secret: Optional[str] = Field(default=None, frozen=True)
+    region: Optional[str] = Field(default=None, frozen=True)
+    edge: Optional[str] = Field(default=None, frozen=True)
+    debug: bool = Field(default=False, frozen=True)
 
     def _get_tool(self):
         return self.Inner(
