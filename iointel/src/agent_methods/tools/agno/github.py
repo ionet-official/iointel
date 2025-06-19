@@ -198,7 +198,7 @@ class Github(make_base(AgnoGithubTools)):
         return self._tool.get_pull_requests(repo_name, state, sort, direction, license)
 
     @wrap_tool(
-        "agno__github__    get_pull_request_comments",
+        "agno__github__get_pull_request_comments",
         AgnoGithubTools.get_pull_request_comments,
     )
     def get_pull_request_comments(
