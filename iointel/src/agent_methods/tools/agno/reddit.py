@@ -1,11 +1,9 @@
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 from agno.tools.reddit import RedditTools as AgnoRedditTools
 from .common import make_base, wrap_tool
 
-try:
-    import praw  # type: ignore
-except ImportError:
-    raise ImportError("praw` not installed. Please install using `pip install praw`")
+if TYPE_CHECKING:
+    import praw
 from pydantic import Field
 
 
