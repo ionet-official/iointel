@@ -7,7 +7,9 @@ from pydantic import Field
 
 class MLXTranscribe(make_base(AgnoMLXTranscribeTools)):
     base_dir: Optional[Path] = Field(default=None, frozen=True)
-    path_or_hf_repo: str = ("mlx-community/whisper-large-v3-turbo",)
+    path_or_hf_repo: str = Field(
+        default="mlx-community/whisper-large-v3-turbo", frozen=True
+    )
     verbose: Optional[bool] = Field(default=None, frozen=True)
     temperature: Optional[Union[float, Tuple[float, ...]]] = Field(
         default=None, frozen=True
