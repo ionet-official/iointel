@@ -9,10 +9,6 @@ class Firecrawl(make_base(AgnoFirecrawTools)):
     formats: Optional[List[str]] = Field(default=None, frozen=True)
     limit: int = Field(default=10, frozen=True)
     poll_interval: int = Field(default=30, frozen=True)
-    scrape: bool = Field(default=True, frozen=True)
-    crawl: bool = Field(default=False, frozen=True)
-    mapping: bool = Field(default=False, frozen=True)
-    search_: bool = Field(default=False, frozen=True)
     search_params: Optional[Dict[str, Any]] = Field(default=None, frozen=True)
     api_url: Optional[str] = Field(default="https://api.firecrawl.dev", frozen=True)
 
@@ -22,10 +18,10 @@ class Firecrawl(make_base(AgnoFirecrawTools)):
             formats=self.formats,
             limit=self.limit,
             poll_interval=self.poll_interval,
-            scrape=self.scrape,
-            crawl=self.crawl,
-            mapping=self.mapping,
-            search=self.search_,
+            scrape=True,
+            crawl=True,
+            mapping=True,
+            search=True,
             search_params=self.search_params,
             api_url=self.api_url,
         )
