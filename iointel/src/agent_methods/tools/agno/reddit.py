@@ -8,7 +8,7 @@ from pydantic import Field
 
 
 class Reddit(make_base(AgnoRedditTools)):
-    reddit_instance: Optional[praw.Reddit] = Field(default=None, frozen=True)
+    reddit_instance: "Optional[praw.Reddit]" = Field(default=None, frozen=True)
     client_id: Optional[str] = Field(default=None, frozen=True)
     client_secret: Optional[str] = Field(default=None, frozen=True)
     user_agent: Optional[str] = Field(default=None, frozen=True)
