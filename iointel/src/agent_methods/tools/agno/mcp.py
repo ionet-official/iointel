@@ -42,4 +42,4 @@ class MCP(make_base(AgnoMCPTools)):
 
     @wrap_tool("agno__mcp__initialize", AgnoMCPTools.initialize)
     def initialize(self) -> None:
-        return self.initialize(self)
+        return self.initialize()
