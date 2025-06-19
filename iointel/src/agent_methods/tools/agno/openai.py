@@ -3,20 +3,23 @@ from agno.tools.openai import OpenAITools as AgnoOpenAITools
 from .common import make_base, wrap_tool
 from agno.agent.agent import Agent
 from agno.tools.openai import OpenAIVoice, OpenAITTSModel, OpenAITTSFormat
+from pydantic import Field
 
 
 class OpenAI(make_base(AgnoOpenAITools)):
-    api_key: Optional[str] = (None,)
-    transcription_model: str = ("whisper-1",)
-    text_to_speech_voice: OpenAIVoice = ("alloy",)
-    text_to_speech_model: OpenAITTSModel = ("tts-1",)
-    text_to_speech_format: OpenAITTSFormat = ("mp3",)
-    image_model: Optional[str] = ("dall-e-3",)
-    image_quality: Optional[str] = (None,)
+    api_key: Optional[str] = Field(default=None, frozen=True)
+    transcription_model: str = Field(default="whisper-1", frozen=True)
+    text_to_speech_voice: OpenAIVoice = Field(default="alloy", frozen=True)
+    text_to_speech_model: OpenAITTSModel = Field(default="tts-1", frozen=True)
+    text_to_speech_format: OpenAITTSFormat = Field(default="mp3", frozen=True)
+    image_model: Optional[str] = Field(default="dall-e-3", frozen=True)
+    image_quality: Optional[str] = Field(default=None, frozen=True)
     image_size: Optional[
         Literal["256x256", "512x512", "1024x1024", "1792x1024", "1024x1792"]
-    ] = (None,)
-    image_style: Optional[Literal["vivid", "natural"]] = (None,)
+    ] = Field(default=None, frozen=True)
+    image_style: Optional[Literal["vivid", "natural"]] = Field(
+        default=None, frozen=True
+    )
 
     def _get_tool(self):
         return self.Inner(
