@@ -14,11 +14,11 @@ class JinaReader(make_base(AgnoJinaReaderTools)):
 
     def _get_tool(self):
         return self.Inner(
-            api_key=self.api_key_,
-            base_url=self.base_url_,
-            search_url=self.search_url_,
-            max_content_length=self.max_content_length_,
-            timeout=self.timeout_,
+            api_key=self.api_key,
+            base_url=self.base_url,
+            search_url=self.search_url,
+            max_content_length=self.max_content_length,
+            timeout=self.timeout,
             read_url=True,
             search_query=True,
         )

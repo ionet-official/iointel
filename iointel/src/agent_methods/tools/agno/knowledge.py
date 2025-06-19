@@ -16,14 +16,14 @@ class Knowledge(make_base(AgnoKnowledgeTools)):
 
     def _get_tool(self):
         return self.Inner(
-            knowledge=self.knowledge_,
+            knowledge=self.knowledge,
             think=True,
             search=True,
             analyze=True,
-            instructions=self.instructions_,
-            add_instructions=self.add_instructions_,
-            add_few_shot=self.add_few_shot_,
-            few_shot_examples=self.few_shot_examples_,
+            instructions=self.instructions,
+            add_instructions=self.add_instructions,
+            add_few_shot=self.add_few_shot,
+            few_shot_examples=self.few_shot_examples,
         )
 
     @wrap_tool("agno__knowledge__think", AgnoKnowledgeTools.think)
