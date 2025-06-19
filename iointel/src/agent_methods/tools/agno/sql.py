@@ -35,16 +35,16 @@ class SQL(make_base(AgnoSQLTools)):
 
     @wrap_tool("agno__sql__list_tables", AgnoSQLTools.list_tables)
     def list_tables(self) -> str:
-        return self.list_tables()
+        return self._tool.list_tables()
 
     @wrap_tool("agno__sql__describe_table", AgnoSQLTools.describe_table)
     def describe_table(self, table_name: str) -> str:
-        return self.describe_table(table_name)
+        return self._tool.describe_table(table_name)
 
     @wrap_tool("agno__sql__run_sql_query", AgnoSQLTools.run_sql_query)
     def run_sql_query(self, query: str, limit: Optional[int] = 10) -> str:
-        return self.run_sql_query(query, limit)
+        return self._tool.run_sql_query(query, limit)
 
     @wrap_tool("agno__sql__run_sql", AgnoSQLTools.run_sql)
     def run_sql(self, sql: str, limit: Optional[int] = None) -> List[dict]:
-        return self.run_sql(sql, limit)
+        return self._tool.run_sql(sql, limit)
