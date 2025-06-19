@@ -18,24 +18,12 @@ class Spider(make_base(AgnoSpiderTools)):
 
     @wrap_tool("agno__spider__search", AgnoSpiderTools.search)
     def search(self, query: str, max_results: int = 5) -> str:
-        return self.search(query, max_results)
+        return self._tool.search(query, max_results)
 
     @wrap_tool("agno__spider__scrape", AgnoSpiderTools.scrape)
     def scrape(self, url: str) -> str:
-        return self.scrape(url)
+        return self._tool.scrape(url)
 
     @wrap_tool("agno__spider__crawl", AgnoSpiderTools.crawl)
     def crawl(self, url: str, limit: Optional[int] = None) -> str:
-        return self.crawl(url, limit)
-
-    @wrap_tool("agno__spider___search", AgnoSpiderTools._search)
-    def _search(self, query: str, max_results: int = 1) -> str:
-        return self._search(query, max_results)
-
-    @wrap_tool("agno__spider___scrape", AgnoSpiderTools._scrape)
-    def _scrape(self, url: str) -> str:
-        return self._scrape(url)
-
-    @wrap_tool("agno__spider___crawl", AgnoSpiderTools._crawl)
-    def _crawl(self, url: str, limit: Optional[int] = None) -> str:
-        return self._crawl(url, limit)
+        return self._tool.crawl(url, limit)

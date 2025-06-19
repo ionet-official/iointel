@@ -15,8 +15,8 @@ class SerpApi(make_base(AgnoSerpApiTools)):
 
     @wrap_tool("agno__serpapi__search_google", AgnoSerpApiTools.search_google)
     def search_google(self, query: str, num_results: int = 10) -> str:
-        return self.search_google(query, num_results)
+        return self._tool.search_google(query, num_results)
 
     @wrap_tool("agno__serpapi__search_youtube", AgnoSerpApiTools.search_youtube)
     def search_youtube(self, query: str) -> str:
-        return self.search_youtube(query)
+        return self._tool.search_youtube(query)
