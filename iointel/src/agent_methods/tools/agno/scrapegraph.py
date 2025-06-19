@@ -16,8 +16,8 @@ class ScrapeGraph(make_base(AgnoScrapeGraphTools)):
 
     @wrap_tool("agno__scrapegraph__smartscraper", AgnoScrapeGraphTools.smartscraper)
     def smartscraper(self, url: str, prompt: str) -> str:
-        return self._tool.smartscraper(self, url, prompt)
+        return self._tool.smartscraper(url, prompt)
 
     @wrap_tool("agno__scrapegraph__markdownify", AgnoScrapeGraphTools.markdownify)
     def markdownify(self, url: str) -> str:
-        return self._tool.markdownify(self, url)
+        return self._tool.markdownify(url)

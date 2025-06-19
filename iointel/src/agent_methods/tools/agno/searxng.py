@@ -4,16 +4,16 @@ from .common import make_base, wrap_tool
 from pydantic import Field
 
 
-class Se(make_base(AgnoSearxng)):
+class Searxng(make_base(AgnoSearxng)):
     host: str = Field(frozen=True)
     engines: List[str] = Field(default=[], frozen=True)
     fixed_max_results: Optional[int] = Field(default=None, frozen=True)
 
     def _get_tool(self):
         return self.Inner(
-            host=self.host_,
-            engines=self.engines_,
-            fixed_max_results=self.fixed_max_results_,
+            host=self.host,
+            engines=self.engines,
+            fixed_max_results=self.fixed_max_results,
             images=True,
             it=True,
             map=True,
@@ -23,34 +23,34 @@ class Se(make_base(AgnoSearxng)):
             videos=True,
         )
 
-    @wrap_tool("agno__se__search", AgnoSearxng.search)
+    @wrap_tool("agno__searxng__search", AgnoSearxng.search)
     def search(self, query: str, max_results: int = 5) -> str:
-        return self.search(query, max_results)
+        return self._tool.search(query, max_results)
 
-    @wrap_tool("agno__se__image_search", AgnoSearxng.image_search)
+    @wrap_tool("agno__searxng__image_search", AgnoSearxng.image_search)
     def image_search(self, query: str, max_results: int = 5) -> str:
-        return self.image_search(query, max_results)
+        return self._tool.image_search(query, max_results)
 
-    @wrap_tool("agno__se__it_search", AgnoSearxng.it_search)
+    @wrap_tool("agno__searxng__it_search", AgnoSearxng.it_search)
     def it_search(self, query: str, max_results: int = 5) -> str:
-        return self.it_search(query, max_results)
+        return self._tool.it_search(query, max_results)
 
-    @wrap_tool("agno__se__map_search", AgnoSearxng.map_search)
+    @wrap_tool("agno__searxng__map_search", AgnoSearxng.map_search)
     def map_search(self, query: str, max_results: int = 5) -> str:
-        return self.map_search(query, max_results)
+        return self._tool.map_search(query, max_results)
 
-    @wrap_tool("agno__se__music_search", AgnoSearxng.music_search)
+    @wrap_tool("agno__searxng__music_search", AgnoSearxng.music_search)
     def music_search(self, query: str, max_results: int = 5) -> str:
-        return self.music_search(query, max_results)
+        return self._tool.music_search(query, max_results)
 
-    @wrap_tool("agno__se__news_search", AgnoSearxng.news_search)
+    @wrap_tool("agno__searxng__news_search", AgnoSearxng.news_search)
     def news_search(self, query: str, max_results: int = 5) -> str:
-        return self.news_search(query, max_results)
+        return self._tool.news_search(query, max_results)
 
-    @wrap_tool("agno__se__science_search", AgnoSearxng.science_search)
+    @wrap_tool("agno__searxng__science_search", AgnoSearxng.science_search)
     def science_search(self, query: str, max_results: int = 5) -> str:
-        return self.science_search(query, max_results)
+        return self._tool.science_search(query, max_results)
 
-    @wrap_tool("agno__se__video_search", AgnoSearxng.video_search)
+    @wrap_tool("agno__searxng__video_search", AgnoSearxng.video_search)
     def video_search(self, query: str, max_results: int = 5) -> str:
-        return self.video_search(query, max_results)
+        return self._tool.video_search(query, max_results)

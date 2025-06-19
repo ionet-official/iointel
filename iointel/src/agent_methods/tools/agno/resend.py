@@ -16,4 +16,4 @@ class Resend(make_base(AgnoResendTools)):
 
     @wrap_tool("agno__resend__send_email", AgnoResendTools.send_email)
     def send_email(self, to_email: str, subject: str, body: str) -> str:
-        return self._tool.send_email(self, to_email, subject, body)
+        return self._tool.send_email(to_email, subject, body)
