@@ -27,18 +27,6 @@ class ModelsLab(make_base(AgnoModelsLabTools)):
     def _create_payload(self, prompt: str) -> Dict[str, Any]:
         return self._tool._create_payload(prompt)
 
-    @wrap_tool(
-        "agno__modelslab___add_media_artifact", AgnoModelsLabTools._add_media_artifact
-    )
-    def _add_media_artifact(
-        self,
-        agent: Union[Agent, Team],
-        media_id: str,
-        media_url: str,
-        eta: Optional[str] = None,
-    ) -> None:
-        return self._tool._add_media_artifact(agent, media_id, media_url, eta)
-
     @wrap_tool("agno__modelslab__generate_media", AgnoModelsLabTools.generate_media)
     def generate_media(self, agent: Union[Agent, Team], prompt: str) -> str:
         return self._tool.generate_media(agent, prompt)
