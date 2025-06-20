@@ -1,0 +1,42 @@
+{
+    "request": {
+        "method": "POST",
+        "url": "/api/v1/workflows/run",
+        "headers": {
+            "Host": {
+                "equalTo": "api.intelligence.io.solutions"
+            },
+            "User-Agent": {
+                "contains": "python-requests"
+            },
+            "Authorization": {
+                "matches": "Bearer .*"
+            },
+            "Content-Type": {
+                "equalTo": "application/json"
+            }
+        },
+        "bodyPatterns": [
+            {
+                "matchesJsonPath": "$.text"
+            },
+            {
+                "matchesJsonPath": "$.agent_names[?(@ == 'summary_agent')]"
+            },
+            {
+                "matchesJsonPath": "$.args.type",
+                "equalToJson": "\"summarize_text\""
+            }
+        ]
+    },
+    "response": {
+        "status": 200,
+        "headers": {
+            "Content-Type": "application/json",
+            "Server": "cloudflare"
+        },
+        "jsonBody": {
+            "result": "summary generated successfully"
+        }
+    }
+}
