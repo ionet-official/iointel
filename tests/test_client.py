@@ -3,22 +3,42 @@ import pytest
 from iointel.client import client
 
 
-def test_reasoning_task():
-    result = client.run_reasoning_task("I need to add 2 and 2")
-    assert result
+import requests
 
 
-def test_summarize_task():
+@pytest.fixture
+def wiremock_stub(monkeypatch):
+    original_request = requests.Session.request
+
+    def patched_request(self, method, url, **kwargs):
+        kwargs["verify"] = False
+        return original_request(self, method, url, **kwargs)
+
+    monkeypatch.setenv("HTTP_PROXY", "http://127.0.0.1:7070")
+    monkeypatch.setenv("HTTPS_PROXY", "http://127.0.0.1:7070")
+    monkeypatch.setattr(requests.Session, "request", patched_request)
+
+
+@pytest.mark.slow
+def test_summarize_task(wiremock_stub):
     result = client.summarize_task(
         "This is a long text talking about nothing, emptiness and things like that. Nobody knows what it is about. The void gazes into you."
     )
     assert result
+
     result = client.summarize_task(
         "Breaking news: local sports team wins!", max_words=50
     )
     assert result
 
 
+@pytest.mark.slow
+def test_reasoning_task(wiremock_stub):
+    result = client.run_reasoning_task("I need to add 2 and 2")
+    assert result
+
+
+@pytest.mark.slow
 def test_sentiment():
     result = client.sentiment_analysis("random junk")
     assert result
@@ -29,6 +49,7 @@ def test_extract_entities():
     assert result
 
 
+@pytest.mark.slow
 def test_translate_task():
     result = client.translate_text_task("random junk", target_language="spanish")
     assert result
