@@ -4,6 +4,8 @@ from iointel.client import client
 
 
 import requests
+import urllib3
+import warnings
 
 
 @pytest.fixture
@@ -18,8 +20,13 @@ def wiremock_stub(monkeypatch):
     monkeypatch.setenv("HTTPS_PROXY", "http://127.0.0.1:7070")
     monkeypatch.setattr(requests.Session, "request", patched_request)
 
+    # Suppress only InsecureRequestWarning within fixture scope
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", urllib3.exceptions.InsecureRequestWarning)
+        urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+        yield
 
-@pytest.mark.slow
+
 def test_summarize_task(wiremock_stub):
     result = client.summarize_task(
         "This is a long text talking about nothing, emptiness and things like that. Nobody knows what it is about. The void gazes into you."
@@ -32,13 +39,11 @@ def test_summarize_task(wiremock_stub):
     assert result
 
 
-@pytest.mark.slow
 def test_reasoning_task(wiremock_stub):
     result = client.run_reasoning_task("I need to add 2 and 2")
     assert result
 
 
-@pytest.mark.slow
 def test_sentiment():
     result = client.sentiment_analysis("random junk")
     assert result
@@ -49,7 +54,6 @@ def test_extract_entities():
     assert result
 
 
-@pytest.mark.slow
 def test_translate_task():
     result = client.translate_text_task("random junk", target_language="spanish")
     assert result
