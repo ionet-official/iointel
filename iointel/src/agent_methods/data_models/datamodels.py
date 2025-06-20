@@ -54,6 +54,17 @@ class ToolUsageResult(BaseModel):
     tool_result: Any = None
 
 
+class AgentResult(BaseModel):
+    """
+    Result returned from agent execution with all context.
+    """
+
+    result: Any  # Can be str, int, float, dict, or any structured output
+    conversation_id: Union[str, int]
+    full_result: Any
+    tool_usage_results: List[ToolUsageResult]
+
+
 ###### persona ########
 class PersonaConfig(BaseModel):
     """

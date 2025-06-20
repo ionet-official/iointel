@@ -115,5 +115,5 @@ Please evaluate the agent's response against the ground truth.
         if self.verbose:
             print(f"Oracle prompt: {prompt}")
         # Get evaluation from the oracle agent
-        response = (await self.agent.run(prompt))["result"]
+        response = (await self.agent.run(prompt)).result
         return response

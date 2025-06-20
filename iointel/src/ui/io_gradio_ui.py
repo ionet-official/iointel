@@ -153,7 +153,7 @@ class IOGradioUI:
             combined_message, conversation_id=conversation_id, pretty=True
         )
 
-        tool_usage_results = result["tool_usage_results"]
+        tool_usage_results = result.tool_usage_results
         css, dynamic_ui_spec = self._handle_tool_results(tool_usage_results, css)
         agent_html = f'<div class="agent-bubble">{format_result_for_html(result)}</div>'
         history = history or []

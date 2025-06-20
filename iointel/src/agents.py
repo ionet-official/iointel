@@ -3,7 +3,12 @@ import json
 import uuid
 
 from .memory import AsyncMemory
-from .agent_methods.data_models.datamodels import PersonaConfig, Tool, ToolUsageResult
+from .agent_methods.data_models.datamodels import (
+    PersonaConfig,
+    Tool,
+    ToolUsageResult,
+    AgentResult,
+)
 from .utilities.rich import pretty_output
 from .utilities.constants import get_api_url, get_base_model, get_api_key
 from .utilities.registries import TOOLS_REGISTRY
@@ -337,7 +342,7 @@ class Agent(BaseModel):
                 show_tool_calls=self.show_tool_calls,
                 tool_pil_layout=self.tool_pil_layout,
             )
-        return dict(
+        return AgentResult(
             result=result.output,
             conversation_id=conversation_id,
             full_result=result,
@@ -375,7 +380,7 @@ class Agent(BaseModel):
         pretty: bool = None,
         message_history_limit=100,
         **kwargs,
-    ) -> dict[str, Any]:
+    ) -> AgentResult:
         """
         Run the agent asynchronously.
         :param query: The query to run the agent on.
@@ -451,7 +456,7 @@ class Agent(BaseModel):
         message_history_limit=100,
         pretty: bool = None,
         **kwargs,
-    ) -> dict[str, Any]:
+    ) -> AgentResult:
         """
         Run the agent with streaming output.
         :param query: The query to run the agent on.
@@ -486,12 +491,12 @@ class Agent(BaseModel):
             except Exception as e:
                 print("Error storing run history:", e)
 
-        result_dict = self._postprocess_agent_result(
+        result = self._postprocess_agent_result(
             agent_result, query, conversation_id, pretty=pretty
         )
         if return_markdown:
-            result_dict["result"] = markdown_content
-        return result_dict
+            result.result = markdown_content
+        return result
 
     def set_context(self, context: Any) -> None:
         """
