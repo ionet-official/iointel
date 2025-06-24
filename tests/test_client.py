@@ -3,44 +3,19 @@ import pytest
 from iointel.client import client
 
 
-import requests
-import urllib3
-import warnings
+def test_reasoning_task():
+    result = client.run_reasoning_task("I need to add 2 and 2")
+    assert result
 
 
-@pytest.fixture
-def wiremock_stub(monkeypatch):
-    original_request = requests.Session.request
-
-    def patched_request(self, method, url, **kwargs):
-        kwargs["verify"] = False
-        return original_request(self, method, url, **kwargs)
-
-    monkeypatch.setenv("HTTP_PROXY", "http://127.0.0.1:7070")
-    monkeypatch.setenv("HTTPS_PROXY", "http://127.0.0.1:7070")
-    monkeypatch.setattr(requests.Session, "request", patched_request)
-
-    # Suppress only InsecureRequestWarning within fixture scope
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore", urllib3.exceptions.InsecureRequestWarning)
-        urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-        yield
-
-
-def test_summarize_task(wiremock_stub):
+def test_summarize_task():
     result = client.summarize_task(
         "This is a long text talking about nothing, emptiness and things like that. Nobody knows what it is about. The void gazes into you."
     )
     assert result
-
     result = client.summarize_task(
         "Breaking news: local sports team wins!", max_words=50
     )
-    assert result
-
-
-def test_reasoning_task(wiremock_stub):
-    result = client.run_reasoning_task("I need to add 2 and 2")
     assert result
 
 
