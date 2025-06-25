@@ -102,10 +102,6 @@ tools_with_examples = {
 
 
 @pytest.mark.skipif(
-    os.getenv("SOLSCAN_API_KEY") is None,
-    "SOLSCAN_API_KEY environment variable is undefined",
-)
-@pytest.mark.skipif(
     os.getenv("CI") is not None,
     reason="Don't test all of them in CI, fails because of the limits",
 )
