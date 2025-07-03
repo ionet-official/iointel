@@ -18,6 +18,7 @@ from iointel.src.RL.example_tools import (
     square_root,
 )
 import random
+from iointel.src.RL.prompts import get_agent_instructions
 
 
 class RLState(BaseModel):

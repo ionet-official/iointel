@@ -187,6 +187,7 @@ class Agent(BaseModel):
             debug=debug,
             conversation_id=conversation_id,
         )
+        print(f"--- Agent initialized with conversation_id: {self.conversation_id}")
         self._allow_unregistered_tools = allow_unregistered_tools
         self._runner = PydanticAgent(
             name=name,
@@ -343,21 +344,28 @@ class Agent(BaseModel):
             full_result=result,
             tool_usage_results=tool_usage_results,
         )
+    
+    def _resolve_conversation_id(self, conversation_id: Optional[str]) -> str | None:
+        res = conversation_id or self.conversation_id or None
+        print(f"--- Resolved conversation_id: {res}")
+        return res
 
     async def _load_message_history(
         self, conversation_id: Optional[str], message_history_limit: int
     ) -> Optional[list[dict[str, Any]]]:
-        if self.memory and conversation_id:
+        convo_id = self._resolve_conversation_id(conversation_id)
+        if self.memory and convo_id:
             try:
-                return await self.memory.get_message_history(
-                    conversation_id, message_history_limit
+                messages = await self.memory.get_message_history(
+                    convo_id, message_history_limit
                 )
+                print(f"Using memory: {bool(self.memory)}, loaded {len(messages) if messages else 0} messages")
+                return messages
             except Exception as e:
                 print("Error loading message history:", e)
+        else:
+            print(f"Using memory: {bool(self.memory)}, no messages loaded")
         return None
-
-    def _resolve_conversation_id(self, conversation_id: Optional[str]) -> str:
-        return conversation_id or self.conversation_id or str(uuid.uuid4())
 
     def _adjust_output_type(self, kwargs: dict[str, Any]) -> None:
         if not self.model_settings.get("supports_tool_choice_required"):
@@ -400,7 +408,12 @@ class Agent(BaseModel):
 
         if self.memory:
             try:
-                await self.memory.store_run_history(conversation_id, result)
+                print(f"Storing run history for conversation {conversation_id}")
+                stored = await self.memory.store_run_history(conversation_id, result)
+                if stored:
+                    print("Successfully stored run history")
+                else:
+                    print("Failed to store run history - store_run_history returned False")
             except Exception as e:
                 print("Error storing run history:", e)
 
@@ -517,12 +530,12 @@ class Agent(BaseModel):
         return []
 
     async def launch_chat_ui(
-        self, interface_title: str = None, share: bool = False
+        self, interface_title: str = None, share: bool = False, conversation_id: str = None
     ) -> None:
         """
         Launches a Gradio UI for interacting with the agent as a chat interface.
         """
-        ui = IOGradioUI(agent=self, interface_title=interface_title)
+        ui = IOGradioUI(agent=self, interface_title=interface_title, conversation_id=conversation_id)
         return await ui.launch(share=share)
 
 

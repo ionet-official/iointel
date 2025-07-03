@@ -16,6 +16,11 @@ from iointel.src.RL.example_tools import (
     square_root,
 )
 from iointel.src.RL.utils import tool_usage_results_to_string
+from iointel.src.RL.prompts import get_agent_instructions
+
+from dotenv import load_dotenv
+
+load_dotenv("creds.env")
 
 SOME_MODELS = [
     "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8",
@@ -55,16 +60,25 @@ SOME_MODELS = [
 ]
 
 MODELS_TO_TEST = [
+    # IO/OS Models
     # "deepseek-ai/DeepSeek-R1-0528",
     # "Qwen/Qwen3-235B-A22B-FP8",
-    # "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8",
-    "meta-llama/Llama-3.3-70B-Instruct"
+    "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8",
+    #"meta-llama/Llama-3.3-70B-Instruct",
+    
+    # OpenAI Models
+    # "gpt-4o",
+    # "gpt-4o-mini",
+    # "gpt-3.5-turbo",
 ]
 
 MODELS_THAT_REQUIRE_MODEL_SETTINGS = [
     "deepseek-ai/DeepSeek-R1-0528",
     "meta-llama/Llama-3.3-70B-Instruct",
 ]
+
+# OpenAI model prefixes
+OPENAI_MODELS = ["gpt-4", "gpt-3.5", "o1-preview", "o1-mini", "chatgpt"]
 
 REPORT_CSV = "iointel/src/RL/tests/reports/rl_model_report.csv"
 
@@ -107,9 +121,30 @@ def linearize_agent_result(agent_result):
         return str(agent_result)
 
 
+def is_openai_model(model_name):
+    """Check if a model is an OpenAI model based on its name"""
+    print(f"Checking if {model_name} is an OpenAI model")
+    result = any(model_name.startswith(prefix) for prefix in OPENAI_MODELS) or any([k in model_name for k in OPENAI_MODELS])
+    print(f"== Result: {result}")
+    return result
+
+
 async def evaluate_model(model_name, num_tasks=3, timeout=120):
-    api_key = os.getenv("IO_API_KEY")
-    base_url = os.getenv("IO_BASE_URL")
+    # Determine which API to use based on model name
+    if is_openai_model(model_name):
+        api_key = os.getenv("OPENAI_API_KEY")
+        base_url = os.getenv("OPENAI_API_BASE", "https://api.openai.com/v1")
+        if not api_key:
+            raise ValueError("OPENAI_API_KEY not found in environment variables")
+    else:
+        # IO/OS models
+        print(f"Using IO/OS API for model: {model_name}")
+        api_key = os.getenv("IO_API_KEY")
+        base_url = os.getenv("IO_BASE_URL")
+        if not api_key:
+            raise ValueError("IO_API_KEY not found in environment variables, found: " + str(os.getenv("IO_API_KEY")))
+    
+    print(f"Using {'OpenAI' if is_openai_model(model_name) else 'IO'} API for model: {model_name}")
 
     tools = [add, subtract, multiply, divide, get_weather, square_root]
     critic = CriticAgent(model=model_name, api_key=api_key, base_url=base_url)
@@ -117,7 +152,7 @@ async def evaluate_model(model_name, num_tasks=3, timeout=120):
     oracle = OracleAgent(model=model_name, api_key=api_key, base_url=base_url)
     environment = RLEnvironment(
         name=f"RL-{model_name}",
-        agent_instructions="You are a tool-using assistant.",
+        agent_instructions=get_agent_instructions("default"),
         task_manager=task_manager,
         critic=critic,
         oracle=oracle,
