@@ -97,13 +97,15 @@ DEFAULT_CSS = """
 
 
 class IOGradioUI:
-    def __init__(self, agent, interface_title=None):
+    def __init__(self, agent, interface_title=None, conversation_id=None):
         from iointel.src.agents import Agent
 
         self.agent: Agent = agent
         self.interface_title = (
             interface_title or f"Agent: {getattr(agent, 'name', 'Agent')}"
         )
+        self.conversation_id = conversation_id or self._generate_conversation_id(conversation_id)
+        print(f"Gradio UI: Conversation ID: {self.conversation_id}")
 
     def _generate_conversation_id(self, conversation_id):
         return conversation_id or str(uuid.uuid4())
@@ -140,7 +142,7 @@ class IOGradioUI:
         dynamic_ui_values,
         dynamic_ui_history,
     ):
-        conversation_id = self._generate_conversation_id(conversation_id)
+        conversation_id = conversation_id or self.conversation_id
         if user_message is None:
             user_message = self._format_dynamic_ui_submission(
                 dynamic_ui_spec, dynamic_ui_values
@@ -179,7 +181,7 @@ class IOGradioUI:
         dynamic_ui_values,
         dynamic_ui_history,
     ):
-        conversation_id = self._generate_conversation_id(conversation_id)
+        conversation_id = conversation_id or self.conversation_id
 
         if user_message is None:
             user_message = self._format_dynamic_ui_submission(

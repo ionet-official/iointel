@@ -99,8 +99,8 @@ class AsyncMemory:
         """
         async with self.engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
-
-    async def store_run_history(self, conversation_id: str, result) -> None:
+    async def store_run_history(self, conversation_id: str, result) -> bool:
+        print(f"\nStoring run history for conversation {conversation_id}")
         async with self.SessionLocal() as session:
             try:
                 result_obj = await session.execute(
@@ -109,6 +109,7 @@ class AsyncMemory:
                     )
                 )
                 existing_conversation = result_obj.scalars().first()
+                print(f"Found existing conversation: {bool(existing_conversation)}")
 
                 existing_messages_raw = (
                     existing_conversation.messages_json
@@ -117,8 +118,10 @@ class AsyncMemory:
                 )
                 if isinstance(existing_messages_raw, bytes):
                     existing_messages_raw = existing_messages_raw.decode("utf-8")
+                print(f"Existing messages raw type: {type(existing_messages_raw)}")
 
                 existing_messages = json.loads(existing_messages_raw)
+                print(f"Loaded {len(existing_messages)} existing messages")
 
                 # Ensure result.all_messages_json() is awaited if async, decoded, and parsed correctly
                 new_messages_raw = (
@@ -126,22 +129,29 @@ class AsyncMemory:
                     if hasattr(result, "all_messages_json")
                     else "[]"
                 )
+                print(f"New messages raw type: {type(new_messages_raw)}")
 
                 # Fix: explicitly handle potential coroutine and decode bytes
                 if inspect.isawaitable(new_messages_raw):
+                    print("Awaiting new_messages_raw coroutine")
                     new_messages_raw = await new_messages_raw
                 if isinstance(new_messages_raw, bytes):
+                    print("Decoding new_messages_raw bytes")
                     new_messages_raw = new_messages_raw.decode("utf-8")
 
                 new_messages = json.loads(new_messages_raw)
+                print(f"Loaded {len(new_messages)} new messages")
 
                 combined_messages = existing_messages + new_messages
                 messages_json = json.dumps(combined_messages)
+                print(f"Combined message count: {len(combined_messages)}")
 
                 if existing_conversation:
+                    print("Updating existing conversation")
                     existing_conversation.messages_json = messages_json
                     existing_conversation.created_at = datetime.now(timezone.utc)
                 else:
+                    print("Creating new conversation")
                     conversation = ConversationHistory(
                         conversation_id=conversation_id,
                         messages_json=messages_json,
@@ -150,11 +160,20 @@ class AsyncMemory:
                     session.add(conversation)
 
                 await session.commit()
+                print("Successfully committed to database")
+                return True
 
             except Exception as e:
                 print(f"Error storing run history: {e}")
+                print(f"Error type: {type(e)}")
+                import traceback
+                print(f"Traceback: {traceback.format_exc()}")
+                return False
             finally:
                 await session.close()
+                print("Session closed")
+        
+    
 
     async def get_history(self, conversation_id: str) -> str:
         """
@@ -165,19 +184,28 @@ class AsyncMemory:
                 select(ConversationHistory).filter_by(conversation_id=conversation_id)
             )
             conversation = result.scalars().first()
+            print(f"--- Found conversation: {bool(conversation)} using conversation_id: {conversation_id}")
+            if conversation:
+                print(f"--- Messages JSON length: {len(conversation.messages_json)}")
             return conversation.messages_json if conversation else None
 
     async def get_message_history(self, conversation_id: str, MAX_MESSAGES=100):
+        print(f"--- Getting message history for conversation_id: {conversation_id}")
         raw = await self.get_history(conversation_id)
+        print(f"--- Got raw history: {bool(raw)}")
         if raw:
+            print(f"--- Raw type: {type(raw)}")
             if isinstance(raw, bytes):
                 raw = raw.decode("utf-8")
+                print("--- Decoded bytes to string")
             try:
                 history_list = json.loads(raw)
+                print(f"--- Parsed JSON, got {len(history_list)} messages")
             except Exception as e:
                 print("Error parsing JSON from stored history:", e)
                 return None
             filtered_history_list = history_list[-MAX_MESSAGES:]
+            print(f"--- Filtered to last {len(filtered_history_list)} messages")
             parsed_history = []
             for item in filtered_history_list:
                 kind = item.get("kind")
@@ -189,7 +217,6 @@ class AsyncMemory:
                     if part.get("part_kind")
                     not in {"tool-call", "tool-return", "retry-prompt"}
                 ]
-
                 if not filtered_parts:
                     continue
 
@@ -198,6 +225,7 @@ class AsyncMemory:
                     parsed_history.append(parse_request(item))
                 elif kind == "response":
                     parsed_history.append(parse_response(item))
+            print(f"--- Returning {len(parsed_history)} parsed messages")
             return parsed_history
         return None
 

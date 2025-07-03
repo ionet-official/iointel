@@ -116,7 +116,9 @@ async def health_check():
         "service": "rl-model-evaluation-api",
         "environment": {
             "io_api_key_set": bool(os.getenv("IO_API_KEY")),
-            "io_base_url_set": bool(os.getenv("IO_BASE_URL"))
+            "io_base_url_set": bool(os.getenv("IO_BASE_URL")),
+            "openai_api_key_set": bool(os.getenv("OPENAI_API_KEY")),
+            "openai_api_base_set": bool(os.getenv("OPENAI_API_BASE"))
         }
     }
 

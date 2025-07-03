@@ -3,7 +3,26 @@ formatting.py: Utilities for rendering agent and tool results as HTML for UI dis
 """
 
 import json
+from pydantic import BaseModel
+import dataclasses
+import datetime
 
+def to_jsonable(obj):
+    if isinstance(obj, BaseModel):
+        return obj.model_dump()
+    elif dataclasses.is_dataclass(obj):
+        # Recursively process the asdict result to handle nested dataclasses and datetimes
+        return to_jsonable(dataclasses.asdict(obj))
+    elif isinstance(obj, dict):
+        return {k: to_jsonable(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [to_jsonable(i) for i in obj]
+    elif isinstance(obj, tuple):
+        return tuple(to_jsonable(i) for i in obj)
+    elif isinstance(obj, (datetime.datetime, datetime.date, datetime.time)):
+        return obj.isoformat()
+    else:
+        return obj
 
 def format_result_for_html(result_dict):
     """
@@ -36,19 +55,17 @@ def format_result_for_html(result_dict):
     <div style="font-weight:bold;font-size:1.1em;">🛠️ {tool_name}</div>
     <div style="font-size:0.95em;"><b>Args:</b>
         <pre style="background:#23272f;color:#ffb300;padding:4px 8px;border-radius:6px;font-size:0.98em;box-shadow:0 2px 8px #0002;">{
-            json.dumps(tool_args, indent=2)
+            json.dumps(to_jsonable(tool_args), indent=2)
         }</pre>
     </div>
     <div style="font-size:0.95em;"><b>Result:</b>
         {
-            (
-                f'<pre style="background:#23272f;color:#ffb300;padding:4px 8px;border-radius:6px;">{json.dumps(tool_result, indent=2)}</pre>'
-                if not (
-                    isinstance(tool_result, str)
-                    and ("<" in tool_result and ">" in tool_result)
-                )
-                else tool_result
+            f'<pre style="background:#23272f;color:#ffb300;padding:4px 8px;border-radius:6px;">{json.dumps(to_jsonable(tool_result), indent=2)}</pre>'
+            if not (
+                isinstance(tool_result, str)
+                and ("<" in tool_result and ">" in tool_result)
             )
+            else tool_result
         }
     </div>
 </div>

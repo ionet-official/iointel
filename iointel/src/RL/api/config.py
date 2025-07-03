@@ -59,12 +59,17 @@ class Settings(BaseSettings):
     
     recommended_models: List[str] = Field(
         default=[
+            # IO/OS Models
             "meta-llama/Llama-3.3-70B-Instruct",
             "deepseek-ai/DeepSeek-R1-Distill-Llama-70B",
             "Qwen/Qwen2.5-Coder-32B-Instruct",
             "microsoft/phi-4",
             "nvidia/AceMath-7B-Instruct",
             "watt-ai/watt-tool-70B",
+            # OpenAI Models
+            "gpt-4o",
+            "gpt-4o-mini",
+            "gpt-3.5-turbo",
         ],
         env="RECOMMENDED_MODELS"
     )

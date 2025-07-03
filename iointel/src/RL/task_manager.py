@@ -15,6 +15,7 @@ from iointel.src.RL.example_tools import (
 )
 from dotenv import load_dotenv
 import json
+from iointel.src.RL.prompts import TASK_GENERATION_INSTRUCTIONS, create_task_generation_prompt
 
 
 class Task(BaseModel):
@@ -40,16 +41,7 @@ class TaskGeneratorAgent:
         self.Task = Task
         self.agent = Agent(
             name="TaskGenerator",
-            instructions="""
-            You are a task generation agent. Given a set of tool definitions (name, docstring, parameters), 
-            generate a list of diverse and interesting tasks as Pydantic Task objects. 
-            Each task should specify a ordered numeric id, description, ground_truth, required_tools, and difficulty (between 0.0 and 1.0).
-            if during the task generation, you need to specify a goal seek outcome, include it here, otherwise leave it blank.
-
-            If it is difficult to generate a known ground truth (imagine the roots of a quintic polynomial), you can estimate it and its likelihood, such as ranges, or expected values, or probabilities.
-
-            Output only valid JSON that can be parsed into the Task Pydantic model.
-            """,
+            instructions=TASK_GENERATION_INSTRUCTIONS,
             model=model,
             api_key=api_key,
             base_url=base_url,
@@ -69,12 +61,12 @@ class TaskGeneratorAgent:
             sig = str(inspect.signature(tool))
             doc = tool.__doc__ or ""
             tool_descriptions.append(f"{tool.__name__}{sig}: {doc}")
-        prompt = f"""Tools available:\n{chr(10).join(tool_descriptions)}\n\nContext: {context or "None"}\n\nPlease generate {num_tasks} diverse Task objects as JSON.
-        """
-        if goal_seek:
-            prompt += """
-            Generate a goal seek outcome for each task.
-            """
+        prompt = create_task_generation_prompt(
+            tool_descriptions=tool_descriptions,
+            num_tasks=num_tasks,
+            context=context,
+            goal_seek=goal_seek
+        )
         if self.verbose:
             print(f"TaskGenerator prompt:\n{prompt}")
         res = await self.agent.run(prompt)

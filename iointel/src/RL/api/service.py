@@ -23,7 +23,10 @@ from iointel.src.RL.example_tools import (
     get_weather,
     square_root,
 )
+
+from iointel.src.agent_methods.tools.firecrawl import Crawler
 from iointel.src.RL.utils import tool_usage_results_to_string
+from iointel.src.RL.prompts import get_agent_instructions
 from .models import (
     TaskResult,
     CriticFeedback,
@@ -36,10 +39,19 @@ from .config import settings
 
 logger = logging.getLogger(__name__)
 
+# OpenAI model prefixes
+OPENAI_MODELS = ["gpt-4", "gpt-3.5", "o1-preview", "o1-mini", "chatgpt"]
+
+
+def is_openai_model(model_name):
+    """Check if a model is an OpenAI model based on its name"""
+    return any(model_name.startswith(prefix) for prefix in OPENAI_MODELS)
+
+firecrawl = Crawler()
 
 class EvaluationService:
     def __init__(self):
-        self.tools = [add, subtract, multiply, divide, get_weather, square_root]
+        self.tools = [add, subtract, multiply, divide, get_weather, square_root, firecrawl.scrape_url]
         self.active_evaluations = {}
         
     def _linearize_tool_usage(self, tool_usage_results) -> str:
@@ -86,13 +98,20 @@ class EvaluationService:
         api_key: Optional[str] = None,
         base_url: Optional[str] = None
     ) -> List[TaskResult]:
-        api_key = api_key or os.getenv("IO_API_KEY")
-        base_url = base_url or os.getenv("IO_BASE_URL")
-        
-        if not api_key:
-            raise ValueError("API key must be provided or set in IO_API_KEY environment variable")
-        if not base_url:
-            raise ValueError("Base URL must be provided or set in IO_BASE_URL environment variable")
+        # Auto-detect API type if not provided
+        if not api_key or not base_url:
+            if is_openai_model(model_name):
+                api_key = api_key or os.getenv("OPENAI_API_KEY")
+                base_url = base_url or os.getenv("OPENAI_API_BASE", "https://api.openai.com/v1")
+                if not api_key:
+                    raise ValueError("API key must be provided or set in OPENAI_API_KEY environment variable")
+            else:
+                api_key = api_key or os.getenv("IO_API_KEY")
+                base_url = base_url or os.getenv("IO_BASE_URL")
+                if not api_key:
+                    raise ValueError("API key must be provided or set in IO_API_KEY environment variable")
+                if not base_url:
+                    raise ValueError("Base URL must be provided or set in IO_BASE_URL environment variable")
 
         logger.info(f"Starting evaluation for model: {model_name}")
         
@@ -102,7 +121,7 @@ class EvaluationService:
         
         environment = RLEnvironment(
             name=f"RL-{model_name}",
-            agent_instructions="You are a tool-using assistant.",
+            agent_instructions=get_agent_instructions("default"),
             task_manager=task_manager,
             critic=critic,
             oracle=oracle,

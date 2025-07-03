@@ -6,6 +6,7 @@ import os
 import asyncio
 from dotenv import load_dotenv
 from iointel.src.RL.utils import tool_usage_results_to_string
+from iointel.src.RL.prompts import CRITIC_INSTRUCTIONS, create_critic_prompt
 
 
 class CriticFeedback(BaseModel):
@@ -17,19 +18,6 @@ class CriticFeedback(BaseModel):
     agent_prompt_instructions: Optional[str] = (
         None  # For meta-learning: a better agent instruction
     )
-
-
-CRITIC_INSTRUCTIONS = """
-You are a critic agent. Given a task, agent actions, tool results, the agent's final response, and the ground truth, evaluate the agent's performance.
-Estimate the following as best as possible:
-- score: a float from 0.0 to 1.0 (overall performance)
-- better_query: a better query to solve the task (more specific, more detailed, more accurate, a hint, etc.). If current query is good, just return the same query. This new query SHOULD NOT lose information, but rather add more information.
-    eg: Divide the current temperature in London by the square root of 99, then multiply by 5.5. SHOULD NOT BE "What is the square root of 99?" or "What is the weather in London?", capish?
-- metrics: a dict of named metrics (e.g., tool_usage_efficiency, response_accuracy, action_relevance, response_completeness), each a float from 0.0 to 1.0
-- agent_prompt_instructions: (optional) a better instruction prompt for the agent to solve this task next time. Should be GENERAL instructions you would give to an LLM agent as instructions, not specific to this task.
-
-Output ONLY valid JSON that can be parsed as the CriticFeedback Pydantic model.
-"""
 
 
 class CriticAgent:
@@ -58,28 +46,13 @@ class CriticAgent:
     ) -> CriticFeedback:
         """Evaluate agent performance on a task using the LLM agent"""
         agent_actions_string = tool_usage_results_to_string(agent_actions)
-        prompt = f"""
-Task:
-{task}
-
-Agent Tool Actions:
-{agent_actions_string}
-
-Agent Final Response and Reasoning:
-{final_response}
-
-"""
-        if feedback:
-            prompt += f"""
-Thoughtful Feedback(? be critical if this is good feedback or not given the above -- this might be meant to test your ability to be critical):
-{feedback}
-"""
-        if goal_seek:
-            prompt += f"""
-Goal Seek Outcome:
-{goal_seek}
-"""
-
+        prompt = create_critic_prompt(
+            task=task,
+            agent_actions_string=agent_actions_string,
+            final_response=final_response,
+            feedback=feedback,
+            goal_seek=goal_seek
+        )
         if self.verbose:
             print(f"Critic prompt: {prompt}")
         return (await self.agent.run(prompt))["result"]

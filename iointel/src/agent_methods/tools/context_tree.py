@@ -79,8 +79,8 @@ class ContextTree(BaseModel):
             )
         self._rebuild_index()
 
-    @register_tool
-    def read(self, node_id: str, as_content: bool = False) -> Optional[str]:
+    @register_tool(name="read_context_tree")
+    def read(self, node_id: str, as_content: bool = True) -> Optional[str | ContextNode]:
         """
         Return the content of a node. If as_content is True, return the content of the node. Otherwise, return the node itself.
         """
@@ -89,7 +89,7 @@ class ContextTree(BaseModel):
         else:
             return self._index[node_id]
 
-    @register_tool
+    @register_tool(name="create_context_tree")
     def create(
         self,
         parent_id: str,
@@ -105,30 +105,30 @@ class ContextTree(BaseModel):
         self._index[node.id] = node
         return node
 
-    @register_tool
+    @register_tool(name="append_context_tree")
     def append(self, node_id: str, content: str) -> ContextNode:
         """Append content to an existing node. This lets you grow the node's content iteratively."""
         node = self._index[node_id]
         node.content = (node.content or "") + "\n" + content
         return node
 
-    @register_tool
+    @register_tool(name="update_context_tree")
     def update(self, node_id: str, content: str) -> ContextNode:
         """Overwrite the content of an existing node. Useful for updating checklists, and running todo lists. This will replace the entire node with the new content."""
         node = self._index[node_id]
         node.content = content
         return node
 
-    @register_tool
-    def delete(self, node_id: str) -> ContextNode:
-        """Delete a node if deletable. Returns the deleted node."""
+    @register_tool(name="delete_context_tree")
+    def delete(self, node_id: str) -> ContextNode | str:
+        """Delete a node if deletable. Returns the deleted node or a message if not deletable."""
         node = self._index[node_id]
         if not node.deletable:
-            raise ValueError(f"Node {node_id} is not deletable")
+            return f"Node {node_id} is not deletable"
         del self._index[node_id]
         return node
 
-    @register_tool
+    @register_tool(name="summary_context_tree")
     def summary(
         self,
         start_node_id: str = "root",
@@ -183,7 +183,7 @@ class ContextTree(BaseModel):
         else:
             raise ValueError(f"Unknown return_type: {return_type}")
 
-    @register_tool
+    @register_tool(name="load_context_tree")
     def load_tree(self, file_path: str) -> str:
         """Load a tree from a file."""
         with open(file_path, "r") as f:
@@ -191,7 +191,7 @@ class ContextTree(BaseModel):
         self._rebuild_index()
         return f"Loaded tree from {file_path}"
 
-    @register_tool
+    @register_tool(name="save_context_tree")        
     def save_tree(self, file_path: str) -> str:
         """Save the tree to a file."""
         with open(file_path, "w") as f:
@@ -210,78 +210,47 @@ class ContextTree(BaseModel):
         tree._rebuild_index()
         return tree
 
+tree = ContextTree()
 
 CONTEXT_AGENT_INSTRUCTIONS = """
-You are a context-librarian. Given a query, output a ContextCommand JSON directing action, one of:
-- create: Add a new node under a parent (use a concise max 3-4 word title).
+You are a context-librarian. Given a query, output a directing action, one of:
+- create: Add a new node under a parent (use a concise max 3-4 word title). Make sure to think if node is ephemeral or permanent carefully. ToDo lists etc are likely ephemeral.
 - read: Return the content of a node.
 - append: Add content to an existing node.
 - update: Overwrite the entire content of an existing node.
 - delete: Remove a node if it is deletable.
 - summary: Provide an indented summary of the tree (use show_content=True to include node contents).
+- load_tree: Load a tree from a file.
+- save_tree: Save the tree to a file.
+with appropriate context. 
 
 You enjoy writing and can format content in Markdown. Preserve all important details, and when appropriate,
 use checkboxes for TODO lists.
 """
 
 
-class ContextTreeAgent:
-    """
-    A context tree agent that can be used to create, read, update, and delete nodes in a context tree. Convience wrapper around the ContextTree + Agent class.
-    """
-
-    def __init__(
-        self,
-        id_length: int = 7,
-        model_name: str = "gpt-4o",
-        api_key: str = None,
-        base_url: str = None,
-        memory: Optional[AsyncMemory] = None,
-        save_each_turn: bool = False,
-    ) -> None:
-        """
-        Initialize a context tree agent.
-        - id_length: the length of the node ids
-        - model_name: the model to use
-        - api_key: the api key to use
-        - base_url: the base url to use
-        - memory: the memory to use
-        - save_each_turn: whether to save the tree after each turn
-        """
-        self.tree = ContextTree(id_length=id_length)
-        self.agent = Agent(
-            name="Context Tree Agent",
-            instructions=CONTEXT_AGENT_INSTRUCTIONS,
-            model=model_name,
-            api_key=api_key,
-            base_url=base_url,
-            memory=memory,
-            tools=[
-                self.tree.read,
-                self.tree.create,
-                self.tree.append,
-                self.tree.update,
-                self.tree.delete,
-                self.tree.summary,
-                self.tree.load_tree,
-                self.tree.save_tree,
-            ],
-            show_tool_calls=True,
-            tool_pil_layout="horizontal",
-            debug=False,
-        )
-        self.save_each_turn = save_each_turn
-
-    def run(self, query: str, conversation_id: str = None, pretty: bool = True) -> str:
-        """
-        query the context tree.
-        """
-        tree_summary = self.tree.summary(return_type="str")
-        result = self.agent.run(
-            query, context=tree_summary, conversation_id=conversation_id, pretty=pretty
-        )
-
-        if self.save_each_turn:
-            self.tree.save_tree(f"_context_tree_{conversation_id}.json")
-
-        return result
+def get_tree_agent(model_name: str, api_key: str, base_url: str, conversation_id: str, id_length: int = 7, memory: AsyncMemory = None) -> Agent:
+    tree = ContextTree(id_length=id_length)
+    agent = Agent(
+    name="Context Tree Agent",
+    instructions=CONTEXT_AGENT_INSTRUCTIONS,
+    model=model_name,
+    api_key=api_key,
+    base_url=base_url,
+    conversation_id=conversation_id,
+    memory=memory,
+    tools=[
+        tree.read,
+        tree.create,
+        tree.append,
+        tree.update,
+        tree.delete,
+        tree.summary,
+        tree.load_tree,
+        tree.save_tree,
+    ],
+    show_tool_calls=True,
+    tool_pil_layout="horizontal",
+    debug=False,
+)
+    return agent
