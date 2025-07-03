@@ -1,0 +1,917 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WorkflowPlanner - Visual Interface</title>
+    
+    <!-- React Flow CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reactflow@11/dist/style.css">
+    
+    <!-- Custom CSS -->
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .container {
+            display: flex;
+            height: 100vh;
+            gap: 1rem;
+            padding: 1rem;
+        }
+
+        .sidebar {
+            width: 350px;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 1.5rem;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .main-content {
+            flex: 1;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+            overflow: hidden;
+            position: relative;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 1rem;
+        }
+
+        .header h1 {
+            color: #333;
+            font-size: 1.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .header p {
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        .input-section {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        input[type="text"], textarea {
+            flex: 1;
+            padding: 0.75rem;
+            border: 2px solid #e1e5e9;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            transition: border-color 0.3s;
+        }
+
+        input[type="text"]:focus, textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .button {
+            padding: 0.75rem 1rem;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .button-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .button-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+
+        .button-secondary {
+            background: #f8f9fa;
+            color: #333;
+            border: 2px solid #e1e5e9;
+        }
+
+        .button-secondary:hover {
+            background: #e9ecef;
+        }
+
+        .button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        .workflow-info {
+            background: #f8f9fa;
+            padding: 1rem;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .workflow-info h3 {
+            color: #333;
+            margin-bottom: 0.5rem;
+            font-size: 1rem;
+        }
+
+        .workflow-info p {
+            color: #666;
+            font-size: 0.85rem;
+            margin-bottom: 0.25rem;
+        }
+
+        .expandable-section {
+            margin-top: 1rem;
+            border-top: 1px solid #e1e5e9;
+            padding-top: 1rem;
+        }
+
+        .expandable-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            padding: 0.5rem;
+            background: #e9ecef;
+            border-radius: 6px;
+            margin-bottom: 0.5rem;
+            transition: background 0.3s;
+        }
+
+        .expandable-header:hover {
+            background: #dee2e6;
+        }
+
+        .expandable-header h4 {
+            margin: 0;
+            font-size: 0.9rem;
+            color: #333;
+        }
+
+        .expandable-header .toggle-icon {
+            transition: transform 0.3s;
+        }
+
+        .expandable-header.expanded .toggle-icon {
+            transform: rotate(180deg);
+        }
+
+        .expandable-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out;
+        }
+
+        .expandable-content.expanded {
+            max-height: 500px;
+            overflow-y: auto;
+        }
+
+        .node-item, .edge-item {
+            background: white;
+            border: 1px solid #e1e5e9;
+            border-radius: 6px;
+            padding: 0.75rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .node-item h5, .edge-item h5 {
+            margin: 0 0 0.5rem 0;
+            font-size: 0.85rem;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .node-item .detail-row, .edge-item .detail-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.75rem;
+            color: #666;
+            margin-bottom: 0.25rem;
+        }
+
+        .node-item .config-box, .edge-item .condition-box {
+            background: #f8f9fa;
+            border: 1px solid #e1e5e9;
+            border-radius: 4px;
+            padding: 0.5rem;
+            margin-top: 0.5rem;
+            font-family: monospace;
+            font-size: 0.7rem;
+            overflow-x: auto;
+        }
+
+        .port-badge {
+            display: inline-block;
+            background: #e9ecef;
+            color: #495057;
+            padding: 0.2rem 0.5rem;
+            border-radius: 12px;
+            font-size: 0.7rem;
+            margin-right: 0.25rem;
+        }
+
+        .port-badge.input {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+
+        .port-badge.output {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status {
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            display: inline-block;
+        }
+
+        .status-connected {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-disconnected {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .status-loading {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .flow-container {
+            width: 100%;
+            height: 100%;
+        }
+
+        .controls {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 10;
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .control-button {
+            padding: 0.5rem;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            transition: all 0.3s;
+        }
+
+        .control-button:hover {
+            background: #f8f9fa;
+            transform: scale(1.05);
+        }
+
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: #666;
+            text-align: center;
+            padding: 2rem;
+        }
+
+        .empty-state .icon {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+            opacity: 0.5;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .loading {
+            animation: pulse 1.5s infinite;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="header">
+                <h1>🌊 WorkflowPlanner</h1>
+                <p>Create workflows with AI</p>
+                <div id="connectionStatus" class="status status-disconnected">Disconnected</div>
+            </div>
+
+            <div class="input-section">
+                <textarea 
+                    id="queryInput" 
+                    placeholder="Describe your workflow... (e.g., 'Fetch weather data and send it to Slack every morning')"
+                    rows="4"
+                ></textarea>
+                
+                <div class="input-group">
+                    <button id="generateBtn" class="button button-primary">
+                        ✨ Generate
+                    </button>
+                    <button id="refineBtn" class="button button-secondary" disabled>
+                        🔧 Refine
+                    </button>
+                </div>
+
+                <div class="input-group">
+                    <button id="exampleBtn" class="button button-secondary">
+                        📋 Example
+                    </button>
+                    <button id="clearBtn" class="button button-secondary" disabled>
+                        🗑️ Clear
+                    </button>
+                </div>
+            </div>
+
+            <div id="workflowInfo" class="workflow-info" style="display: none;">
+                <h3 id="workflowTitle">Workflow Title</h3>
+                <p id="workflowDescription">Description...</p>
+                <p><strong>Nodes:</strong> <span id="nodeCount">0</span></p>
+                <p><strong>Edges:</strong> <span id="edgeCount">0</span></p>
+                <p><strong>Rev:</strong> <span id="revNumber">1</span></p>
+                
+                <!-- Expandable Nodes Section -->
+                <div class="expandable-section">
+                    <div class="expandable-header" onclick="toggleSection('nodes')">
+                        <h4>📦 Nodes Detail</h4>
+                        <span class="toggle-icon">▼</span>
+                    </div>
+                    <div id="nodesContent" class="expandable-content">
+                        <div id="nodesList"></div>
+                    </div>
+                </div>
+                
+                <!-- Expandable Edges Section -->
+                <div class="expandable-section">
+                    <div class="expandable-header" onclick="toggleSection('edges')">
+                        <h4>🔗 Edges Detail</h4>
+                        <span class="toggle-icon">▼</span>
+                    </div>
+                    <div id="edgesContent" class="expandable-content">
+                        <div id="edgesList"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="toolsSection">
+                <h3>Available Tools</h3>
+                <div id="toolsList" style="max-height: 200px; overflow-y: auto; font-size: 0.8rem;">
+                    Loading tools...
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Flow Area -->
+        <div class="main-content">
+            <div class="controls">
+                <button class="control-button" onclick="fitView()">📐 Fit View</button>
+                <button class="control-button" onclick="downloadWorkflow()">💾 Download</button>
+            </div>
+            
+            <div id="emptyState" class="empty-state">
+                <div class="icon">🌊</div>
+                <h2>Welcome to WorkflowPlanner</h2>
+                <p>Describe a workflow in the sidebar to get started,<br>or click "Example" to see a sample workflow.</p>
+            </div>
+            
+            <div id="flowContainer" class="flow-container" style="display: none;"></div>
+        </div>
+    </div>
+
+    <!-- React and React Flow -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/reactflow@11/dist/umd/index.js"></script>
+
+    <script>
+        // Global state
+        let currentWorkflow = null;
+        let reactFlowInstance = null;
+        let ws = null;
+
+        // Initialize WebSocket connection
+        function initWebSocket() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${protocol}//${window.location.host}/ws`;
+            
+            ws = new WebSocket(wsUrl);
+            
+            ws.onopen = function() {
+                updateConnectionStatus('connected');
+            };
+            
+            ws.onmessage = function(event) {
+                const data = JSON.parse(event.data);
+                if (data.type === 'workflow_update') {
+                    handleWorkflowUpdate(data.workflow);
+                }
+            };
+            
+            ws.onclose = function() {
+                updateConnectionStatus('disconnected');
+                // Reconnect after 3 seconds
+                setTimeout(initWebSocket, 3000);
+            };
+            
+            ws.onerror = function() {
+                updateConnectionStatus('disconnected');
+            };
+        }
+
+        function updateConnectionStatus(status) {
+            const statusEl = document.getElementById('connectionStatus');
+            statusEl.className = `status status-${status}`;
+            statusEl.textContent = status.charAt(0).toUpperCase() + status.slice(1);
+        }
+
+        // API calls
+        async function apiCall(endpoint, options = {}) {
+            try {
+                console.log(`Making API call to: /api${endpoint}`, options);
+                const response = await fetch(`/api${endpoint}`, {
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...options.headers
+                    },
+                    ...options
+                });
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error(`API call failed with status ${response.status}:`, errorText);
+                    throw new Error(`HTTP ${response.status}: ${errorText}`);
+                }
+                
+                const data = await response.json();
+                console.log(`API response from /api${endpoint}:`, data);
+                return data;
+            } catch (error) {
+                console.error('API call failed:', error);
+                throw error;
+            }
+        }
+
+        // Load available tools
+        async function loadTools() {
+            try {
+                const data = await apiCall('/tools');
+                const toolsList = document.getElementById('toolsList');
+                
+                if (data.tools && Object.keys(data.tools).length > 0) {
+                    const toolsHtml = Object.entries(data.tools)
+                        .slice(0, 10) // Show first 10 tools
+                        .map(([name, tool]) => `
+                            <div style="margin-bottom: 0.5rem; padding: 0.25rem; background: #f8f9fa; border-radius: 4px;">
+                                <strong>${name}</strong><br>
+                                <small>${tool.description}</small>
+                            </div>
+                        `).join('');
+                    
+                    const remaining = Object.keys(data.tools).length - 10;
+                    const suffix = remaining > 0 ? `<div style="text-align: center; color: #666; margin-top: 0.5rem;">...and ${remaining} more tools</div>` : '';
+                    
+                    toolsList.innerHTML = toolsHtml + suffix;
+                } else {
+                    toolsList.innerHTML = '<div style="color: #666;">No tools available</div>';
+                }
+            } catch (error) {
+                document.getElementById('toolsList').innerHTML = '<div style="color: #dc3545;">Failed to load tools</div>';
+            }
+        }
+
+        // Workflow operations
+        async function generateWorkflow() {
+            const query = document.getElementById('queryInput').value.trim();
+            if (!query) return;
+
+            setLoading(true);
+            try {
+                const data = await apiCall('/generate', {
+                    method: 'POST',
+                    body: JSON.stringify({ query, refine: false })
+                });
+                
+                if (data.success) {
+                    handleWorkflowUpdate(data.workflow);
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            } catch (error) {
+                alert('Failed to generate workflow: ' + error.message);
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        async function refineWorkflow() {
+            const query = document.getElementById('queryInput').value.trim();
+            if (!query || !currentWorkflow) return;
+
+            setLoading(true);
+            try {
+                const data = await apiCall('/generate', {
+                    method: 'POST',
+                    body: JSON.stringify({ query, refine: true })
+                });
+                
+                if (data.success) {
+                    handleWorkflowUpdate(data.workflow);
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            } catch (error) {
+                alert('Failed to refine workflow: ' + error.message);
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        async function createExample() {
+            setLoading(true);
+            try {
+                const data = await apiCall('/example');
+                handleWorkflowUpdate(data.workflow);
+            } catch (error) {
+                alert('Failed to create example: ' + error.message);
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        async function clearWorkflow() {
+            try {
+                await apiCall('/clear', { method: 'POST' });
+                handleWorkflowUpdate(null);
+            } catch (error) {
+                alert('Failed to clear workflow: ' + error.message);
+            }
+        }
+
+        function setLoading(loading) {
+            const generateBtn = document.getElementById('generateBtn');
+            const refineBtn = document.getElementById('refineBtn');
+            const exampleBtn = document.getElementById('exampleBtn');
+            
+            generateBtn.disabled = loading;
+            refineBtn.disabled = loading || !currentWorkflow;
+            exampleBtn.disabled = loading;
+            
+            if (loading) {
+                generateBtn.innerHTML = '⏳ Generating...';
+                generateBtn.classList.add('loading');
+            } else {
+                generateBtn.innerHTML = '✨ Generate';
+                generateBtn.classList.remove('loading');
+            }
+        }
+
+        // Handle workflow updates
+        function handleWorkflowUpdate(workflow) {
+            console.log('🔄 handleWorkflowUpdate called with:', workflow);
+            currentWorkflow = workflow;
+            
+            if (workflow) {
+                console.log('✅ Workflow received:', {
+                    title: workflow.title,
+                    nodes: workflow.nodes?.length || 0,
+                    edges: workflow.edges?.length || 0,
+                    id: workflow.id
+                });
+                console.log('📋 Full workflow data:', workflow);
+                
+                updateWorkflowInfo(workflow);
+                renderWorkflow(workflow);
+                showWorkflowView();
+            } else {
+                console.log('❌ No workflow data received');
+                hideWorkflowInfo();
+                showEmptyState();
+            }
+            
+            updateButtons();
+        }
+
+        function updateWorkflowInfo(workflow) {
+            document.getElementById('workflowTitle').textContent = workflow.title;
+            document.getElementById('workflowDescription').textContent = workflow.description || 'No description';
+            document.getElementById('nodeCount').textContent = workflow.nodes.length;
+            document.getElementById('edgeCount').textContent = workflow.edges.length;
+            document.getElementById('revNumber').textContent = workflow.rev;
+            document.getElementById('workflowInfo').style.display = 'block';
+            
+            // Update nodes detail
+            updateNodesDetail(workflow.nodes);
+            
+            // Update edges detail
+            updateEdgesDetail(workflow.edges);
+        }
+        
+        function updateNodesDetail(nodes) {
+            const nodesList = document.getElementById('nodesList');
+            nodesList.innerHTML = '';
+            
+            nodes.forEach((node, index) => {
+                const nodeDiv = document.createElement('div');
+                nodeDiv.className = 'node-item';
+                
+                // Build ports display
+                const inputPorts = (node.data.ins || []).map(p => `<span class="port-badge input">→ ${p}</span>`).join('');
+                const outputPorts = (node.data.outs || []).map(p => `<span class="port-badge output">${p} →</span>`).join('');
+                
+                // Build config display
+                let configHtml = '';
+                if (node.data.config && Object.keys(node.data.config).length > 0) {
+                    configHtml = `<div class="config-box">${JSON.stringify(node.data.config, null, 2)}</div>`;
+                }
+                
+                // Build tool/agent specific info
+                let specificInfo = '';
+                if (node.data.tool_name) {
+                    specificInfo = `<div class="detail-row"><span>Tool:</span><span>${node.data.tool_name}</span></div>`;
+                } else if (node.data.agent_instructions) {
+                    specificInfo = `<div class="detail-row"><span>Instructions:</span></div>
+                                   <div class="config-box">${node.data.agent_instructions}</div>`;
+                }
+                
+                nodeDiv.innerHTML = `
+                    <h5>${getNodeIcon(node.type)} ${node.label}</h5>
+                    <div class="detail-row"><span>ID:</span><span>${node.id}</span></div>
+                    <div class="detail-row"><span>Type:</span><span>${node.type}</span></div>
+                    ${specificInfo}
+                    <div class="detail-row"><span>Inputs:</span><span>${inputPorts || 'None'}</span></div>
+                    <div class="detail-row"><span>Outputs:</span><span>${outputPorts || 'None'}</span></div>
+                    ${configHtml}
+                `;
+                
+                nodesList.appendChild(nodeDiv);
+            });
+        }
+        
+        function updateEdgesDetail(edges) {
+            const edgesList = document.getElementById('edgesList');
+            edgesList.innerHTML = '';
+            
+            edges.forEach((edge, index) => {
+                const edgeDiv = document.createElement('div');
+                edgeDiv.className = 'edge-item';
+                
+                let conditionHtml = '';
+                if (edge.data?.condition) {
+                    conditionHtml = `<div class="condition-box">if: ${edge.data.condition}</div>`;
+                }
+                
+                edgeDiv.innerHTML = `
+                    <h5>🔗 Edge ${index + 1}</h5>
+                    <div class="detail-row"><span>ID:</span><span>${edge.id}</span></div>
+                    <div class="detail-row"><span>Source:</span><span>${edge.source}</span></div>
+                    <div class="detail-row"><span>Target:</span><span>${edge.target}</span></div>
+                    ${edge.sourceHandle ? `<div class="detail-row"><span>Source Port:</span><span>${edge.sourceHandle}</span></div>` : ''}
+                    ${edge.targetHandle ? `<div class="detail-row"><span>Target Port:</span><span>${edge.targetHandle}</span></div>` : ''}
+                    ${conditionHtml}
+                `;
+                
+                edgesList.appendChild(edgeDiv);
+            });
+        }
+        
+        function toggleSection(section) {
+            const header = event.currentTarget;
+            const content = document.getElementById(section + 'Content');
+            
+            header.classList.toggle('expanded');
+            content.classList.toggle('expanded');
+        }
+
+        function hideWorkflowInfo() {
+            document.getElementById('workflowInfo').style.display = 'none';
+        }
+
+        function updateButtons() {
+            document.getElementById('refineBtn').disabled = !currentWorkflow;
+            document.getElementById('clearBtn').disabled = !currentWorkflow;
+        }
+
+        function showEmptyState() {
+            document.getElementById('emptyState').style.display = 'flex';
+            document.getElementById('flowContainer').style.display = 'none';
+        }
+
+        function showWorkflowView() {
+            document.getElementById('emptyState').style.display = 'none';
+            document.getElementById('flowContainer').style.display = 'block';
+        }
+
+        // React Flow rendering
+        function renderWorkflow(workflow) {
+            console.log('🎨 renderWorkflow called with:', workflow);
+            const container = document.getElementById('flowContainer');
+            
+            // Convert workflow to React Flow format
+            console.log('🔄 Converting nodes:', workflow.nodes);
+            const nodes = workflow.nodes.map((node, index) => {
+                const reactFlowNode = {
+                    id: node.id,
+                    type: 'default',
+                    position: node.position || { x: index * 250, y: index * 100 },
+                    data: {
+                        label: `${getNodeIcon(node.type)} ${node.label}`,
+                    },
+                    style: {
+                        background: getNodeColor(node.type),
+                        color: 'white',
+                        border: '2px solid #333',
+                        borderRadius: '10px',
+                        padding: '10px',
+                        fontSize: '12px',
+                        fontWeight: 'bold',
+                    }
+                };
+                console.log(`   Node ${index}: ${node.id} -> ReactFlow node:`, reactFlowNode);
+                return reactFlowNode;
+            });
+
+            console.log('🔄 Converting edges:', workflow.edges);
+            const edges = workflow.edges.map((edge, index) => {
+                const reactFlowEdge = {
+                    id: edge.id,
+                    source: edge.source,
+                    target: edge.target,
+                    sourceHandle: edge.sourceHandle,
+                    targetHandle: edge.targetHandle,
+                    label: edge.data?.condition ? `if: ${edge.data.condition}` : '',
+                    style: { stroke: '#333', strokeWidth: 2 },
+                    labelStyle: { fontSize: '10px', fill: '#666' },
+                    labelBgStyle: { fill: 'white', fillOpacity: 0.8 },
+                };
+                console.log(`   Edge ${index}: ${edge.source} -> ${edge.target}:`, reactFlowEdge);
+                return reactFlowEdge;
+            });
+
+            console.log('📊 Final ReactFlow data:', { nodes, edges });
+
+            // Check if ReactFlow is available
+            if (typeof ReactFlow === 'undefined') {
+                console.error('ReactFlow not loaded properly');
+                container.innerHTML = '<div style="padding: 2rem; text-align: center; color: #666;">React Flow failed to load. Please refresh the page.</div>';
+                return;
+            }
+
+            console.log('ReactFlow object:', ReactFlow);
+
+            // Create React Flow component using React.createElement
+            // ReactFlow v11 uses default export
+            const FlowComponent = React.createElement(ReactFlow.default || ReactFlow, {
+                nodes: nodes,
+                edges: edges,
+                onNodesChange: () => {},
+                onEdgesChange: () => {},
+                onConnect: () => {},
+                fitView: true,
+                attributionPosition: 'bottom-left',
+                defaultViewport: { x: 0, y: 0, zoom: 1 },
+                onInit: (instance) => {
+                    reactFlowInstance = instance;
+                    console.log('ReactFlow initialized');
+                }
+            });
+
+            // Render to DOM
+            try {
+                ReactDOM.render(FlowComponent, container);
+                console.log('Workflow rendered successfully');
+            } catch (error) {
+                console.error('Error rendering workflow:', error);
+                container.innerHTML = `<div style="padding: 2rem; text-align: center; color: #dc3545;">Error rendering workflow: ${error.message}</div>`;
+            }
+        }
+
+        function getNodeIcon(type) {
+            const icons = {
+                'tool': '🔧',
+                'agent': '🤖',
+                'workflow_call': '📞'
+            };
+            return icons[type] || '⚙️';
+        }
+
+        function getNodeColor(type) {
+            const colors = {
+                'tool': '#ff6b6b',
+                'agent': '#4ecdc4',
+                'workflow_call': '#45b7d1'
+            };
+            return colors[type] || '#95a5a6';
+        }
+
+        // Utility functions
+        function fitView() {
+            if (reactFlowInstance) {
+                reactFlowInstance.fitView({ padding: 0.2 });
+            }
+        }
+
+        function downloadWorkflow() {
+            if (!currentWorkflow) return;
+            
+            const dataStr = JSON.stringify(currentWorkflow, null, 2);
+            const dataBlob = new Blob([dataStr], {type: 'application/json'});
+            
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(dataBlob);
+            link.download = `${currentWorkflow.title.replace(/\s+/g, '_')}.json`;
+            link.click();
+        }
+
+        // Event listeners
+        document.getElementById('generateBtn').addEventListener('click', generateWorkflow);
+        document.getElementById('refineBtn').addEventListener('click', refineWorkflow);
+        document.getElementById('exampleBtn').addEventListener('click', createExample);
+        document.getElementById('clearBtn').addEventListener('click', clearWorkflow);
+
+        document.getElementById('queryInput').addEventListener('keydown', function(e) {
+            if (e.ctrlKey && e.key === 'Enter') {
+                if (currentWorkflow) {
+                    refineWorkflow();
+                } else {
+                    generateWorkflow();
+                }
+            }
+        });
+
+        // Debug function to check loaded libraries
+        function debugLibraries() {
+            console.log('=== Library Debug ===');
+            console.log('React:', typeof React);
+            console.log('ReactDOM:', typeof ReactDOM);
+            console.log('ReactFlow:', typeof ReactFlow);
+            if (typeof ReactFlow !== 'undefined') {
+                console.log('ReactFlow keys:', Object.keys(ReactFlow));
+                console.log('ReactFlow.default:', typeof ReactFlow.default);
+            }
+            console.log('==================');
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            debugLibraries();
+            initWebSocket();
+            loadTools();
+            updateButtons();
+        });
+    </script>
+</body>
+</html>
