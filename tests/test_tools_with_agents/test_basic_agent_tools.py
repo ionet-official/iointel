@@ -100,7 +100,7 @@ async def test_instancemethod_tool():
 
 
 async def test_stateful_tool():
-    agent = create_agent(
+    agent = await create_agent(
         AgentParams(
             name="simple",
             instructions="Complete tasks to the best of your ability by using the appropriate tool. Follow all instructions carefully.",
@@ -138,7 +138,7 @@ def _custom_tool(tool, state_args: dict | None) -> BaseModel | None:
     ],
 )
 async def test_custom_instantiators(agent_creator, tool_creator, marker):
-    agent = create_agent(
+    agent = await create_agent(
         AgentParams(
             name="simple",
             instructions="Complete tasks to the best of your ability by using the appropriate tool. Follow all instructions carefully.",

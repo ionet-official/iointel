@@ -69,7 +69,7 @@ class Task:
     ) -> Any:
         if definition.agents:
             chosen_agents = [
-                create_agent(agent, instantiate_agent, instantiate_tool)
+                await create_agent(agent, instantiate_agent, instantiate_tool)
                 for agent in definition.agents
             ]
             if chosen_agents:

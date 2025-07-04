@@ -467,7 +467,7 @@ class Workflow:
         return yaml_str
 
     @classmethod
-    def from_yaml(
+    async def from_yaml(
         cls,
         yaml_str: str = None,
         file_path: str = None,
@@ -507,7 +507,7 @@ class Workflow:
                 f" Group for swarm '{swarm_name}': {len(members_list)} member(s)"
             )
             members = [
-                create_agent(member, instantiate_agent, instantiate_tool)
+                await create_agent(member, instantiate_agent, instantiate_tool)
                 for member in members_list
             ]
             swarm_obj = create_swarm(members)
@@ -517,7 +517,7 @@ class Workflow:
         # Rehydrate individual agents.
         for agent_data in individual_agents:
             real_agents.append(
-                create_agent(agent_data, instantiate_agent, instantiate_tool)
+                await create_agent(agent_data, instantiate_agent, instantiate_tool)
             )
 
         top_level_swarm_lookup = {
@@ -570,7 +570,7 @@ class Workflow:
                         step_agents.append(top_level_swarm_lookup[swarm_name])
                     else:
                         members = [
-                            create_agent(
+                            await create_agent(
                                 AgentParams.model_validate(m),
                                 instantiate_agent,
                                 instantiate_tool,
@@ -585,7 +585,7 @@ class Workflow:
                         step_agents.append(swarm_obj)
 
                 for agent in individual:
-                    rehydrated = create_agent(
+                    rehydrated = await create_agent(
                         AgentParams.model_validate(agent),
                         instantiate_agent,
                         instantiate_tool,
