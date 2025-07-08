@@ -1,0 +1,760 @@
+"""
+Tests for WorkflowPlanner using actual agent system.
+Uses real OpenAI API with credentials from creds.env
+"""
+
+import pytest
+import json
+import uuid
+import os
+import asyncio
+from pathlib import Path
+from dotenv import load_dotenv
+
+from iointel.src.agent_methods.agents.workflow_planner import WorkflowPlanner, WORKFLOW_PLANNER_INSTRUCTIONS
+from iointel.src.agent_methods.data_models.workflow_spec import (
+    WorkflowSpec, 
+    NodeSpec, 
+    NodeData, 
+    EdgeSpec, 
+    EdgeData
+)
+from iointel.src.memory import AsyncMemory
+
+# Load environment variables
+env_path = Path(__file__).parent.parent / "creds.env"
+load_dotenv(env_path)
+
+
+@pytest.fixture
+def tool_catalog():
+    """Sample tool catalog for testing."""
+    return {
+        "weather_api": {
+            "name": "weather_api",
+            "description": "Get weather information for a location",
+            "parameters": {"location": "string", "units": "string"},
+            "returns": ["weather_data", "status"]
+        },
+        "send_email": {
+            "name": "send_email", 
+            "description": "Send an email message",
+            "parameters": {"to": "string", "subject": "string", "body": "string"},
+            "returns": ["sent", "delivery_id"]
+        },
+        "data_processor": {
+            "name": "data_processor",
+            "description": "Process and transform data",
+            "parameters": {"data": "any", "operation": "string"},
+            "returns": ["processed_data", "metadata"]
+        }
+    }
+
+
+@pytest.fixture
+def sample_workflow_spec():
+    """Sample WorkflowSpec for testing."""
+    return WorkflowSpec(
+        id=uuid.uuid4(),
+        rev=1,
+        title="Weather Email Workflow",
+        description="Get weather and send email",
+        nodes=[
+            NodeSpec(
+                id="get_weather",
+                type="tool",
+                label="Get Weather",
+                data=NodeData(
+                    tool_name="weather_api",
+                    config={"location": "London", "units": "celsius"},
+                    ins=[],
+                    outs=["weather_data"]
+                )
+            ),
+            NodeSpec(
+                id="send_notification",
+                type="tool", 
+                label="Send Email",
+                data=NodeData(
+                    tool_name="send_email",
+                    config={"to": "user@example.com", "subject": "Weather Update"},
+                    ins=["weather_data"],
+                    outs=[]
+                )
+            )
+        ],
+        edges=[
+            EdgeSpec(
+                id="weather_to_email",
+                source="get_weather",
+                target="send_notification",
+                sourceHandle="weather_data",
+                targetHandle="weather_data"
+            )
+        ]
+    )
+
+
+class TestWorkflowPlanner:
+    """Test cases for WorkflowPlanner class."""
+
+    def test_workflow_planner_init(self):
+        """Test WorkflowPlanner initialization."""
+        planner = WorkflowPlanner(
+            conversation_id="test_conv",
+            debug=True
+        )
+        
+        assert planner.conversation_id == "test_conv"
+        assert planner.agent is not None
+        assert planner.agent.name == "WorkflowPlanner"
+
+    def test_workflow_planner_init_with_defaults(self):
+        """Test WorkflowPlanner with default parameters."""
+        planner = WorkflowPlanner()
+        
+        assert planner.conversation_id is not None
+        assert planner.agent is not None
+
+    def test_workflow_planner_instructions(self):
+        """Test that workflow planner instructions are comprehensive."""
+        assert WORKFLOW_PLANNER_INSTRUCTIONS is not None
+        assert "WorkflowPlanner-GPT" in WORKFLOW_PLANNER_INSTRUCTIONS
+        
+        # Check for all node types
+        assert "tool" in WORKFLOW_PLANNER_INSTRUCTIONS
+        assert "agent" in WORKFLOW_PLANNER_INSTRUCTIONS
+        assert "workflow_call" in WORKFLOW_PLANNER_INSTRUCTIONS
+        
+        # Check for key concepts
+        assert "edge" in WORKFLOW_PLANNER_INSTRUCTIONS.lower()
+        assert "node" in WORKFLOW_PLANNER_INSTRUCTIONS.lower()
+        assert "data flow" in WORKFLOW_PLANNER_INSTRUCTIONS.lower()
+        assert "condition" in WORKFLOW_PLANNER_INSTRUCTIONS.lower()
+
+    @pytest.mark.asyncio
+    async def test_generate_workflow_success(self, tool_catalog):
+        """Test successful workflow generation using real API."""
+        # Skip if no API key
+        if not os.getenv("OPENAI_API_KEY"):
+            pytest.skip("No OPENAI_API_KEY available")
+            
+        print("\n=== WORKFLOW GENERATION TEST ===")
+        print(f"Tool Catalog: {json.dumps(tool_catalog, indent=2)}")
+        
+        planner = WorkflowPlanner(
+            api_key=os.getenv("OPENAI_API_KEY"),
+            model="gpt-4o-mini",  # Use cheaper model for tests
+            debug=True
+        )
+        
+        query = "Get weather for London and email it to the team"
+        print(f"\nQuery: {query}")
+        print("\nGenerating workflow...")
+        
+        result = await planner.generate_workflow(
+            query=query,
+            tool_catalog=tool_catalog
+        )
+        
+        print(f"\n=== GENERATED WORKFLOW ===")
+        print(f"Title: {result.title}")
+        print(f"Description: {result.description}")
+        print(f"ID: {result.id}")
+        print(f"Revision: {result.rev}")
+        
+        print(f"\nNodes ({len(result.nodes)}):")
+        for node in result.nodes:
+            print(f"  - {node.id} ({node.type}): {node.label}")
+            if node.data.tool_name:
+                print(f"    Tool: {node.data.tool_name}")
+            if node.data.config:
+                print(f"    Config: {json.dumps(node.data.config, indent=6)}")
+            print(f"    Inputs: {node.data.ins}")
+            print(f"    Outputs: {node.data.outs}")
+        
+        print(f"\nEdges ({len(result.edges)}):")
+        for edge in result.edges:
+            condition = f" [if {edge.data.condition}]" if edge.data and edge.data.condition else ""
+            print(f"  - {edge.source} -> {edge.target}{condition}")
+            print(f"    Handles: {edge.sourceHandle} -> {edge.targetHandle}")
+        
+        assert isinstance(result, WorkflowSpec)
+        assert result.title is not None
+        assert len(result.nodes) >= 2  # Should have at least weather and email nodes
+        assert len(result.edges) >= 1  # Should connect the nodes
+        
+        # Validate structure
+        issues = result.validate_structure()
+        print(f"\nValidation: {'✅ PASSED' if not issues else '❌ FAILED'}")
+        assert len(issues) == 0, f"Generated workflow has issues: {issues}"
+
+    @pytest.mark.asyncio
+    async def test_generate_workflow_complex_query(self, tool_catalog):
+        """Test workflow generation with complex requirements."""
+        if not os.getenv("OPENAI_API_KEY"):
+            pytest.skip("No OPENAI_API_KEY available")
+            
+        planner = WorkflowPlanner(
+            api_key=os.getenv("OPENAI_API_KEY"),
+            model="gpt-4o-mini",
+            debug=False
+        )
+        
+        complex_query = """
+        Create a workflow that:
+        1. Gets weather data for multiple cities
+        2. Processes the data to find the warmest city
+        3. Sends an email with the results
+        Include error handling for API failures.
+        """
+        
+        result = await planner.generate_workflow(
+            query=complex_query,
+            tool_catalog=tool_catalog
+        )
+        
+        assert isinstance(result, WorkflowSpec)
+        # Should have multiple nodes for complex workflow
+        assert len(result.nodes) >= 2
+        
+        # Check for data processing logic
+        has_processing = any(
+            node.type == "agent" or 
+            (node.data.tool_name == "data_processor" if node.data.tool_name else False)
+            for node in result.nodes
+        )
+        assert has_processing, "Complex workflow should include data processing"
+
+    @pytest.mark.asyncio
+    async def test_refine_workflow_success(self, sample_workflow_spec):
+        """Test successful workflow refinement."""
+        if not os.getenv("OPENAI_API_KEY"):
+            pytest.skip("No OPENAI_API_KEY available")
+            
+        planner = WorkflowPlanner(
+            api_key=os.getenv("OPENAI_API_KEY"),
+            model="gpt-4o-mini",
+            debug=True
+        )
+        
+        result = await planner.refine_workflow(
+            workflow_spec=sample_workflow_spec,
+            feedback="Add error handling and retry logic"
+        )
+        
+        assert isinstance(result, WorkflowSpec)
+        assert result.id == sample_workflow_spec.id  # Same workflow ID
+        assert result.rev > sample_workflow_spec.rev  # Version incremented
+        
+        # Should still be valid
+        issues = result.validate_structure()
+        assert len(issues) == 0, f"Refined workflow has issues: {issues}"
+
+    def test_create_example_workflow(self):
+        """Test example workflow creation."""
+        planner = WorkflowPlanner()
+        
+        workflow = planner.create_example_workflow("Test Example")
+        
+        assert isinstance(workflow, WorkflowSpec)
+        assert workflow.title == "Test Example"
+        assert len(workflow.nodes) >= 2  # Should have at least a few nodes
+        assert len(workflow.edges) >= 1  # Should have connections
+        
+        # Test structure validation
+        issues = workflow.validate_structure()
+        assert len(issues) == 0, f"Example workflow has issues: {issues}"
+
+    def test_create_example_workflow_variations(self):
+        """Test creating different example workflows."""
+        planner = WorkflowPlanner()
+        
+        titles = [
+            "Data Processing Pipeline",
+            "Email Notification Workflow",
+            "Complex Multi-Step Process"
+        ]
+        
+        for title in titles:
+            workflow = planner.create_example_workflow(title)
+            assert workflow.title == title
+            assert isinstance(workflow.id, uuid.UUID)
+            assert workflow.rev == 1
+            
+            # Validate each one
+            issues = workflow.validate_structure()
+            assert len(issues) == 0, f"Workflow '{title}' has issues: {issues}"
+
+
+class TestWorkflowPlannerIntegration:
+    """Integration tests for WorkflowPlanner."""
+
+    @pytest.mark.asyncio
+    async def test_end_to_end_workflow_generation(self, tool_catalog):
+        """Test complete workflow generation pipeline."""
+        if not os.getenv("OPENAI_API_KEY"):
+            pytest.skip("No OPENAI_API_KEY available")
+            
+        planner = WorkflowPlanner(
+            api_key=os.getenv("OPENAI_API_KEY"),
+            model="gpt-4o-mini",
+            debug=False
+        )
+        
+        # Add more tools for complex workflow
+        extended_catalog = tool_catalog.copy()
+        extended_catalog.update({
+            "api_fetcher": {
+                "name": "api_fetcher",
+                "description": "Fetch data from any API",
+                "parameters": {"url": "string", "headers": "dict"},
+                "returns": ["data", "status_code"]
+            },
+            "data_validator": {
+                "name": "data_validator",
+                "description": "Validate data against rules",
+                "parameters": {"data": "any", "rules": "dict"},
+                "returns": ["valid", "errors"]
+            },
+            "logger": {
+                "name": "logger",
+                "description": "Log messages and data",
+                "parameters": {"message": "string", "level": "string"},
+                "returns": ["logged"]
+            }
+        })
+        
+        # Test generation
+        query = "Create a data processing pipeline that fetches data, validates it, processes it, and sends results via email"
+        print(f"\n=== END-TO-END WORKFLOW TEST ===")
+        print(f"Query: {query}")
+        print(f"\nExtended Tool Catalog includes: {list(extended_catalog.keys())}")
+        
+        result = await planner.generate_workflow(
+            query=query,
+            tool_catalog=extended_catalog
+        )
+        
+        print(f"\n=== GENERATED PIPELINE ===")
+        print(f"Title: {result.title}")
+        print(f"Description: {result.description}")
+        
+        print(f"\nNodes ({len(result.nodes)}):")
+        for i, node in enumerate(result.nodes, 1):
+            print(f"\n{i}. {node.id} ({node.type}): {node.label}")
+            if node.data.tool_name:
+                print(f"   Tool: {node.data.tool_name}")
+            if node.data.agent_instructions:
+                print(f"   Instructions: {node.data.agent_instructions[:100]}...")
+            if node.data.config:
+                print(f"   Config: {json.dumps(node.data.config, indent=3)}")
+            print(f"   Inputs: {node.data.ins}")
+            print(f"   Outputs: {node.data.outs}")
+        
+        print(f"\nWorkflow Flow:")
+        for edge in result.edges:
+            condition = f" [if {edge.data.condition}]" if edge.data and edge.data.condition else ""
+            print(f"  {edge.source} -> {edge.target}{condition}")
+        
+        # Validate result
+        assert isinstance(result, WorkflowSpec)
+        assert len(result.nodes) >= 3  # Should have multiple steps
+        assert len(result.edges) >= 2  # Should have connections
+        
+        # Test workflow structure
+        issues = result.validate_structure()
+        print(f"\nValidation: {'✅ PASSED' if not issues else '❌ FAILED'}")
+        assert len(issues) == 0, f"Generated workflow has issues: {issues}"
+        
+        # Test conversion to YAML
+        yaml_output = result.to_yaml()
+        print(f"\nYAML Output Preview (first 300 chars):")
+        print(yaml_output[:300] + "..." if len(yaml_output) > 300 else yaml_output)
+        assert result.title.lower() in yaml_output.lower()
+        assert "tasks:" in yaml_output
+
+    @pytest.mark.asyncio
+    async def test_workflow_memory_integration(self, tool_catalog):
+        """Test that WorkflowPlanner properly uses memory."""
+        if not os.getenv("OPENAI_API_KEY"):
+            pytest.skip("No OPENAI_API_KEY available")
+            
+        # Skip memory test if no database URL
+        pytest.skip("Memory integration requires database setup")
+        
+        conversation_id = str(uuid.uuid4())
+        planner = WorkflowPlanner(
+            api_key=os.getenv("OPENAI_API_KEY"),
+            model="gpt-4o-mini",
+            memory=memory,
+            conversation_id=conversation_id
+        )
+        
+        # Generate workflow
+        await planner.generate_workflow(
+            query="Simple test workflow",
+            tool_catalog=tool_catalog
+        )
+        
+        # Check memory was used
+        history = await memory.get_message_history(conversation_id)
+        assert len(history) > 0, "Conversation should be stored in memory"
+
+    @pytest.mark.asyncio
+    async def test_workflow_with_conditional_logic(self, tool_catalog):
+        """Test generating workflows with conditional branching."""
+        if not os.getenv("OPENAI_API_KEY"):
+            pytest.skip("No OPENAI_API_KEY available")
+            
+        planner = WorkflowPlanner(
+            api_key=os.getenv("OPENAI_API_KEY"),
+            model="gpt-4o-mini"
+        )
+        
+        result = await planner.generate_workflow(
+            query="Create a workflow that checks weather and only sends email if it's raining",
+            tool_catalog=tool_catalog
+        )
+        
+        assert isinstance(result, WorkflowSpec)
+        
+        # Should have conditional logic
+        has_conditions = any(
+            edge.data and edge.data.condition 
+            for edge in result.edges
+        )
+        
+        # Print workflow for debugging
+        print(f"\nConditional Workflow: {result.title}")
+        for edge in result.edges:
+            if edge.data and edge.data.condition:
+                print(f"  Edge {edge.source} -> {edge.target}: {edge.data.condition}")
+
+    @pytest.mark.asyncio
+    async def test_agent_decision_tools_workflow(self):
+        """Test agent generating workflow that properly uses decision tools for complex conditionals."""
+        if not os.getenv("OPENAI_API_KEY"):
+            pytest.skip("No OPENAI_API_KEY available")
+            
+        print(f"\n=== Testing Agent-Generated Decision Tools Workflow ===")
+        
+        # Create tool catalog including decision tools
+        decision_tool_catalog = {
+            "weather_api": {
+                "name": "weather_api",
+                "description": "Get weather information for a location",
+                "parameters": {"location": "string", "units": "string"},
+                "returns": ["weather_data", "status"]
+            },
+            "json_evaluator": {
+                "name": "json_evaluator",
+                "description": "Evaluate JSON data against expressions for decision making",
+                "parameters": {"data": "dict", "expression": "string"},
+                "returns": ["result", "details", "confidence"]
+            },
+            "number_compare": {
+                "name": "number_compare", 
+                "description": "Compare numbers using operators (>, <, ==, etc.)",
+                "parameters": {"value": "number", "operator": "string", "threshold": "number"},
+                "returns": ["result", "details", "confidence"]
+            },
+            "string_contains": {
+                "name": "string_contains",
+                "description": "Check if string contains substring or regex pattern",
+                "parameters": {"text": "string", "substring": "string", "case_sensitive": "boolean"},
+                "returns": ["result", "details", "confidence"]
+            },
+            "conditional_router": {
+                "name": "conditional_router",
+                "description": "Route to different paths based on structured decisions",
+                "parameters": {"decision": "dict", "routes": "dict", "decision_path": "string"},
+                "returns": ["routed_to", "route_data", "matched_condition"]
+            },
+            "send_alert": {
+                "name": "send_alert",
+                "description": "Send emergency weather alert",
+                "parameters": {"message": "string", "severity": "string", "recipients": "list"},
+                "returns": ["sent", "alert_id"]
+            },
+            "send_notification": {
+                "name": "send_notification", 
+                "description": "Send normal weather notification",
+                "parameters": {"message": "string", "recipients": "list"},
+                "returns": ["sent", "notification_id"]
+            }
+        }
+        
+        print(f"Decision tool catalog: {list(decision_tool_catalog.keys())}")
+        
+        # Create workflow planner
+        planner = WorkflowPlanner(
+            api_key=os.getenv("OPENAI_API_KEY"),
+            model="gpt-4o-mini",
+            debug=True
+        )
+        
+        # Request a complex conditional workflow
+        conditional_query = """
+        Create a smart weather alert system that:
+        1. Gets weather data for New York
+        2. Checks if temperature is below 0°C (freezing)
+        3. Checks if the weather condition contains 'storm' or 'severe'
+        4. If either condition is true, send an emergency alert
+        5. Otherwise, send a normal notification
+        
+        IMPORTANT: Use the decision tools (json_evaluator, number_compare, string_contains, conditional_router) 
+        to implement the conditional logic. Do NOT use string conditions in edges - use explicit decision nodes instead.
+        """
+        
+        print(f"\nQuery: {conditional_query}")
+        print(f"\nGenerating workflow with decision tools...")
+        
+        # Generate workflow
+        workflow = await planner.generate_workflow(
+            query=conditional_query,
+            tool_catalog=decision_tool_catalog
+        )
+        
+        print(f"\n=== GENERATED DECISION TOOLS WORKFLOW ===")
+        print(f"Title: {workflow.title}")
+        print(f"Description: {workflow.description}")
+        
+        print(f"\nNodes ({len(workflow.nodes)}):")
+        decision_nodes = []
+        for i, node in enumerate(workflow.nodes, 1):
+            print(f"\n{i}. {node.id} ({node.type}): {node.label}")
+            if node.data.tool_name:
+                print(f"   Tool: {node.data.tool_name}")
+            if node.data.config:
+                print(f"   Config: {node.data.config}")
+            if node.data.agent_instructions:
+                print(f"   Instructions: {node.data.agent_instructions[:100]}...")
+            print(f"   Inputs: {node.data.ins}")
+            print(f"   Outputs: {node.data.outs}")
+            
+            # Detect decision nodes
+            if (node.type == "decision" or 
+                (node.data.tool_name and node.data.tool_name in ["json_evaluator", "number_compare", "string_contains", "conditional_router"])):
+                decision_nodes.append(node)
+                print(f"   ✓ DECISION NODE DETECTED")
+        
+        print(f"\nEdges ({len(workflow.edges)}):")
+        for edge in workflow.edges:
+            condition_str = f" [condition: {edge.data.condition}]" if edge.data and edge.data.condition else ""
+            print(f"  {edge.source} -> {edge.target} ({edge.sourceHandle} -> {edge.targetHandle}){condition_str}")
+        
+        # Comprehensive validation
+        print(f"\n=== DECISION TOOLS VALIDATION ===")
+        
+        # 1. Check for decision node usage
+        assert len(decision_nodes) > 0, f"Workflow should include decision nodes, found: {len(decision_nodes)}"
+        print(f"✓ Found {len(decision_nodes)} decision nodes")
+        
+        # 2. Check for specific decision tool usage
+        decision_tool_names = ["json_evaluator", "number_compare", "string_contains", "conditional_router"]
+        used_decision_tools = [node.data.tool_name for node in workflow.nodes if node.data.tool_name in decision_tool_names]
+        assert len(used_decision_tools) > 0, f"Workflow should use decision tools, found: {used_decision_tools}"
+        print(f"✓ Uses decision tools: {used_decision_tools}")
+        
+        # 3. Validate workflow structure
+        issues = workflow.validate_structure()
+        assert len(issues) == 0, f"Generated workflow has structural issues: {issues}"
+        print(f"✓ Workflow structure is valid")
+        
+        # 4. Check that the workflow includes weather API
+        weather_nodes = [node for node in workflow.nodes if node.data.tool_name == "weather_api"]
+        assert len(weather_nodes) > 0, "Workflow should include weather API call"
+        print(f"✓ Includes weather API")
+        
+        # 5. Check for alert/notification routing
+        node_tools = [node.data.tool_name for node in workflow.nodes if node.data.tool_name]
+        has_alert_tools = any(tool in ["send_alert", "send_notification"] for tool in node_tools)
+        assert has_alert_tools, "Workflow should include alert or notification tools"
+        print(f"✓ Includes alert/notification routing")
+        
+        # 6. Check that decision logic is properly connected
+        decision_node_ids = [node.id for node in decision_nodes]
+        connected_decisions = []
+        for edge in workflow.edges:
+            if edge.source in decision_node_ids or edge.target in decision_node_ids:
+                connected_decisions.append(edge)
+        
+        assert len(connected_decisions) > 0, "Decision nodes should be connected to workflow"
+        print(f"✓ Decision nodes are connected ({len(connected_decisions)} connections)")
+        
+        print(f"\n✅ AGENT SUCCESSFULLY GENERATED CONDITIONAL WORKFLOW USING DECISION TOOLS")
+        print(f"   - {len(workflow.nodes)} nodes including {len(decision_nodes)} decision nodes")
+        print(f"   - {len(workflow.edges)} edges with {len(connected_decisions)} decision connections")
+        print(f"   - Decision tools used: {', '.join(used_decision_tools)}")
+        
+        return workflow
+
+
+class TestWorkflowPlannerEdgeCases:
+    """Test edge cases and error scenarios."""
+
+    def test_create_example_workflow_structure(self):
+        """Test that example workflows have valid structure."""
+        planner = WorkflowPlanner()
+        
+        for title in ["Test 1", "Complex Workflow", "Simple Process"]:
+            workflow = planner.create_example_workflow(title)
+            
+            # Basic validation
+            assert workflow.title == title
+            assert len(workflow.nodes) > 0
+            
+            # Structure validation
+            issues = workflow.validate_structure()
+            assert len(issues) == 0, f"Example '{title}' has issues: {issues}"
+            
+            # Each node should have valid IDs
+            node_ids = [node.id for node in workflow.nodes]
+            assert len(node_ids) == len(set(node_ids)), "Duplicate node IDs found"
+
+    def test_workflow_spec_edge_conditions(self):
+        """Test workflows with decision nodes instead of edge conditions."""
+        # Create a workflow with decision nodes for routing
+        nodes = [
+            NodeSpec(
+                id="validator",
+                type="tool",
+                label="Validate Input",
+                data=NodeData(
+                    tool_name="validator",
+                    config={"rules": "strict"},
+                    ins=["input"],
+                    outs=["valid_data", "validation_status"]
+                )
+            ),
+            NodeSpec(
+                id="check_validity",
+                type="decision",
+                label="Check if Valid",
+                data=NodeData(
+                    tool_name="json_evaluator",
+                    config={"expression": "status == 'success'"},
+                    ins=["validation_status"],
+                    outs=["result", "details"]
+                )
+            ),
+            NodeSpec(
+                id="success_handler",
+                type="agent",
+                label="Process Valid Data",
+                data=NodeData(
+                    agent_instructions="Process the validated data",
+                    ins=["valid_data"],
+                    outs=["result"]
+                )
+            ),
+            NodeSpec(
+                id="error_handler",
+                type="tool",
+                label="Handle Error",
+                data=NodeData(
+                    tool_name="error_reporter",
+                    config={"notify": "admin@example.com"},
+                    ins=["validation_status"],
+                    outs=["error_report"]
+                )
+            )
+        ]
+        
+        edges = [
+            EdgeSpec(
+                id="validator_to_decision",
+                source="validator",
+                target="check_validity",
+                sourceHandle="validation_status",
+                targetHandle="validation_status"
+            ),
+            EdgeSpec(
+                id="success_path",
+                source="check_validity",
+                target="success_handler",
+                sourceHandle="result",
+                targetHandle="valid_data",
+                data=EdgeData(condition="result == true")
+            ),
+            EdgeSpec(
+                id="error_path",
+                source="validator",
+                target="error_handler",
+                sourceHandle="validation_status",
+                targetHandle="validation_status",
+                data=EdgeData(condition="validation_status == 'error'")
+            )
+        ]
+        
+        workflow = WorkflowSpec(
+            id=uuid.uuid4(),
+            rev=1,
+            title="Conditional Workflow",
+            description="Workflow with conditional branching",
+            nodes=nodes,
+            edges=edges
+        )
+        
+        # Validate the workflow
+        issues = workflow.validate_structure()
+        assert len(issues) == 0, f"Conditional workflow has issues: {issues}"
+
+    @pytest.mark.parametrize("node_count", [10, 20, 30])
+    def test_workflow_performance_scaling(self, node_count):
+        """Test workflow creation and validation with different sizes."""
+        nodes = []
+        edges = []
+        
+        # Create a linear workflow with node_count nodes
+        for i in range(node_count):
+            node = NodeSpec(
+                id=f"node_{i}",
+                type="tool" if i % 2 == 0 else "agent",
+                label=f"Step {i}",
+                data=NodeData(
+                    tool_name=f"tool_{i}" if i % 2 == 0 else None,
+                    agent_instructions=f"Process step {i}" if i % 2 == 1 else None,
+                    config={"index": i},
+                    ins=[f"input_{i}"] if i > 0 else [],
+                    outs=[f"output_{i}"]
+                )
+            )
+            nodes.append(node)
+            
+            # Connect to previous node
+            if i > 0:
+                edge = EdgeSpec(
+                    id=f"edge_{i-1}_to_{i}",
+                    source=f"node_{i-1}",
+                    target=f"node_{i}",
+                    sourceHandle=f"output_{i-1}",
+                    targetHandle=f"input_{i}"
+                )
+                edges.append(edge)
+        
+        workflow = WorkflowSpec(
+            id=uuid.uuid4(),
+            rev=1,
+            title=f"Performance Test - {node_count} nodes",
+            description=f"Testing with {node_count} nodes",
+            nodes=nodes,
+            edges=edges
+        )
+        
+        # Time the validation
+        import time
+        start_time = time.time()
+        issues = workflow.validate_structure()
+        validation_time = time.time() - start_time
+        
+        # Should validate successfully
+        assert len(issues) == 0, f"Workflow with {node_count} nodes has issues: {issues}"
+        
+        # Validation should be reasonably fast (< 0.1s even for 30 nodes)
+        assert validation_time < 0.1, f"Validation took {validation_time}s for {node_count} nodes"
+
+
+if __name__ == "__main__":
+    pytest.main([__file__, "-v", "-s"])

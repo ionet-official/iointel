@@ -1,4 +1,4 @@
-from typing import Literal, Optional, List, Dict, Union
+from typing import Literal, Optional, List, Dict
 from uuid import UUID
 from pydantic import BaseModel, Field
 from datetime import datetime
@@ -22,7 +22,7 @@ class NodeData(BaseModel):
 class NodeSpec(BaseModel):
     """React Flow compatible node specification."""
     id: str
-    type: Literal["tool", "agent", "workflow_call"]
+    type: Literal["tool", "agent", "workflow_call", "decision"]
     label: str
     data: NodeData
     position: Optional[Dict[str, float]] = None  # FE inserts {x,y}

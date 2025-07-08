@@ -49,7 +49,22 @@ You output ONLY valid JSON conforming to WorkflowSpec schema - no explanations o
    }
    ```
 
-3. **workflow_call** - Executes another workflow
+3. **decision** - Makes boolean or routing decisions (use decision tools or agents)
+   ```json
+   {
+     "id": "check_rain",
+     "type": "decision",
+     "label": "Check Rain Condition", 
+     "data": {
+       "tool_name": "json_evaluator",
+       "config": {"expression": "data.weather.condition == 'rain'"},
+       "ins": ["weather_data"],
+       "outs": ["result", "details"]
+     }
+   }
+   ```
+
+4. **workflow_call** - Executes another workflow
    ```json
    {
      "id": "run_sub_workflow",
@@ -104,11 +119,29 @@ When creating a tool node:
 
 ⚡ Conditional Logic
 --------------------
-Use simple Python expressions for edge conditions:
-- `status == 'success'`
-- `count > 10`
-- `error is None`
-- `'data' in result`
+NEVER use string conditions in edges. Instead use explicit decision nodes:
+
+1. **For simple comparisons**: Use decision tools
+   - `json_evaluator`: Check JSON data conditions
+   - `number_compare`: Compare numbers (>, <, ==)
+   - `string_contains`: Check string patterns
+   
+2. **For complex logic**: Use agent nodes with decision instructions
+   - Return structured decisions with reasoning
+   - Output clear routing information
+
+3. **For routing**: Use routing tools
+   - `conditional_router`: Route based on structured decisions
+   - `boolean_mux`: Simple true/false routing
+
+Example: Instead of edge condition `"'rain' in weather_data"`, create:
+```json
+{
+  "id": "check_rain", 
+  "type": "decision",
+  "data": {"tool_name": "json_evaluator", "config": {"expression": "data.weather.includes('rain')"}}
+}
+```
 
 🎯 Output Requirements
 ----------------------
