@@ -1,3 +1,4 @@
+import inspect
 from pydantic import BaseModel
 from ...agents import Agent
 from ..data_models.datamodels import AgentParams, Tool, AgentSwarm
@@ -9,7 +10,7 @@ def instantiate_agent_default(params: AgentParams) -> Agent:
     return Agent(**params.model_dump(exclude="tools"), tools=params.tools)
 
 
-def create_agent(
+async def create_agent(
     params: AgentParams,
     instantiate_agent: Callable[[AgentParams], Agent] | None = None,
     instantiate_tool: Callable[[Tool, dict | None], BaseModel | None] | None = None,
@@ -32,7 +33,7 @@ def create_agent(
     and its purpose is to allow to customize the process of Agent instantiation.
     """
     # Dump the rest of the agent data (excluding tools) then reinsert our resolved tools.
-    tools = resolve_tools(
+    tools = await resolve_tools(
         params,
         tool_instantiator=instantiate_stateful_tool
         if instantiate_tool is None
@@ -43,9 +44,10 @@ def create_agent(
         output_type = globals().get(output_type) or __builtins__.get(
             output_type, output_type
         )
-    return (
+    result = (
         instantiate_agent_default if instantiate_agent is None else instantiate_agent
     )(params.model_copy(update={"tools": tools, "output_type": output_type}))
+    return (await result) if inspect.isawaitable(result) else result
 
 
 def create_swarm(agents: list[AgentParams] | AgentSwarm):

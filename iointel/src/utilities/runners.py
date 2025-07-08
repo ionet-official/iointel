@@ -53,7 +53,7 @@ async def _run(objective: str, output_type=None, **all_kwargs):
 
 async def _unpack(func, *args, **kwargs):
     result = await (await func(*args, **kwargs)).execute()
-    return result["result"]
+    return result.result
 
 
 def run_agents_stream(objective: str, **kwargs) -> LazyCaller:

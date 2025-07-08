@@ -64,7 +64,7 @@ def instantiate_stateful_tool(tool: Tool, state_args: dict | None) -> BaseModel 
     return tool_obj
 
 
-def resolve_tools(
+async def resolve_tools(
     params: AgentParams,
     tool_instantiator: Callable[
         [Tool, dict | None], BaseModel | None
@@ -147,6 +147,8 @@ def resolve_tools(
                 and tool_obj.fn_self is None
             ):
                 fn_self = tool_instantiator(tool_obj, state_args)
+                if inspect.isawaitable(fn_self):
+                    fn_self = await fn_self
                 if fn_self is not None:
                     fn_method = getattr(fn_self, tool_obj.fn.__name__, None)
                     if (
