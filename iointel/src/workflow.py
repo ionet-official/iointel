@@ -305,7 +305,7 @@ class Workflow:
                     ).execute()
 
                 task_key = _get_task_key(current_node.task)
-                state.results[task_key] = final_result.get("result", final_result)
+                state.results[task_key] = getattr(final_result, "result", final_result)
 
                 progress.advance(task_progress, 1)
                 completed_tasks += 1
