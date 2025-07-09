@@ -10,10 +10,9 @@ This module provides intelligent tool loading that:
 
 import os
 import logging
-from typing import Dict, List, Any, Optional, Callable, Union
+from typing import Dict, List, Any, Optional
 from dotenv import load_dotenv
-from ...utilities.registries import TOOLS_REGISTRY, TOOL_SELF_REGISTRY
-from ...utilities.decorators import register_tool
+from ...utilities.registries import TOOLS_REGISTRY
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -84,48 +83,33 @@ def check_env_requirements(tool_name: str, requirements: List[str]) -> bool:
 
 def _init_coinmarketcap():
     """Initialize CoinMarketCap tools."""
-    from . import coinmarketcap
     # The functions are already registered via @register_tool
 
 
 def _init_context_tree():
     """Initialize Context Tree agent."""
-    from .context_tree import tree
     # The tree instance already has @register_tool methods
 
 
 def _init_duckduckgo():
     """Initialize DuckDuckGo search."""
-    from . import duckduckgo
     # Functions are registered via @register_tool
 
 
 def _init_firecrawl():
     """Initialize Firecrawl crawler."""
-    from .firecrawl import Crawler
     api_key = os.getenv("FIRECRAWL_API_KEY")
     
     # Create instance - auto-registers its @register_tool methods
-    crawler = Crawler(api_key=api_key)
 
 
 def _init_retrieval_engine():
     """Initialize Retrieval Engine."""
-    from .retrieval_engine import RetrievalEngine
     base_url = os.getenv("RETRIEVAL_ENGINE_URL")
     api_key = os.getenv("RETRIEVAL_ENGINE_API_KEY")
     
     # RetrievalEngine has tools already registered via @register_tool on its methods
     # We just need to instantiate it to make those tools available
-    engine = RetrievalEngine(base_url=base_url, api_key=api_key)
-    
-    # The tools are registered with names like "retrieval-engine-create-document", etc.
-    return [
-        "retrieval-engine-create-document",
-        "retrieval-engine-delete-document", 
-        "retrieval-engine-list_documents",
-        "retrieval-engine-rag-search"
-    ]
 
 
 def _init_searxng():
@@ -310,7 +294,7 @@ def load_tools_from_env(env_file: str = "creds.env") -> List[str]:
                 # Only include tools without 'self' parameter (function-based tools)
                 if not (params and params[0] == 'self'):
                     available_tools.append(tool_name)
-        except Exception as e:
+        except Exception:
             # If we can't inspect it, include it anyway
             available_tools.append(tool_name)
     

@@ -403,7 +403,7 @@ class Tool(BaseModel):
         """Run the tool with arguments."""
         try:
             return await self.fn_metadata.call_fn_with_arg_validation(
-                self.fn, self.is_async, arguments
+                self.fn, self.is_async, arguments, None
             )
         except Exception as e:
             raise ToolError(f"Error executing tool {self.name}: {e}") from e
