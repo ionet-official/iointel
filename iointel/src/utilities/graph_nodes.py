@@ -54,6 +54,7 @@ class TaskNode(BaseNode[WorkflowState]):
             Workflow,
             _get_task_key,
         )  # import must happen here, or circular issue occurs
+        from .data_flow_resolver import data_flow_resolver
 
         wf = Workflow()
         state = context.state
@@ -66,8 +67,31 @@ class TaskNode(BaseNode[WorkflowState]):
 
         task_key = _get_task_key(self.task)
 
+        # 🔧 NEW: Resolve variable references in task metadata before execution
+        resolved_task = self.task.copy()
+        if state.results and "task_metadata" in resolved_task:
+            task_metadata = resolved_task["task_metadata"]
+            if isinstance(task_metadata, dict) and "config" in task_metadata:
+                try:
+                    print(f"   📊 Resolving variables for task '{task_key}'")
+                    print(f"   📊 Original config: {task_metadata['config']}")
+                    print(f"   📊 Available results: {list(state.results.keys())}")
+                    
+                    resolved_config = data_flow_resolver.resolve_config(
+                        task_metadata["config"], state.results
+                    )
+                    
+                    # Update the task metadata with resolved config
+                    resolved_task["task_metadata"] = task_metadata.copy()
+                    resolved_task["task_metadata"]["config"] = resolved_config
+                    
+                    print(f"   ✅ Resolved config: {resolved_config}")
+                except Exception as e:
+                    print(f"   ⚠️  Variable resolution failed for '{task_key}': {e}")
+                    # Continue with original task if resolution fails
+
         result = await wf.run_task(
-            self.task, self.default_text, self.default_agents, self.conversation_id
+            resolved_task, self.default_text, self.default_agents, self.conversation_id
         )
 
         state.results[task_key] = (

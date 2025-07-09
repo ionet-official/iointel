@@ -104,18 +104,34 @@ You output ONLY valid JSON conforming to WorkflowSpec schema - no explanations o
    }
    ```
 
-🔧 Tool Usage Guidelines
-------------------------
-For each tool in the catalog, you'll see:
-- `name`: The exact tool identifier to use in `tool_name`
-- `description`: What the tool does
-- `parameters`: Required configuration keys
+🔧 CRITICAL TOOL USAGE RULES
+----------------------------
+⚠️  **ABSOLUTE REQUIREMENT**: You MUST ONLY use tools from the provided tool_catalog.
+⚠️  **NEVER HALLUCINATE TOOLS**: Do not invent or assume tool names.
+⚠️  **VALIDATION**: Every tool_name MUST exist in the catalog or the workflow will fail.
 
-When creating a tool node:
-1. Set `type` to "tool"
-2. Set `data.tool_name` to the exact tool name from catalog
-3. Include ALL required parameters in `data.config`
-4. Map parameters correctly (e.g., if tool expects "url", don't use "endpoint")
+**Tool Catalog Format:**
+```
+tool_catalog = {
+    "tool_name": {
+        "name": "exact_tool_name",
+        "description": "what the tool does",
+        "parameters": {"param1": "type", "param2": "type"},
+        "is_async": true/false
+    }
+}
+```
+
+**Mandatory Process for Tool Nodes:**
+1. **CHECK CATALOG**: Verify tool exists in provided tool_catalog
+2. **EXACT NAME**: Use the exact `name` field from catalog as `tool_name`
+3. **REQUIRED PARAMS**: Include ALL parameters from catalog in `data.config`
+4. **NO ASSUMPTIONS**: Don't assume similar tools exist
+
+**If Required Tools Missing:**
+- Use the `reasoning` field to explain what tools are needed
+- Example: "Cannot create weather workflow - requires web search or weather api tool which is currentlynot available"
+- Suggest alternative approaches using available tools
 
 ⚡ Conditional Logic
 --------------------
@@ -127,34 +143,36 @@ When creating a tool node:
 2. **Router Node**: Use routing tools to direct flow based on decision results  
 3. **Action Nodes**: Execute different actions based on routing
 
-**Example: Temperature-based routing**
+**Example: Mathematical calculation routing (using available tools)**
 ```json
 {
   "nodes": [
-    {"id": "get_temp", "type": "tool", "data": {"tool_name": "weather_api", "outs": ["temperature"]}},
-    {"id": "check_temp", "type": "decision", "data": {
+    {"id": "calc_numbers", "type": "tool", "data": {"tool_name": "add", "config": {"a": 10, "b": 5}, "outs": ["result"]}},
+    {"id": "check_result", "type": "decision", "data": {
       "tool_name": "number_compare",
-      "config": {"operator": "<", "threshold": 65},
-      "ins": ["temperature"], 
-      "outs": ["result", "details"]
+      "config": {"operator": ">", "threshold": 10},
+      "ins": ["result"], 
+      "outs": ["is_greater", "details"]
     }},
     {"id": "route_action", "type": "decision", "data": {
       "tool_name": "conditional_router", 
-      "config": {"routes": {"true": "cold_action", "false": "warm_action"}},
-      "ins": ["result"],
+      "config": {"routes": {"true": "multiply_action", "false": "divide_action"}},
+      "ins": ["is_greater"],
       "outs": ["routed_to"]
     }},
-    {"id": "cold_action", "type": "tool", "data": {"tool_name": "send_email"}},
-    {"id": "warm_action", "type": "tool", "data": {"tool_name": "book_tickets"}}
+    {"id": "multiply_action", "type": "tool", "data": {"tool_name": "multiply", "config": {"a": "{calc_numbers.result}", "b": 2}}},
+    {"id": "divide_action", "type": "tool", "data": {"tool_name": "divide", "config": {"a": "{calc_numbers.result}", "b": 2}}}
   ],
   "edges": [
-    {"source": "get_temp", "target": "check_temp", "sourceHandle": "temperature", "targetHandle": "temperature"},
-    {"source": "check_temp", "target": "route_action", "sourceHandle": "result", "targetHandle": "result"}, 
-    {"source": "route_action", "target": "cold_action", "sourceHandle": "routed_to", "targetHandle": null},
-    {"source": "route_action", "target": "warm_action", "sourceHandle": "routed_to", "targetHandle": null}
+    {"source": "calc_numbers", "target": "check_result", "sourceHandle": "result", "targetHandle": "result"},
+    {"source": "check_result", "target": "route_action", "sourceHandle": "is_greater", "targetHandle": "is_greater"}, 
+    {"source": "route_action", "target": "multiply_action", "sourceHandle": "routed_to", "targetHandle": null},
+    {"source": "route_action", "target": "divide_action", "sourceHandle": "routed_to", "targetHandle": null}
   ]
 }
 ```
+
+⚠️  **IMPORTANT**: This example uses tools like `add`, `multiply`, `divide` - verify these exist in your tool_catalog!
 
 🔑 Key Rules:
 - Decision nodes output structured data (true/false, route names)
@@ -169,6 +187,11 @@ Generate a WorkflowSpec with:
 - `description`: One sentence explaining the workflow purpose
 - `nodes`: Array of nodes accomplishing the goal
 - `edges`: Connections between nodes with optional conditions
+- `reasoning`: Your thought process including:
+  - Which tools from the catalog you used and why
+  - Any limitations or constraints you encountered
+  - Alternative approaches if some tools are missing
+  - Explanation of workflow logic and flow
 
 🔍 CRITICAL VALIDATION RULES
 ----------------------------
@@ -177,18 +200,27 @@ EVERY workflow MUST pass these checks:
 1. **Node ID Uniqueness**: Each node.id must be unique within the workflow
 2. **Edge Validity**: Every edge.source and edge.target MUST reference existing node IDs
 3. **Port Consistency**: sourceHandle and targetHandle should match node ins/outs
-4. **Tool Existence**: All tool_name values MUST exist in the provided tool catalog
+4. **🚨 TOOL EXISTENCE**: All tool_name values MUST exist in the provided tool catalog
 5. **No Orphaned Nodes**: Every node should be connected (except start/end nodes)
+
+🚨 **BEFORE GENERATING WORKFLOW**: 
+- List all tools you plan to use
+- Verify each tool exists in the provided tool_catalog
+- If any required tool is missing, explain in reasoning field
+- Suggest alternative approaches using available tools
 
 When refining workflows, preserve the existing node structure and only add/modify as needed.
 NEVER reference nodes that don't exist in the nodes array.
 
-Remember:
-- Start simple - users can refine
-- Each node needs a unique, descriptive ID
-- Verify all tool names exist in the catalog
-- Ensure data flows logically through the DAG
-- NO authentication/security config - system handles that
+🎯 **FINAL CHECKLIST**:
+- ✅ Every tool_name exists in tool_catalog
+- ✅ All node IDs are unique
+- ✅ All edges reference existing nodes
+- ✅ Reasoning field explains tool choices and limitations
+- ✅ No authentication/security config (system handles that)
+
+⚠️  **TOOL HALLUCINATION = WORKFLOW FAILURE**
+If you use a tool that doesn't exist in the catalog, the entire workflow will fail during execution.
 """
 
 
@@ -267,9 +299,18 @@ class WorkflowPlanner:
         formatted_query = f"""
 User Query: {query}
 
-Context: {full_context}
+🔧 AVAILABLE TOOLS IN CATALOG:
+{self._format_tool_catalog(tool_catalog or {})}
 
-Generate a WorkflowSpec that fulfills the user's requirements using the available tools.
+🚨 CRITICAL REQUIREMENTS:
+- You MUST ONLY use tools from the above catalog
+- Use the EXACT tool names as listed
+- If required tools are missing, explain in the reasoning field
+- DO NOT hallucinate or invent tool names
+
+Additional Context: {context or {}}
+
+Generate a WorkflowSpec that fulfills the user's requirements using ONLY the available tools above.
 """
         
         # Run the agent to generate the workflow with limited message history
@@ -284,8 +325,36 @@ Generate a WorkflowSpec that fulfills the user's requirements using the availabl
         workflow_spec = result.get("result")
         if not isinstance(workflow_spec, WorkflowSpec):
             raise ValueError(f"Expected WorkflowSpec, got {type(workflow_spec)}")
+        
+        # 🚨 CRITICAL VALIDATION: Check for tool hallucination
+        tool_issues = workflow_spec.validate_tools(tool_catalog or {})
+        if tool_issues:
+            error_msg = f"🚨 TOOL HALLUCINATION DETECTED:\n" + "\n".join(tool_issues)
+            error_msg += f"\n\nWorkflow reasoning: {workflow_spec.reasoning}"
+            raise ValueError(error_msg)
             
         return workflow_spec
+    
+    def _format_tool_catalog(self, tool_catalog: dict) -> str:
+        """Format the tool catalog for clear display to the LLM."""
+        if not tool_catalog:
+            return "❌ NO TOOLS AVAILABLE - Cannot create workflow without tools"
+        
+        formatted_tools = []
+        for tool_name, tool_info in tool_catalog.items():
+            formatted_tools.append(f"""
+📦 {tool_name}
+   Description: {tool_info.get('description', 'No description')}
+   Parameters: {tool_info.get('parameters', {})}
+   Usage: {{"tool_name": "{tool_name}", "config": {{ ... }} }}
+""")
+        
+        return f"""
+Available Tools ({len(tool_catalog)} total):
+{''.join(formatted_tools)}
+
+🚨 REMINDER: Use ONLY these exact tool names. Any other tool will cause failure.
+"""
     
     async def refine_workflow(
         self,

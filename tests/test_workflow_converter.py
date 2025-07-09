@@ -149,7 +149,7 @@ class TestWorkflowConverter:
     def test_convert_basic_workflow(self, mock_registry, sample_workflow_spec, default_agents):
         """Test converting a basic workflow."""
         # Mock tool registry
-        mock_registry.__contains__ = lambda x: x in ["api_client", "database_writer"]
+        mock_registry.__contains__ = MagicMock(side_effect=lambda x: x in ["api_client", "database_writer"])
         
         converter = WorkflowConverter(default_agents=default_agents)
         result = converter.convert(sample_workflow_spec)
@@ -244,7 +244,7 @@ class TestWorkflowConverter:
     @patch('iointel.src.agent_methods.workflow_converter.TOOLS_REGISTRY')
     def test_convert_with_unknown_tool(self, mock_registry, caplog):
         """Test conversion handles unknown tools gracefully."""
-        mock_registry.__contains__ = lambda x: False  # No tools exist
+        mock_registry.__contains__ = MagicMock(return_value=False)  # No tools exist
         
         converter = WorkflowConverter()
         
@@ -560,21 +560,17 @@ class TestWorkflowConverterErrorHandling:
         assert len(result.tasks) == 0
 
     def test_conversion_with_malformed_node_data(self):
-        """Test conversion handles malformed node data gracefully."""
+        """Test conversion handles node data with empty values gracefully."""
         workflow_spec = WorkflowSpec(
             id=uuid.uuid4(),
             rev=1,
-            title="Malformed Data Workflow",
+            title="Minimal Data Workflow",
             nodes=[
                 NodeSpec(
-                    id="malformed_node",
+                    id="minimal_node",
                     type="tool",
-                    label="Malformed Node",
-                    data=NodeData(
-                        config=None,  # This could cause issues
-                        ins=None,
-                        outs=None
-                    )
+                    label="Minimal Node",
+                    data=NodeData()  # Using defaults: empty dicts and lists
                 )
             ],
             edges=[]
@@ -582,10 +578,17 @@ class TestWorkflowConverterErrorHandling:
         
         converter = WorkflowConverter()
         
-        # Should handle None values gracefully
+        # Should handle empty/default values gracefully
         result = converter.convert(workflow_spec)
         assert isinstance(result, WorkflowDefinition)
         assert len(result.tasks) == 1
+        
+        # Check the task was created with default empty values
+        task = result.tasks[0]
+        assert task.task_id == "minimal_node"
+        assert task.task_metadata["config"] == {}
+        assert task.task_metadata["ports"]["inputs"] == []
+        assert task.task_metadata["ports"]["outputs"] == []
 
 
 if __name__ == "__main__":

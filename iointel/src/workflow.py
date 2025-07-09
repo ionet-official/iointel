@@ -34,6 +34,7 @@ from .utilities.stages import (
 from .utilities.rich import pretty_output
 
 from .utilities.graph_nodes import WorkflowState, TaskNode, make_task_node
+from .utilities.dag_executor import DAGExecutor, create_dag_executor_from_spec
 from pydantic_graph import Graph, End, GraphRunContext
 
 from rich.progress import (
@@ -381,6 +382,15 @@ class Workflow:
             state_type=WorkflowState,
             run_end_type=WorkflowState,
         )
+    
+    def _has_dag_structure(self) -> bool:
+        """Check if this workflow has DAG structure (WorkflowSpec converted) vs simple task list."""
+        # If tasks have 'edges' metadata or complex dependencies, use DAG execution
+        for task in self.tasks:
+            task_metadata = task.get("task_metadata", {})
+            if "edges" in task_metadata or "dag_structure" in task_metadata:
+                return True
+        return False
 
     async def run_tasks(self, conversation_id: Optional[str] = None, **kwargs) -> dict:
         if not conversation_id:
@@ -390,11 +400,54 @@ class Workflow:
             conversation_id=conversation_id, initial_text=self.objective, results={}
         )
 
-        self.graph = self.build_workflow_graph(conversation_id)
-
-        final_state = await self.execute_graph(self.graph, initial_state)
+        # Check if we should use DAG execution or fall back to sequential
+        if self._has_dag_structure():
+            print("🔄 Using DAG execution for workflow with edge topology")
+            logger.info("Using DAG execution for workflow with edge topology")
+            final_state = await self._run_tasks_dag(initial_state, conversation_id)
+        else:
+            print("🔄 Using sequential execution for simple task list")
+            logger.info("Using sequential execution for simple task list")
+            self.graph = self.build_workflow_graph(conversation_id)
+            final_state = await self.execute_graph(self.graph, initial_state)
 
         return dict(conversation_id=conversation_id, results=final_state.results)
+    
+    async def _run_tasks_dag(self, initial_state: WorkflowState, conversation_id: str) -> WorkflowState:
+        """Run tasks using DAG executor for proper topology and parallel execution."""
+        # Extract DAG structure from task metadata
+        dag_structure = None
+        for task in self.tasks:
+            task_metadata = task.get("task_metadata", {})
+            if "dag_structure" in task_metadata:
+                dag_structure = task_metadata["dag_structure"]
+                break
+        
+        if not dag_structure:
+            raise ValueError("DAG structure not found in task metadata")
+        
+        # Reconstruct WorkflowSpec from metadata
+        from .agent_methods.data_models.workflow_spec import WorkflowSpec, NodeSpec, EdgeSpec
+        
+        nodes = [NodeSpec.model_validate(node_data) for node_data in dag_structure["nodes"]]
+        edges = [EdgeSpec.model_validate(edge_data) for edge_data in dag_structure["edges"]]
+        
+        # Create DAG executor
+        executor = DAGExecutor()
+        executor.build_execution_graph(
+            nodes=nodes,
+            edges=edges,
+            objective=self.objective,
+            agents=self.agents,
+            conversation_id=conversation_id
+        )
+        
+        # Execute DAG
+        logger.info(f"Executing DAG with {len(nodes)} nodes and {len(edges)} edges")
+        summary = executor.get_execution_summary()
+        logger.info(f"DAG execution plan: {summary['total_batches']} batches, max parallelism: {summary['max_parallelism']}")
+        
+        return await executor.execute_dag(initial_state)
 
     async def run_tasks_streaming(
         self, conversation_id: Optional[str] = None, **kwargs

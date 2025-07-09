@@ -58,6 +58,7 @@ class WorkflowSpec(BaseModel):
     nodes: List[NodeSpec]
     edges: List[EdgeSpec]
     metadata: Dict = Field(default_factory=dict)  # tags, owner, created_at
+    reasoning: str = Field(default="", description="LLM's reasoning about workflow creation, including constraints and limitations")
     
     def to_workflow_definition(self, **kwargs):
         """Convert to executable WorkflowDefinition format."""
@@ -69,7 +70,7 @@ class WorkflowSpec(BaseModel):
         from ..workflow_converter import spec_to_yaml
         return spec_to_yaml(self, **kwargs)
     
-    def validate_structure(self) -> List[str]:
+    def validate_structure(self, tool_catalog: dict = None) -> List[str]:
         """Validate the workflow structure and return any issues."""
         issues = []
         
@@ -95,6 +96,29 @@ class WorkflowSpec(BaseModel):
         orphaned = set(node_ids) - connected_nodes
         if orphaned and len(self.nodes) > 1:
             issues.append(f"Orphaned nodes with no connections: {orphaned}")
+        
+        # 🚨 CRITICAL: Check tool existence against catalog
+        if tool_catalog:
+            available_tools = set(tool_catalog.keys())
+            for node in self.nodes:
+                if node.type == "tool" and node.data.tool_name:
+                    if node.data.tool_name not in available_tools:
+                        issues.append(f"🚨 TOOL HALLUCINATION: Node '{node.id}' uses non-existent tool '{node.data.tool_name}'. Available tools: {sorted(available_tools)}")
+                elif node.type == "decision" and node.data.tool_name:
+                    if node.data.tool_name not in available_tools:
+                        issues.append(f"🚨 TOOL HALLUCINATION: Decision node '{node.id}' uses non-existent tool '{node.data.tool_name}'. Available tools: {sorted(available_tools)}")
+        
+        return issues
+    
+    def validate_tools(self, tool_catalog: dict) -> List[str]:
+        """Specifically validate that all tools used exist in the catalog."""
+        issues = []
+        available_tools = set(tool_catalog.keys())
+        
+        for node in self.nodes:
+            if node.data.tool_name:
+                if node.data.tool_name not in available_tools:
+                    issues.append(f"Node '{node.id}' uses unavailable tool '{node.data.tool_name}'")
         
         return issues
 

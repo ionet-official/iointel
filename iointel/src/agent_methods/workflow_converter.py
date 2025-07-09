@@ -58,7 +58,7 @@ class WorkflowConverter:
         # Convert nodes to tasks
         tasks = self._convert_nodes_to_tasks(spec.nodes, spec.edges)
         
-        # Create workflow definition
+        # Create workflow definition with DAG metadata
         workflow_def = WorkflowDefinition(
             name=spec.title,
             objective=spec.description,
@@ -67,7 +67,30 @@ class WorkflowConverter:
             tasks=tasks
         )
         
-        logger.info(f"Successfully converted workflow with {len(tasks)} tasks")
+        # Store DAG structure metadata for execution engine
+        if tasks:
+            # Add DAG metadata to the first task so workflow can detect DAG structure
+            first_task = tasks[0]
+            if isinstance(first_task, dict):
+                # Handle dict-based task
+                if 'task_metadata' not in first_task:
+                    first_task['task_metadata'] = {}
+                first_task['task_metadata']['dag_structure'] = {
+                    'nodes': [node.model_dump() for node in spec.nodes],
+                    'edges': [edge.model_dump() for edge in spec.edges],
+                    'original_spec_id': str(spec.id)
+                }
+            else:
+                # Handle TaskDefinition object
+                if first_task.task_metadata is None:
+                    first_task.task_metadata = {}
+                first_task.task_metadata['dag_structure'] = {
+                    'nodes': [node.model_dump() for node in spec.nodes],
+                    'edges': [edge.model_dump() for edge in spec.edges],
+                    'original_spec_id': str(spec.id)
+                }
+        
+        logger.info(f"Successfully converted workflow with {len(tasks)} tasks and {len(spec.edges)} edges")
         return workflow_def
     
     def _convert_nodes_to_tasks(
