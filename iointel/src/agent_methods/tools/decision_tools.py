@@ -5,7 +5,7 @@ These tools provide explicit, testable alternatives to string conditions in edge
 
 import json
 import re
-from typing import Any, Dict, List, Union, Optional
+from typing import Any, Dict, Union, Optional
 from pydantic import BaseModel, Field
 
 from ...utilities.decorators import register_tool

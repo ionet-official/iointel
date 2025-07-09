@@ -2,9 +2,6 @@
 FastAPI server for serving WorkflowSpecs to the web interface.
 """
 
-import asyncio
-import json
-import os
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
@@ -15,7 +12,6 @@ import uvicorn
 from pathlib import Path
 
 import sys
-from pathlib import Path
 
 # Add project root to path for imports
 project_root = Path(__file__).parent.parent.parent.parent
@@ -72,7 +68,7 @@ async def broadcast_workflow_update(workflow: WorkflowSpec):
         for connection in connections:
             try:
                 await connection.send_json(message)
-                print(f"📡 Sent workflow update to connection")
+                print("📡 Sent workflow update to connection")
             except Exception as e:
                 print(f"❌ Failed to send to connection: {e}")
                 disconnected.append(connection)
@@ -80,7 +76,7 @@ async def broadcast_workflow_update(workflow: WorkflowSpec):
         # Remove disconnected clients
         for conn in disconnected:
             connections.remove(conn)
-            print(f"🗑️ Removed disconnected client")
+            print("🗑️ Removed disconnected client")
 
 
 def create_tool_catalog() -> Dict[str, Any]:
@@ -99,7 +95,7 @@ def create_tool_catalog() -> Dict[str, Any]:
 
 
 @app.on_event("startup")
-async def startup_event():
+async def startup_event(conversation_id: str = "web_interface_session_01"):
     """Initialize the application on startup."""
     global planner, tool_catalog
     
@@ -130,7 +126,7 @@ async def startup_event():
     try:
         planner = WorkflowPlanner(
             memory=memory,
-            conversation_id="web_interface_session",
+            conversation_id=conversation_id,
             debug=False
         )
         print("✅ WorkflowPlanner initialized")

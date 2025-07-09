@@ -1,7 +1,6 @@
 from typing import Literal, Optional, List, Dict
 from uuid import UUID
 from pydantic import BaseModel, Field
-from datetime import datetime
 
 
 class NodeData(BaseModel):

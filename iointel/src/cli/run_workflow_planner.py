@@ -7,7 +7,6 @@ using the WorkflowPlanner agent, with a simple ASCII visualization.
 
 import asyncio
 import json
-import os
 from datetime import datetime
 from typing import Dict, Any, List
 from rich.console import Console
@@ -15,13 +14,11 @@ from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
 from rich.layout import Layout
-from rich.columns import Columns
-from rich.box import ROUNDED
 from dotenv import load_dotenv
 
-from iointel import Agent, AsyncMemory
+from iointel import AsyncMemory
 from iointel.src.agent_methods.agents.workflow_planner import WorkflowPlanner
-from iointel.src.agent_methods.data_models.workflow_spec import WorkflowSpec, NodeSpec, EdgeSpec
+from iointel.src.agent_methods.data_models.workflow_spec import WorkflowSpec
 from iointel.src.agent_methods.tools.tool_loader import load_tools_from_env
 from iointel.src.utilities.registries import TOOLS_REGISTRY
 

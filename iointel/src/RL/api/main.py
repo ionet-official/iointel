@@ -5,15 +5,10 @@ from contextlib import asynccontextmanager
 from datetime import datetime
 import uvicorn
 from dotenv import load_dotenv
-
-# Load environment variables from creds.env
-load_dotenv("creds.env")
-
 from fastapi import FastAPI, HTTPException, BackgroundTasks, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import uuid
-
 from .models import (
     EvaluationRequest,
     EvaluationResponse,
@@ -23,6 +18,9 @@ from .models import (
 from .service import EvaluationService
 from .config import settings
 from .middleware import RateLimitMiddleware, APIKeyMiddleware, TaskCleanupMiddleware
+
+# Load environment variables from creds.env
+load_dotenv("creds.env")
 
 # Configure logging
 logging.basicConfig(

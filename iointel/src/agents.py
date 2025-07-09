@@ -1,6 +1,5 @@
 import dataclasses
 import json
-import uuid
 
 from .memory import AsyncMemory
 from .agent_methods.data_models.datamodels import PersonaConfig, Tool, ToolUsageResult

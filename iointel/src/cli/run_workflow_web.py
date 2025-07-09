@@ -6,8 +6,6 @@ This script starts a FastAPI server that serves the React Flow web interface
 for creating and visualizing workflows.
 """
 
-import asyncio
-import os
 import sys
 import webbrowser
 from pathlib import Path

@@ -134,7 +134,7 @@ class TestWorkflowConverter:
         assert converter.default_agents == default_agents
         assert converter.default_timeout == 120
         assert converter.default_retries == 5
-        assert converter.default_client_mode == False
+        assert not converter.default_client_mode
 
     def test_converter_default_initialization(self):
         """Test WorkflowConverter with default parameters."""
@@ -143,7 +143,7 @@ class TestWorkflowConverter:
         assert converter.default_agents == []
         assert converter.default_timeout == 60
         assert converter.default_retries == 3
-        assert converter.default_client_mode == True
+        assert converter.default_client_mode
 
     @patch('iointel.src.agent_methods.workflow_converter.TOOLS_REGISTRY')
     def test_convert_basic_workflow(self, mock_registry, sample_workflow_spec, default_agents):

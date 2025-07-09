@@ -7,7 +7,6 @@ import pytest
 import json
 import uuid
 import os
-import asyncio
 from pathlib import Path
 from dotenv import load_dotenv
 
@@ -19,7 +18,6 @@ from iointel.src.agent_methods.data_models.workflow_spec import (
     EdgeSpec, 
     EdgeData
 )
-from iointel.src.memory import AsyncMemory
 
 # Load environment variables
 env_path = Path(__file__).parent.parent / "creds.env"
@@ -157,7 +155,7 @@ class TestWorkflowPlanner:
             tool_catalog=tool_catalog
         )
         
-        print(f"\n=== GENERATED WORKFLOW ===")
+        print("\n=== GENERATED WORKFLOW ===")
         print(f"Title: {result.title}")
         print(f"Description: {result.description}")
         print(f"ID: {result.id}")
@@ -327,7 +325,7 @@ class TestWorkflowPlannerIntegration:
         
         # Test generation
         query = "Create a data processing pipeline that fetches data, validates it, processes it, and sends results via email"
-        print(f"\n=== END-TO-END WORKFLOW TEST ===")
+        print("\n=== END-TO-END WORKFLOW TEST ===")
         print(f"Query: {query}")
         print(f"\nExtended Tool Catalog includes: {list(extended_catalog.keys())}")
         
@@ -336,7 +334,7 @@ class TestWorkflowPlannerIntegration:
             tool_catalog=extended_catalog
         )
         
-        print(f"\n=== GENERATED PIPELINE ===")
+        print("\n=== GENERATED PIPELINE ===")
         print(f"Title: {result.title}")
         print(f"Description: {result.description}")
         
@@ -352,7 +350,7 @@ class TestWorkflowPlannerIntegration:
             print(f"   Inputs: {node.data.ins}")
             print(f"   Outputs: {node.data.outs}")
         
-        print(f"\nWorkflow Flow:")
+        print("\nWorkflow Flow:")
         for edge in result.edges:
             condition = f" [if {edge.data.condition}]" if edge.data and edge.data.condition else ""
             print(f"  {edge.source} -> {edge.target}{condition}")
@@ -369,7 +367,7 @@ class TestWorkflowPlannerIntegration:
         
         # Test conversion to YAML
         yaml_output = result.to_yaml()
-        print(f"\nYAML Output Preview (first 300 chars):")
+        print("\nYAML Output Preview (first 300 chars):")
         print(yaml_output[:300] + "..." if len(yaml_output) > 300 else yaml_output)
         assert result.title.lower() in yaml_output.lower()
         assert "tasks:" in yaml_output
@@ -437,7 +435,7 @@ class TestWorkflowPlannerIntegration:
         if not os.getenv("OPENAI_API_KEY"):
             pytest.skip("No OPENAI_API_KEY available")
             
-        print(f"\n=== Testing Agent-Generated Decision Tools Workflow ===")
+        print("\n=== Testing Agent-Generated Decision Tools Workflow ===")
         
         # Create tool catalog including decision tools
         decision_tool_catalog = {
@@ -508,7 +506,7 @@ class TestWorkflowPlannerIntegration:
         """
         
         print(f"\nQuery: {conditional_query}")
-        print(f"\nGenerating workflow with decision tools...")
+        print("\nGenerating workflow with decision tools...")
         
         # Generate workflow
         workflow = await planner.generate_workflow(
@@ -516,7 +514,7 @@ class TestWorkflowPlannerIntegration:
             tool_catalog=decision_tool_catalog
         )
         
-        print(f"\n=== GENERATED DECISION TOOLS WORKFLOW ===")
+        print("\n=== GENERATED DECISION TOOLS WORKFLOW ===")
         print(f"Title: {workflow.title}")
         print(f"Description: {workflow.description}")
         
@@ -537,7 +535,7 @@ class TestWorkflowPlannerIntegration:
             if (node.type == "decision" or 
                 (node.data.tool_name and node.data.tool_name in ["json_evaluator", "number_compare", "string_contains", "conditional_router"])):
                 decision_nodes.append(node)
-                print(f"   ✓ DECISION NODE DETECTED")
+                print("   ✓ DECISION NODE DETECTED")
         
         print(f"\nEdges ({len(workflow.edges)}):")
         for edge in workflow.edges:
@@ -545,7 +543,7 @@ class TestWorkflowPlannerIntegration:
             print(f"  {edge.source} -> {edge.target} ({edge.sourceHandle} -> {edge.targetHandle}){condition_str}")
         
         # Comprehensive validation
-        print(f"\n=== DECISION TOOLS VALIDATION ===")
+        print("\n=== DECISION TOOLS VALIDATION ===")
         
         # 1. Check for decision node usage
         assert len(decision_nodes) > 0, f"Workflow should include decision nodes, found: {len(decision_nodes)}"
@@ -560,18 +558,18 @@ class TestWorkflowPlannerIntegration:
         # 3. Validate workflow structure
         issues = workflow.validate_structure()
         assert len(issues) == 0, f"Generated workflow has structural issues: {issues}"
-        print(f"✓ Workflow structure is valid")
+        print("✓ Workflow structure is valid")
         
         # 4. Check that the workflow includes weather API
         weather_nodes = [node for node in workflow.nodes if node.data.tool_name == "weather_api"]
         assert len(weather_nodes) > 0, "Workflow should include weather API call"
-        print(f"✓ Includes weather API")
+        print("✓ Includes weather API")
         
         # 5. Check for alert/notification routing
         node_tools = [node.data.tool_name for node in workflow.nodes if node.data.tool_name]
         has_alert_tools = any(tool in ["send_alert", "send_notification"] for tool in node_tools)
         assert has_alert_tools, "Workflow should include alert or notification tools"
-        print(f"✓ Includes alert/notification routing")
+        print("✓ Includes alert/notification routing")
         
         # 6. Check that decision logic is properly connected
         decision_node_ids = [node.id for node in decision_nodes]
@@ -583,10 +581,174 @@ class TestWorkflowPlannerIntegration:
         assert len(connected_decisions) > 0, "Decision nodes should be connected to workflow"
         print(f"✓ Decision nodes are connected ({len(connected_decisions)} connections)")
         
-        print(f"\n✅ AGENT SUCCESSFULLY GENERATED CONDITIONAL WORKFLOW USING DECISION TOOLS")
+        print("\n✅ AGENT SUCCESSFULLY GENERATED CONDITIONAL WORKFLOW USING DECISION TOOLS")
         print(f"   - {len(workflow.nodes)} nodes including {len(decision_nodes)} decision nodes")
         print(f"   - {len(workflow.edges)} edges with {len(connected_decisions)} decision connections")
         print(f"   - Decision tools used: {', '.join(used_decision_tools)}")
+        
+        return workflow
+
+    @pytest.mark.asyncio
+    async def test_capri_travel_decision_workflow(self):
+        """Test the specific Capri travel example to verify proper conditional logic."""
+        if not os.getenv("OPENAI_API_KEY"):
+            pytest.skip("No OPENAI_API_KEY available")
+            
+        print(f"\n=== Testing Capri Travel Decision Workflow ===")
+        
+        # Create tool catalog with travel-specific tools
+        travel_tool_catalog = {
+            "weather_api": {
+                "name": "weather_api",
+                "description": "Get weather information for a location",
+                "parameters": {"location": "string", "units": "string"},
+                "returns": ["weather_data", "temperature", "status"]
+            },
+            "number_compare": {
+                "name": "number_compare", 
+                "description": "Compare numbers using operators (>, <, ==, etc.)",
+                "parameters": {"value": "number", "operator": "string", "threshold": "number"},
+                "returns": ["result", "details", "confidence"]
+            },
+            "boolean_mux": {
+                "name": "boolean_mux",
+                "description": "Route based on boolean condition",
+                "parameters": {"condition": "boolean", "true_value": "any", "false_value": "any"},
+                "returns": ["routed_to", "route_data", "matched_condition"]
+            },
+            "send_email": {
+                "name": "send_email",
+                "description": "Send an email message",
+                "parameters": {"to": "string", "subject": "string", "body": "string"},
+                "returns": ["sent", "delivery_id"]
+            },
+            "book_tickets": {
+                "name": "book_tickets",
+                "description": "Book travel tickets to destination",
+                "parameters": {"destination": "string", "passengers": "number", "date": "string"},
+                "returns": ["booking_id", "confirmation"]
+            }
+        }
+        
+        print(f"Travel tool catalog: {list(travel_tool_catalog.keys())}")
+        
+        # Create workflow planner
+        planner = WorkflowPlanner(
+            api_key=os.getenv("OPENAI_API_KEY"),
+            model="gpt-4o-mini",
+            debug=True
+        )
+        
+        # Request the exact Capri travel workflow
+        capri_query = """
+        Check weather in Capri, and if it is less than 65 degrees, send alex@travel.com an email 
+        that we should go to Ibiza instead. If it is above 65 degrees, book tickets to Capri.
+        
+        Use decision tools (number_compare, boolean_mux) for the conditional logic.
+        Do NOT use string conditions in edges.
+        """
+        
+        print(f"\nCapri Query: {capri_query}")
+        print(f"\nGenerating Capri travel workflow...")
+        
+        # Generate workflow
+        workflow = await planner.generate_workflow(
+            query=capri_query,
+            tool_catalog=travel_tool_catalog
+        )
+        
+        print(f"\n=== GENERATED CAPRI TRAVEL WORKFLOW ===")
+        print(f"Title: {workflow.title}")
+        print(f"Description: {workflow.description}")
+        
+        print(f"\nNodes ({len(workflow.nodes)}):")
+        weather_nodes = []
+        decision_nodes = []
+        email_nodes = []
+        booking_nodes = []
+        
+        for i, node in enumerate(workflow.nodes, 1):
+            print(f"\n{i}. {node.id} ({node.type}): {node.label}")
+            if node.data.tool_name:
+                print(f"   Tool: {node.data.tool_name}")
+            if node.data.config:
+                print(f"   Config: {node.data.config}")
+            print(f"   Inputs: {node.data.ins}")
+            print(f"   Outputs: {node.data.outs}")
+            
+            # Categorize nodes
+            if node.data.tool_name == "weather_api":
+                weather_nodes.append(node)
+                print(f"   ✓ WEATHER NODE")
+            elif node.type == "decision" or (node.data.tool_name and node.data.tool_name in ["number_compare", "boolean_mux"]):
+                decision_nodes.append(node)
+                print(f"   ✓ DECISION NODE")
+            elif node.data.tool_name == "send_email":
+                email_nodes.append(node)
+                print(f"   ✓ EMAIL NODE")
+            elif node.data.tool_name == "book_tickets":
+                booking_nodes.append(node)
+                print(f"   ✓ BOOKING NODE")
+        
+        print(f"\nEdges ({len(workflow.edges)}):")
+        conditional_edges = []
+        for edge in workflow.edges:
+            condition_str = f" [condition: {edge.data.condition}]" if edge.data and edge.data.condition else ""
+            print(f"  {edge.source} -> {edge.target} ({edge.sourceHandle} -> {edge.targetHandle}){condition_str}")
+            
+            if edge.data and edge.data.condition:
+                conditional_edges.append(edge)
+        
+        # Comprehensive validation for Capri travel scenario
+        print(f"\n=== CAPRI TRAVEL VALIDATION ===")
+        
+        # 1. Should have weather check
+        assert len(weather_nodes) > 0, "Workflow should check weather"
+        weather_node = weather_nodes[0]
+        assert "capri" in str(weather_node.data.config).lower(), "Should check Capri weather"
+        print(f"✓ Checks Capri weather: {weather_node.data.config}")
+        
+        # 2. Should have temperature decision logic
+        assert len(decision_nodes) > 0, "Workflow should have decision nodes"
+        temp_decision_nodes = [n for n in decision_nodes if n.data.tool_name == "number_compare"]
+        assert len(temp_decision_nodes) > 0, "Should have temperature comparison"
+        temp_node = temp_decision_nodes[0]
+        assert temp_node.data.config.get("threshold") == 65, "Should compare against 65 degrees"
+        print(f"✓ Temperature decision: {temp_node.data.config}")
+        
+        # 3. Should have routing logic
+        routing_nodes = [n for n in decision_nodes if n.data.tool_name == "boolean_mux"]
+        if len(routing_nodes) > 0:
+            print(f"✓ Has routing logic: {routing_nodes[0].data.config}")
+        
+        # 4. Should have email to alex@travel.com
+        assert len(email_nodes) > 0, "Workflow should send email"
+        email_node = email_nodes[0]
+        assert "alex@travel.com" in str(email_node.data.config), "Should email alex@travel.com"
+        assert "ibiza" in str(email_node.data.config).lower(), "Email should mention Ibiza"
+        print(f"✓ Email to Alex about Ibiza: {email_node.data.config.get('to')}")
+        
+        # 5. Should have Capri booking
+        assert len(booking_nodes) > 0, "Workflow should book tickets"
+        booking_node = booking_nodes[0]
+        assert "capri" in str(booking_node.data.config).lower(), "Should book Capri tickets"
+        print(f"✓ Books Capri tickets: {booking_node.data.config}")
+        
+        # 6. CRITICAL: Should NOT have string conditions in edges
+        assert len(conditional_edges) == 0, f"Should have NO conditional edges, found: {[e.data.condition for e in conditional_edges]}"
+        print(f"✓ NO string conditions in edges")
+        
+        # 7. Validate workflow structure
+        issues = workflow.validate_structure()
+        assert len(issues) == 0, f"Generated workflow has structural issues: {issues}"
+        print(f"✓ Workflow structure is valid")
+        
+        print(f"\n✅ CAPRI TRAVEL WORKFLOW SUCCESSFULLY GENERATED WITH PROPER DECISION LOGIC")
+        print(f"   - Weather check: {len(weather_nodes)} nodes")
+        print(f"   - Decision logic: {len(decision_nodes)} nodes") 
+        print(f"   - Email action: {len(email_nodes)} nodes")
+        print(f"   - Booking action: {len(booking_nodes)} nodes")
+        print(f"   - No conditional edges: {len(conditional_edges) == 0}")
         
         return workflow
 

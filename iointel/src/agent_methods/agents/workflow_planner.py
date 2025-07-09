@@ -1,6 +1,6 @@
 import os
 import uuid
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional
 from ...agents import Agent
 from ...memory import AsyncMemory
 from ..data_models.workflow_spec import WorkflowSpec
@@ -119,29 +119,48 @@ When creating a tool node:
 
 ⚡ Conditional Logic
 --------------------
-NEVER use string conditions in edges. Instead use explicit decision nodes:
+🚫 FORBIDDEN: String conditions in edges (e.g., `"condition": "temperature < 65"`)
+✅ REQUIRED: Use explicit decision nodes with proper tool configurations
 
-1. **For simple comparisons**: Use decision tools
-   - `json_evaluator`: Check JSON data conditions
-   - `number_compare`: Compare numbers (>, <, ==)
-   - `string_contains`: Check string patterns
-   
-2. **For complex logic**: Use agent nodes with decision instructions
-   - Return structured decisions with reasoning
-   - Output clear routing information
+**Pattern for conditional workflows:**
+1. **Decision Node**: Use decision tools to evaluate conditions
+2. **Router Node**: Use routing tools to direct flow based on decision results  
+3. **Action Nodes**: Execute different actions based on routing
 
-3. **For routing**: Use routing tools
-   - `conditional_router`: Route based on structured decisions
-   - `boolean_mux`: Simple true/false routing
-
-Example: Instead of edge condition `"'rain' in weather_data"`, create:
+**Example: Temperature-based routing**
 ```json
 {
-  "id": "check_rain", 
-  "type": "decision",
-  "data": {"tool_name": "json_evaluator", "config": {"expression": "data.weather.includes('rain')"}}
+  "nodes": [
+    {"id": "get_temp", "type": "tool", "data": {"tool_name": "weather_api", "outs": ["temperature"]}},
+    {"id": "check_temp", "type": "decision", "data": {
+      "tool_name": "number_compare",
+      "config": {"operator": "<", "threshold": 65},
+      "ins": ["temperature"], 
+      "outs": ["result", "details"]
+    }},
+    {"id": "route_action", "type": "decision", "data": {
+      "tool_name": "conditional_router", 
+      "config": {"routes": {"true": "cold_action", "false": "warm_action"}},
+      "ins": ["result"],
+      "outs": ["routed_to"]
+    }},
+    {"id": "cold_action", "type": "tool", "data": {"tool_name": "send_email"}},
+    {"id": "warm_action", "type": "tool", "data": {"tool_name": "book_tickets"}}
+  ],
+  "edges": [
+    {"source": "get_temp", "target": "check_temp", "sourceHandle": "temperature", "targetHandle": "temperature"},
+    {"source": "check_temp", "target": "route_action", "sourceHandle": "result", "targetHandle": "result"}, 
+    {"source": "route_action", "target": "cold_action", "sourceHandle": "routed_to", "targetHandle": null},
+    {"source": "route_action", "target": "warm_action", "sourceHandle": "routed_to", "targetHandle": null}
+  ]
 }
 ```
+
+🔑 Key Rules:
+- Decision nodes output structured data (true/false, route names)
+- Router nodes consume decision data and output routing information
+- Edges are NEVER conditional - they just carry data
+- Use `conditional_router` or `boolean_mux` for path selection
 
 🎯 Output Requirements
 ----------------------
@@ -150,6 +169,19 @@ Generate a WorkflowSpec with:
 - `description`: One sentence explaining the workflow purpose
 - `nodes`: Array of nodes accomplishing the goal
 - `edges`: Connections between nodes with optional conditions
+
+🔍 CRITICAL VALIDATION RULES
+----------------------------
+EVERY workflow MUST pass these checks:
+
+1. **Node ID Uniqueness**: Each node.id must be unique within the workflow
+2. **Edge Validity**: Every edge.source and edge.target MUST reference existing node IDs
+3. **Port Consistency**: sourceHandle and targetHandle should match node ins/outs
+4. **Tool Existence**: All tool_name values MUST exist in the provided tool catalog
+5. **No Orphaned Nodes**: Every node should be connected (except start/end nodes)
+
+When refining workflows, preserve the existing node structure and only add/modify as needed.
+NEVER reference nodes that don't exist in the nodes array.
 
 Remember:
 - Start simple - users can refine

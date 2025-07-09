@@ -6,7 +6,7 @@
     <title>WorkflowPlanner - Visual Interface</title>
     
     <!-- React Flow CSS -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reactflow@11/dist/style.css">
+    <link rel="stylesheet" href="https://unpkg.com/reactflow@11.10.4/dist/style.css">
     
     <!-- Custom CSS -->
     <style>
@@ -435,7 +435,7 @@
     <!-- React and React Flow -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <script src="https://unpkg.com/reactflow@11/dist/umd/index.js"></script>
+    <script src="https://unpkg.com/reactflow@11.10.4/dist/umd/index.js"></script>
 
     <script>
         // Global state
@@ -755,6 +755,10 @@
             document.getElementById('flowContainer').style.display = 'block';
         }
 
+        // React Flow state management
+        let currentNodes = [];
+        let currentEdges = [];
+        
         // React Flow rendering
         function renderWorkflow(workflow) {
             console.log('🎨 renderWorkflow called with:', workflow);
@@ -762,7 +766,7 @@
             
             // Convert workflow to React Flow format
             console.log('🔄 Converting nodes:', workflow.nodes);
-            const nodes = workflow.nodes.map((node, index) => {
+            currentNodes = workflow.nodes.map((node, index) => {
                 const reactFlowNode = {
                     id: node.id,
                     type: 'default',
@@ -770,6 +774,8 @@
                     data: {
                         label: `${getNodeIcon(node.type)} ${node.label}`,
                     },
+                    draggable: true,  // Explicitly enable dragging per node
+                    selectable: true, // Explicitly enable selection per node
                     style: {
                         background: getNodeColor(node.type),
                         color: 'white',
@@ -778,6 +784,7 @@
                         padding: '10px',
                         fontSize: '12px',
                         fontWeight: 'bold',
+                        cursor: 'grab', // Add grab cursor to indicate draggable
                     }
                 };
                 console.log(`   Node ${index}: ${node.id} -> ReactFlow node:`, reactFlowNode);
@@ -785,7 +792,7 @@
             });
 
             console.log('🔄 Converting edges:', workflow.edges);
-            const edges = workflow.edges.map((edge, index) => {
+            currentEdges = workflow.edges.map((edge, index) => {
                 const reactFlowEdge = {
                     id: edge.id,
                     source: edge.source,
@@ -801,7 +808,7 @@
                 return reactFlowEdge;
             });
 
-            console.log('📊 Final ReactFlow data:', { nodes, edges });
+            console.log('📊 Final ReactFlow data:', { currentNodes, currentEdges });
 
             // Check if ReactFlow is available
             if (typeof ReactFlow === 'undefined') {
@@ -813,26 +820,110 @@
             console.log('ReactFlow object:', ReactFlow);
 
             // Create React Flow component using React.createElement
-            // ReactFlow v11 uses default export
-            const FlowComponent = React.createElement(ReactFlow.default || ReactFlow, {
-                nodes: nodes,
-                edges: edges,
-                onNodesChange: () => {},
-                onEdgesChange: () => {},
-                onConnect: () => {},
-                fitView: true,
-                attributionPosition: 'bottom-left',
-                defaultViewport: { x: 0, y: 0, zoom: 1 },
-                onInit: (instance) => {
+            // Use the hooks from ReactFlow
+            const { ReactFlowProvider, applyNodeChanges, applyEdgeChanges } = ReactFlow;
+            const ReactFlowComponent = ReactFlow.default || ReactFlow.ReactFlow;
+            
+            console.log('Using ReactFlow component:', ReactFlowComponent);
+            console.log('ReactFlow hooks available:', { ReactFlowProvider, applyNodeChanges, applyEdgeChanges });
+            
+            if (!ReactFlowComponent) {
+                console.error('ReactFlow component not found!');
+                container.innerHTML = '<div style="padding: 2rem; text-align: center; color: #dc3545;">ReactFlow failed to load. Check console for details.</div>';
+                return;
+            }
+            
+            // Create a controlled component that manages nodes/edges state
+            const FlowApp = function() {
+                const [nodes, setNodes] = React.useState(currentNodes);
+                const [edges, setEdges] = React.useState(currentEdges);
+                
+                const onNodesChange = React.useCallback((changes) => {
+                    setNodes((nds) => {
+                        const updated = applyNodeChanges(changes, nds);
+                        console.log('Nodes updated:', changes);
+                        return updated;
+                    });
+                }, []);
+                
+                const onEdgesChange = React.useCallback((changes) => {
+                    setEdges((eds) => applyEdgeChanges(changes, eds));
+                }, []);
+                
+                const onConnect = React.useCallback((connection) => {
+                    console.log('New connection:', connection);
+                }, []);
+                
+                const onInit = React.useCallback((instance) => {
                     reactFlowInstance = instance;
-                    console.log('ReactFlow initialized');
-                }
-            });
+                    console.log('ReactFlow initialized with instance:', instance);
+                    console.log('fitView available:', typeof instance.fitView);
+                    // Fit view after initialization
+                    setTimeout(() => instance.fitView({ padding: 0.1 }), 100);
+                }, []);
+                
+                const onNodeDragStart = React.useCallback((event, node) => {
+                    console.log('Node drag started:', node.id);
+                }, []);
+                
+                const onNodeDrag = React.useCallback((event, node) => {
+                    console.log('Node dragging:', node.id, node.position);
+                }, []);
+                
+                const onNodeDragStop = React.useCallback((event, node) => {
+                    console.log('Node drag stopped:', node.id, node.position);
+                }, []);
+                
+                return React.createElement(ReactFlowComponent, {
+                    nodes: nodes,
+                    edges: edges,
+                    onNodesChange: onNodesChange,
+                    onEdgesChange: onEdgesChange,
+                    onConnect: onConnect,
+                    onInit: onInit,
+                    onNodeDragStart: onNodeDragStart,
+                    onNodeDrag: onNodeDrag,
+                    onNodeDragStop: onNodeDragStop,
+                    nodesDraggable: true,
+                    nodesConnectable: true,
+                    elementsSelectable: true,
+                    panOnDrag: [1, 2], // Left or middle mouse button
+                    selectionOnDrag: false,
+                    zoomOnScroll: true,
+                    zoomOnPinch: true,
+                    zoomOnDoubleClick: true,
+                    preventScrolling: true,
+                    fitView: false,
+                    attributionPosition: 'bottom-left',
+                    defaultViewport: { x: 0, y: 0, zoom: 1 }
+                });
+            };
 
+            // Wrap in ReactFlowProvider for proper functionality
+            console.log('Creating wrapped component with provider...');
+            
+            let AppComponent;
+            if (ReactFlowProvider) {
+                // Wrap the flow component in provider
+                AppComponent = React.createElement(ReactFlowProvider, {},
+                    React.createElement(FlowApp)
+                );
+                console.log('Created component with ReactFlowProvider');
+            } else {
+                // Use without provider if not available
+                AppComponent = React.createElement(FlowApp);
+                console.log('Created component without provider');
+            }
+            
             // Render to DOM
             try {
-                ReactDOM.render(FlowComponent, container);
-                console.log('Workflow rendered successfully');
+                const root = ReactDOM.createRoot ? ReactDOM.createRoot(container) : null;
+                if (root) {
+                    root.render(AppComponent);
+                } else {
+                    ReactDOM.render(AppComponent, container);
+                }
+                console.log('Workflow rendered successfully with controlled state management');
             } catch (error) {
                 console.error('Error rendering workflow:', error);
                 container.innerHTML = `<div style="padding: 2rem; text-align: center; color: #dc3545;">Error rendering workflow: ${error.message}</div>`;
@@ -843,7 +934,8 @@
             const icons = {
                 'tool': '🔧',
                 'agent': '🤖',
-                'workflow_call': '📞'
+                'workflow_call': '📞',
+                'decision': '🤔'
             };
             return icons[type] || '⚙️';
         }
@@ -852,7 +944,8 @@
             const colors = {
                 'tool': '#ff6b6b',
                 'agent': '#4ecdc4',
-                'workflow_call': '#45b7d1'
+                'workflow_call': '#45b7d1',
+                'decision': '#f39c12'
             };
             return colors[type] || '#95a5a6';
         }
@@ -860,7 +953,10 @@
         // Utility functions
         function fitView() {
             if (reactFlowInstance) {
-                reactFlowInstance.fitView({ padding: 0.2 });
+                console.log('Fitting view with instance:', reactFlowInstance);
+                reactFlowInstance.fitView({ padding: 0.2, duration: 800 });
+            } else {
+                console.log('ReactFlow instance not available yet');
             }
         }
 
@@ -898,9 +994,13 @@
             console.log('React:', typeof React);
             console.log('ReactDOM:', typeof ReactDOM);
             console.log('ReactFlow:', typeof ReactFlow);
+            console.log('window.ReactFlow:', typeof window.ReactFlow);
             if (typeof ReactFlow !== 'undefined') {
                 console.log('ReactFlow keys:', Object.keys(ReactFlow));
                 console.log('ReactFlow.default:', typeof ReactFlow.default);
+                console.log('ReactFlow.ReactFlow:', typeof ReactFlow.ReactFlow);
+                console.log('applyNodeChanges:', typeof ReactFlow.applyNodeChanges);
+                console.log('applyEdgeChanges:', typeof ReactFlow.applyEdgeChanges);
             }
             console.log('==================');
         }

@@ -3,7 +3,6 @@ Tests for decision tools used in workflow conditionals.
 """
 
 import pytest
-import json
 from iointel.src.agent_methods.tools.decision_tools import (
     json_evaluator,
     number_compare,
@@ -21,10 +20,10 @@ class TestJsonEvaluator:
 
     def test_simple_equality(self):
         """Test simple equality check."""
-        print(f"\n=== Testing JSON Evaluator Simple Equality ===")
+        print("\n=== Testing JSON Evaluator Simple Equality ===")
         data = {"weather": {"condition": "rain", "temperature": 20}}
         print(f"Input data: {data}")
-        print(f"Expression: data['weather']['condition'] == 'rain'")
+        print("Expression: data['weather']['condition'] == 'rain'")
         
         result = json_evaluator(data, "data['weather']['condition'] == 'rain'")
         print(f"Result: {result.result}")
@@ -292,7 +291,7 @@ class TestToolIntegration:
 
     def test_weather_decision_workflow(self):
         """Test a weather-based decision workflow."""
-        print(f"\n=== Testing Weather Decision Workflow ===")
+        print("\n=== Testing Weather Decision Workflow ===")
         
         # 1. Evaluate weather condition
         weather_data = {
@@ -305,19 +304,19 @@ class TestToolIntegration:
         print(f"Weather data: {weather_data}")
         
         # Check if it's raining
-        print(f"\nStep 1: Check if raining")
+        print("\nStep 1: Check if raining")
         rain_check = json_evaluator(weather_data, "data['weather']['condition'] == 'rain'")
         print(f"Rain check result: {rain_check.result} - {rain_check.details}")
         assert rain_check.result is True
         
         # Check temperature threshold
-        print(f"\nStep 2: Check temperature threshold")
+        print("\nStep 2: Check temperature threshold")
         temp_check = number_compare(weather_data["weather"]["temperature"], "<", 20)
         print(f"Temperature check result: {temp_check.result} - {temp_check.details}")
         assert temp_check.result is True
         
         # Route based on conditions
-        print(f"\nStep 3: Route based on conditions")
+        print("\nStep 3: Route based on conditions")
         decision = {"weather": "cold_rain"}
         routes = {
             "cold_rain": "send_warning",
@@ -371,7 +370,7 @@ class TestAgenticConditionalWorkflows:
         if not os.getenv("OPENAI_API_KEY"):
             pytest.skip("No OPENAI_API_KEY available")
         
-        print(f"\n=== Testing Agent-Generated Conditional Weather Workflow ===")
+        print("\n=== Testing Agent-Generated Conditional Weather Workflow ===")
         
         # Create tool catalog including decision tools
         decision_tool_catalog = {
@@ -436,7 +435,7 @@ class TestAgenticConditionalWorkflows:
         """
         
         print(f"\nComplex Query: {complex_query}")
-        print(f"\nGenerating workflow with decision tools...")
+        print("\nGenerating workflow with decision tools...")
         
         # Generate workflow
         workflow = await planner.generate_workflow(
@@ -444,7 +443,7 @@ class TestAgenticConditionalWorkflows:
             tool_catalog=decision_tool_catalog
         )
         
-        print(f"\n=== GENERATED CONDITIONAL WORKFLOW ===")
+        print("\n=== GENERATED CONDITIONAL WORKFLOW ===")
         print(f"Title: {workflow.title}")
         print(f"Description: {workflow.description}")
         
@@ -458,7 +457,7 @@ class TestAgenticConditionalWorkflows:
                 print(f"   Config: {node.data.config}")
             if node.type == "decision" or (node.data.tool_name and node.data.tool_name in ["json_evaluator", "number_compare", "conditional_router"]):
                 decision_nodes.append(node)
-                print(f"   ✓ DECISION NODE DETECTED")
+                print("   ✓ DECISION NODE DETECTED")
         
         print(f"\nEdges ({len(workflow.edges)}):")
         for edge in workflow.edges:
@@ -466,7 +465,7 @@ class TestAgenticConditionalWorkflows:
             print(f"  {edge.source} -> {edge.target}{condition_str}")
         
         # Validate the workflow uses decision tools properly
-        print(f"\n=== VALIDATION ===")
+        print("\n=== VALIDATION ===")
         assert len(decision_nodes) > 0, "Workflow should include decision nodes"
         print(f"✓ Found {len(decision_nodes)} decision nodes")
         
@@ -479,19 +478,19 @@ class TestAgenticConditionalWorkflows:
         # Validate structure
         issues = workflow.validate_structure()
         assert len(issues) == 0, f"Generated workflow has structural issues: {issues}"
-        print(f"✓ Workflow structure is valid")
+        print("✓ Workflow structure is valid")
         
         # Check that the workflow includes alert/notification routing
         node_tools = [node.data.tool_name for node in workflow.nodes if node.data.tool_name]
         has_alert_tools = any(tool in ["send_alert", "send_notification"] for tool in node_tools)
         assert has_alert_tools, "Workflow should include alert or notification tools"
-        print(f"✓ Includes alert/notification tools")
+        print("✓ Includes alert/notification tools")
         
-        print(f"\n✅ AGENT SUCCESSFULLY GENERATED CONDITIONAL WORKFLOW USING DECISION TOOLS")
+        print("\n✅ AGENT SUCCESSFULLY GENERATED CONDITIONAL WORKFLOW USING DECISION TOOLS")
         
     def test_decision_tools_integration_direct(self):
         """Test decision tools integration directly to verify they work together."""
-        print(f"\n=== Testing Decision Tools Integration Directly ===")
+        print("\n=== Testing Decision Tools Integration Directly ===")
         
         # Simulate weather data processing pipeline
         weather_response = {
@@ -511,7 +510,7 @@ class TestAgenticConditionalWorkflows:
         print(f"Weather data: {weather_response}")
         
         # Step 1: Check if temperature is freezing
-        print(f"\nStep 1: Check freezing temperature")
+        print("\nStep 1: Check freezing temperature")
         freezing_check = number_compare(
             weather_response["current"]["temperature"], 
             "<", 
@@ -520,7 +519,7 @@ class TestAgenticConditionalWorkflows:
         print(f"Freezing check: {freezing_check.result} - {freezing_check.details}")
         
         # Step 2: Check for severe weather conditions
-        print(f"\nStep 2: Check for severe weather")
+        print("\nStep 2: Check for severe weather")
         severe_check = string_contains(
             weather_response["current"]["condition"],
             "severe",
@@ -542,7 +541,7 @@ class TestAgenticConditionalWorkflows:
         print(f"\nStep 3: Emergency decision: {emergency_decision}")
         
         # Step 4: Route based on alert level
-        print(f"\nStep 4: Route notification")
+        print("\nStep 4: Route notification")
         routes = {
             "emergency": "send_emergency_alert",
             "normal": "send_normal_notification"
@@ -564,7 +563,7 @@ class TestAgenticConditionalWorkflows:
         assert emergency_decision["alert_level"] == "emergency", "Should escalate to emergency"
         assert routing_result.routed_to == "send_emergency_alert", "Should route to emergency alert"
         
-        print(f"\n✅ DECISION TOOLS INTEGRATION SUCCESSFUL")
+        print("\n✅ DECISION TOOLS INTEGRATION SUCCESSFUL")
 
 
 if __name__ == "__main__":

@@ -3,7 +3,6 @@ Quick test script for the WorkflowPlanner implementation.
 """
 
 import asyncio
-import json
 from iointel.src.agent_methods.agents.workflow_planner import WorkflowPlanner
 from iointel.src.agent_methods.data_models.workflow_spec import WorkflowSpec
 

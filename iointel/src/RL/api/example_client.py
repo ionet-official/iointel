@@ -169,7 +169,7 @@ def main():
         if final_status["status"] == "completed":
             # Get results
             results = client.get_results(task['task_id'])
-            print(f"\nEvaluation completed!")
+            print("\nEvaluation completed!")
             print(f"Total models: {results['total_models']}")
             print(f"Total tasks: {results['total_tasks']}")
             print(f"Success rate: {results['summary']['successful_evaluations']}/{results['summary']['total_evaluations']}")

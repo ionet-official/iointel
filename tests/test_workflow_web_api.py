@@ -3,18 +3,14 @@ Tests for WorkflowPlanner web API endpoints.
 """
 
 import pytest
-import json
 import uuid
 from unittest.mock import AsyncMock, MagicMock, patch
 from fastapi.testclient import TestClient
-from fastapi.websockets import WebSocketDisconnect
+import asyncio
 
 from iointel.src.web.workflow_server import app
 from iointel.src.agent_methods.data_models.workflow_spec import (
-    WorkflowSpec,
-    NodeSpec,
-    NodeData,
-    EdgeSpec
+    WorkflowSpec
 )
 
 
@@ -375,7 +371,6 @@ class TestWorkflowAPIPerformance:
     def test_concurrent_workflow_generation(self, mock_planner_global, client, sample_workflow_data):
         """Test handling of concurrent workflow generation requests."""
         import threading
-        import time
         
         workflow_spec = WorkflowSpec.model_validate(sample_workflow_data)
         

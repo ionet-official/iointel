@@ -3,11 +3,9 @@ Tests for WorkflowPlanner CLI functionality.
 """
 
 import pytest
-import asyncio
 import io
-import sys
 from unittest.mock import patch, MagicMock, AsyncMock
-from contextlib import redirect_stdout, redirect_stderr
+from contextlib import redirect_stdout
 
 from iointel.src.cli.run_workflow_planner import (
     render_workflow_ascii,
@@ -168,7 +166,6 @@ class TestWorkflowASCIIRendering:
 
     def test_render_workflow_panel_with_rich(self, sample_cli_workflow):
         """Test Rich panel rendering."""
-        from rich.console import Console
         
         panel = render_workflow_panel(sample_cli_workflow)
         

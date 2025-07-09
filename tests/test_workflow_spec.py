@@ -6,7 +6,6 @@ import pytest
 import json
 import uuid
 from uuid import UUID
-from typing import Dict, Any
 
 from iointel.src.agent_methods.data_models.workflow_spec import (
     WorkflowSpec,
