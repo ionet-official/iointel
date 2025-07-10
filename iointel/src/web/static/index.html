@@ -28,6 +28,7 @@
             height: 100vh;
             gap: 1rem;
             padding: 1rem;
+            position: relative;
         }
 
         .sidebar {
@@ -44,12 +45,48 @@
 
         .main-content {
             flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        
+        .flow-area {
+            flex: 1;
             background: rgba(255, 255, 255, 0.95);
             border-radius: 15px;
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
             backdrop-filter: blur(10px);
             overflow: hidden;
             position: relative;
+        }
+        
+        .bottom-bar {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+            padding: 1rem;
+            display: flex;
+            gap: 1rem;
+            min-height: 200px;
+            max-height: 300px;
+        }
+        
+        .bottom-section {
+            flex: 1;
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 1rem;
+            overflow-y: auto;
+        }
+        
+        .bottom-section h3 {
+            margin: 0 0 0.75rem 0;
+            font-size: 1.1rem;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
         }
 
         .header {
@@ -138,6 +175,104 @@
             transform: none !important;
         }
 
+        .example-select, .orchestration-select {
+            padding: 0.75rem 1rem;
+            border: 2px solid #e1e5e9;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            background: #f8f9fa;
+            color: #333;
+            cursor: pointer;
+            transition: all 0.3s;
+            width: 100%;
+        }
+
+        .example-select:hover, .orchestration-select:hover {
+            background: #e9ecef;
+        }
+
+        .example-select:focus, .orchestration-select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        /* New orchestration section styles */
+        .orchestration-section {
+            background: #f1f3f4;
+            padding: 1rem;
+            border-radius: 8px;
+            border: 1px solid #e1e5e9;
+        }
+
+        .search-container {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .search-input {
+            flex: 1;
+            padding: 0.6rem 0.8rem;
+            border: 2px solid #e1e5e9;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            background: white;
+            transition: border-color 0.3s;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .orchestration-dropdown {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .dropdown-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .dropdown-actions .button {
+            flex: 1;
+            font-size: 0.8rem;
+            padding: 0.5rem 0.7rem;
+        }
+
+        .button-success {
+            background: linear-gradient(135deg, #28a745, #20c997);
+            color: white;
+            border: none;
+        }
+
+        .button-success:hover {
+            background: linear-gradient(135deg, #218838, #1ba885);
+            transform: translateY(-1px);
+        }
+
+        .button-danger {
+            background: linear-gradient(135deg, #dc3545, #e74c3c);
+            color: white;
+            border: none;
+        }
+
+        .button-danger:hover {
+            background: linear-gradient(135deg, #c82333, #dc2626);
+            transform: translateY(-1px);
+        }
+
+        .button-danger:disabled {
+            background: #e9ecef;
+            color: #6c757d;
+            cursor: not-allowed;
+            transform: none;
+        }
+
         .workflow-info {
             background: #f8f9fa;
             padding: 1rem;
@@ -210,8 +345,8 @@
             background: white;
             border: 1px solid #e1e5e9;
             border-radius: 6px;
-            padding: 0.75rem;
-            margin-bottom: 0.5rem;
+            padding: 0.5rem;
+            margin-bottom: 0.3rem;
         }
 
         .node-item h5, .edge-item h5 {
@@ -283,6 +418,50 @@
         .status-loading {
             background: #fff3cd;
             color: #856404;
+        }
+        
+        .status-running {
+            background: #cce5ff;
+            color: #004085;
+        }
+        
+        .status-completed {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .status-failed {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .status-started {
+            background: #e2e3e5;
+            color: #383d41;
+        }
+        
+        .execution-task {
+            padding: 0.25rem 0.5rem;
+            margin: 0.25rem 0;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            background: #f8f9fa;
+            border-left: 3px solid #28a745;
+        }
+        
+        .execution-task.running {
+            border-left-color: #007bff;
+            background: #e3f2fd;
+        }
+        
+        .execution-task.completed {
+            border-left-color: #28a745;
+            background: #e8f5e8;
+        }
+        
+        .execution-task.failed {
+            border-left-color: #dc3545;
+            background: #ffeaea;
         }
 
         .flow-container {
@@ -368,45 +547,34 @@
                 </div>
 
                 <div class="input-group">
-                    <button id="exampleBtn" class="button button-secondary">
-                        📋 Example
-                    </button>
+                    <select id="exampleSelect" class="example-select" style="flex: 1; margin-right: 0.5rem;">
+                        <option value="">📋 Select Example...</option>
+                    </select>
                     <button id="clearBtn" class="button button-secondary" disabled>
                         🗑️ Clear
                     </button>
                 </div>
-            </div>
-
-            <div id="workflowInfo" class="workflow-info" style="display: none;">
-                <h3 id="workflowTitle">Workflow Title</h3>
-                <p id="workflowDescription">Description...</p>
-                <p><strong>Nodes:</strong> <span id="nodeCount">0</span></p>
-                <p><strong>Edges:</strong> <span id="edgeCount">0</span></p>
-                <p><strong>Rev:</strong> <span id="revNumber">1</span></p>
                 
-                <!-- Expandable Nodes Section -->
-                <div class="expandable-section">
-                    <div class="expandable-header" onclick="toggleSection('nodes')">
-                        <h4>📦 Nodes Detail</h4>
-                        <span class="toggle-icon">▼</span>
-                    </div>
-                    <div id="nodesContent" class="expandable-content">
-                        <div id="nodesList"></div>
-                    </div>
+                <div class="input-group">
+                    <button id="executeBtn" class="button button-primary" disabled>
+                        🚀 Execute
+                    </button>
+                    <button id="stopBtn" class="button button-secondary" disabled>
+                        ⏹️ Stop
+                    </button>
                 </div>
-                
-                <!-- Expandable Edges Section -->
-                <div class="expandable-section">
-                    <div class="expandable-header" onclick="toggleSection('edges')">
-                        <h4>🔗 Edges Detail</h4>
-                        <span class="toggle-icon">▼</span>
-                    </div>
-                    <div id="edgesContent" class="expandable-content">
-                        <div id="edgesList"></div>
-                    </div>
+
+                <div class="input-group">
+                    <button id="saveBtn" class="button button-success" disabled>
+                        💾 Save
+                    </button>
+                    <button id="exportBtn" class="button button-secondary" disabled>
+                        📤 Export YAML
+                    </button>
                 </div>
             </div>
 
+            
             <div id="toolsSection">
                 <h3>Available Tools</h3>
                 <div id="toolsList" style="max-height: 200px; overflow-y: auto; font-size: 0.8rem;">
@@ -417,18 +585,59 @@
 
         <!-- Main Flow Area -->
         <div class="main-content">
-            <div class="controls">
-                <button class="control-button" onclick="fitView()">📐 Fit View</button>
-                <button class="control-button" onclick="downloadWorkflow()">💾 Download</button>
+            <div class="flow-area">
+                <div class="controls">
+                    <button class="control-button" onclick="fitView()">📐 Fit View</button>
+                    <button class="control-button" onclick="downloadWorkflow()">💾 Download</button>
+                </div>
+                
+                <div id="emptyState" class="empty-state">
+                    <div class="icon">🌊</div>
+                    <h2>Welcome to WorkflowPlanner</h2>
+                    <p>Describe a workflow in the sidebar to get started,<br>or click "Example" to see a sample workflow.</p>
+                </div>
+                
+                <div id="flowContainer" class="flow-container" style="display: none;"></div>
             </div>
             
-            <div id="emptyState" class="empty-state">
-                <div class="icon">🌊</div>
-                <h2>Welcome to WorkflowPlanner</h2>
-                <p>Describe a workflow in the sidebar to get started,<br>or click "Example" to see a sample workflow.</p>
+            <!-- Bottom Bar -->
+            <div id="bottomBar" class="bottom-bar" style="display: none;">
+                <!-- Workflow Info Section -->
+                <div class="bottom-section" id="workflowInfoSection">
+                    <h3>📊 Workflow Details</h3>
+                    <div style="margin-bottom: 1rem;">
+                        <h4 id="workflowTitle" style="margin: 0; font-size: 1rem;">Workflow Title</h4>
+                        <p id="workflowDescription" style="margin: 0.25rem 0; color: #666; font-size: 0.85rem;">Description...</p>
+                        <div style="display: flex; gap: 1rem; font-size: 0.85rem; color: #333; margin-top: 0.5rem;">
+                            <span><strong>Nodes:</strong> <span id="nodeCount">0</span></span>
+                            <span><strong>Edges:</strong> <span id="edgeCount">0</span></span>
+                            <span><strong>Rev:</strong> <span id="revNumber">1</span></span>
+                        </div>
+                    </div>
+                    
+                    <!-- Nodes List -->
+                    <div style="margin-bottom: 0.75rem;">
+                        <h4 style="margin: 0 0 0.5rem 0; font-size: 0.9rem;">📦 Nodes</h4>
+                        <div id="nodesList" style="max-height: 120px; overflow-y: auto;"></div>
+                    </div>
+                    
+                    <!-- Edges List -->
+                    <div>
+                        <h4 style="margin: 0 0 0.5rem 0; font-size: 0.9rem;">🔗 Edges</h4>
+                        <div id="edgesList" style="max-height: 120px; overflow-y: auto;"></div>
+                    </div>
+                </div>
+                
+                <!-- Execution Status Section -->
+                <div class="bottom-section" id="executionStatusSection" style="display: none;">
+                    <h3>🚀 Execution Status</h3>
+                    <div id="executionInfo"></div>
+                    <div id="executionResults" style="display: none; margin-top: 1rem;">
+                        <h4 style="margin: 0 0 0.5rem 0; font-size: 0.9rem;">Results:</h4>
+                        <div id="resultsContent" style="max-height: 150px; overflow-y: auto; font-family: monospace; font-size: 0.8rem; background: white; padding: 0.5rem; border-radius: 4px; border: 1px solid #e1e5e9;"></div>
+                    </div>
+                </div>
             </div>
-            
-            <div id="flowContainer" class="flow-container" style="display: none;"></div>
         </div>
     </div>
 
@@ -442,32 +651,41 @@
         let currentWorkflow = null;
         let reactFlowInstance = null;
         let ws = null;
+        let currentExecution = null;
+        let executionTasks = {};
 
         // Initialize WebSocket connection
         function initWebSocket() {
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
             const wsUrl = `${protocol}//${window.location.host}/ws`;
+            console.log('🔌 Connecting to WebSocket:', wsUrl);
             
             ws = new WebSocket(wsUrl);
             
             ws.onopen = function() {
+                console.log('✅ WebSocket connected');
                 updateConnectionStatus('connected');
             };
             
             ws.onmessage = function(event) {
                 const data = JSON.parse(event.data);
+                console.log('📩 WebSocket message:', data.type, data);
                 if (data.type === 'workflow_update') {
                     handleWorkflowUpdate(data.workflow);
+                } else if (data.type === 'execution_update') {
+                    handleExecutionUpdate(data);
                 }
             };
             
             ws.onclose = function() {
+                console.log('❌ WebSocket closed');
                 updateConnectionStatus('disconnected');
                 // Reconnect after 3 seconds
                 setTimeout(initWebSocket, 3000);
             };
             
-            ws.onerror = function() {
+            ws.onerror = function(error) {
+                console.error('❌ WebSocket error:', error);
                 updateConnectionStatus('disconnected');
             };
         }
@@ -580,35 +798,64 @@
             }
         }
 
-        async function createExample() {
-            setLoading(true);
-            try {
-                const data = await apiCall('/example');
-                handleWorkflowUpdate(data.workflow);
-            } catch (error) {
-                alert('Failed to create example: ' + error.message);
-            } finally {
-                setLoading(false);
-            }
-        }
 
         async function clearWorkflow() {
             try {
                 await apiCall('/clear', { method: 'POST' });
                 handleWorkflowUpdate(null);
+                clearExecutionStatus();
             } catch (error) {
                 alert('Failed to clear workflow: ' + error.message);
+            }
+        }
+        
+        async function executeWorkflow() {
+            if (!currentWorkflow) return;
+            
+            setExecutionLoading(true);
+            try {
+                const data = await apiCall('/execute', {
+                    method: 'POST',
+                    body: JSON.stringify({ execute_current: true })
+                });
+                
+                if (data.success) {
+                    currentExecution = {
+                        id: data.execution_id,
+                        status: data.status,
+                        workflow_title: currentWorkflow.title
+                    };
+                    showExecutionStatus();
+                    updateExecutionInfo();
+                } else {
+                    alert('Failed to start execution: ' + data.error);
+                }
+            } catch (error) {
+                alert('Failed to execute workflow: ' + error.message);
+            } finally {
+                setExecutionLoading(false);
+            }
+        }
+        
+        async function stopExecution() {
+            if (!currentExecution) return;
+            
+            try {
+                await apiCall(`/executions/${currentExecution.id}`, { method: 'DELETE' });
+                clearExecutionStatus();
+            } catch (error) {
+                alert('Failed to stop execution: ' + error.message);
             }
         }
 
         function setLoading(loading) {
             const generateBtn = document.getElementById('generateBtn');
             const refineBtn = document.getElementById('refineBtn');
-            const exampleBtn = document.getElementById('exampleBtn');
+            const exampleSelect = document.getElementById('exampleSelect');
             
             generateBtn.disabled = loading;
             refineBtn.disabled = loading || !currentWorkflow;
-            exampleBtn.disabled = loading;
+            exampleSelect.disabled = loading;
             
             if (loading) {
                 generateBtn.innerHTML = '⏳ Generating...';
@@ -651,7 +898,7 @@
             document.getElementById('nodeCount').textContent = workflow.nodes.length;
             document.getElementById('edgeCount').textContent = workflow.edges.length;
             document.getElementById('revNumber').textContent = workflow.rev;
-            document.getElementById('workflowInfo').style.display = 'block';
+            document.getElementById('bottomBar').style.display = 'flex';
             
             // Update nodes detail
             updateNodesDetail(workflow.nodes);
@@ -688,13 +935,12 @@
                 }
                 
                 nodeDiv.innerHTML = `
-                    <h5>${getNodeIcon(node.type)} ${node.label}</h5>
-                    <div class="detail-row"><span>ID:</span><span>${node.id}</span></div>
-                    <div class="detail-row"><span>Type:</span><span>${node.type}</span></div>
-                    ${specificInfo}
-                    <div class="detail-row"><span>Inputs:</span><span>${inputPorts || 'None'}</span></div>
-                    <div class="detail-row"><span>Outputs:</span><span>${outputPorts || 'None'}</span></div>
-                    ${configHtml}
+                    <h5 style="margin: 0 0 0.25rem 0; font-size: 0.85rem;">${getNodeIcon(node.type)} ${node.label} <span style="color: #666; font-weight: normal;">(${node.id})</span></h5>
+                    <div style="font-size: 0.75rem; color: #666;">
+                        ${specificInfo}
+                        ${inputPorts ? `<div>Inputs: ${inputPorts}</div>` : ''}
+                        ${outputPorts ? `<div>Outputs: ${outputPorts}</div>` : ''}
+                    </div>
                 `;
                 
                 nodesList.appendChild(nodeDiv);
@@ -715,34 +961,179 @@
                 }
                 
                 edgeDiv.innerHTML = `
-                    <h5>🔗 Edge ${index + 1}</h5>
-                    <div class="detail-row"><span>ID:</span><span>${edge.id}</span></div>
-                    <div class="detail-row"><span>Source:</span><span>${edge.source}</span></div>
-                    <div class="detail-row"><span>Target:</span><span>${edge.target}</span></div>
-                    ${edge.sourceHandle ? `<div class="detail-row"><span>Source Port:</span><span>${edge.sourceHandle}</span></div>` : ''}
-                    ${edge.targetHandle ? `<div class="detail-row"><span>Target Port:</span><span>${edge.targetHandle}</span></div>` : ''}
-                    ${conditionHtml}
+                    <h5 style="margin: 0 0 0.25rem 0; font-size: 0.85rem;">🔗 ${edge.source} → ${edge.target}</h5>
+                    <div style="font-size: 0.75rem; color: #666;">
+                        ${edge.sourceHandle || edge.targetHandle ? `<div>Ports: ${edge.sourceHandle || 'default'} → ${edge.targetHandle || 'default'}</div>` : ''}
+                        ${conditionHtml}
+                    </div>
                 `;
                 
                 edgesList.appendChild(edgeDiv);
             });
         }
         
-        function toggleSection(section) {
-            const header = event.currentTarget;
-            const content = document.getElementById(section + 'Content');
-            
-            header.classList.toggle('expanded');
-            content.classList.toggle('expanded');
-        }
-
-        function hideWorkflowInfo() {
-            document.getElementById('workflowInfo').style.display = 'none';
-        }
 
         function updateButtons() {
-            document.getElementById('refineBtn').disabled = !currentWorkflow;
-            document.getElementById('clearBtn').disabled = !currentWorkflow;
+            const buttons = ['refineBtn', 'clearBtn', 'executeBtn', 'saveBtn', 'exportBtn'];
+            
+            buttons.forEach(buttonId => {
+                const button = document.getElementById(buttonId);
+                if (button) {
+                    button.disabled = !currentWorkflow;
+                } else {
+                    console.warn(`Button ${buttonId} not found`);
+                }
+            });
+        }
+        
+        function setExecutionLoading(loading) {
+            const executeBtn = document.getElementById('executeBtn');
+            const stopBtn = document.getElementById('stopBtn');
+            
+            executeBtn.disabled = loading || !currentWorkflow;
+            stopBtn.disabled = !currentExecution;
+            
+            if (loading) {
+                executeBtn.innerHTML = '⏳ Starting...';
+            } else {
+                executeBtn.innerHTML = '🚀 Execute';
+            }
+        }
+        
+        function handleExecutionUpdate(data) {
+            console.log('🔄 Execution update:', data);
+            
+            if (!currentExecution || currentExecution.id !== data.execution_id) {
+                console.log('Ignoring update for unknown execution');
+                return;
+            }
+            
+            currentExecution.status = data.status;
+            
+            if (data.results) {
+                currentExecution.results = data.results;
+                
+                // Handle task-level updates
+                if (data.results.current_task) {
+                    const taskName = data.results.current_task;
+                    const taskStatus = data.results.status;
+                    const taskResult = data.results.result;
+                    
+                    if (!executionTasks[taskName]) {
+                        executionTasks[taskName] = {};
+                    }
+                    
+                    executionTasks[taskName].status = taskStatus;
+                    if (taskResult !== undefined) {
+                        executionTasks[taskName].result = taskResult;
+                    }
+                    
+                    updateTaskDisplay(taskName, taskStatus, taskResult);
+                }
+            }
+            
+            if (data.error) {
+                currentExecution.error = data.error;
+            }
+            
+            updateExecutionInfo();
+            
+            // Show results if completed
+            if (data.status === 'completed' && data.results) {
+                showExecutionResults(data.results);
+            }
+            
+            // Handle completion or failure
+            if (data.status === 'completed' || data.status === 'failed') {
+                setExecutionLoading(false);
+                document.getElementById('stopBtn').disabled = true;
+            }
+        }
+        
+        function showExecutionStatus() {
+            document.getElementById('executionStatusSection').style.display = 'block';
+        }
+        
+        function clearExecutionStatus() {
+            currentExecution = null;
+            executionTasks = {};
+            document.getElementById('executionStatusSection').style.display = 'none';
+            document.getElementById('executionResults').style.display = 'none';
+            document.getElementById('stopBtn').disabled = true;
+        }
+        
+        function updateExecutionInfo() {
+            if (!currentExecution) return;
+            
+            const statusClass = `status-${currentExecution.status}`;
+            const statusText = currentExecution.status.charAt(0).toUpperCase() + currentExecution.status.slice(1);
+            
+            let infoHTML = `
+                <div class="detail-row">
+                    <span>Status:</span>
+                    <span class="status ${statusClass}">${statusText}</span>
+                </div>
+                <div class="detail-row">
+                    <span>Execution ID:</span>
+                    <span style="font-family: monospace; font-size: 0.8em;">${currentExecution.id}</span>
+                </div>
+                <div class="detail-row">
+                    <span>Workflow:</span>
+                    <span>${currentExecution.workflow_title}</span>
+                </div>
+            `;
+            
+            if (currentExecution.error) {
+                infoHTML += `
+                    <div class="detail-row" style="margin-top: 0.5rem;">
+                        <span style="color: #dc3545; font-weight: bold;">Error:</span>
+                    </div>
+                    <div style="background: #f8d7da; color: #721c24; padding: 0.5rem; border-radius: 4px; margin-top: 0.25rem; font-size: 0.8rem;">
+                        ${currentExecution.error}
+                    </div>
+                `;
+            }
+            
+            // Add task progress
+            if (Object.keys(executionTasks).length > 0) {
+                infoHTML += '<div style="margin-top: 1rem;"><h4 style="margin: 0 0 0.5rem 0; font-size: 0.9rem;">Task Progress:</h4>';
+                for (const [taskName, task] of Object.entries(executionTasks)) {
+                    const taskClass = task.status === 'completed' ? 'completed' : 
+                                     task.status === 'started' ? 'running' : 
+                                     task.status === 'failed' ? 'failed' : '';
+                    infoHTML += `
+                        <div class="execution-task ${taskClass}">
+                            <strong>${taskName}</strong>: ${task.status}
+                            ${task.result !== undefined ? `<br><small>→ ${JSON.stringify(task.result)}</small>` : ''}
+                        </div>
+                    `;
+                }
+                infoHTML += '</div>';
+            }
+            
+            document.getElementById('executionInfo').innerHTML = infoHTML;
+        }
+        
+        function updateTaskDisplay(taskName, status, result) {
+            // This is called for real-time task updates
+            console.log(`📋 Task Update: ${taskName} - ${status}`, result);
+            updateExecutionInfo(); // Refresh the entire display
+        }
+        
+        function showExecutionResults(results) {
+            const resultsDiv = document.getElementById('executionResults');
+            const resultsContent = document.getElementById('resultsContent');
+            
+            let resultsHTML = '';
+            
+            if (results.results) {
+                resultsHTML = JSON.stringify(results.results, null, 2);
+            } else {
+                resultsHTML = JSON.stringify(results, null, 2);
+            }
+            
+            resultsContent.textContent = resultsHTML;
+            resultsDiv.style.display = 'block';
         }
 
         function showEmptyState() {
@@ -972,11 +1363,191 @@
             link.click();
         }
 
+        // Example workflows functions
+        async function loadExamples() {
+            try {
+                const response = await fetch('/api/workflows/combined');
+                const data = await response.json();
+                
+                const selectElement = document.getElementById('exampleSelect');
+                
+                // Clear existing options except the first one
+                selectElement.innerHTML = '<option value="">📋 Select Example...</option>';
+                
+                // Add example options (both examples and saved)
+                Object.entries(data.examples).forEach(([key, example]) => {
+                    const option = document.createElement('option');
+                    option.value = key;
+                    option.textContent = `📋 ${example.title} (${example.node_count} nodes)`;
+                    option.title = example.description;
+                    option.dataset.source = 'example';
+                    selectElement.appendChild(option);
+                });
+                
+                // Add saved workflows
+                Object.entries(data.saved).forEach(([key, workflow]) => {
+                    const option = document.createElement('option');
+                    option.value = key;
+                    option.textContent = `💾 ${workflow.title} (${workflow.node_count} nodes)`;
+                    option.title = workflow.description;
+                    option.dataset.source = 'saved';
+                    selectElement.appendChild(option);
+                });
+                
+                console.log('✅ Loaded examples:', {
+                    examples: Object.keys(data.examples).length,
+                    saved: Object.keys(data.saved).length
+                });
+            } catch (error) {
+                console.error('❌ Error loading examples:', error);
+            }
+        }
+        
+        async function loadSelectedExample() {
+            const selectElement = document.getElementById('exampleSelect');
+            const selectedValue = selectElement.value;
+            
+            if (!selectedValue) {
+                return; // No selection made
+            }
+            
+            try {
+                setLoading(true);
+                console.log('📋 Loading workflow:', selectedValue);
+                
+                const isExample = selectElement.options[selectElement.selectedIndex].dataset.source === 'example';
+                
+                let response;
+                if (isExample) {
+                    response = await fetch(`/api/example/${selectedValue}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' }
+                    });
+                } else {
+                    response = await fetch(`/api/workflows/load/${selectedValue}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' }
+                    });
+                }
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                console.log('📦 Received workflow data:', data);
+                
+                if (data.workflow) {
+                    console.log('🔄 Updating workflow with data');
+                    
+                    // Use the same function that handles AI-generated workflows
+                    handleWorkflowUpdate(data.workflow);
+                    
+                    // Reset dropdown to placeholder
+                    selectElement.value = '';
+                    
+                    console.log('✅ Workflow loaded:', data.workflow.title);
+                } else {
+                    console.error('❌ No workflow in response:', data);
+                    alert('Failed to load workflow: No workflow data received');
+                }
+            } catch (error) {
+                console.error('❌ Error loading workflow:', error);
+                alert('Failed to load workflow: ' + error.message);
+            } finally {
+                setLoading(false);
+            }
+        }
+        
+        // Delete workflow functionality removed - can be added to a separate UI later
+        
+        async function saveCurrentWorkflow() {
+            if (!currentWorkflow) {
+                alert('No workflow to save');
+                return;
+            }
+            
+            const name = prompt('Enter a name for this workflow:', currentWorkflow.title || 'My Workflow');
+            if (!name) return;
+            
+            const description = prompt('Enter a description (optional):', currentWorkflow.description || '');
+            const tagsInput = prompt('Enter tags (comma-separated, optional):', '');
+            const tags = tagsInput ? tagsInput.split(',').map(t => t.trim()).filter(t => t) : [];
+            
+            try {
+                setLoading(true);
+                
+                const response = await fetch('/api/workflows/save', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, description, tags })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    console.log('✅ Workflow saved:', data.workflow_id);
+                    alert(`Workflow "${name}" saved successfully!`);
+                    await loadExamples(); // Refresh the list
+                } else {
+                    throw new Error(data.error || 'Save failed');
+                }
+            } catch (error) {
+                console.error('❌ Error saving workflow:', error);
+                alert('Failed to save workflow: ' + error.message);
+            } finally {
+                setLoading(false);
+            }
+        }
+        
+        async function exportCurrentWorkflowYAML() {
+            if (!currentWorkflow) {
+                alert('No workflow to export');
+                return;
+            }
+            
+            try {
+                // Generate YAML from current workflow
+                const response = await fetch('/api/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        query: 'export current workflow as yaml',
+                        refine: false 
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to generate YAML export');
+                }
+                
+                // For now, just download the workflow as JSON
+                // TODO: Add proper YAML export endpoint
+                const workflowName = currentWorkflow.title?.replace(/[^a-z0-9]/gi, '_') || 'workflow';
+                const dataStr = JSON.stringify(currentWorkflow, null, 2);
+                const dataBlob = new Blob([dataStr], {type: 'application/json'});
+                
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(dataBlob);
+                link.download = `${workflowName}.json`;
+                link.click();
+                
+                console.log('✅ Workflow exported');
+            } catch (error) {
+                console.error('❌ Error exporting workflow:', error);
+                alert('Failed to export workflow: ' + error.message);
+            }
+        }
+
         // Event listeners
         document.getElementById('generateBtn').addEventListener('click', generateWorkflow);
         document.getElementById('refineBtn').addEventListener('click', refineWorkflow);
-        document.getElementById('exampleBtn').addEventListener('click', createExample);
+        document.getElementById('exampleSelect').addEventListener('change', loadSelectedExample);
         document.getElementById('clearBtn').addEventListener('click', clearWorkflow);
+        document.getElementById('executeBtn').addEventListener('click', executeWorkflow);
+        document.getElementById('stopBtn').addEventListener('click', stopExecution);
+        document.getElementById('saveBtn').addEventListener('click', saveCurrentWorkflow);
+        document.getElementById('exportBtn').addEventListener('click', exportCurrentWorkflowYAML);
 
         document.getElementById('queryInput').addEventListener('keydown', function(e) {
             if (e.ctrlKey && e.key === 'Enter') {
@@ -1007,10 +1578,13 @@
 
         // Initialize
         document.addEventListener('DOMContentLoaded', function() {
+            console.log('🚀 DOM loaded, initializing...');
             debugLibraries();
             initWebSocket();
             loadTools();
+            loadExamples();
             updateButtons();
+            console.log('✅ Initialization complete');
         });
     </script>
 </body>

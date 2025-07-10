@@ -2,6 +2,8 @@
 FastAPI server for serving WorkflowSpecs to the web interface.
 """
 
+import os
+import sys
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
@@ -10,8 +12,6 @@ from fastapi.responses import HTMLResponse, FileResponse
 from pydantic import BaseModel
 import uvicorn
 from pathlib import Path
-
-import sys
 
 # Add project root to path for imports
 project_root = Path(__file__).parent.parent.parent.parent
@@ -22,6 +22,184 @@ from iointel.src.agent_methods.data_models.workflow_spec import WorkflowSpec
 from iointel.src.agent_methods.tools.tool_loader import load_tools_from_env
 from iointel.src.utilities.registries import TOOLS_REGISTRY
 from iointel.src.memory import AsyncMemory
+from iointel.src.workflow import Workflow
+from iointel.src.utilities.decorators import register_custom_task
+import uuid
+import asyncio
+import json
+
+# Import example tools to register them globally
+import iointel.src.RL.example_tools
+
+# Import workflow storage
+from .workflow_storage import WorkflowStorage
+
+
+# Register global tool executor for web interface
+@register_custom_task("tool")
+async def web_tool_executor(task_metadata, objective, agents, execution_metadata):
+    """Tool executor for web interface with real-time updates."""
+    tool_name = task_metadata.get("tool_name")
+    config = task_metadata.get("config", {})
+    execution_id = execution_metadata.get("execution_id")
+    
+    print(f"🔧 [WEB] Executing tool: {tool_name} (execution: {execution_id})")
+    print(f"    📋 Config: {config}")
+    print(f"    🔍 Config type check: {[(k, type(v), v) for k, v in config.items()]}")
+    
+    # Broadcast task start if we have connections available
+    if execution_id and len(connections) > 0:
+        try:
+            await broadcast_execution_update(
+                execution_id, 
+                "running", 
+                results={"current_task": tool_name, "status": "started"}
+            )
+        except Exception as e:
+            print(f"⚠️ Failed to broadcast task start: {e}")
+    
+    tool = TOOLS_REGISTRY.get(tool_name)
+    if not tool:
+        error_msg = f"Tool '{tool_name}' not found"
+        print(f"❌ {error_msg}")
+        if execution_id and len(connections) > 0:
+            try:
+                await broadcast_execution_update(execution_id, "failed", error=error_msg)
+            except Exception as e:
+                print(f"⚠️ Failed to broadcast error: {e}")
+        raise ValueError(error_msg)
+    
+    try:
+        result = await tool.run(config)
+        print(f"✅ Tool '{tool_name}' completed: {result}")
+        print(f"    📤 Result type: {type(result)}")
+        
+        # Broadcast task completion
+        if execution_id and len(connections) > 0:
+            try:
+                await broadcast_execution_update(
+                    execution_id,
+                    "running",
+                    results={"current_task": tool_name, "status": "completed", "result": result}
+                )
+            except Exception as e:
+                print(f"⚠️ Failed to broadcast completion: {e}")
+        
+        return result
+    except Exception as e:
+        error_msg = f"Tool '{tool_name}' failed: {str(e)}"
+        print(f"❌ {error_msg}")
+        if execution_id and len(connections) > 0:
+            try:
+                await broadcast_execution_update(execution_id, "failed", error=error_msg)
+            except Exception as e:
+                print(f"⚠️ Failed to broadcast tool error: {e}")
+        raise
+
+
+# Register global agent executor for web interface
+@register_custom_task("agent")
+async def execute_agent_task(task_metadata, objective, agents, execution_metadata):
+    """Agent executor that handles type='agent' tasks from WorkflowSpec."""
+    execution_id = execution_metadata.get("execution_id")
+    agent_instructions = task_metadata.get("agent_instructions", "")
+    
+    print(f"🤖 [WEB] Executing agent task (execution: {execution_id})")
+    print(f"    Instructions: {agent_instructions}")
+    
+    # Broadcast task start
+    if execution_id and len(connections) > 0:
+        try:
+            await broadcast_execution_update(
+                execution_id, 
+                "running", 
+                results={"current_task": "agent_task", "status": "started"}
+            )
+        except Exception as e:
+            print(f"⚠️ Failed to broadcast agent start: {e}")
+    
+    try:
+        # Import here to avoid circular imports
+        from ..utilities.runners import run_agents
+        from ..agents import Agent
+        from ..agent_methods.data_models.datamodels import AgentParams
+        
+        # Convert AgentParams to actual Agent instances if needed
+        if agents and isinstance(agents[0], AgentParams):
+            # Convert AgentParams to Agent instances
+            agents_to_use = [Agent(
+                name=ap.name or "Agent",
+                instructions=ap.instructions or "",
+                model=ap.model or "gpt-4o",  # Use OpenAI GPT-4o as default
+                api_key=ap.api_key,
+                base_url=ap.base_url
+            ) for ap in agents]
+        else:
+            # Use provided agents or create default with OpenAI
+            agents_to_use = agents or [Agent(
+                name="default-agent",
+                instructions="you are a generalist who is good at everything.",
+                model="gpt-4o",  # Explicitly use OpenAI GPT-4o
+                api_key=os.getenv("OPENAI_API_KEY"),
+                base_url="https://api.openai.com/v1"
+            )]
+        
+        # Use agent_instructions as the main objective, fall back to objective if needed
+        task_objective = agent_instructions or objective or "Process the available data"
+        
+        # Check if we have input data from previous nodes
+        available_data = task_metadata.get("available_results", {})
+        if available_data:
+            print(f"    Available context data: {list(available_data.keys())}")
+            # Include the available data in the objective/context
+            data_context = "\n\nContext from previous workflow steps:\n"
+            for key, value in available_data.items():
+                # Truncate very long values for readability
+                display_value = str(value)[:300] + "..." if len(str(value)) > 300 else str(value)
+                data_context += f"- {key}: {display_value}\n"
+            task_objective = task_objective + data_context
+        
+        print(f"    Objective: {task_objective}")
+        print(f"    Using {len(agents_to_use)} agents")
+        
+        # Execute agent using the standard runner
+        result = await run_agents(
+            objective=task_objective,
+            agents=agents_to_use,
+            conversation_id=execution_metadata.get("conversation_id", "web_agent_execution")
+        ).execute()
+        
+        # Extract the result content - handle different result formats
+        if isinstance(result, dict):
+            agent_result = result.get("result", result)
+        else:
+            agent_result = result
+            
+        print(f"✅ Agent task completed: {len(str(agent_result))} chars")
+        
+        # Broadcast completion
+        if execution_id and len(connections) > 0:
+            try:
+                await broadcast_execution_update(
+                    execution_id,
+                    "running",
+                    results={"current_task": "agent_task", "status": "completed", "result": agent_result}
+                )
+            except Exception as e:
+                print(f"⚠️ Failed to broadcast agent completion: {e}")
+        
+        return agent_result
+        
+    except Exception as e:
+        error_msg = f"Agent task failed: {str(e)}"
+        print(f"❌ {error_msg}")
+        if execution_id and len(connections) > 0:
+            try:
+                await broadcast_execution_update(execution_id, "failed", error=error_msg)
+            except Exception as e:
+                print(f"⚠️ Failed to broadcast agent error: {e}")
+        raise
+
 
 # Initialize FastAPI app
 app = FastAPI(title="WorkflowPlanner Web Interface", version="1.0.0")
@@ -31,6 +209,8 @@ planner: Optional[WorkflowPlanner] = None
 current_workflow: Optional[WorkflowSpec] = None
 workflow_history: List[WorkflowSpec] = []
 tool_catalog: Dict[str, Any] = {}
+active_executions: Dict[str, Dict[str, Any]] = {}  # execution_id -> execution_info
+workflow_storage: Optional[WorkflowStorage] = None
 
 # WebSocket connections for real-time updates
 connections: List[WebSocket] = []
@@ -45,6 +225,36 @@ class WorkflowResponse(BaseModel):
     success: bool
     workflow: Optional[Dict] = None
     error: Optional[str] = None
+
+
+class ExecutionRequest(BaseModel):
+    execute_current: bool = True
+    workflow_data: Optional[Dict] = None
+
+
+class ExecutionResponse(BaseModel):
+    success: bool
+    execution_id: Optional[str] = None
+    status: str = "started"  # started, running, completed, failed
+    results: Optional[Dict] = None
+    error: Optional[str] = None
+
+
+class SaveWorkflowRequest(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    tags: Optional[List[str]] = None
+
+
+class SaveWorkflowResponse(BaseModel):
+    success: bool
+    workflow_id: Optional[str] = None
+    error: Optional[str] = None
+
+
+class SearchWorkflowsRequest(BaseModel):
+    query: Optional[str] = None
+    tags: Optional[List[str]] = None
 
 
 async def broadcast_workflow_update(workflow: WorkflowSpec):
@@ -64,14 +274,43 @@ async def broadcast_workflow_update(workflow: WorkflowSpec):
             "timestamp": datetime.now().isoformat()
         }
         
+        await broadcast_message(message)
+
+
+async def broadcast_execution_update(execution_id: str, status: str, results: Optional[Dict] = None, error: Optional[str] = None):
+    """Broadcast execution status updates to all connected clients."""
+    # Only log significant status changes
+    if status in ['started', 'completed', 'failed']:
+        print(f"📢 Execution {execution_id[:8]}: {status}")
+    message = {
+        "type": "execution_update",
+        "execution_id": execution_id,
+        "status": status,
+        "results": results,
+        "error": error,
+        "timestamp": datetime.now().isoformat()
+    }
+    await broadcast_message(message)
+
+
+async def broadcast_message(message: Dict):
+    """Broadcast a message to all connected clients."""
+    if connections:
         disconnected = []
+        sent_count = 0
         for connection in connections:
             try:
                 await connection.send_json(message)
-                print("📡 Sent workflow update to connection")
+                sent_count += 1
             except Exception as e:
                 print(f"❌ Failed to send to connection: {e}")
                 disconnected.append(connection)
+        
+        # Only log meaningful updates
+        if message['type'] == 'execution_update' and message.get('status') in ['started', 'completed', 'failed']:
+            print(f"📡 Broadcast {message['type']} ({message['status']}) to {sent_count} clients")
+        elif message['type'] == 'workflow_update':
+            print(f"📡 Broadcast workflow update to {sent_count} clients")
         
         # Remove disconnected clients
         for conn in disconnected:
@@ -84,10 +323,31 @@ def create_tool_catalog() -> Dict[str, Any]:
     catalog = {}
     
     for tool_name, tool in TOOLS_REGISTRY.items():
+        # Extract parameter names from JSON schema
+        # tool.parameters is a JSON schema like:
+        # {"properties": {"city": {"type": "string"}}, "required": ["city"], "title": "...", "type": "object"}
+        # We need to extract the parameter names from the "properties" field
+        parameters = {}
+        if isinstance(tool.parameters, dict) and "properties" in tool.parameters:
+            properties = tool.parameters["properties"]
+            for param_name, param_info in properties.items():
+                # Extract type from JSON schema type
+                param_type = param_info.get("type", "any")
+                # Map JSON schema types to Python types
+                type_mapping = {
+                    "string": "str",
+                    "integer": "int", 
+                    "number": "float",
+                    "boolean": "bool",
+                    "array": "list",
+                    "object": "dict"
+                }
+                parameters[param_name] = type_mapping.get(param_type, param_type)
+        
         catalog[tool_name] = {
             "name": tool.name,
             "description": tool.description,
-            "parameters": tool.parameters,
+            "parameters": parameters,  # Now contains actual parameter names and types
             "is_async": tool.is_async
         }
     
@@ -97,7 +357,7 @@ def create_tool_catalog() -> Dict[str, Any]:
 @app.on_event("startup")
 async def startup_event(conversation_id: str = "web_interface_session_01"):
     """Initialize the application on startup."""
-    global planner, tool_catalog
+    global planner, tool_catalog, workflow_storage
     
     print("🚀 Starting WorkflowPlanner web server...")
     
@@ -132,6 +392,14 @@ async def startup_event(conversation_id: str = "web_interface_session_01"):
         print("✅ WorkflowPlanner initialized")
     except Exception as e:
         print(f"❌ WorkflowPlanner initialization failed: {e}")
+        raise
+    
+    # Initialize WorkflowStorage
+    try:
+        workflow_storage = WorkflowStorage()
+        print("✅ WorkflowStorage initialized")
+    except Exception as e:
+        print(f"❌ WorkflowStorage initialization failed: {e}")
         raise
     
     print("🎉 WorkflowPlanner web server initialized successfully!")
@@ -181,6 +449,21 @@ async def get_current_workflow():
             workflow_data['id'] = str(workflow_data['id'])
         return {"workflow": workflow_data}
     return {"workflow": None}
+
+
+@app.get("/api/executions")
+async def get_active_executions():
+    """Get all active executions."""
+    return {"executions": active_executions}
+
+
+@app.get("/api/executions/{execution_id}")
+async def get_execution_status(execution_id: str):
+    """Get status of a specific execution."""
+    if execution_id in active_executions:
+        return {"execution": active_executions[execution_id]}
+    else:
+        raise HTTPException(status_code=404, detail="Execution not found")
 
 
 @app.get("/api/tools")
@@ -294,19 +577,171 @@ async def clear_workflow():
     return {"success": True}
 
 
-@app.get("/api/example")
-async def create_example_workflow():
-    """Create an example workflow."""
+@app.post("/api/execute", response_model=ExecutionResponse)
+async def execute_workflow(request: ExecutionRequest):
+    """Execute the current workflow or provided workflow data."""
     global current_workflow
     
-    print("📋 Creating example workflow")
+    print(f"🚀 Execute workflow request: execute_current={request.execute_current}")
     
-    if not planner:
-        print("❌ WorkflowPlanner not initialized")
-        raise HTTPException(status_code=500, detail="WorkflowPlanner not initialized")
+    # Determine which workflow to execute
+    workflow_to_execute = None
+    if request.execute_current and current_workflow:
+        workflow_to_execute = current_workflow
+        print(f"📋 Executing current workflow: '{workflow_to_execute.title}'")
+    elif request.workflow_data:
+        # Reconstruct WorkflowSpec from provided data
+        try:
+            workflow_to_execute = WorkflowSpec.model_validate(request.workflow_data)
+            print(f"📋 Executing provided workflow: '{workflow_to_execute.title}'")
+        except Exception as e:
+            return ExecutionResponse(
+                success=False,
+                error=f"Invalid workflow data: {str(e)}"
+            )
     
-    current_workflow = planner.create_example_workflow("Web Example Workflow")
-    print(f"✅ Example workflow created: '{current_workflow.title}' with {len(current_workflow.nodes)} nodes, {len(current_workflow.edges)} edges")
+    if not workflow_to_execute:
+        return ExecutionResponse(
+            success=False,
+            error="No workflow to execute. Generate a workflow first or provide workflow data."
+        )
+    
+    # Create execution ID
+    execution_id = str(uuid.uuid4())
+    print(f"🏷️ Generated execution ID: {execution_id}")
+    
+    # Store execution info
+    active_executions[execution_id] = {
+        "id": execution_id,
+        "workflow_title": workflow_to_execute.title,
+        "workflow_id": str(workflow_to_execute.id),
+        "status": "started",
+        "start_time": datetime.now().isoformat(),
+        "results": None,
+        "error": None
+    }
+    
+    # Broadcast execution start
+    await broadcast_execution_update(execution_id, "started")
+    
+    # Start execution in background
+    asyncio.create_task(execute_workflow_background(workflow_to_execute, execution_id))
+    
+    return ExecutionResponse(
+        success=True,
+        execution_id=execution_id,
+        status="started"
+    )
+
+
+async def execute_workflow_background(workflow_spec: WorkflowSpec, execution_id: str):
+    """Execute workflow in background with real-time updates."""
+    try:
+        print(f"🛠️ Starting background execution: {execution_id}")
+        
+        # Update status
+        active_executions[execution_id]["status"] = "running"
+        await broadcast_execution_update(execution_id, "running")
+        
+        # Convert WorkflowSpec to executable Workflow
+        workflow_def = workflow_spec.to_workflow_definition()
+        yaml_content = workflow_spec.to_yaml()
+        
+        # Create workflow from YAML with custom conversation ID
+        workflow = Workflow.from_yaml(yaml_str=yaml_content)
+        workflow.objective = workflow_spec.description
+        
+        print(f"📋 Executing workflow with {len(workflow.tasks)} tasks")
+        
+        # Execute workflow with execution context
+        conversation_id = f"web_execution_{execution_id}"
+        
+        # Add execution_id to all task metadata for real-time updates
+        for task in workflow.tasks:
+            if "execution_metadata" not in task:
+                task["execution_metadata"] = {}
+            task["execution_metadata"]["execution_id"] = execution_id
+        
+        # Execute the workflow
+        results = await workflow.run_tasks(conversation_id=conversation_id)
+        
+        # Update execution info
+        active_executions[execution_id].update({
+            "status": "completed",
+            "end_time": datetime.now().isoformat(),
+            "results": results,
+            "error": None
+        })
+        
+        print(f"✅ Workflow execution completed: {execution_id}")
+        print(f"📈 Results: {len(results.get('results', {}))} task results")
+        
+        # Broadcast completion
+        await broadcast_execution_update(
+            execution_id, 
+            "completed", 
+            results=results
+        )
+        
+    except Exception as e:
+        error_msg = str(e)
+        print(f"❌ Workflow execution failed: {execution_id} - {error_msg}")
+        import traceback
+        print(f"🔍 Traceback: {traceback.format_exc()}")
+        
+        # Update execution info
+        active_executions[execution_id].update({
+            "status": "failed",
+            "end_time": datetime.now().isoformat(),
+            "error": error_msg
+        })
+        
+        # Broadcast failure
+        await broadcast_execution_update(execution_id, "failed", error=error_msg)
+
+
+def create_example_workflows():
+    """Create multiple example workflows for the dropdown."""
+    from ..test_workflows import create_workflow_examples
+    return create_workflow_examples()
+
+
+@app.get("/api/examples")
+async def get_example_workflows():
+    """Get list of available example workflows."""
+    examples = create_example_workflows()
+    
+    # Return metadata only (title, description) for dropdown
+    examples_metadata = {}
+    for key, workflow in examples.items():
+        examples_metadata[key] = {
+            "title": workflow.title,
+            "description": workflow.description,
+            "node_count": len(workflow.nodes),
+            "edge_count": len(workflow.edges)
+        }
+    
+    return {"examples": examples_metadata}
+
+
+@app.post("/api/example/{example_id}")
+async def load_example_workflow(example_id: str):
+    """Load a specific example workflow."""
+    global current_workflow
+    
+    print(f"📋 Loading example workflow: {example_id}")
+    
+    examples = create_example_workflows()
+    
+    if example_id not in examples:
+        available_examples = list(examples.keys())
+        raise HTTPException(
+            status_code=404, 
+            detail=f"Example '{example_id}' not found. Available: {available_examples}"
+        )
+    
+    current_workflow = examples[example_id]
+    print(f"✅ Example workflow loaded: '{current_workflow.title}' with {len(current_workflow.nodes)} nodes, {len(current_workflow.edges)} edges")
     
     # Broadcast update
     print(f"📡 Broadcasting example workflow to {len(connections)} connections")
@@ -319,6 +754,234 @@ async def create_example_workflow():
     print(f"📦 Returning example workflow data: {len(str(workflow_data))} characters")
     
     return {"workflow": workflow_data}
+
+
+@app.delete("/api/executions/{execution_id}")
+async def cancel_execution(execution_id: str):
+    """Cancel/remove an execution."""
+    if execution_id in active_executions:
+        # Note: This doesn't actually cancel running tasks, just removes from tracking
+        del active_executions[execution_id]
+        await broadcast_execution_update(execution_id, "cancelled")
+        return {"success": True, "message": "Execution removed"}
+    else:
+        raise HTTPException(status_code=404, detail="Execution not found")
+
+
+# === Workflow Storage Endpoints ===
+
+@app.post("/api/workflows/save", response_model=SaveWorkflowResponse)
+async def save_current_workflow(request: SaveWorkflowRequest):
+    """Save the current workflow to persistent storage."""
+    global current_workflow, workflow_storage
+    
+    if not current_workflow:
+        raise HTTPException(status_code=400, detail="No current workflow to save")
+    
+    if not workflow_storage:
+        raise HTTPException(status_code=500, detail="Workflow storage not initialized")
+    
+    try:
+        workflow_id = workflow_storage.save_workflow(
+            workflow_spec=current_workflow,
+            name=request.name,
+            description=request.description,
+            tags=request.tags
+        )
+        
+        return SaveWorkflowResponse(
+            success=True,
+            workflow_id=workflow_id
+        )
+    except Exception as e:
+        return SaveWorkflowResponse(
+            success=False,
+            error=str(e)
+        )
+
+
+@app.get("/api/workflows/saved")
+async def get_saved_workflows():
+    """Get list of all saved workflows."""
+    global workflow_storage
+    
+    if not workflow_storage:
+        raise HTTPException(status_code=500, detail="Workflow storage not initialized")
+    
+    try:
+        workflows = workflow_storage.list_workflows()
+        return {"workflows": workflows}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error retrieving workflows: {str(e)}")
+
+
+@app.post("/api/workflows/search")
+async def search_saved_workflows(request: SearchWorkflowsRequest):
+    """Search saved workflows by query string or tags."""
+    global workflow_storage
+    
+    if not workflow_storage:
+        raise HTTPException(status_code=500, detail="Workflow storage not initialized")
+    
+    try:
+        if request.query:
+            workflows = workflow_storage.search_workflows(request.query)
+        elif request.tags:
+            workflows = workflow_storage.list_workflows(tags=request.tags)
+        else:
+            workflows = workflow_storage.list_workflows()
+        
+        return {"workflows": workflows}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error searching workflows: {str(e)}")
+
+
+@app.post("/api/workflows/load/{workflow_id}")
+async def load_saved_workflow(workflow_id: str):
+    """Load a saved workflow by ID."""
+    global current_workflow, workflow_storage
+    
+    if not workflow_storage:
+        raise HTTPException(status_code=500, detail="Workflow storage not initialized")
+    
+    try:
+        loaded_workflow = workflow_storage.load_workflow(workflow_id)
+        
+        if not loaded_workflow:
+            raise HTTPException(status_code=404, detail=f"Workflow {workflow_id} not found")
+        
+        current_workflow = loaded_workflow
+        print(f"✅ Loaded saved workflow: '{current_workflow.title}' (ID: {workflow_id[:8]})")
+        
+        # Broadcast update
+        await broadcast_workflow_update(current_workflow)
+        
+        workflow_data = current_workflow.model_dump()
+        # Convert UUID to string for JSON serialization
+        if 'id' in workflow_data:
+            workflow_data['id'] = str(workflow_data['id'])
+        
+        return {"workflow": workflow_data}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error loading workflow: {str(e)}")
+
+
+@app.delete("/api/workflows/{workflow_id}")
+async def delete_saved_workflow(workflow_id: str):
+    """Delete a saved workflow."""
+    global workflow_storage
+    
+    if not workflow_storage:
+        raise HTTPException(status_code=500, detail="Workflow storage not initialized")
+    
+    try:
+        success = workflow_storage.delete_workflow(workflow_id)
+        
+        if not success:
+            raise HTTPException(status_code=404, detail=f"Workflow {workflow_id} not found")
+        
+        return {"success": True, "message": f"Workflow {workflow_id} deleted"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error deleting workflow: {str(e)}")
+
+
+@app.get("/api/workflows/{workflow_id}/yaml")
+async def export_workflow_yaml(workflow_id: str):
+    """Export a workflow as YAML."""
+    global workflow_storage
+    
+    if not workflow_storage:
+        raise HTTPException(status_code=500, detail="Workflow storage not initialized")
+    
+    try:
+        yaml_content = workflow_storage.export_workflow_yaml(workflow_id)
+        
+        if not yaml_content:
+            raise HTTPException(status_code=404, detail=f"Workflow {workflow_id} not found")
+        
+        return {"yaml": yaml_content}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error exporting workflow: {str(e)}")
+
+
+@app.get("/api/workflows/stats")
+async def get_workflow_stats():
+    """Get statistics about saved workflows."""
+    global workflow_storage
+    
+    if not workflow_storage:
+        raise HTTPException(status_code=500, detail="Workflow storage not initialized")
+    
+    try:
+        stats = workflow_storage.get_workflow_stats()
+        return {"stats": stats}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error getting stats: {str(e)}")
+
+
+@app.get("/api/workflows/combined")
+async def get_combined_workflows():
+    """Get both example workflows and saved workflows for the dropdown."""
+    global workflow_storage
+    
+    # Get centralized examples
+    examples = create_example_workflows()
+    examples_data = {}
+    for key, workflow in examples.items():
+        examples_data[key] = {
+            "id": key,
+            "title": workflow.title,
+            "description": workflow.description,
+            "source": "example",
+            "node_count": len(workflow.nodes),
+            "edge_count": len(workflow.edges),
+            "complexity": _calculate_complexity_simple(workflow)
+        }
+    
+    # Get saved workflows if storage is available
+    saved_data = {}
+    if workflow_storage:
+        try:
+            saved_workflows = workflow_storage.list_workflows()
+            for workflow in saved_workflows:
+                workflow_id = workflow["id"]
+                saved_data[workflow_id] = {
+                    "id": workflow_id,
+                    "title": workflow.get("name", "Unnamed Workflow"),
+                    "description": workflow.get("description", "No description"),
+                    "source": "saved",
+                    "node_count": workflow.get("node_count", 0),
+                    "edge_count": workflow.get("edge_count", 0),
+                    "complexity": workflow.get("complexity", "Unknown"),
+                    "created_at": workflow.get("created_at"),
+                    "tags": workflow.get("tags", [])
+                }
+        except Exception as e:
+            print(f"⚠️ Error loading saved workflows: {e}")
+    
+    return {
+        "examples": examples_data,
+        "saved": saved_data
+    }
+
+
+def _calculate_complexity_simple(workflow: WorkflowSpec) -> str:
+    """Simple complexity calculation for workflow display."""
+    node_count = len(workflow.nodes)
+    if node_count == 1:
+        return "Simple"
+    elif node_count <= 3:
+        return "Basic"
+    elif node_count <= 6:
+        return "Intermediate"
+    else:
+        return "Advanced"
 
 
 # Serve static files

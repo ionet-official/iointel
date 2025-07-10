@@ -71,25 +71,41 @@ class TaskNode(BaseNode[WorkflowState]):
         resolved_task = self.task.copy()
         if state.results and "task_metadata" in resolved_task:
             task_metadata = resolved_task["task_metadata"]
-            if isinstance(task_metadata, dict) and "config" in task_metadata:
+            if isinstance(task_metadata, dict):
                 try:
                     print(f"   📊 Resolving variables for task '{task_key}'")
-                    print(f"   📊 Original config: {task_metadata['config']}")
                     print(f"   📊 Available results: {list(state.results.keys())}")
                     
-                    resolved_config = data_flow_resolver.resolve_config(
-                        task_metadata["config"], state.results
-                    )
+                    # Resolve variables in config
+                    if "config" in task_metadata:
+                        print(f"   📊 Original config: {task_metadata['config']}")
+                        resolved_config = data_flow_resolver.resolve_config(
+                            task_metadata["config"], state.results
+                        )
+                        resolved_task["task_metadata"] = task_metadata.copy()
+                        resolved_task["task_metadata"]["config"] = resolved_config
+                        print(f"   ✅ Resolved config: {resolved_config}")
                     
-                    # Update the task metadata with resolved config
-                    resolved_task["task_metadata"] = task_metadata.copy()
-                    resolved_task["task_metadata"]["config"] = resolved_config
-                    
-                    print(f"   ✅ Resolved config: {resolved_config}")
+                    # Resolve variables in agent_instructions for agent tasks
+                    if "agent_instructions" in task_metadata and isinstance(task_metadata["agent_instructions"], str):
+                        print(f"   📊 Original agent instructions: {task_metadata['agent_instructions']}")
+                        resolved_instructions = data_flow_resolver._resolve_value(
+                            task_metadata["agent_instructions"], state.results
+                        )
+                        if "task_metadata" not in resolved_task:
+                            resolved_task["task_metadata"] = task_metadata.copy()
+                        resolved_task["task_metadata"]["agent_instructions"] = resolved_instructions
+                        print(f"   ✅ Resolved agent instructions: {resolved_instructions}")
+                        
                 except Exception as e:
                     print(f"   ⚠️  Variable resolution failed for '{task_key}': {e}")
                     # Continue with original task if resolution fails
 
+        # Add available results to the task for agent context
+        if resolved_task.get("task_metadata") and state.results:
+            if "available_results" not in resolved_task["task_metadata"]:
+                resolved_task["task_metadata"]["available_results"] = state.results.copy()
+        
         result = await wf.run_task(
             resolved_task, self.default_text, self.default_agents, self.conversation_id
         )

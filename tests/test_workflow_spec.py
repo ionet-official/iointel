@@ -325,8 +325,8 @@ class TestWorkflowSpecValidation:
             rev=1,
             title="Valid Workflow",
             nodes=[
-                NodeSpec(id="node1", type="tool", label="Node 1", data=NodeData()),
-                NodeSpec(id="node2", type="agent", label="Node 2", data=NodeData())
+                NodeSpec(id="node1", type="tool", label="Node 1", data=NodeData(tool_name="test_tool")),
+                NodeSpec(id="node2", type="agent", label="Node 2", data=NodeData(agent_instructions="Process the data"))
             ],
             edges=[
                 EdgeSpec(id="edge1", source="node1", target="node2")
@@ -343,8 +343,8 @@ class TestWorkflowSpecValidation:
             rev=1,
             title="Duplicate Nodes",
             nodes=[
-                NodeSpec(id="duplicate", type="tool", label="Node 1", data=NodeData()),
-                NodeSpec(id="duplicate", type="agent", label="Node 2", data=NodeData())
+                NodeSpec(id="duplicate", type="tool", label="Node 1", data=NodeData(tool_name="test_tool")),
+                NodeSpec(id="duplicate", type="agent", label="Node 2", data=NodeData(agent_instructions="Process data"))
             ],
             edges=[]
         )
@@ -361,7 +361,7 @@ class TestWorkflowSpecValidation:
             rev=1,
             title="Invalid Edge Source",
             nodes=[
-                NodeSpec(id="valid_node", type="tool", label="Valid Node", data=NodeData())
+                NodeSpec(id="valid_node", type="tool", label="Valid Node", data=NodeData(tool_name="test_tool"))
             ],
             edges=[
                 EdgeSpec(id="bad_edge", source="nonexistent", target="valid_node")
@@ -379,7 +379,7 @@ class TestWorkflowSpecValidation:
             rev=1,
             title="Invalid Edge Target",
             nodes=[
-                NodeSpec(id="valid_node", type="tool", label="Valid Node", data=NodeData())
+                NodeSpec(id="valid_node", type="tool", label="Valid Node", data=NodeData(tool_name="test_tool"))
             ],
             edges=[
                 EdgeSpec(id="bad_edge", source="valid_node", target="nonexistent")
@@ -397,9 +397,9 @@ class TestWorkflowSpecValidation:
             rev=1,
             title="Orphaned Nodes",
             nodes=[
-                NodeSpec(id="connected1", type="tool", label="Connected 1", data=NodeData()),
-                NodeSpec(id="connected2", type="agent", label="Connected 2", data=NodeData()),
-                NodeSpec(id="orphaned", type="tool", label="Orphaned", data=NodeData())
+                NodeSpec(id="connected1", type="tool", label="Connected 1", data=NodeData(tool_name="test_tool1")),
+                NodeSpec(id="connected2", type="agent", label="Connected 2", data=NodeData(agent_instructions="Process data")),
+                NodeSpec(id="orphaned", type="tool", label="Orphaned", data=NodeData(tool_name="test_tool2"))
             ],
             edges=[
                 EdgeSpec(id="connection", source="connected1", target="connected2")
@@ -418,7 +418,7 @@ class TestWorkflowSpecValidation:
             rev=1,
             title="Single Node",
             nodes=[
-                NodeSpec(id="solo", type="tool", label="Solo Node", data=NodeData())
+                NodeSpec(id="solo", type="tool", label="Solo Node", data=NodeData(tool_name="test_tool"))
             ],
             edges=[]
         )
