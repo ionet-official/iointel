@@ -15,6 +15,7 @@ class NodeData(BaseModel):
     # Optional fields the LLM might specify
     tool_name: Optional[str] = Field(None, description="Name of the tool from catalog (for tool nodes)")
     agent_instructions: Optional[str] = Field(None, description="Instructions for agent (for agent nodes)")
+    tools: Optional[List[str]] = Field(None, description="List of tool names available to agent (for agent nodes)")
     workflow_id: Optional[str] = Field(None, description="ID of workflow to call (for workflow_call nodes)")
 
 
@@ -97,16 +98,39 @@ class WorkflowSpec(BaseModel):
         if orphaned and len(self.nodes) > 1:
             issues.append(f"Orphaned nodes with no connections: {orphaned}")
         
-        # 🚨 CRITICAL: Check tool existence against catalog
-        if tool_catalog:
-            available_tools = set(tool_catalog.keys())
-            for node in self.nodes:
-                if node.type == "tool" and node.data.tool_name:
-                    if node.data.tool_name not in available_tools:
-                        issues.append(f"🚨 TOOL HALLUCINATION: Node '{node.id}' uses non-existent tool '{node.data.tool_name}'. Available tools: {sorted(available_tools)}")
-                elif node.type == "decision" and node.data.tool_name:
-                    if node.data.tool_name not in available_tools:
-                        issues.append(f"🚨 TOOL HALLUCINATION: Decision node '{node.id}' uses non-existent tool '{node.data.tool_name}'. Available tools: {sorted(available_tools)}")
+        # Validate node-type specific requirements
+        for node in self.nodes:
+            if node.type == "tool":
+                if not node.data.tool_name:
+                    issues.append(f"Tool node '{node.id}' ({node.label}) missing required 'tool_name'")
+                elif tool_catalog and node.data.tool_name not in tool_catalog:
+                    issues.append(f"🚨 TOOL HALLUCINATION: Node '{node.id}' uses non-existent tool '{node.data.tool_name}'. Available tools: {sorted(tool_catalog.keys())}")
+                elif tool_catalog and node.data.tool_name in tool_catalog:
+                    # Validate tool parameters
+                    tool_info = tool_catalog[node.data.tool_name]
+                    required_params = tool_info.get("parameters", {})
+                    config_params = set(node.data.config.keys())
+                    
+                    # Check for missing required parameters
+                    missing_params = set(required_params.keys()) - config_params
+                    if missing_params:
+                        issues.append(f"🚨 MISSING PARAMETERS: Tool node '{node.id}' ({node.data.tool_name}) missing required parameters: {sorted(missing_params)}. Config has: {sorted(config_params)}")
+                    
+                    # Check for empty config when parameters are required
+                    if required_params and not node.data.config:
+                        issues.append(f"🚨 EMPTY CONFIG: Tool node '{node.id}' ({node.data.tool_name}) has empty config but requires parameters: {sorted(required_params.keys())}")
+            
+            elif node.type == "agent":
+                if not node.data.agent_instructions:
+                    issues.append(f"Agent node '{node.id}' ({node.label}) missing required 'agent_instructions'")
+            
+            elif node.type == "workflow_call":
+                if not node.data.workflow_id:
+                    issues.append(f"Workflow call node '{node.id}' ({node.label}) missing required 'workflow_id'")
+            
+            elif node.type == "decision" and node.data.tool_name:
+                if tool_catalog and node.data.tool_name not in tool_catalog:
+                    issues.append(f"🚨 TOOL HALLUCINATION: Decision node '{node.id}' uses non-existent tool '{node.data.tool_name}'. Available tools: {sorted(tool_catalog.keys())}")
         
         return issues
     

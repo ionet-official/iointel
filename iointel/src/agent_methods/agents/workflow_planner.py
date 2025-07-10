@@ -20,13 +20,14 @@ You output ONLY valid JSON conforming to WorkflowSpec schema - no explanations o
 ### Node Types (exactly one of these):
 
 1. **tool** - Executes a specific tool from the catalog
+   ⚠️ REQUIRED: data.tool_name MUST be specified and exist in tool_catalog
    ```json
    {
      "id": "fetch_weather",
      "type": "tool",
      "label": "Get Weather Data",
      "data": {
-       "tool_name": "weather_api",
+       "tool_name": "weather_api",  // 🚨 REQUIRED for type="tool"
        "config": {"location": "London", "units": "celsius"},
        "ins": [],
        "outs": ["weather_data", "status"]
@@ -34,29 +35,39 @@ You output ONLY valid JSON conforming to WorkflowSpec schema - no explanations o
    }
    ```
 
-2. **agent** - Runs an AI agent with instructions
+2. **agent** - Runs an AI agent with instructions and tools
+   ⚠️ REQUIRED: data.agent_instructions MUST be specified
+   ⚠️ OPTIONAL: data.tools - list of tool names the agent can use
    ```json
    {
      "id": "analyze_data",
      "type": "agent", 
-     "label": "Analyze Results",
+     "label": "Data Analyst",
      "data": {
-       "agent_instructions": "Analyze the weather patterns and summarize key insights",
+       "agent_instructions": "Analyze the weather data and provide insights",  // 🚨 REQUIRED for type="agent"
+       "tools": ["calculator", "data_processor", "chart_generator"],  // 🔧 Tools the agent can use
        "config": {"model": "gpt-4", "temperature": 0.7},
        "ins": ["weather_data"],
        "outs": ["analysis", "insights"]
      }
    }
    ```
+   
+   🎯 **Agent-Tool Integration Principles**:
+   - Agents autonomously decide when to use their tools during execution
+   - Include all tools an agent might need for their task
+   - Agent instructions should describe the goal, not tool usage details
+   - Tools execute within agent reasoning, not as separate workflow steps
 
 3. **decision** - Makes boolean or routing decisions (use decision tools or agents)
+   ⚠️ REQUIRED: data.tool_name MUST be specified for decision tools
    ```json
    {
      "id": "check_rain",
      "type": "decision",
      "label": "Check Rain Condition", 
      "data": {
-       "tool_name": "json_evaluator",
+       "tool_name": "json_evaluator",  // 🚨 REQUIRED if using tool-based decision
        "config": {"expression": "data.weather.condition == 'rain'"},
        "ins": ["weather_data"],
        "outs": ["result", "details"]
@@ -65,13 +76,14 @@ You output ONLY valid JSON conforming to WorkflowSpec schema - no explanations o
    ```
 
 4. **workflow_call** - Executes another workflow
+   ⚠️ REQUIRED: data.workflow_id MUST be specified
    ```json
    {
      "id": "run_sub_workflow",
      "type": "workflow_call",
      "label": "Process Subset",
      "data": {
-       "workflow_id": "data_processing_v2",
+       "workflow_id": "data_processing_v2",  // 🚨 REQUIRED for type="workflow_call"
        "config": {"mode": "batch"},
        "ins": ["raw_data"],
        "outs": ["processed_data"]
@@ -81,28 +93,60 @@ You output ONLY valid JSON conforming to WorkflowSpec schema - no explanations o
 
 📊 Data Flow Rules
 ------------------
-1. **Port Naming**: Use clear, semantic names
-   - Inputs: data, query, config, source, input, params
-   - Outputs: result, output, response, error, status
+1. **Port Naming**: Use clear, semantic names that match between nodes
+   - Common Input ports: data, query, config, source, input, params, joke, text_input, user_input
+   - Common Output ports: result, output, response, error, status, joke_output, analysis, summary
+   - ⚠️ **CRITICAL**: Edge sourceHandle MUST match an actual output port in source node's "outs" array
+   - ⚠️ **CRITICAL**: Edge targetHandle MUST match an actual input port in target node's "ins" array
 
-2. **Edge Connections**: Connect compatible ports
+2. **Edge Connections**: Connect compatible ports with matching names
    ```json
+   // Source node has "outs": ["joke_output"]
+   // Target node has "ins": ["joke_input"]
    {
      "id": "edge1",
-     "source": "fetch_data",
-     "target": "process_data",
-     "sourceHandle": "result",
-     "targetHandle": "input"
+     "source": "joke_creator",
+     "target": "joke_evaluator", 
+     "sourceHandle": "joke_output",    // Must exist in source node's outs
+     "targetHandle": "joke_input"      // Must exist in target node's ins
    }
    ```
 
-3. **Data References**: Use {node_id.port} syntax in config
+3. **Data References**: Use {node_id} or {node_id.field} syntax in config
    ```json
    "config": {
-     "message": "Weather is {fetch_weather.result}",
-     "data": "{analyze_data.insights}"
+     "joke_to_evaluate": "{joke_creator}",           // Gets full result
+     "temperature": "{weather_node.result.temp}"     // Gets specific field
    }
    ```
+
+4. **Agent Node Data Flow**: For agent nodes, specify structured output format
+   ```json
+   {
+     "id": "joke_creator",
+     "type": "agent",
+     "data": {
+       "agent_instructions": "Create a funny joke. Output in JSON format: {\"joke_text\": \"your joke here\", \"category\": \"puns/wordplay/etc\"}",
+       "ins": [],                    // No inputs needed
+       "outs": ["joke_output"]       // Will output structured joke data
+     }
+   },
+   {
+     "id": "joke_evaluator", 
+     "type": "agent",
+     "data": {
+       "agent_instructions": "Evaluate this joke: {joke_creator.joke_text}. Output in JSON: {\"rating\": 1-10, \"funny_reason\": \"explanation\"}",  // Reference specific field
+       "ins": ["joke_input"],        // Expects joke input
+       "outs": ["evaluation"]        // Will output structured evaluation
+     }
+   }
+   ```
+   
+   🚨 **STRUCTURED AGENT OUTPUT REQUIREMENTS**:
+   - Agents should output JSON when tools need to reference specific fields
+   - Use format: "Output in JSON format: {\"field_name\": \"value\", \"number_field\": 123}"
+   - Tools can then reference: `{agent_node.field_name}` or `{agent_node.number_field}`
+   - For simple cases, plain text is fine: "Output the final answer as a number"
 
 🔧 CRITICAL TOOL USAGE RULES
 ----------------------------
@@ -172,6 +216,67 @@ tool_catalog = {
 }
 ```
 
+**🎯 TOOL PARAMETER CONFIGURATION EXAMPLES**
+
+**🚨 CRITICAL DATA FLOW PRINCIPLE**: Tools should get their input data from OTHER nodes, not hardcoded values (unless it's initial configuration data like API endpoints, constants, etc.)
+
+**✅ GOOD Examples:**
+
+**Example 1: Riddle Solving with Tool-Enabled Agents**
+```json
+{
+  "nodes": [
+    {"id": "riddle_generator", "type": "agent", "data": {"agent_instructions": "Create a challenging arithmetic riddle", "ins": [], "outs": ["riddle"]}},
+    {"id": "solver_agent", "type": "agent", "data": {"agent_instructions": "Solve the given arithmetic riddle using available math tools", "tools": ["add", "subtract", "multiply", "divide"], "ins": ["riddle"], "outs": ["solution"]}},
+    {"id": "oracle_agent", "type": "agent", "data": {"agent_instructions": "Verify if the solver's solution is correct for the given riddle", "tools": ["add", "subtract", "multiply", "divide"], "ins": ["riddle", "solution"], "outs": ["verdict"]}}
+  ],
+  "edges": [
+    {"source": "riddle_generator", "target": "solver_agent", "sourceHandle": "riddle", "targetHandle": "riddle"},
+    {"source": "riddle_generator", "target": "oracle_agent", "sourceHandle": "riddle", "targetHandle": "riddle"},
+    {"source": "solver_agent", "target": "oracle_agent", "sourceHandle": "solution", "targetHandle": "solution"}
+  ]
+}
+```
+
+**Example 2: Weather Analysis with Tool-Enabled Agent** 
+```json
+{
+  "nodes": [
+    {"id": "weather_analyst", "type": "agent", "data": {"agent_instructions": "Get weather for New York and Los Angeles, then compare and analyze the temperature difference", "tools": ["get_weather", "add", "subtract"], "ins": [], "outs": ["analysis"]}}
+  ],
+  "edges": []
+}
+```
+
+**❌ BAD Examples - AVOID THESE:**
+```json
+// DON'T DO THIS - separate tool nodes for simple operations
+{"id": "calculate", "type": "tool", "data": {"tool_name": "add", "config": {"a": 10, "b": 5}}} // Wrong!
+
+// INSTEAD DO THIS - tool-enabled agents
+{"id": "calculator_agent", "type": "agent", "data": {"agent_instructions": "Perform arithmetic calculations as needed", "tools": ["add", "subtract", "multiply", "divide"]}} // Correct!
+```
+
+**🚨 CRITICAL WORKFLOW RULES**:
+1. **ALL REQUIRED PARAMETERS MUST BE PRESENT**: Every tool parameter from the catalog must be in the config
+2. **🔥 DATA FLOW FIRST**: Tools should get data from OTHER nodes, NOT hardcoded values
+   - ✅ CORRECT: `{"a": "{solver_agent.number}", "b": "{riddle_generator.value}"}` (gets data from other nodes)
+   - ❌ WRONG: `{"a": 10, "b": 5}` (hardcoded values when data should come from workflow)
+   - ✅ ACCEPTABLE: `{"api_key": "sk-12345", "endpoint": "https://api.com"}` (configuration constants)
+3. **USE DATA FLOW REFERENCES**: Use `{node_id.field}` syntax to reference previous results
+   - ✅ CORRECT: `{"a": "{get_weather_ny.result.temp}", "b": "{get_weather_la.result.temp}"}`
+   - ❌ WRONG: `{"a": "get_weather_ny.result.temp", "b": "get_weather_la.result.temp"}` (missing braces)
+   - ❌ WRONG: `{"a": "{get_weather_ny.result}", "b": "{get_weather_la.result}"}` (missing field access)
+4. **AGENT OUTPUTS**: When agents generate numbers or values, tools should reference those outputs:
+   - If agent says "The answer is 42", tool should use `{"number": "{agent_node.result}"}`
+   - If agent extracts values, tool should use `{"a": "{agent_node.first_number}", "b": "{agent_node.second_number}"}`
+5. **NEVER LEAVE CONFIG EMPTY**: If a tool has parameters, config cannot be `{}`
+6. **VALIDATE AGAINST CATALOG**: Check tool_catalog.parameters for required fields
+7. **FIELD ACCESS FOR STRUCTURED DATA**: When tools return objects, access specific fields:
+   - get_weather returns `{"temp": 70.5, "condition": "Clear"}`
+   - To get temperature: `{get_weather_node.result.temp}`
+   - To get condition: `{get_weather_node.result.condition}`
+
 ⚠️  **IMPORTANT**: This example uses tools like `add`, `multiply`, `divide` - verify these exist in your tool_catalog!
 
 🔑 Key Rules:
@@ -199,9 +304,12 @@ EVERY workflow MUST pass these checks:
 
 1. **Node ID Uniqueness**: Each node.id must be unique within the workflow
 2. **Edge Validity**: Every edge.source and edge.target MUST reference existing node IDs
-3. **Port Consistency**: sourceHandle and targetHandle should match node ins/outs
+3. **🚨 PORT CONSISTENCY**: sourceHandle and targetHandle MUST match node ins/outs exactly
+   - Edge sourceHandle must exist in source node's "outs" array
+   - Edge targetHandle must exist in target node's "ins" array
 4. **🚨 TOOL EXISTENCE**: All tool_name values MUST exist in the provided tool catalog
 5. **No Orphaned Nodes**: Every node should be connected (except start/end nodes)
+6. **Agent Data Flow**: For agent nodes, reference previous nodes' outputs in agent_instructions using {node_id} syntax
 
 🚨 **BEFORE GENERATING WORKFLOW**: 
 - List all tools you plan to use
@@ -253,6 +361,7 @@ class WorkflowPlanner:
             **kwargs: Additional arguments passed to Agent
         """
         self.conversation_id = conversation_id or str(uuid.uuid4())
+        self.last_workflow: Optional[WorkflowSpec] = None  # Track last generated workflow
         
         # Initialize the underlying agent with structured output
         self.agent = Agent(
@@ -275,15 +384,17 @@ class WorkflowPlanner:
         query: str,
         tool_catalog: Optional[Dict[str, Any]] = None,
         context: Optional[Dict[str, Any]] = None,
+        max_retries: int = 3,
         **kwargs
     ) -> WorkflowSpec:
         """
-        Generate a workflow specification from a user query.
+        Generate a workflow specification from a user query with auto-retry on validation failures.
         
         Args:
             query: User's natural language description of the workflow
             tool_catalog: Available tools and their specifications
             context: Additional context for workflow generation
+            max_retries: Maximum number of retries on validation failure (default: 3)
             **kwargs: Additional arguments passed to agent.run()
             
         Returns:
@@ -295,45 +406,125 @@ class WorkflowPlanner:
             "additional_context": context or {}
         }
         
-        # Format the query with context
-        formatted_query = f"""
+        # Get the JSON schema for WorkflowSpec
+        workflow_schema = WorkflowSpec.model_json_schema()
+        
+        validation_errors = []
+        attempt = 0
+        
+        while attempt <= max_retries:
+            attempt += 1
+            
+            # Build the query with any previous validation errors
+            error_feedback = ""
+            if validation_errors:
+                error_feedback = f"""
+❌ PREVIOUS ATTEMPT FAILED WITH VALIDATION ERRORS:
+{chr(10).join(f"- {error}" for error in validation_errors[-1])}
+
+Please fix these specific issues in your next attempt:
+{chr(10).join(f"{i+1}. {error}" for i, error in enumerate(validation_errors[-1]))}
+
+"""
+            
+            # Add previous workflow context if available
+            previous_workflow_context = ""
+            if self.last_workflow:
+                previous_workflow_context = f"""
+📝 PREVIOUS WORKFLOW (for reference):
+Title: {self.last_workflow.title}
+Description: {self.last_workflow.description}
+Nodes: {len(self.last_workflow.nodes)} nodes
+Structure: {[node.id for node in self.last_workflow.nodes]}
+
+🔄 REFINEMENT MODE: You can build upon, modify, or completely replace the previous workflow based on the new user query.
+"""
+
+            # Format the query with context
+            formatted_query = f"""
+{error_feedback}{previous_workflow_context}
 User Query: {query}
+
+📋 EXPECTED OUTPUT SCHEMA:
+{self._format_schema(workflow_schema)}
 
 🔧 AVAILABLE TOOLS IN CATALOG:
 {self._format_tool_catalog(tool_catalog or {})}
 
+🔍 TOOL RETURN FORMATS:
+- get_weather: Returns {{"temp": 70.5, "condition": "Clear"}}
+  - Access temperature: {{node_id.result.temp}}
+  - Access condition: {{node_id.result.condition}}
+- add/calculator_add: Returns number (e.g., 135.5)
+  - Access result: {{node_id.result}}
+- subtract/multiply/divide: Returns number
+  - Access result: {{node_id.result}}
+
 🚨 CRITICAL REQUIREMENTS:
 - You MUST ONLY use tools from the above catalog
 - Use the EXACT tool names as listed
+- 🎯 PREFER AGENT-TOOL INTEGRATION: For complex reasoning tasks, use agents with embedded tools
+- Use type="tool" only for simple operations or external system integrations
+- 🔧 AGENT TOOLS: When creating agent nodes, include relevant tools in the "tools" array
+- ✅ DO USE: Agent with tools for reasoning + computation tasks
+- 🚫 AVOID: Multiple separate tool nodes for related operations
 - If required tools are missing, explain in the reasoning field
 - DO NOT hallucinate or invent tool names
+- Follow the exact schema structure above
+- Ensure all nodes are connected (no orphaned nodes)
+- Ensure all required fields are populated based on node type
+- 🧠 AGENT DATA FLOW: Agents receive context from previous steps and reason with tools
 
 Additional Context: {context or {}}
 
 Generate a WorkflowSpec that fulfills the user's requirements using ONLY the available tools above.
 """
-        
-        # Run the agent to generate the workflow with limited message history
-        result = await self.agent.run(
-            formatted_query,
-            conversation_id=self.conversation_id,
-            message_history_limit=5,  # Limit to last 5 messages to prevent context overflow
-            **kwargs
-        )
-        
-        # Extract the structured output
-        workflow_spec = result.get("result")
-        if not isinstance(workflow_spec, WorkflowSpec):
-            raise ValueError(f"Expected WorkflowSpec, got {type(workflow_spec)}")
-        
-        # 🚨 CRITICAL VALIDATION: Check for tool hallucination
-        tool_issues = workflow_spec.validate_tools(tool_catalog or {})
-        if tool_issues:
-            error_msg = f"🚨 TOOL HALLUCINATION DETECTED:\n" + "\n".join(tool_issues)
-            error_msg += f"\n\nWorkflow reasoning: {workflow_spec.reasoning}"
-            raise ValueError(error_msg)
             
-        return workflow_spec
+            try:
+                # Run the agent to generate the workflow with limited message history
+                print(f"🔄 Workflow generation attempt {attempt}/{max_retries + 1}")
+                result = await self.agent.run(
+                    formatted_query,
+                    conversation_id=self.conversation_id,
+                    message_history_limit=5,  # Limit to last 5 messages to prevent context overflow
+                    **kwargs
+                )
+                
+                # Extract the structured output
+                workflow_spec = result.get("result")
+                if not isinstance(workflow_spec, WorkflowSpec):
+                    raise ValueError(f"Expected WorkflowSpec, got {type(workflow_spec)}")
+                
+                # 🚨 CRITICAL VALIDATION: Check for tool hallucination and structural issues
+                structural_issues = workflow_spec.validate_structure(tool_catalog or {})
+                if structural_issues:
+                    if attempt <= max_retries:
+                        print(f"⚠️ Validation failed on attempt {attempt}, retrying with feedback...")
+                        validation_errors.append(structural_issues)
+                        continue
+                    else:
+                        error_msg = f"🚨 WORKFLOW VALIDATION FAILED AFTER {max_retries + 1} ATTEMPTS:\n" + "\n".join(structural_issues)
+                        error_msg += f"\n\nWorkflow reasoning: {workflow_spec.reasoning}"
+                        raise ValueError(error_msg)
+                
+                # Success! Store as last workflow for future context
+                print(f"✅ Workflow validated successfully on attempt {attempt}")
+                self.last_workflow = workflow_spec
+                return workflow_spec
+                
+            except ValueError:
+                raise  # Re-raise validation errors
+            except Exception as e:
+                # Handle other errors
+                if attempt <= max_retries:
+                    print(f"❌ Error on attempt {attempt}: {str(e)}, retrying...")
+                    validation_errors.append([f"Generation error: {str(e)}"])
+                    continue
+                else:
+                    raise
+        
+        # Should not reach here
+        raise ValueError(f"Failed to generate valid workflow after {max_retries + 1} attempts")
     
     def _format_tool_catalog(self, tool_catalog: dict) -> str:
         """Format the tool catalog for clear display to the LLM."""
@@ -355,6 +546,23 @@ Available Tools ({len(tool_catalog)} total):
 
 🚨 REMINDER: Use ONLY these exact tool names. Any other tool will cause failure.
 """
+    
+    def _format_schema(self, schema: dict) -> str:
+        """Format the JSON schema to highlight key requirements."""
+        import json
+        
+        # Extract key parts we want to emphasize
+        formatted = "WorkflowSpec Structure:\n"
+        formatted += json.dumps(schema, indent=2)
+        
+        # Add specific callouts for required fields
+        formatted += "\n\n🚨 FIELD REQUIREMENTS BY NODE TYPE:\n"
+        formatted += "- For type='tool' nodes: data.tool_name is REQUIRED\n"
+        formatted += "- For type='agent' nodes: data.agent_instructions is REQUIRED\n"
+        formatted += "- For type='workflow_call' nodes: data.workflow_id is REQUIRED\n"
+        formatted += "- For type='decision' nodes using tools: data.tool_name is REQUIRED\n"
+        
+        return formatted
     
     async def refine_workflow(
         self,
@@ -391,8 +599,32 @@ Please generate an improved WorkflowSpec that addresses the feedback while maint
         refined_spec = result.get("result")
         if not isinstance(refined_spec, WorkflowSpec):
             raise ValueError(f"Expected WorkflowSpec, got {type(refined_spec)}")
-            
+        
+        # Store as last workflow for future context
+        self.last_workflow = refined_spec
         return refined_spec
+    
+    def set_current_workflow(self, workflow_spec: WorkflowSpec):
+        """
+        Set the current workflow for context in future generations.
+        
+        Args:
+            workflow_spec: WorkflowSpec to use as context for future generations
+        """
+        self.last_workflow = workflow_spec
+    
+    def get_current_workflow(self) -> Optional[WorkflowSpec]:
+        """
+        Get the current workflow being tracked for context.
+        
+        Returns:
+            Current WorkflowSpec or None if no workflow is set
+        """
+        return self.last_workflow
+    
+    def clear_workflow_context(self):
+        """Clear the current workflow context."""
+        self.last_workflow = None
     
     def create_example_workflow(self, title: str = "Example Workflow") -> WorkflowSpec:
         """
@@ -415,6 +647,7 @@ Please generate an improved WorkflowSpec that addresses the feedback while maint
                 type="tool",
                 label="Fetch Data",
                 data=NodeData(
+                    tool_name="web_fetch",  # Required for tool nodes
                     config={"source": "api", "endpoint": "/data"},
                     ins=["trigger"],
                     outs=["data", "status"]
@@ -426,7 +659,8 @@ Please generate an improved WorkflowSpec that addresses the feedback while maint
                 type="agent",
                 label="Process Data",
                 data=NodeData(
-                    config={"instructions": "Process the input data"},
+                    agent_instructions="Process the input data and extract key insights",  # Required for agent nodes
+                    config={"model": "gpt-4o"},
                     ins=["data"],
                     outs=["result", "summary"]
                 ),
@@ -437,6 +671,7 @@ Please generate an improved WorkflowSpec that addresses the feedback while maint
                 type="tool",
                 label="Save Result",
                 data=NodeData(
+                    tool_name="file_writer",  # Required for tool nodes
                     config={"destination": "file", "format": "json"},
                     ins=["result"],
                     outs=["success"]

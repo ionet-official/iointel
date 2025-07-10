@@ -514,6 +514,10 @@ async def generate_workflow(request: WorkflowRequest):
             
         else:
             print(f"✨ Generating new workflow with {len(tool_catalog)} tools available")
+            # Set current workflow context so planner can reference it
+            if current_workflow:
+                planner.set_current_workflow(current_workflow)
+            
             # Generate new workflow
             current_workflow = await planner.generate_workflow(
                 query=request.query,
@@ -743,6 +747,11 @@ async def load_example_workflow(example_id: str):
     current_workflow = examples[example_id]
     print(f"✅ Example workflow loaded: '{current_workflow.title}' with {len(current_workflow.nodes)} nodes, {len(current_workflow.edges)} edges")
     
+    # Update planner context with loaded workflow
+    if planner:
+        planner.set_current_workflow(current_workflow)
+        print(f"🧠 Set planner context to loaded example workflow")
+    
     # Broadcast update
     print(f"📡 Broadcasting example workflow to {len(connections)} connections")
     await broadcast_workflow_update(current_workflow)
@@ -852,6 +861,11 @@ async def load_saved_workflow(workflow_id: str):
         
         current_workflow = loaded_workflow
         print(f"✅ Loaded saved workflow: '{current_workflow.title}' (ID: {workflow_id[:8]})")
+        
+        # Update planner context with loaded workflow
+        if planner:
+            planner.set_current_workflow(current_workflow)
+            print(f"🧠 Set planner context to loaded saved workflow")
         
         # Broadcast update
         await broadcast_workflow_update(current_workflow)

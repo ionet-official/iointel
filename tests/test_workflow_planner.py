@@ -156,6 +156,7 @@ class TestWorkflowPlanner:
         )
         
         print("\n=== GENERATED WORKFLOW ===")
+        print(f"Reasoning: {result.reasoning}")
         print(f"Title: {result.title}")
         print(f"Description: {result.description}")
         print(f"ID: {result.id}")
@@ -335,6 +336,7 @@ class TestWorkflowPlannerIntegration:
         )
         
         print("\n=== GENERATED PIPELINE ===")
+        print
         print(f"Title: {result.title}")
         print(f"Description: {result.description}")
         

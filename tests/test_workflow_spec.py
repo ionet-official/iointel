@@ -63,6 +63,7 @@ class TestNodeData:
             "outs": ["result"],
             "tool_name": "example_tool",
             "agent_instructions": None,
+            "tools": None,
             "workflow_id": None
         }
         

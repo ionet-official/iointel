@@ -349,6 +349,152 @@
             margin-bottom: 0.3rem;
         }
 
+        .tool-pill {
+            display: inline-block;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 0.2rem 0.5rem;
+            border-radius: 12px;
+            font-size: 0.65rem;
+            margin: 0.1rem 0.2rem 0.1rem 0;
+            font-weight: 500;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Enhanced Results Display - Rich Panel Inspired */
+        .enhanced-results {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .results-section h4 {
+            color: #333;
+            margin: 0 0 1rem 0;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid #7DF9FF;
+            font-size: 1.1rem;
+        }
+
+        .task-result-card {
+            border: 2px solid #7DF9FF;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            background: #f8feff;
+            overflow: hidden;
+        }
+
+        .task-header {
+            background: linear-gradient(135deg, #7DF9FF, #4ecdc4);
+            color: white;
+            padding: 0.75rem;
+            font-weight: bold;
+        }
+
+        .agent-tools-used {
+            margin-top: 0.5rem;
+            font-size: 0.8rem;
+            font-weight: normal;
+        }
+
+        .agent-tools-used .tool-pill {
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            font-size: 0.7rem;
+        }
+
+        .task-content {
+            padding: 1rem;
+        }
+
+        .result-text {
+            line-height: 1.6;
+            color: #333;
+        }
+
+        .result-json {
+            background: #f1f3f4;
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+            padding: 1rem;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 0.9rem;
+            color: #333;
+            overflow-x: auto;
+        }
+
+        .tool-usage-highlight {
+            background: #ffeb3b;
+            color: #333;
+            padding: 0.1rem 0.3rem;
+            border-radius: 3px;
+            font-weight: 500;
+        }
+
+        /* Tool Usage Results Panels */
+        .tool-usage-panels {
+            margin-top: 1rem;
+        }
+
+        .tool-usage-panel {
+            border: 2px solid #00bcd4;
+            border-radius: 6px;
+            margin-bottom: 0.5rem;
+            background: #e0f7fa;
+        }
+
+        .tool-usage-header {
+            background: #00bcd4;
+            color: white;
+            padding: 0.5rem;
+            font-weight: bold;
+            font-size: 0.9rem;
+        }
+
+        .tool-usage-content {
+            padding: 0.75rem;
+        }
+
+        .tool-args {
+            color: #ff9800;
+            font-family: monospace;
+            font-size: 0.85rem;
+            margin: 0.25rem 0;
+        }
+
+        .tool-result {
+            color: #4caf50;
+            font-weight: 500;
+            margin: 0.25rem 0;
+        }
+
+        .tool-result::before {
+            content: "✅ ";
+            margin-right: 0.25rem;
+        }
+
+        /* Execution Task Enhancement */
+        .execution-task {
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 0.75rem;
+            margin-bottom: 0.5rem;
+            background: #fafafa;
+        }
+
+        .execution-task.completed {
+            border-color: #4caf50;
+            background: #e8f5e8;
+        }
+
+        .execution-task.running {
+            border-color: #ff9800;
+            background: #fff8e1;
+        }
+
+        .execution-task.failed {
+            border-color: #f44336;
+            background: #ffebee;
+        }
+
         .node-item h5, .edge-item h5 {
             margin: 0 0 0.5rem 0;
             font-size: 0.85rem;
@@ -930,8 +1076,16 @@
                 if (node.data.tool_name) {
                     specificInfo = `<div class="detail-row"><span>Tool:</span><span>${node.data.tool_name}</span></div>`;
                 } else if (node.data.agent_instructions) {
+                    let toolsInfo = '';
+                    if (node.data.tools && node.data.tools.length > 0) {
+                        const toolPills = node.data.tools.map(tool => 
+                            `<span class="tool-pill">🔧 ${tool}</span>`
+                        ).join('');
+                        toolsInfo = `<div style="margin: 0.5rem 0;"><div style="font-size: 0.7rem; margin-bottom: 0.25rem;">Tools:</div>${toolPills}</div>`;
+                    }
                     specificInfo = `<div class="detail-row"><span>Instructions:</span></div>
-                                   <div class="config-box">${node.data.agent_instructions}</div>`;
+                                   <div class="config-box">${node.data.agent_instructions}</div>
+                                   ${toolsInfo}`;
                 }
                 
                 nodeDiv.innerHTML = `
@@ -1094,19 +1248,44 @@
                 `;
             }
             
-            // Add task progress
+            // Add task progress with enhanced tool usage display
             if (Object.keys(executionTasks).length > 0) {
-                infoHTML += '<div style="margin-top: 1rem;"><h4 style="margin: 0 0 0.5rem 0; font-size: 0.9rem;">Task Progress:</h4>';
+                infoHTML += '<div style="margin-top: 1rem;"><h4 style="margin: 0 0 0.5rem 0; font-size: 0.9rem;">📋 Task Progress:</h4>';
                 for (const [taskName, task] of Object.entries(executionTasks)) {
                     const taskClass = task.status === 'completed' ? 'completed' : 
                                      task.status === 'started' ? 'running' : 
                                      task.status === 'failed' ? 'failed' : '';
-                    infoHTML += `
-                        <div class="execution-task ${taskClass}">
-                            <strong>${taskName}</strong>: ${task.status}
-                            ${task.result !== undefined ? `<br><small>→ ${JSON.stringify(task.result)}</small>` : ''}
-                        </div>
-                    `;
+                    
+                    // Get task node info for enhanced display
+                    const taskNode = currentWorkflow?.nodes?.find(n => n.id === taskName);
+                    const isAgentTask = taskNode?.type === 'agent';
+                    const agentTools = taskNode?.data?.tools || [];
+                    const taskIcon = isAgentTask ? '🤖' : '🔧';
+                    
+                    infoHTML += `<div class="execution-task ${taskClass}">`;
+                    infoHTML += `<strong>${taskIcon} ${taskName}</strong>: ${task.status}`;
+                    
+                    // Show available tools for agent tasks
+                    if (isAgentTask && agentTools.length > 0) {
+                        const toolPills = agentTools.map(tool => `<span class="tool-pill" style="font-size: 0.6rem; padding: 0.1rem 0.3rem;">🔧 ${tool}</span>`).join('');
+                        infoHTML += `<div style="margin-top: 0.25rem;">${toolPills}</div>`;
+                    }
+                    
+                    // Show result if available
+                    if (task.result !== undefined) {
+                        if (typeof task.result === 'object' && task.result !== null && task.result.tool_usage_results) {
+                            // Show summary of tool usage results
+                            const toolCount = task.result.tool_usage_results.length;
+                            infoHTML += `<br><small style="color: #00bcd4;">🛠️ Used ${toolCount} tool${toolCount !== 1 ? 's' : ''}</small>`;
+                        } else if (typeof task.result === 'string') {
+                            const truncatedResult = task.result.length > 100 ? task.result.substring(0, 100) + '...' : task.result;
+                            infoHTML += `<br><small>→ ${truncatedResult}</small>`;
+                        } else {
+                            infoHTML += `<br><small>→ ${JSON.stringify(task.result)}</small>`;
+                        }
+                    }
+                    
+                    infoHTML += '</div>';
                 }
                 infoHTML += '</div>';
             }
@@ -1126,13 +1305,129 @@
             
             let resultsHTML = '';
             
-            if (results.results) {
-                resultsHTML = JSON.stringify(results.results, null, 2);
+            // Enhanced results display with tool usage highlighting
+            if (results.results && typeof results.results === 'object') {
+                resultsHTML = '<div class="enhanced-results">';
+                
+                // Show workflow summary
+                resultsHTML += '<div class="results-section"><h4>🎯 Workflow Results</h4>';
+                
+                // Process each task result
+                for (const [taskKey, taskResult] of Object.entries(results.results)) {
+                    const taskNode = currentWorkflow?.nodes?.find(n => n.id === taskKey);
+                    const isAgentTask = taskNode?.type === 'agent';
+                    const agentTools = taskNode?.data?.tools || [];
+                    
+                    resultsHTML += '<div class="task-result-card">';
+                    
+                    // Task header with icon and tools if available
+                    const taskIcon = isAgentTask ? '🤖' : '🔧';
+                    let taskHeader = `${taskIcon} <strong>${taskKey}</strong>`;
+                    
+                    if (isAgentTask && agentTools.length > 0) {
+                        const toolPills = agentTools.map(tool => `<span class="tool-pill">🔧 ${tool}</span>`).join('');
+                        taskHeader += `<div class="agent-tools-used">Tools Available: ${toolPills}</div>`;
+                    }
+                    
+                    resultsHTML += `<div class="task-header">${taskHeader}</div>`;
+                    
+                    // Task result content
+                    resultsHTML += '<div class="task-content">';
+                    
+                    // Check if this is an agent result with tool usage results
+                    if (typeof taskResult === 'object' && taskResult !== null) {
+                        // Handle structured agent result with potential tool usage
+                        const agentOutput = taskResult.result || taskResult.output || taskResult;
+                        const toolUsageResults = taskResult.tool_usage_results;
+                        
+                        // Display main agent output
+                        if (typeof agentOutput === 'string') {
+                            let displayResult = agentOutput;
+                            
+                            if (isAgentTask && agentTools.length > 0) {
+                                // Highlight potential tool usage in agent responses (only once per term)
+                                const highlightedTerms = new Set();
+                                agentTools.forEach(tool => {
+                                    if (!highlightedTerms.has(tool.toLowerCase())) {
+                                        const toolPattern = new RegExp(`\\b(${tool})\\b`, 'gi');
+                                        displayResult = displayResult.replace(toolPattern, '<mark class="tool-usage-highlight">$1</mark>');
+                                        highlightedTerms.add(tool.toLowerCase());
+                                    }
+                                });
+                            }
+                            
+                            resultsHTML += `<div class="result-text">${displayResult}</div>`;
+                        } else {
+                            resultsHTML += `<pre class="result-json">${JSON.stringify(agentOutput, null, 2)}</pre>`;
+                        }
+                        
+                        // Display tool usage results in Rich panel style
+                        if (toolUsageResults && Array.isArray(toolUsageResults) && toolUsageResults.length > 0) {
+                            resultsHTML += '<div class="tool-usage-panels">';
+                            resultsHTML += '<h5 style="margin: 1rem 0 0.5rem 0; color: #333;">🛠️ Tool Usage Results</h5>';
+                            
+                            toolUsageResults.forEach((toolUsage, index) => {
+                                resultsHTML += '<div class="tool-usage-panel">';
+                                resultsHTML += `<div class="tool-usage-header">🛠️ ${toolUsage.tool_name}</div>`;
+                                resultsHTML += '<div class="tool-usage-content">';
+                                
+                                // Show tool arguments
+                                if (toolUsage.tool_args && Object.keys(toolUsage.tool_args).length > 0) {
+                                    resultsHTML += '<div><strong>Arguments:</strong></div>';
+                                    resultsHTML += `<div class="tool-args">${JSON.stringify(toolUsage.tool_args, null, 2)}</div>`;
+                                }
+                                
+                                // Show tool result
+                                if (toolUsage.tool_result !== undefined && toolUsage.tool_result !== null) {
+                                    resultsHTML += '<div><strong>Result:</strong></div>';
+                                    if (typeof toolUsage.tool_result === 'string') {
+                                        resultsHTML += `<div class="tool-result">${toolUsage.tool_result}</div>`;
+                                    } else {
+                                        resultsHTML += `<div class="tool-result"><pre>${JSON.stringify(toolUsage.tool_result, null, 2)}</pre></div>`;
+                                    }
+                                }
+                                
+                                resultsHTML += '</div>'; // tool-usage-content
+                                resultsHTML += '</div>'; // tool-usage-panel
+                            });
+                            
+                            resultsHTML += '</div>'; // tool-usage-panels
+                        }
+                    } else if (typeof taskResult === 'string') {
+                        // Simple string result
+                        let displayResult = taskResult;
+                        
+                        if (isAgentTask && agentTools.length > 0) {
+                            // Highlight potential tool usage in agent responses (only once per term)
+                            const highlightedTerms = new Set();
+                            agentTools.forEach(tool => {
+                                if (!highlightedTerms.has(tool.toLowerCase())) {
+                                    const toolPattern = new RegExp(`\\b(${tool})\\b`, 'gi');
+                                    displayResult = displayResult.replace(toolPattern, '<mark class="tool-usage-highlight">$1</mark>');
+                                    highlightedTerms.add(tool.toLowerCase());
+                                }
+                            });
+                        }
+                        
+                        resultsHTML += `<div class="result-text">${displayResult}</div>`;
+                    } else {
+                        // Fallback to JSON display
+                        resultsHTML += `<pre class="result-json">${JSON.stringify(taskResult, null, 2)}</pre>`;
+                    }
+                    
+                    resultsHTML += '</div>'; // task-content
+                    resultsHTML += '</div>'; // task-result-card
+                }
+                
+                resultsHTML += '</div>'; // results-section
+                resultsHTML += '</div>'; // enhanced-results
             } else {
-                resultsHTML = JSON.stringify(results, null, 2);
+                // Fallback to original JSON display
+                const jsonString = results.results ? JSON.stringify(results.results, null, 2) : JSON.stringify(results, null, 2);
+                resultsHTML = `<pre class="result-json">${jsonString}</pre>`;
             }
             
-            resultsContent.textContent = resultsHTML;
+            resultsContent.innerHTML = resultsHTML;
             resultsDiv.style.display = 'block';
         }
 
@@ -1158,12 +1453,21 @@
             // Convert workflow to React Flow format
             console.log('🔄 Converting nodes:', workflow.nodes);
             currentNodes = workflow.nodes.map((node, index) => {
+                // Create label with tool pills for agent nodes
+                let nodeLabel = `${getNodeIcon(node.type)} ${node.label}`;
+                let toolsInfo = '';
+                
+                if (node.type === 'agent' && node.data.tools && node.data.tools.length > 0) {
+                    const toolPills = node.data.tools.map(tool => `🔧${tool}`).join(' ');
+                    toolsInfo = `\\n${toolPills}`;
+                }
+                
                 const reactFlowNode = {
                     id: node.id,
                     type: 'default',
                     position: node.position || { x: index * 250, y: index * 100 },
                     data: {
-                        label: `${getNodeIcon(node.type)} ${node.label}`,
+                        label: nodeLabel + toolsInfo,
                     },
                     draggable: true,  // Explicitly enable dragging per node
                     selectable: true, // Explicitly enable selection per node
@@ -1176,6 +1480,9 @@
                         fontSize: '12px',
                         fontWeight: 'bold',
                         cursor: 'grab', // Add grab cursor to indicate draggable
+                        minWidth: node.type === 'agent' && node.data.tools ? '180px' : '120px', // Wider for agent nodes with tools
+                        minHeight: node.type === 'agent' && node.data.tools ? '80px' : '60px',
+                        whiteSpace: 'pre-line', // Allow line breaks in labels
                     }
                 };
                 console.log(`   Node ${index}: ${node.id} -> ReactFlow node:`, reactFlowNode);
