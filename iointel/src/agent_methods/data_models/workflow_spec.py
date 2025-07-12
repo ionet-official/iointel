@@ -59,7 +59,7 @@ class WorkflowSpec(BaseModel):
     nodes: List[NodeSpec]
     edges: List[EdgeSpec]
     metadata: Dict = Field(default_factory=dict)  # tags, owner, created_at
-    reasoning: str = Field(default="", description="LLM's reasoning about workflow creation, including constraints and limitations")
+    reasoning: str = Field(default="", description="LLM's chat bot response to the user's query about workflow creation, including constraints and limitations")
     
     def to_workflow_definition(self, **kwargs):
         """Convert to executable WorkflowDefinition format."""

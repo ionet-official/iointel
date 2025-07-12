@@ -5,6 +5,8 @@ from .utilities.runners import run_agents
 from .utilities.decorators import register_custom_task
 from .utilities.registries import CHAINABLE_METHODS, CUSTOM_WORKFLOW_REGISTRY
 from .agents import Agent
+from .agent_methods.agents.agents_factory import create_agent
+from .agent_methods.data_models.datamodels import AgentParams
 
 ##############################################
 # Example Executor Functions
@@ -274,6 +276,48 @@ def execute_custom(
                 output_type=str,
             )
             return response.execute()
+
+
+@register_custom_task("agent")
+async def execute_agent_task(
+    task_metadata: dict, objective: str, agents: List[Agent], execution_metadata: dict
+):
+    """
+    Generic agent task executor that handles type='agent' tasks from WorkflowSpec.
+    
+    This executor:
+    1. Converts AgentParams to Agent instances using agents_factory
+    2. Uses agent_instructions from task_metadata as the primary objective
+    3. Executes using the standard run_agents function
+    4. Follows the same pattern as other chainable tasks
+    """
+    client_mode = execution_metadata.get("client_mode", False)
+    agent_instructions = task_metadata.get("agent_instructions", "")
+    
+    # Convert AgentParams to Agent instances if needed
+    if agents and isinstance(agents[0], AgentParams):
+        agents_to_use = [create_agent(ap) for ap in agents]
+    else:
+        agents_to_use = agents or [Agent.make_default()]
+    
+    # Use agent_instructions as the primary objective
+    task_objective = agent_instructions or objective or "Process the available data"
+    
+    if client_mode:
+        from ..client.client import run_agent_task
+        return run_agent_task(
+            objective=task_objective,
+            agents=agents_to_use,
+            context=task_metadata.get("kwargs", {})
+        )
+    else:
+        response = await run_agents(
+            objective=task_objective,
+            agents=agents_to_use,
+            context=task_metadata.get("kwargs", {}),
+            output_type=str,
+        ).execute()
+        return response
 
 
 ##############################################

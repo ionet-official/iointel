@@ -45,7 +45,8 @@ class DAGExecutor:
         edges: List[EdgeSpec],
         objective: str = "",
         agents: Optional[List[Any]] = None,
-        conversation_id: Optional[str] = None
+        conversation_id: Optional[str] = None,
+        execution_metadata_by_node: Optional[Dict[str, Dict]] = None
     ) -> Dict[str, DAGNode]:
         """
         Build a DAG from nodes and edges, with proper dependency tracking.
@@ -65,23 +66,30 @@ class DAGExecutor:
         # Initialize nodes
         self.nodes = {}
         for node in nodes:
-            task_node_class = make_task_node(
-                task={
-                    "task_id": node.id,
-                    "name": node.label,
-                    "type": node.type,
-                    "objective": f"Execute {node.label}",
-                    "task_metadata": {
-                        "config": node.data.config,
-                        "tool_name": node.data.tool_name,
-                        "agent_instructions": node.data.agent_instructions,
-                        "workflow_id": node.data.workflow_id,
-                        "ports": {
-                            "inputs": node.data.ins,
-                            "outputs": node.data.outs
-                        }
+            # Create base task data
+            task_data = {
+                "task_id": node.id,
+                "name": node.label,
+                "type": node.type,
+                "objective": f"Execute {node.label}",
+                "task_metadata": {
+                    "config": node.data.config,
+                    "tool_name": node.data.tool_name,
+                    "agent_instructions": node.data.agent_instructions,
+                    "workflow_id": node.data.workflow_id,
+                    "ports": {
+                        "inputs": node.data.ins,
+                        "outputs": node.data.outs
                     }
-                },
+                }
+            }
+            
+            # Add execution metadata if available
+            if execution_metadata_by_node and node.id in execution_metadata_by_node:
+                task_data["execution_metadata"] = execution_metadata_by_node[node.id]
+            
+            task_node_class = make_task_node(
+                task=task_data,
                 default_text=objective,
                 default_agents=agents or [],
                 conv_id=conversation_id or "default"

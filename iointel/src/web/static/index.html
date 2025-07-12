@@ -18,33 +18,85 @@
 
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: #0f0f1a;
             height: 100vh;
             overflow: hidden;
+            color: #e0e0e0;
         }
 
         .container {
-            display: flex;
-            height: 100vh;
+            display: grid;
+            grid-template-columns: 400px 1fr;
+            grid-template-rows: 1fr 350px;
             gap: 1rem;
+            height: 100vh;
+            width: 100vw;
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 100%);
+            overflow: hidden;
             padding: 1rem;
-            position: relative;
+            box-sizing: border-box;
         }
 
-        .sidebar {
-            width: 350px;
-            background: rgba(255, 255, 255, 0.95);
-            border-radius: 15px;
-            padding: 1.5rem;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-            backdrop-filter: blur(10px);
+        /* Chat Sidebar */
+        .chat-panel {
+            grid-row: 1 / -1;
+            grid-column: 1;
+            background: rgba(20, 20, 35, 0.95);
+            border-radius: 20px;
+            border: 1px solid rgba(100, 255, 100, 0.3);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .chat-header {
+            background: linear-gradient(135deg, #7DF9FF 0%, #4ecdc4 100%);
+            padding: 1rem;
+            border-radius: 20px 20px 0 0;
+            color: #0f0f1a;
+            font-weight: bold;
+            text-align: center;
+            font-size: 1.2rem;
+        }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1rem;
             display: flex;
             flex-direction: column;
             gap: 1rem;
         }
 
+        .chat-input-container {
+            padding: 1rem;
+            border-top: 1px solid rgba(125, 249, 255, 0.3);
+            background: rgba(30, 30, 45, 0.8);
+        }
+
+        .chat-input {
+            width: 100%;
+            padding: 0.75rem;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(125, 249, 255, 0.3);
+            border-radius: 10px;
+            color: #e0e0e0;
+            font-size: 0.95rem;
+            transition: all 0.3s ease;
+        }
+
+        .chat-input:focus {
+            outline: none;
+            border-color: #7DF9FF;
+            background: rgba(255, 255, 255, 0.15);
+            box-shadow: 0 0 0 2px rgba(125, 249, 255, 0.2);
+        }
+
+        /* Main Content Area */
         .main-content {
-            flex: 1;
+            grid-column: 2;
+            grid-row: 1;
             display: flex;
             flex-direction: column;
             gap: 1rem;
@@ -52,52 +104,103 @@
         
         .flow-area {
             flex: 1;
-            background: rgba(255, 255, 255, 0.95);
-            border-radius: 15px;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-            backdrop-filter: blur(10px);
+            background: rgba(20, 20, 35, 0.95);
+            border-radius: 20px;
+            border: 1px solid rgba(100, 255, 100, 0.3);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
             overflow: hidden;
             position: relative;
         }
         
-        .bottom-bar {
-            background: rgba(255, 255, 255, 0.95);
-            border-radius: 15px;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-            backdrop-filter: blur(10px);
-            padding: 1rem;
-            display: flex;
+        /* Bottom Panel - Only for main content area */
+        .bottom-panel {
+            grid-column: 2;
+            grid-row: 2;
+            background: rgba(10, 10, 10, 0.95);
+            border-top: 1px solid rgba(100, 255, 100, 0.2);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            display: grid;
+            grid-template-columns: 1fr;
             gap: 1rem;
-            min-height: 200px;
-            max-height: 300px;
+            overflow: hidden;
+            width: 100%;
+            box-sizing: border-box;
+            padding: 1rem;
+            border-radius: 0 0 20px 20px;
         }
         
         .bottom-section {
-            flex: 1;
-            background: #f8f9fa;
-            border-radius: 10px;
-            padding: 1rem;
+            background: rgba(30, 30, 45, 0.8);
+            padding: 1.5rem;
             overflow-y: auto;
+            position: relative;
+        }
+        
+        .bottom-section:not(:last-child)::after {
+            content: '';
+            position: absolute;
+            right: 0;
+            top: 10%;
+            bottom: 10%;
+            width: 1px;
+            background: linear-gradient(to bottom, transparent, rgba(125, 249, 255, 0.5), transparent);
         }
         
         .bottom-section h3 {
-            margin: 0 0 0.75rem 0;
-            font-size: 1.1rem;
-            color: #333;
+            margin: 0 0 1rem 0;
+            font-size: 1.2rem;
+            color: #7DF9FF;
             display: flex;
             align-items: center;
             gap: 0.5rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
         }
 
+        /* Message Bubbles */
+        .message {
+            max-width: 80%;
+            word-wrap: break-word;
+        }
+
+        .message.user {
+            align-self: flex-end;
+        }
+
+        .message.assistant {
+            align-self: flex-start;
+        }
+
+        .message-bubble {
+            padding: 0.75rem 1rem;
+            border-radius: 15px;
+            position: relative;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        }
+
+        .message.user .message-bubble {
+            background: linear-gradient(135deg, #7DF9FF 0%, #4ecdc4 100%);
+            color: #0f0f1a;
+            border-bottom-right-radius: 5px;
+        }
+
+        .message.assistant .message-bubble {
+            background: rgba(50, 50, 70, 0.8);
+            color: #e0e0e0;
+            border-bottom-left-radius: 5px;
+        }
+
+        .message-time {
+            font-size: 0.7rem;
+            opacity: 0.7;
+            margin-top: 0.25rem;
+        }
+
+        /* Header */
         .header {
-            text-align: center;
-            margin-bottom: 1rem;
-        }
-
-        .header h1 {
-            color: #333;
-            font-size: 1.5rem;
-            margin-bottom: 0.5rem;
+            display: none;
         }
 
         .header p {
@@ -105,97 +208,129 @@
             font-size: 0.9rem;
         }
 
-        .input-section {
-            display: flex;
-            flex-direction: column;
-            gap: 0.5rem;
+        /* Tool Search */
+        .tool-search-container {
+            position: relative;
+            margin-bottom: 1rem;
         }
 
-        .input-group {
-            display: flex;
-            gap: 0.5rem;
-        }
-
-        input[type="text"], textarea {
-            flex: 1;
+        .tool-search {
+            width: 100%;
             padding: 0.75rem;
-            border: 2px solid #e1e5e9;
-            border-radius: 8px;
-            font-size: 0.9rem;
-            transition: border-color 0.3s;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(125, 249, 255, 0.3);
+            border-radius: 10px;
+            color: #e0e0e0;
+            font-size: 0.95rem;
+            transition: all 0.3s ease;
         }
 
-        input[type="text"]:focus, textarea:focus {
+        .tool-search:focus {
             outline: none;
-            border-color: #667eea;
+            border-color: #7DF9FF;
+            background: rgba(255, 255, 255, 0.15);
         }
 
-        textarea {
-            resize: vertical;
-            min-height: 80px;
+        .tool-results {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            margin-top: 0.5rem;
+            background: rgba(30, 30, 45, 0.98);
+            border: 1px solid rgba(125, 249, 255, 0.3);
+            border-radius: 10px;
+            max-height: 300px;
+            overflow-y: auto;
+            z-index: 1000;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
         }
 
+        .tool-result-item {
+            padding: 0.75rem;
+            border-bottom: 1px solid rgba(125, 249, 255, 0.1);
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .tool-result-item:hover {
+            background: rgba(125, 249, 255, 0.1);
+        }
+
+        .tool-result-name {
+            color: #7DF9FF;
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+        }
+
+        .tool-result-desc {
+            font-size: 0.85rem;
+            color: #a0a0a0;
+        }
+
+        /* Buttons */
         .button {
-            padding: 0.75rem 1rem;
+            padding: 0.5rem 1rem;
             border: none;
             border-radius: 8px;
             font-size: 0.9rem;
             font-weight: 600;
             cursor: pointer;
-            transition: all 0.3s;
+            transition: all 0.3s ease;
             display: flex;
             align-items: center;
-            justify-content: center;
             gap: 0.5rem;
+            background: rgba(125, 249, 255, 0.2);
+            color: #7DF9FF;
+            border: 1px solid rgba(125, 249, 255, 0.3);
         }
 
-        .button-primary {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-        }
-
-        .button-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
-        }
-
-        .button-secondary {
-            background: #f8f9fa;
-            color: #333;
-            border: 2px solid #e1e5e9;
-        }
-
-        .button-secondary:hover {
-            background: #e9ecef;
+        .button:hover:not(:disabled) {
+            background: rgba(125, 249, 255, 0.3);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(125, 249, 255, 0.2);
         }
 
         .button:disabled {
-            opacity: 0.6;
+            opacity: 0.5;
             cursor: not-allowed;
-            transform: none !important;
         }
 
+        .button-primary {
+            background: linear-gradient(135deg, #7DF9FF 0%, #4ecdc4 100%);
+            color: #0f0f1a;
+            border: none;
+        }
+
+        .button-danger {
+            background: rgba(244, 67, 54, 0.2);
+            color: #ff6b6b;
+            border-color: rgba(244, 67, 54, 0.3);
+        }
+
+        /* Dark theme selects */
         .example-select, .orchestration-select {
             padding: 0.75rem 1rem;
-            border: 2px solid #e1e5e9;
+            border: 1px solid rgba(125, 249, 255, 0.3);
             border-radius: 8px;
             font-size: 0.9rem;
             font-weight: 600;
-            background: #f8f9fa;
-            color: #333;
+            background: rgba(255, 255, 255, 0.1);
+            color: #e0e0e0;
             cursor: pointer;
             transition: all 0.3s;
             width: 100%;
         }
 
         .example-select:hover, .orchestration-select:hover {
-            background: #e9ecef;
+            background: rgba(255, 255, 255, 0.15);
+            border-color: #7DF9FF;
         }
 
         .example-select:focus, .orchestration-select:focus {
             outline: none;
-            border-color: #667eea;
-            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+            border-color: #7DF9FF;
+            box-shadow: 0 0 0 2px rgba(125, 249, 255, 0.2);
         }
 
         /* New orchestration section styles */
@@ -610,9 +745,89 @@
             background: #ffeaea;
         }
 
+        /* Loading and thinking animations */
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.6; }
+            100% { opacity: 1; }
+        }
+
+        @keyframes thinking-dots {
+            0% { content: '...'; }
+            33% { content: '.'; }
+            66% { content: '..'; }
+            100% { content: '...'; }
+        }
+
+        @keyframes running-glow {
+            0% { box-shadow: 0 0 5px rgba(0, 123, 255, 0.3); }
+            50% { box-shadow: 0 0 15px rgba(0, 123, 255, 0.6); }
+            100% { box-shadow: 0 0 5px rgba(0, 123, 255, 0.3); }
+        }
+
+        .execution-task.running {
+            animation: running-glow 2s ease-in-out infinite;
+        }
+
+        .execution-task.running::after {
+            content: " ⚡ processing...";
+            animation: pulse 1.5s ease-in-out infinite;
+            color: #007bff;
+            font-weight: 600;
+        }
+
+        .button.loading {
+            animation: pulse 1.5s ease-in-out infinite;
+            position: relative;
+        }
+
+        .button.loading::after {
+            content: "";
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            margin: auto;
+            border: 2px solid transparent;
+            border-top-color: currentColor;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+
+        @keyframes spin {
+            0% { transform: translateY(-50%) rotate(0deg); }
+            100% { transform: translateY(-50%) rotate(360deg); }
+        }
+
+        .thinking-indicator {
+            display: inline-block;
+            animation: thinking-dots 2s ease-in-out infinite;
+        }
+
+        .thinking-indicator::after {
+            content: "...";
+            animation: pulse 1s ease-in-out infinite;
+        }
+
         .flow-container {
             width: 100%;
             height: 100%;
+            background: transparent;
+        }
+        
+        /* React Flow Background */
+        .react-flow {
+            background: transparent !important;
+        }
+        
+        .react-flow__background {
+            background: transparent !important;
+        }
+        
+        .react-flow__background pattern {
+            stroke: rgba(100, 255, 100, 0.05) !important;
         }
 
         .controls {
@@ -645,7 +860,7 @@
             align-items: center;
             justify-content: center;
             height: 100%;
-            color: #666;
+            color: #7DF9FF;
             text-align: center;
             padding: 2rem;
         }
@@ -653,7 +868,17 @@
         .empty-state .icon {
             font-size: 4rem;
             margin-bottom: 1rem;
-            opacity: 0.5;
+            opacity: 0.7;
+            animation: pulse 2s infinite;
+        }
+        
+        .empty-state h2 {
+            color: #e0e0e0;
+            margin-bottom: 0.5rem;
+        }
+        
+        .empty-state p {
+            color: #a0a0a0;
         }
 
         @keyframes pulse {
@@ -664,124 +889,661 @@
         .loading {
             animation: pulse 1.5s infinite;
         }
+        
+        /* Node and Edge Items */
+        .node-item, .edge-item {
+            background: rgba(125, 249, 255, 0.1);
+            border: 1px solid rgba(125, 249, 255, 0.3);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 0.75rem;
+            transition: all 0.3s ease;
+        }
+        
+        .node-item:hover, .edge-item:hover {
+            background: rgba(125, 249, 255, 0.2);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(125, 249, 255, 0.2);
+        }
+        
+        .port-badge {
+            display: inline-block;
+            padding: 0.2rem 0.5rem;
+            border-radius: 12px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            margin: 0 0.2rem;
+        }
+        
+        .port-badge.input {
+            background: rgba(255, 152, 0, 0.2);
+            color: #ff9800;
+            border: 1px solid rgba(255, 152, 0, 0.3);
+        }
+        
+        .port-badge.output {
+            background: rgba(76, 175, 80, 0.2);
+            color: #4caf50;
+            border: 1px solid rgba(76, 175, 80, 0.3);
+        }
+        
+        .config-box {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 6px;
+            padding: 0.5rem;
+            margin-top: 0.5rem;
+            font-family: monospace;
+            font-size: 0.8rem;
+            white-space: pre-wrap;
+            color: #7DF9FF;
+        }
+        
+        .condition-box {
+            background: rgba(255, 193, 7, 0.2);
+            color: #ffc107;
+            border: 1px solid rgba(255, 193, 7, 0.3);
+            border-radius: 6px;
+            padding: 0.5rem;
+            margin-top: 0.5rem;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+        
+        /* Fix select option colors for dark theme */
+        select option {
+            background: #1a1a2e;
+            color: #e0e0e0;
+        }
+        
+        /* Scrollbar styling */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: rgba(125, 249, 255, 0.3);
+            border-radius: 4px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(125, 249, 255, 0.5);
+        }
+        
+        /* React Flow Node Styling - IO.net Inspired Electric Theme */
+        .react-flow__node {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%) !important;
+            border: 2px solid rgba(100, 255, 100, 0.3) !important;
+            border-radius: 16px !important;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+        }
+        
+        .react-flow__node:hover {
+            transform: translateY(-3px) scale(1.02);
+            box-shadow: 0 12px 35px rgba(100, 255, 100, 0.3), 0 0 20px rgba(100, 255, 100, 0.2) !important;
+            border-color: rgba(100, 255, 100, 0.8) !important;
+            background: linear-gradient(135deg, #1e1e35 0%, #1a2545 100%) !important;
+        }
+        
+        .react-flow__node.selected {
+            box-shadow: 0 0 0 3px rgba(100, 255, 100, 0.6), 0 8px 25px rgba(100, 255, 100, 0.2) !important;
+            border-color: rgba(100, 255, 100, 1) !important;
+            background: linear-gradient(135deg, #22223a 0%, #1e2948 100%) !important;
+        }
+
+        /* Specific node type styling */
+        .react-flow__node[data-type="tool"] {
+            background: linear-gradient(135deg, #1a1a2e 0%, #0f1419 100%) !important;
+            border-color: rgba(100, 255, 100, 0.4) !important;
+        }
+
+        .react-flow__node[data-type="agent"] {
+            background: linear-gradient(135deg, #16213e 0%, #0a1628 100%) !important;
+            border-color: rgba(125, 249, 255, 0.4) !important;
+        }
+
+        .react-flow__node[data-type="agent"]:hover {
+            border-color: rgba(125, 249, 255, 0.8) !important;
+            box-shadow: 0 12px 35px rgba(125, 249, 255, 0.3), 0 0 20px rgba(125, 249, 255, 0.2) !important;
+        }
+
+        .react-flow__node[data-type="agent"].selected {
+            border-color: rgba(125, 249, 255, 1) !important;
+            box-shadow: 0 0 0 3px rgba(125, 249, 255, 0.6), 0 8px 25px rgba(125, 249, 255, 0.2) !important;
+        }
+        
+        .react-flow__edge {
+            transition: all 0.3s ease;
+        }
+        
+        .react-flow__edge:hover {
+            stroke: rgba(100, 255, 100, 1) !important;
+            stroke-width: 3px !important;
+            filter: drop-shadow(0 0 8px rgba(100, 255, 100, 0.6));
+        }
+        
+        .react-flow__edge.selected {
+            stroke: rgba(100, 255, 100, 1) !important;
+            stroke-width: 3px !important;
+            filter: drop-shadow(0 0 12px rgba(100, 255, 100, 0.8));
+        }
+        
+        /* Node Content Styling */
+        .node-content {
+            font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-weight: 500;
+            letter-spacing: -0.01em;
+        }
+        
+        .node-title {
+            font-size: 12px;
+            font-weight: 700;
+            color: rgba(255, 255, 255, 0.98);
+            margin-bottom: 6px;
+            text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+            letter-spacing: -0.02em;
+            background: linear-gradient(135deg, #ffffff, #e0e0e0);
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.3));
+        }
+        
+        .node-id {
+            font-size: 8px;
+            color: rgba(255, 255, 255, 0.5);
+            font-weight: 500;
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            background: rgba(0, 0, 0, 0.2);
+            padding: 2px 6px;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            display: inline-block;
+        }
+        
+        .node-instructions {
+            font-size: 9px;
+            color: rgba(255, 255, 255, 0.85);
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(125, 249, 255, 0.2);
+            border-radius: 6px;
+            padding: 6px 8px;
+            margin: 6px 0;
+            line-height: 1.4;
+            max-height: 60px;
+            overflow-y: auto;
+            backdrop-filter: blur(4px);
+            transition: all 0.3s ease;
+        }
+
+        .node-instructions:hover {
+            border-color: rgba(125, 249, 255, 0.4);
+            background: rgba(0, 0, 0, 0.4);
+            max-height: 120px;
+        }
+
+        .node-instructions-collapsed {
+            max-height: 20px;
+            overflow: hidden;
+            cursor: pointer;
+        }
+
+        .node-instructions-collapsed::after {
+            content: " ▼";
+            color: rgba(125, 249, 255, 0.7);
+            font-size: 8px;
+        }
+
+        .instructions-toggle {
+            color: rgba(125, 249, 255, 0.8);
+            cursor: pointer;
+            font-size: 8px;
+            float: right;
+            margin-top: -2px;
+        }
+
+        .node-instructions-expandable {
+            cursor: pointer;
+            position: relative;
+        }
+
+        .node-instructions-expandable::after {
+            content: "👁️";
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            font-size: 10px;
+            opacity: 0.7;
+            transition: opacity 0.3s ease;
+        }
+
+        .node-instructions-expandable:hover::after {
+            opacity: 1;
+        }
+
+        .instructions-full {
+            animation: fadeIn 0.3s ease;
+        }
+
+        .instructions-preview {
+            transition: opacity 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Rich Panel-Inspired Tool Usage Display */
+        .tool-usage-panels {
+            margin-top: 1rem;
+        }
+
+        .tool-usage-panel {
+            border: 2px solid #00bcd4;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0, 188, 212, 0.1);
+            background: rgba(0, 188, 212, 0.02);
+        }
+
+        .tool-usage-header {
+            background: linear-gradient(135deg, #00bcd4, #0097a7);
+            color: white;
+            padding: 0.75rem 1rem;
+            font-weight: 600;
+            font-size: 0.9rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .tool-usage-content {
+            padding: 1rem;
+            background: rgba(255, 255, 255, 0.98);
+            color: #333;
+        }
+
+        .tool-args {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 6px;
+            padding: 0.75rem;
+            margin: 0.5rem 0;
+            font-family: 'Fira Code', 'Monaco', 'Consolas', monospace;
+            font-size: 0.85rem;
+            overflow-x: auto;
+            border-left: 4px solid #00bcd4;
+        }
+
+        .tool-result {
+            background: #f0fdf4;
+            border: 1px solid #bbf7d0;
+            border-radius: 6px;
+            padding: 0.75rem;
+            margin: 0.5rem 0;
+            color: #166534;
+            font-weight: 500;
+            border-left: 4px solid #22c55e;
+        }
+
+        .tool-result::before {
+            content: "✅ ";
+            margin-right: 0.5rem;
+        }
+
+        .tool-result pre {
+            margin: 0;
+            background: transparent;
+            border: none;
+            padding: 0;
+            color: inherit;
+            font-family: 'Fira Code', 'Monaco', 'Consolas', monospace;
+        }
+        
+        .tool-pill {
+            display: inline-block;
+            background: linear-gradient(135deg, rgba(100, 255, 100, 0.15), rgba(100, 255, 100, 0.08));
+            border: 1px solid rgba(100, 255, 100, 0.4);
+            color: rgba(100, 255, 100, 0.95);
+            padding: 3px 8px;
+            border-radius: 14px;
+            font-size: 8px;
+            font-weight: 700;
+            margin: 2px 3px;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(6px);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+        
+        .tool-pill:hover {
+            background: linear-gradient(135deg, rgba(100, 255, 100, 0.25), rgba(100, 255, 100, 0.15));
+            border-color: rgba(100, 255, 100, 0.8);
+            color: rgba(100, 255, 100, 1);
+            transform: translateY(-1px) scale(1.05);
+            box-shadow: 0 4px 12px rgba(100, 255, 100, 0.3);
+        }
+        
+        .port-badge {
+            display: inline-block;
+            padding: 2px 4px;
+            border-radius: 8px;
+            font-size: 7px;
+            font-weight: 600;
+            margin: 1px;
+            text-transform: uppercase;
+            letter-spacing: 0.02em;
+            transition: all 0.2s ease;
+            backdrop-filter: blur(4px);
+        }
+        
+        .port-badge.input {
+            background: rgba(255, 152, 0, 0.15);
+            border: 1px solid rgba(255, 152, 0, 0.3);
+            color: rgba(255, 152, 0, 0.9);
+        }
+        
+        .port-badge.input:hover {
+            background: rgba(255, 152, 0, 0.25);
+            border-color: rgba(255, 152, 0, 0.6);
+            color: rgba(255, 152, 0, 1);
+            transform: scale(1.05);
+            box-shadow: 0 2px 8px rgba(255, 152, 0, 0.3);
+        }
+        
+        .port-badge.output {
+            background: rgba(76, 175, 80, 0.15);
+            border: 1px solid rgba(76, 175, 80, 0.3);
+            color: rgba(76, 175, 80, 0.9);
+        }
+        
+        .port-badge.output:hover {
+            background: rgba(76, 175, 80, 0.25);
+            border-color: rgba(76, 175, 80, 0.6);
+            color: rgba(76, 175, 80, 1);
+            transform: scale(1.05);
+            box-shadow: 0 2px 8px rgba(76, 175, 80, 0.3);
+        }
+        
+        /* Tool Search Results */
+        .tool-results {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: rgba(20, 20, 35, 0.95);
+            border: 1px solid rgba(125, 249, 255, 0.3);
+            border-radius: 8px;
+            border-top: none;
+            border-top-left-radius: 0;
+            border-top-right-radius: 0;
+            max-height: 300px;
+            overflow-y: auto;
+            z-index: 1000;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+        
+        .tool-result-item {
+            padding: 0.75rem;
+            cursor: pointer;
+            border-bottom: 1px solid rgba(125, 249, 255, 0.2);
+            transition: background 0.2s ease;
+        }
+        
+        .tool-result-item:hover {
+            background: rgba(125, 249, 255, 0.1);
+        }
+        
+        .tool-result-item:last-child {
+            border-bottom: none;
+        }
+        
+        .tool-result-name {
+            font-weight: bold;
+            color: #7DF9FF;
+            margin-bottom: 0.25rem;
+        }
+        
+        .tool-result-desc {
+            font-size: 0.8rem;
+            color: #a0a0a0;
+            line-height: 1.3;
+        }
+
+        /* User Input Form Styles */
+        .user-input-form {
+            background: rgba(20, 20, 30, 0.95);
+            border: 1px solid rgba(100, 255, 100, 0.3);
+            border-radius: 10px;
+            padding: 1.5rem;
+            margin: 1rem 0;
+        }
+
+        .user-input-form h3 {
+            color: #64FF64;
+            margin: 0 0 1rem 0;
+            font-size: 1.2rem;
+        }
+
+        .user-input-form .form-description {
+            color: #b0b0b0;
+            margin-bottom: 1.5rem;
+            font-size: 0.9rem;
+        }
+
+        .form-field {
+            margin-bottom: 1rem;
+        }
+
+        .form-field label {
+            display: block;
+            color: #e0e0e0;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+        }
+
+        .form-field label .required {
+            color: #ff6b6b;
+        }
+
+        .form-field input,
+        .form-field textarea,
+        .form-field select {
+            width: 100%;
+            padding: 0.75rem;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(100, 255, 100, 0.3);
+            border-radius: 8px;
+            color: #e0e0e0;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+
+        .form-field input:focus,
+        .form-field textarea:focus,
+        .form-field select:focus {
+            outline: none;
+            border-color: #64FF64;
+            background: rgba(255, 255, 255, 0.15);
+            box-shadow: 0 0 0 2px rgba(100, 255, 100, 0.2);
+        }
+
+        .form-field textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .form-field .field-description {
+            color: #a0a0a0;
+            font-size: 0.8rem;
+            margin-top: 0.25rem;
+        }
+
+        .form-field.checkbox {
+            display: flex;
+            align-items: center;
+        }
+
+        .form-field.checkbox input {
+            width: auto;
+            margin-right: 0.5rem;
+        }
+
+        .form-field.checkbox label {
+            margin-bottom: 0;
+        }
+
+        .form-submit-container {
+            margin-top: 1.5rem;
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .form-submit-btn {
+            background: linear-gradient(135deg, #64FF64, #4CAF50);
+            color: #000;
+            border: none;
+            padding: 0.75rem 2rem;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 0.95rem;
+        }
+
+        .form-submit-btn:hover {
+            background: linear-gradient(135deg, #4CAF50, #64FF64);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(100, 255, 100, 0.3);
+        }
+
+        .form-submit-btn:disabled {
+            background: #666;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .form-validation-error {
+            color: #ff6b6b;
+            font-size: 0.8rem;
+            margin-top: 0.25rem;
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <!-- Sidebar -->
-        <div class="sidebar">
-            <div class="header">
-                <h1>🌊 WorkflowPlanner</h1>
-                <p>Create workflows with AI</p>
-                <div id="connectionStatus" class="status status-disconnected">Disconnected</div>
+        <!-- Chat Panel -->
+        <div class="chat-panel">
+            <div class="chat-header">
+                🌊 WorkflowPlanner AI
+                <div id="connectionStatus" class="status status-disconnected" style="float: right; font-size: 0.8rem;">Disconnected</div>
             </div>
-
-            <div class="input-section">
-                <textarea 
-                    id="queryInput" 
-                    placeholder="Describe your workflow... (e.g., 'Fetch weather data and send it to Slack every morning')"
-                    rows="4"
-                ></textarea>
-                
-                <div class="input-group">
-                    <button id="generateBtn" class="button button-primary">
-                        ✨ Generate
-                    </button>
-                    <button id="refineBtn" class="button button-secondary" disabled>
-                        🔧 Refine
-                    </button>
-                </div>
-
-                <div class="input-group">
-                    <select id="exampleSelect" class="example-select" style="flex: 1; margin-right: 0.5rem;">
-                        <option value="">📋 Select Example...</option>
-                    </select>
-                    <button id="clearBtn" class="button button-secondary" disabled>
-                        🗑️ Clear
-                    </button>
-                </div>
-                
-                <div class="input-group">
-                    <button id="executeBtn" class="button button-primary" disabled>
-                        🚀 Execute
-                    </button>
-                    <button id="stopBtn" class="button button-secondary" disabled>
-                        ⏹️ Stop
-                    </button>
-                </div>
-
-                <div class="input-group">
-                    <button id="saveBtn" class="button button-success" disabled>
-                        💾 Save
-                    </button>
-                    <button id="exportBtn" class="button button-secondary" disabled>
-                        📤 Export YAML
-                    </button>
-                </div>
-            </div>
-
             
-            <div id="toolsSection">
-                <h3>Available Tools</h3>
-                <div id="toolsList" style="max-height: 200px; overflow-y: auto; font-size: 0.8rem;">
-                    Loading tools...
+            <div class="chat-messages" id="chatMessages">
+                <!-- Messages will be added here -->
+                <div class="message assistant">
+                    <div class="message-bubble">
+                        👋 Hello! I'm your IO.net intelligence workflow design assistant. Tell me what kind of workflow you'd like to create and I'll help you build it!
+                    </div>
+                    <div class="message-time">Just now</div>
+                </div>
+            </div>
+            
+            <div class="chat-input-container">
+                <textarea class="chat-input" id="chatInput" placeholder="Describe your workflow..." rows="3"></textarea>
+                <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem;">
+                    <button class="button button-primary" id="sendBtn" style="flex: 1;">
+                        <span>✨ Send</span>
+                    </button>
+                    <button class="button" id="clearChatBtn">
+                        <span>🗑️ Clear</span>
+                    </button>
                 </div>
             </div>
         </div>
 
-        <!-- Main Flow Area -->
+        <!-- Main Content -->
         <div class="main-content">
-            <div class="flow-area">
-                <div class="controls">
-                    <button class="control-button" onclick="fitView()">📐 Fit View</button>
-                    <button class="control-button" onclick="downloadWorkflow()">💾 Download</button>
+            <!-- Workflow Controls -->
+            <div class="workflow-controls" style="display: flex; gap: 1rem; padding: 1rem; background: rgba(10, 10, 10, 0.95); border-bottom: 1px solid rgba(100, 255, 100, 0.2); align-items: center;">
+                <select id="exampleSelect" class="example-select" style="width: 180px;">
+                    <option value="">📋 Examples</option>
+                </select>
+                <select id="savedWorkflowSelect" class="orchestration-select" style="width: 180px;">
+                    <option value="">💾 Saved</option>
+                </select>
+                
+                <div style="width: 1px; height: 24px; background: rgba(100, 255, 100, 0.3);"></div>
+                
+                <div class="tool-search-container" style="position: relative; width: 300px;">
+                    <input type="text" class="tool-search" id="workflowToolSearch" placeholder="🔍 Search tools..." style="width: 100%;">
+                    <div class="tool-results" id="workflowToolResults" style="display: none;"></div>
                 </div>
                 
+                <div style="flex: 1;"></div>
+                
+                <button class="button" id="executeBtn" disabled>Run</button>
+                <button class="button" id="runWithInputsBtn" disabled style="display: none;">📝 Run with Inputs</button>
+                <button class="button" id="stopBtn" disabled style="display: none;">⏹️</button>
+                <button class="button" id="saveBtn" disabled>💾</button>
+                <button class="button" id="exportBtn" disabled>📤</button>
+                <button class="button button-danger" id="clearBtn" disabled>🗑️</button>
+            </div>
+            
+            <div class="flow-area">
                 <div id="emptyState" class="empty-state">
                     <div class="icon">🌊</div>
-                    <h2>Welcome to WorkflowPlanner</h2>
-                    <p>Describe a workflow in the sidebar to get started,<br>or click "Example" to see a sample workflow.</p>
+                    <h2>Start a conversation</h2>
+                    <p>Tell me what workflow you want to create in the chat!</p>
                 </div>
                 
                 <div id="flowContainer" class="flow-container" style="display: none;"></div>
             </div>
-            
-            <!-- Bottom Bar -->
-            <div id="bottomBar" class="bottom-bar" style="display: none;">
-                <!-- Workflow Info Section -->
-                <div class="bottom-section" id="workflowInfoSection">
-                    <h3>📊 Workflow Details</h3>
-                    <div style="margin-bottom: 1rem;">
-                        <h4 id="workflowTitle" style="margin: 0; font-size: 1rem;">Workflow Title</h4>
-                        <p id="workflowDescription" style="margin: 0.25rem 0; color: #666; font-size: 0.85rem;">Description...</p>
-                        <div style="display: flex; gap: 1rem; font-size: 0.85rem; color: #333; margin-top: 0.5rem;">
-                            <span><strong>Nodes:</strong> <span id="nodeCount">0</span></span>
-                            <span><strong>Edges:</strong> <span id="edgeCount">0</span></span>
-                            <span><strong>Rev:</strong> <span id="revNumber">1</span></span>
-                        </div>
-                    </div>
-                    
-                    <!-- Nodes List -->
-                    <div style="margin-bottom: 0.75rem;">
-                        <h4 style="margin: 0 0 0.5rem 0; font-size: 0.9rem;">📦 Nodes</h4>
-                        <div id="nodesList" style="max-height: 120px; overflow-y: auto;"></div>
-                    </div>
-                    
-                    <!-- Edges List -->
-                    <div>
-                        <h4 style="margin: 0 0 0.5rem 0; font-size: 0.9rem;">🔗 Edges</h4>
-                        <div id="edgesList" style="max-height: 120px; overflow-y: auto;"></div>
-                    </div>
+        </div>
+        
+        <!-- Enhanced Bottom Panel - Results and Status -->
+        <div id="bottomPanel" class="bottom-panel" style="display: none; grid-template-columns: 1fr; overflow-y: auto;">
+            <!-- Compact Results Section -->
+            <div class="bottom-section" id="resultsSection">
+                <div id="workflowInfo" style="margin-bottom: 1rem;">
+                    <h4 id="workflowTitle" style="margin: 0; font-size: 1.1rem; color: rgba(100, 255, 100, 1); display: inline;">Workflow Title</h4>
+                    <span style="margin-left: 1rem; font-size: 0.85rem; color: #a0a0a0;">
+                        <strong id="nodeCount" style="color: rgba(100, 255, 100, 1);">0</strong> nodes, 
+                        <strong id="edgeCount" style="color: rgba(100, 255, 100, 1);">0</strong> edges, 
+                        rev <strong id="revNumber" style="color: rgba(100, 255, 100, 1);">1</strong>
+                    </span>
                 </div>
                 
-                <!-- Execution Status Section -->
-                <div class="bottom-section" id="executionStatusSection" style="display: none;">
-                    <h3>🚀 Execution Status</h3>
-                    <div id="executionInfo"></div>
-                    <div id="executionResults" style="display: none; margin-top: 1rem;">
-                        <h4 style="margin: 0 0 0.5rem 0; font-size: 0.9rem;">Results:</h4>
-                        <div id="resultsContent" style="max-height: 150px; overflow-y: auto; font-family: monospace; font-size: 0.8rem; background: white; padding: 0.5rem; border-radius: 4px; border: 1px solid #e1e5e9;"></div>
-                    </div>
+                <!-- User Input Form Section -->
+                <div id="userInputSection" style="display: none;">
+                    <h4 style="margin: 0.5rem 0 0.5rem 0; color: #64FF64;">📝 Workflow Inputs</h4>
+                    <div id="userInputForm"></div>
+                </div>
+                
+                <!-- Enhanced Execution Status Section -->
+                <div id="executionStatusSection" style="display: none; background: rgba(255, 152, 0, 0.1); border: 1px solid rgba(255, 152, 0, 0.3); border-radius: 8px; padding: 1rem; margin: 1rem 0;">
+                    <h4 style="margin: 0 0 1rem 0; color: #ff9800; font-size: 1.2rem; display: flex; align-items: center; gap: 0.5rem;">
+                        ⚡ Execution Status
+                        <span id="executionSpinner" style="display: none; font-size: 0.8rem; animation: spin 1s linear infinite;">🔄</span>
+                    </h4>
+                    <div id="executionInfo" style="font-size: 1rem; line-height: 1.5;"></div>
+                </div>
+                
+                <!-- Enhanced Execution Results -->
+                <div id="executionResults" style="display: none; background: rgba(76, 175, 80, 0.1); border: 1px solid rgba(76, 175, 80, 0.3); border-radius: 8px; padding: 1rem; margin: 1rem 0;">
+                    <h4 style="margin: 0 0 1rem 0; color: #4caf50; font-size: 1.2rem;">✅ Results</h4>
+                    <div id="resultsContent" style="font-size: 1rem; line-height: 1.5; max-height: 200px; overflow-y: auto;"></div>
                 </div>
             </div>
         </div>
@@ -799,6 +1561,7 @@
         let ws = null;
         let currentExecution = null;
         let executionTasks = {};
+        let availableTools = {};
 
         // Initialize WebSocket connection
         function initWebSocket() {
@@ -889,11 +1652,13 @@
                     const suffix = remaining > 0 ? `<div style="text-align: center; color: #666; margin-top: 0.5rem;">...and ${remaining} more tools</div>` : '';
                     
                     toolsList.innerHTML = toolsHtml + suffix;
+                    availableTools = data.tools;
                 } else {
-                    toolsList.innerHTML = '<div style="color: #666;">No tools available</div>';
+                    availableTools = {};
                 }
             } catch (error) {
-                document.getElementById('toolsList').innerHTML = '<div style="color: #dc3545;">Failed to load tools</div>';
+                console.error('Failed to load tools:', error);
+                availableTools = {};
             }
         }
 
@@ -950,6 +1715,15 @@
                 await apiCall('/clear', { method: 'POST' });
                 handleWorkflowUpdate(null);
                 clearExecutionStatus();
+                // Clear execution results
+                const executionResults = document.getElementById('executionResults');
+                const resultsContent = document.getElementById('resultsContent');
+                if (executionResults) {
+                    executionResults.style.display = 'none';
+                }
+                if (resultsContent) {
+                    resultsContent.innerHTML = '';
+                }
             } catch (error) {
                 alert('Failed to clear workflow: ' + error.message);
             }
@@ -995,20 +1769,22 @@
         }
 
         function setLoading(loading) {
-            const generateBtn = document.getElementById('generateBtn');
-            const refineBtn = document.getElementById('refineBtn');
+            const sendBtn = document.getElementById('sendBtn');
             const exampleSelect = document.getElementById('exampleSelect');
             
-            generateBtn.disabled = loading;
-            refineBtn.disabled = loading || !currentWorkflow;
-            exampleSelect.disabled = loading;
+            if (sendBtn) {
+                sendBtn.disabled = loading;
+                if (loading) {
+                    sendBtn.innerHTML = '<span>⏳ Generating...</span>';
+                    sendBtn.classList.add('loading');
+                } else {
+                    sendBtn.innerHTML = '<span>✨ Send</span>';
+                    sendBtn.classList.remove('loading');
+                }
+            }
             
-            if (loading) {
-                generateBtn.innerHTML = '⏳ Generating...';
-                generateBtn.classList.add('loading');
-            } else {
-                generateBtn.innerHTML = '✨ Generate';
-                generateBtn.classList.remove('loading');
+            if (exampleSelect) {
+                exampleSelect.disabled = loading;
             }
         }
 
@@ -1040,118 +1816,116 @@
 
         function updateWorkflowInfo(workflow) {
             document.getElementById('workflowTitle').textContent = workflow.title;
-            document.getElementById('workflowDescription').textContent = workflow.description || 'No description';
             document.getElementById('nodeCount').textContent = workflow.nodes.length;
             document.getElementById('edgeCount').textContent = workflow.edges.length;
             document.getElementById('revNumber').textContent = workflow.rev;
-            document.getElementById('bottomBar').style.display = 'flex';
-            
-            // Update nodes detail
-            updateNodesDetail(workflow.nodes);
-            
-            // Update edges detail
-            updateEdgesDetail(workflow.edges);
+            document.getElementById('bottomPanel').style.display = 'grid';
         }
         
-        function updateNodesDetail(nodes) {
-            const nodesList = document.getElementById('nodesList');
-            nodesList.innerHTML = '';
-            
-            nodes.forEach((node, index) => {
-                const nodeDiv = document.createElement('div');
-                nodeDiv.className = 'node-item';
-                
-                // Build ports display
-                const inputPorts = (node.data.ins || []).map(p => `<span class="port-badge input">→ ${p}</span>`).join('');
-                const outputPorts = (node.data.outs || []).map(p => `<span class="port-badge output">${p} →</span>`).join('');
-                
-                // Build config display
-                let configHtml = '';
-                if (node.data.config && Object.keys(node.data.config).length > 0) {
-                    configHtml = `<div class="config-box">${JSON.stringify(node.data.config, null, 2)}</div>`;
-                }
-                
-                // Build tool/agent specific info
-                let specificInfo = '';
-                if (node.data.tool_name) {
-                    specificInfo = `<div class="detail-row"><span>Tool:</span><span>${node.data.tool_name}</span></div>`;
-                } else if (node.data.agent_instructions) {
-                    let toolsInfo = '';
-                    if (node.data.tools && node.data.tools.length > 0) {
-                        const toolPills = node.data.tools.map(tool => 
-                            `<span class="tool-pill">🔧 ${tool}</span>`
-                        ).join('');
-                        toolsInfo = `<div style="margin: 0.5rem 0;"><div style="font-size: 0.7rem; margin-bottom: 0.25rem;">Tools:</div>${toolPills}</div>`;
-                    }
-                    specificInfo = `<div class="detail-row"><span>Instructions:</span></div>
-                                   <div class="config-box">${node.data.agent_instructions}</div>
-                                   ${toolsInfo}`;
-                }
-                
-                nodeDiv.innerHTML = `
-                    <h5 style="margin: 0 0 0.25rem 0; font-size: 0.85rem;">${getNodeIcon(node.type)} ${node.label} <span style="color: #666; font-weight: normal;">(${node.id})</span></h5>
-                    <div style="font-size: 0.75rem; color: #666;">
-                        ${specificInfo}
-                        ${inputPorts ? `<div>Inputs: ${inputPorts}</div>` : ''}
-                        ${outputPorts ? `<div>Outputs: ${outputPorts}</div>` : ''}
-                    </div>
-                `;
-                
-                nodesList.appendChild(nodeDiv);
-            });
+        function hideWorkflowInfo() {
+            const bottomPanel = document.getElementById('bottomPanel');
+            if (bottomPanel) {
+                bottomPanel.style.display = 'none';
+            }
         }
         
-        function updateEdgesDetail(edges) {
-            const edgesList = document.getElementById('edgesList');
-            edgesList.innerHTML = '';
-            
-            edges.forEach((edge, index) => {
-                const edgeDiv = document.createElement('div');
-                edgeDiv.className = 'edge-item';
-                
-                let conditionHtml = '';
-                if (edge.data?.condition) {
-                    conditionHtml = `<div class="condition-box">if: ${edge.data.condition}</div>`;
-                }
-                
-                edgeDiv.innerHTML = `
-                    <h5 style="margin: 0 0 0.25rem 0; font-size: 0.85rem;">🔗 ${edge.source} → ${edge.target}</h5>
-                    <div style="font-size: 0.75rem; color: #666;">
-                        ${edge.sourceHandle || edge.targetHandle ? `<div>Ports: ${edge.sourceHandle || 'default'} → ${edge.targetHandle || 'default'}</div>` : ''}
-                        ${conditionHtml}
-                    </div>
-                `;
-                
-                edgesList.appendChild(edgeDiv);
-            });
-        }
         
 
         function updateButtons() {
-            const buttons = ['refineBtn', 'clearBtn', 'executeBtn', 'saveBtn', 'exportBtn'];
+            const buttons = ['clearBtn', 'executeBtn', 'saveBtn', 'exportBtn', 'runWithInputsBtn'];
             
             buttons.forEach(buttonId => {
                 const button = document.getElementById(buttonId);
                 if (button) {
                     button.disabled = !currentWorkflow;
-                } else {
-                    console.warn(`Button ${buttonId} not found`);
                 }
             });
+            
+            // Show/hide the "Run with Inputs" button based on whether workflow has user input tools
+            const runWithInputsBtn = document.getElementById('runWithInputsBtn');
+            if (runWithInputsBtn) {
+                const hasUserInputTools = detectUserInputFormsInWorkflow(currentWorkflow);
+                if (hasUserInputTools) {
+                    runWithInputsBtn.style.display = 'inline-block';
+                    runWithInputsBtn.disabled = !currentWorkflow;
+                } else {
+                    runWithInputsBtn.style.display = 'none';
+                }
+            }
         }
         
         function setExecutionLoading(loading) {
             const executeBtn = document.getElementById('executeBtn');
             const stopBtn = document.getElementById('stopBtn');
             
-            executeBtn.disabled = loading || !currentWorkflow;
-            stopBtn.disabled = !currentExecution;
-            
-            if (loading) {
-                executeBtn.innerHTML = '⏳ Starting...';
-            } else {
-                executeBtn.innerHTML = '🚀 Execute';
+            if (executeBtn) {
+                executeBtn.disabled = loading || !currentWorkflow;
+                if (loading) {
+                    executeBtn.innerHTML = '🚀 Running';
+                    executeBtn.classList.add('loading');
+                } else {
+                    executeBtn.innerHTML = 'Run';
+                    executeBtn.classList.remove('loading');
+                }
             }
+            
+            if (stopBtn) {
+                stopBtn.disabled = !currentExecution;
+            }
+        }
+
+        function showExecutionStatus() {
+            console.log('🚨 showExecutionStatus called');
+            
+            // Ensure bottom panel is visible
+            const bottomPanel = document.getElementById('bottomPanel');
+            if (bottomPanel) {
+                bottomPanel.style.display = 'grid';
+                console.log('✅ Bottom panel made visible');
+            }
+            
+            // Show execution status section
+            const executionStatusSection = document.getElementById('executionStatusSection');
+            const executionSpinner = document.getElementById('executionSpinner');
+            
+            if (executionStatusSection) {
+                executionStatusSection.style.display = 'block';
+                console.log('✅ Execution status section made visible');
+            } else {
+                console.error('❌ Execution status section not found');
+            }
+            
+            if (executionSpinner && currentExecution && currentExecution.status === 'running') {
+                executionSpinner.style.display = 'inline';
+                console.log('✅ Execution spinner made visible');
+            }
+        }
+
+        function hideExecutionStatus() {
+            const executionStatusSection = document.getElementById('executionStatusSection');
+            const executionSpinner = document.getElementById('executionSpinner');
+            
+            if (executionStatusSection) {
+                executionStatusSection.style.display = 'none';
+            }
+            
+            if (executionSpinner) {
+                executionSpinner.style.display = 'none';
+            }
+        }
+
+        function clearExecutionStatus() {
+            currentExecution = null;
+            executionTasks = {};
+            hideExecutionStatus();
+            
+            // Hide results section too
+            const executionResults = document.getElementById('executionResults');
+            if (executionResults) {
+                executionResults.style.display = 'none';
+            }
+            
+            setExecutionLoading(false);
         }
         
         function handleExecutionUpdate(data) {
@@ -1163,6 +1937,16 @@
             }
             
             currentExecution.status = data.status;
+            
+            // Control spinner based on execution status
+            const executionSpinner = document.getElementById('executionSpinner');
+            if (executionSpinner) {
+                if (data.status === 'running') {
+                    executionSpinner.style.display = 'inline';
+                } else {
+                    executionSpinner.style.display = 'none';
+                }
+            }
             
             if (data.results) {
                 currentExecution.results = data.results;
@@ -1195,37 +1979,73 @@
             // Show results if completed
             if (data.status === 'completed' && data.results) {
                 showExecutionResults(data.results);
+                
+                // Re-render the workflow to show any user input forms in nodes
+                if (currentWorkflow) {
+                    console.log('🔄 Re-rendering workflow to show user input forms');
+                    handleWorkflowUpdate(currentWorkflow);
+                }
             }
             
             // Handle completion or failure
             if (data.status === 'completed' || data.status === 'failed') {
                 setExecutionLoading(false);
-                document.getElementById('stopBtn').disabled = true;
+                const stopBtn = document.getElementById('stopBtn');
+                if (stopBtn) {
+                    stopBtn.disabled = true;
+                }
             }
         }
         
         function showExecutionStatus() {
-            document.getElementById('executionStatusSection').style.display = 'block';
+            const executionStatusSection = document.getElementById('executionStatusSection');
+            if (executionStatusSection) {
+                executionStatusSection.style.display = 'block';
+            }
         }
         
         function clearExecutionStatus() {
             currentExecution = null;
             executionTasks = {};
-            document.getElementById('executionStatusSection').style.display = 'none';
-            document.getElementById('executionResults').style.display = 'none';
-            document.getElementById('stopBtn').disabled = true;
+            
+            const executionStatusSection = document.getElementById('executionStatusSection');
+            const executionResults = document.getElementById('executionResults');
+            const stopBtn = document.getElementById('stopBtn');
+            
+            if (executionStatusSection) {
+                executionStatusSection.style.display = 'none';
+            }
+            if (executionResults) {
+                executionResults.style.display = 'none';
+            }
+            if (stopBtn) {
+                stopBtn.disabled = true;
+            }
         }
         
         function updateExecutionInfo() {
+            console.log('📊 updateExecutionInfo called', currentExecution);
             if (!currentExecution) return;
+            
+            // Ensure the status section is visible
+            const executionStatusSection = document.getElementById('executionStatusSection');
+            if (executionStatusSection) {
+                executionStatusSection.style.display = 'block';
+            }
             
             const statusClass = `status-${currentExecution.status}`;
             const statusText = currentExecution.status.charAt(0).toUpperCase() + currentExecution.status.slice(1);
             
+            // Enhanced status text with thinking indicators
+            let enhancedStatusText = statusText;
+            if (currentExecution.status === 'running') {
+                enhancedStatusText = `${statusText} <span class="thinking-indicator"></span>`;
+            }
+
             let infoHTML = `
                 <div class="detail-row">
                     <span>Status:</span>
-                    <span class="status ${statusClass}">${statusText}</span>
+                    <span class="status ${statusClass}">${enhancedStatusText}</span>
                 </div>
                 <div class="detail-row">
                     <span>Execution ID:</span>
@@ -1263,7 +2083,15 @@
                     const taskIcon = isAgentTask ? '🤖' : '🔧';
                     
                     infoHTML += `<div class="execution-task ${taskClass}">`;
-                    infoHTML += `<strong>${taskIcon} ${taskName}</strong>: ${task.status}`;
+                    
+                    // Enhanced task status with thinking indicators
+                    let taskStatusDisplay = task.status;
+                    if (task.status === 'started' || task.status === 'running') {
+                        const taskTypeText = isAgentTask ? 'thinking' : 'processing';
+                        taskStatusDisplay = `${taskStatusDisplay} - ${taskTypeText}<span class="thinking-indicator"></span>`;
+                    }
+                    
+                    infoHTML += `<strong>${taskIcon} ${taskName}</strong>: ${taskStatusDisplay}`;
                     
                     // Show available tools for agent tasks
                     if (isAgentTask && agentTools.length > 0) {
@@ -1336,9 +2164,12 @@
                     
                     // Check if this is an agent result with tool usage results
                     if (typeof taskResult === 'object' && taskResult !== null) {
+                        console.log(`🔍 Processing task result for ${taskKey}:`, taskResult);
                         // Handle structured agent result with potential tool usage
                         const agentOutput = taskResult.result || taskResult.output || taskResult;
                         const toolUsageResults = taskResult.tool_usage_results;
+                        console.log(`🔍 Agent output:`, agentOutput);
+                        console.log(`🔍 Tool usage results:`, toolUsageResults);
                         
                         // Display main agent output
                         if (typeof agentOutput === 'string') {
@@ -1362,33 +2193,53 @@
                         }
                         
                         // Display tool usage results in Rich panel style
+                        console.log('🔍 Checking for tool usage results:', toolUsageResults);
                         if (toolUsageResults && Array.isArray(toolUsageResults) && toolUsageResults.length > 0) {
+                            console.log('✅ Found tool usage results, displaying panels');
                             resultsHTML += '<div class="tool-usage-panels">';
                             resultsHTML += '<h5 style="margin: 1rem 0 0.5rem 0; color: #333;">🛠️ Tool Usage Results</h5>';
                             
                             toolUsageResults.forEach((toolUsage, index) => {
-                                resultsHTML += '<div class="tool-usage-panel">';
-                                resultsHTML += `<div class="tool-usage-header">🛠️ ${toolUsage.tool_name}</div>`;
-                                resultsHTML += '<div class="tool-usage-content">';
-                                
-                                // Show tool arguments
-                                if (toolUsage.tool_args && Object.keys(toolUsage.tool_args).length > 0) {
-                                    resultsHTML += '<div><strong>Arguments:</strong></div>';
-                                    resultsHTML += `<div class="tool-args">${JSON.stringify(toolUsage.tool_args, null, 2)}</div>`;
-                                }
-                                
-                                // Show tool result
-                                if (toolUsage.tool_result !== undefined && toolUsage.tool_result !== null) {
-                                    resultsHTML += '<div><strong>Result:</strong></div>';
-                                    if (typeof toolUsage.tool_result === 'string') {
-                                        resultsHTML += `<div class="tool-result">${toolUsage.tool_result}</div>`;
-                                    } else {
-                                        resultsHTML += `<div class="tool-result"><pre>${JSON.stringify(toolUsage.tool_result, null, 2)}</pre></div>`;
+                                // Check if this is a user input tool
+                                if (toolUsage.tool_result && typeof toolUsage.tool_result === 'object' && 
+                                    toolUsage.tool_result.tool_type === 'user_input') {
+                                    
+                                    // Render the simple user input form
+                                    setTimeout(() => {
+                                        renderSimpleUserInputForm(toolUsage.tool_result);
+                                    }, 100);
+                                    
+                                    resultsHTML += '<div class="tool-usage-panel">';
+                                    resultsHTML += `<div class="tool-usage-header">📝 ${toolUsage.tool_name} - User Input Required</div>`;
+                                    resultsHTML += '<div class="tool-usage-content">';
+                                    resultsHTML += `<div class="tool-result">✅ Input form "${toolUsage.tool_result.prompt}" is now available below.</div>`;
+                                    resultsHTML += '</div>';
+                                    resultsHTML += '</div>';
+                                } else {
+                                    // Regular tool usage result
+                                    resultsHTML += '<div class="tool-usage-panel">';
+                                    resultsHTML += `<div class="tool-usage-header">🛠️ ${toolUsage.tool_name}</div>`;
+                                    resultsHTML += '<div class="tool-usage-content">';
+                                    
+                                    // Show tool arguments
+                                    if (toolUsage.tool_args && Object.keys(toolUsage.tool_args).length > 0) {
+                                        resultsHTML += '<div><strong>Arguments:</strong></div>';
+                                        resultsHTML += `<div class="tool-args">${JSON.stringify(toolUsage.tool_args, null, 2)}</div>`;
                                     }
+                                    
+                                    // Show tool result
+                                    if (toolUsage.tool_result !== undefined && toolUsage.tool_result !== null) {
+                                        resultsHTML += '<div><strong>Result:</strong></div>';
+                                        if (typeof toolUsage.tool_result === 'string') {
+                                            resultsHTML += `<div class="tool-result">${toolUsage.tool_result}</div>`;
+                                        } else {
+                                            resultsHTML += `<div class="tool-result"><pre>${JSON.stringify(toolUsage.tool_result, null, 2)}</pre></div>`;
+                                        }
+                                    }
+                                    
+                                    resultsHTML += '</div>'; // tool-usage-content
+                                    resultsHTML += '</div>'; // tool-usage-panel
                                 }
-                                
-                                resultsHTML += '</div>'; // tool-usage-content
-                                resultsHTML += '</div>'; // tool-usage-panel
                             });
                             
                             resultsHTML += '</div>'; // tool-usage-panels
@@ -1445,44 +2296,160 @@
         let currentNodes = [];
         let currentEdges = [];
         
-        // React Flow rendering
+        // Instructions toggle function
+        function toggleInstructions(nodeId) {
+            const preview = document.getElementById(`preview-${nodeId}`);
+            const full = document.getElementById(`full-${nodeId}`);
+            
+            if (preview && full) {
+                if (full.style.display === 'none') {
+                    preview.style.display = 'none';
+                    full.style.display = 'block';
+                } else {
+                    preview.style.display = 'block';
+                    full.style.display = 'none';
+                }
+            }
+        }
+
+        // React Flow rendering with rich node display
         function renderWorkflow(workflow) {
             console.log('🎨 renderWorkflow called with:', workflow);
             const container = document.getElementById('flowContainer');
             
-            // Convert workflow to React Flow format
+            // Convert workflow to React Flow format with rich node content
             console.log('🔄 Converting nodes:', workflow.nodes);
+            console.log('🔍 Current execution results:', currentExecution);
+            if (currentExecution && currentExecution.results) {
+                console.log('🔍 Available result node IDs:', Object.keys(currentExecution.results.results || {}));
+            }
             currentNodes = workflow.nodes.map((node, index) => {
-                // Create label with tool pills for agent nodes
-                let nodeLabel = `${getNodeIcon(node.type)} ${node.label}`;
-                let toolsInfo = '';
+                // Create rich HTML content for the node with new styling
+                const nodeIcon = getNodeIcon(node.type);
+                let nodeContent = `
+                    <div class="node-content" style="padding: 12px; min-width: 200px;">
+                        <div class="node-title">
+                            ${nodeIcon} ${node.label}
+                        </div>
+                        <div class="node-id">
+                            ${node.id}
+                        </div>
+                `;
                 
-                if (node.type === 'agent' && node.data.tools && node.data.tools.length > 0) {
-                    const toolPills = node.data.tools.map(tool => `🔧${tool}`).join(' ');
-                    toolsInfo = `\\n${toolPills}`;
+                // Add type-specific information
+                if (node.type === 'agent' && node.data.agent_instructions) {
+                    const fullInstructions = node.data.agent_instructions;
+                    const preview = fullInstructions.length > 80 ? 
+                        fullInstructions.substring(0, 80) + '...' : 
+                        fullInstructions;
+                    
+                    nodeContent += `
+                        <div class="node-instructions ${fullInstructions.length > 80 ? 'node-instructions-expandable' : ''}" 
+                             title="${fullInstructions.replace(/"/g, '&quot;')}"
+                             onclick="toggleInstructions('${node.id}')">
+                            <div class="instructions-preview" id="preview-${node.id}">
+                                📋 ${preview}
+                            </div>
+                            ${fullInstructions.length > 80 ? `
+                            <div class="instructions-full" id="full-${node.id}" style="display: none;">
+                                📋 ${fullInstructions}
+                            </div>
+                            ` : ''}
+                        </div>
+                    `;
+                    
+                    // Add tool pills for agent nodes
+                    if (node.data.tools && node.data.tools.length > 0) {
+                        const toolPills = node.data.tools.map(tool => 
+                            `<span class="tool-pill">🔧${tool}</span>`
+                        ).join(' ');
+                        nodeContent += `
+                            <div style="margin-top: 6px;">
+                                ${toolPills}
+                            </div>
+                        `;
+                    }
+                } else if (node.type === 'tool' && node.data.tool_name) {
+                    nodeContent += `
+                        <div class="node-instructions">
+                            Tool: ${node.data.tool_name}
+                        </div>
+                    `;
                 }
+                
+                // Add input/output ports
+                const inputPorts = node.data.ins || [];
+                const outputPorts = node.data.outs || [];
+                
+                if (inputPorts.length > 0 || outputPorts.length > 0) {
+                    nodeContent += `<div style="margin-top: 8px;">`;
+                    
+                    if (inputPorts.length > 0) {
+                        const inputs = inputPorts.map(p => 
+                            `<span class="port-badge input">→${p}</span>`
+                        ).join(' ');
+                        nodeContent += `<div style="margin-bottom: 3px;">${inputs}</div>`;
+                    }
+                    
+                    if (outputPorts.length > 0) {
+                        const outputs = outputPorts.map(p => 
+                            `<span class="port-badge output">${p}→</span>`
+                        ).join(' ');
+                        nodeContent += `<div>${outputs}</div>`;
+                    }
+                    
+                    nodeContent += `</div>`;
+                }
+                
+                // Check if this node should show a user input form
+                const shouldShowInput = checkNodeForUserInput(node);
+                console.log('🔍 Node', node.id, 'should show input:', shouldShowInput);
+                if (shouldShowInput) {
+                    nodeContent += `
+                        <div class="user-input-section" style="margin-top: 8px; padding: 8px; background: rgba(100, 255, 100, 0.1); border-radius: 6px;">
+                            <input 
+                                type="text" 
+                                id="input-${node.id}" 
+                                placeholder="${shouldShowInput.placeholder || 'Enter your input...'}"
+                                style="width: 100%; padding: 6px; border: 1px solid rgba(100, 255, 100, 0.5); border-radius: 4px; background: rgba(0,0,0,0.3); color: white;"
+                            />
+                            <button 
+                                onclick="runWorkflowWithNodeInput('${node.id}')"
+                                style="width: 100%; margin-top: 6px; padding: 6px; background: linear-gradient(135deg, #64FF64, #4CAF50); color: black; border: none; border-radius: 4px; font-weight: 600; cursor: pointer;"
+                            >
+                                Run Workflow
+                            </button>
+                        </div>
+                    `;
+                }
+                
+                nodeContent += `</div>`;
                 
                 const reactFlowNode = {
                     id: node.id,
                     type: 'default',
-                    position: node.position || { x: index * 250, y: index * 100 },
+                    position: node.position || { x: index * 280, y: index * 120 },
                     data: {
-                        label: nodeLabel + toolsInfo,
+                        label: React.createElement('div', {
+                            dangerouslySetInnerHTML: { __html: nodeContent }
+                        })
                     },
-                    draggable: true,  // Explicitly enable dragging per node
-                    selectable: true, // Explicitly enable selection per node
+                    draggable: true,
+                    selectable: true,
                     style: {
-                        background: getNodeColor(node.type),
+                        background: `linear-gradient(135deg, ${getNodeColor(node.type)}88, ${getNodeColor(node.type)}44)`,
                         color: 'white',
-                        border: '2px solid #333',
-                        borderRadius: '10px',
-                        padding: '10px',
-                        fontSize: '12px',
-                        fontWeight: 'bold',
-                        cursor: 'grab', // Add grab cursor to indicate draggable
-                        minWidth: node.type === 'agent' && node.data.tools ? '180px' : '120px', // Wider for agent nodes with tools
-                        minHeight: node.type === 'agent' && node.data.tools ? '80px' : '60px',
-                        whiteSpace: 'pre-line', // Allow line breaks in labels
+                        border: '1px solid rgba(100, 255, 100, 0.3)',
+                        borderRadius: '16px',
+                        padding: '0px',
+                        fontSize: '11px',
+                        cursor: 'grab',
+                        minWidth: '240px',
+                        minHeight: '90px',
+                        boxShadow: '0 4px 20px rgba(0, 0, 0, 0.15)',
+                        overflow: 'hidden',
+                        backdropFilter: 'blur(8px)',
+                        WebkitBackdropFilter: 'blur(8px)'
                     }
                 };
                 console.log(`   Node ${index}: ${node.id} -> ReactFlow node:`, reactFlowNode);
@@ -1491,16 +2458,46 @@
 
             console.log('🔄 Converting edges:', workflow.edges);
             currentEdges = workflow.edges.map((edge, index) => {
+                // Create rich edge label with connection details
+                let edgeLabel = '';
+                const sourceHandle = edge.sourceHandle || 'default';
+                const targetHandle = edge.targetHandle || 'default';
+                
+                if (sourceHandle !== 'default' || targetHandle !== 'default') {
+                    edgeLabel = `${sourceHandle} → ${targetHandle}`;
+                }
+                
+                if (edge.data?.condition) {
+                    edgeLabel = edgeLabel ? `${edgeLabel}\\nif: ${edge.data.condition}` : `if: ${edge.data.condition}`;
+                }
+                
                 const reactFlowEdge = {
                     id: edge.id,
                     source: edge.source,
                     target: edge.target,
                     sourceHandle: edge.sourceHandle,
                     targetHandle: edge.targetHandle,
-                    label: edge.data?.condition ? `if: ${edge.data.condition}` : '',
-                    style: { stroke: '#333', strokeWidth: 2 },
-                    labelStyle: { fontSize: '10px', fill: '#666' },
-                    labelBgStyle: { fill: 'white', fillOpacity: 0.8 },
+                    label: edgeLabel,
+                    style: { 
+                        stroke: 'rgba(100, 255, 100, 0.8)', 
+                        strokeWidth: 2,
+                        strokeDasharray: edge.data?.condition ? '5,5' : 'none'
+                    },
+                    labelStyle: { 
+                        fontSize: '9px', 
+                        fill: 'rgba(100, 255, 100, 1)', 
+                        fontWeight: 'bold'
+                    },
+                    labelBgStyle: { 
+                        fill: 'rgba(10, 10, 10, 0.95)', 
+                        fillOpacity: 0.9,
+                        rx: 4,
+                        ry: 4
+                    },
+                    markerEnd: {
+                        type: 'arrowclosed',
+                        color: 'rgba(100, 255, 100, 0.8)'
+                    }
                 };
                 console.log(`   Edge ${index}: ${edge.source} -> ${edge.target}:`, reactFlowEdge);
                 return reactFlowEdge;
@@ -1640,12 +2637,12 @@
 
         function getNodeColor(type) {
             const colors = {
-                'tool': '#ff6b6b',
-                'agent': '#4ecdc4',
-                'workflow_call': '#45b7d1',
-                'decision': '#f39c12'
+                'tool': 'rgba(50, 50, 50, 0.9)',
+                'agent': 'rgba(30, 30, 30, 0.9)',
+                'workflow_call': 'rgba(40, 40, 40, 0.9)',
+                'decision': 'rgba(45, 45, 45, 0.9)'
             };
-            return colors[type] || '#95a5a6';
+            return colors[type] || 'rgba(35, 35, 35, 0.9)';
         }
 
         // Utility functions
@@ -1676,29 +2673,31 @@
                 const response = await fetch('/api/workflows/combined');
                 const data = await response.json();
                 
-                const selectElement = document.getElementById('exampleSelect');
+                const exampleSelect = document.getElementById('exampleSelect');
+                const savedSelect = document.getElementById('savedWorkflowSelect');
                 
                 // Clear existing options except the first one
-                selectElement.innerHTML = '<option value="">📋 Select Example...</option>';
+                exampleSelect.innerHTML = '<option value="">📋 Select Example...</option>';
+                savedSelect.innerHTML = '<option value="">💾 Select Saved...</option>';
                 
-                // Add example options (both examples and saved)
+                // Add example options to examples dropdown
                 Object.entries(data.examples).forEach(([key, example]) => {
                     const option = document.createElement('option');
                     option.value = key;
                     option.textContent = `📋 ${example.title} (${example.node_count} nodes)`;
                     option.title = example.description;
                     option.dataset.source = 'example';
-                    selectElement.appendChild(option);
+                    exampleSelect.appendChild(option);
                 });
                 
-                // Add saved workflows
+                // Add saved workflows to saved dropdown
                 Object.entries(data.saved).forEach(([key, workflow]) => {
                     const option = document.createElement('option');
                     option.value = key;
-                    option.textContent = `💾 ${workflow.title} (${workflow.node_count} nodes)`;
+                    option.textContent = `💾 ${workflow.name} (${workflow.node_count} nodes)`;
                     option.title = workflow.description;
                     option.dataset.source = 'saved';
-                    selectElement.appendChild(option);
+                    savedSelect.appendChild(option);
                 });
                 
                 console.log('✅ Loaded examples:', {
@@ -1761,6 +2760,53 @@
             } catch (error) {
                 console.error('❌ Error loading workflow:', error);
                 alert('Failed to load workflow: ' + error.message);
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        async function loadSelectedSavedWorkflow() {
+            const selectElement = document.getElementById('savedWorkflowSelect');
+            const selectedValue = selectElement.value;
+            
+            if (!selectedValue) {
+                return; // No selection made
+            }
+            
+            try {
+                setLoading(true);
+                console.log('💾 Loading saved workflow:', selectedValue);
+                
+                const response = await fetch(`/api/workflows/load/${selectedValue}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                console.log('📦 Received saved workflow data:', data);
+                
+                if (data.workflow) {
+                    console.log('🔄 Updating workflow with saved data');
+                    
+                    // Use the same function that handles AI-generated workflows
+                    handleWorkflowUpdate(data.workflow);
+                    
+                    // Reset dropdown to placeholder
+                    selectElement.value = '';
+                    
+                    console.log('✅ Saved workflow loaded:', data.workflow.title);
+                    addMessageToChat(`💾 Loaded saved workflow: "${data.workflow.title}"`, 'assistant');
+                } else {
+                    console.error('❌ No workflow in response:', data);
+                    alert('Failed to load saved workflow: No workflow data received');
+                }
+            } catch (error) {
+                console.error('❌ Error loading saved workflow:', error);
+                alert('Failed to load saved workflow: ' + error.message);
             } finally {
                 setLoading(false);
             }
@@ -1847,24 +2893,49 @@
         }
 
         // Event listeners
-        document.getElementById('generateBtn').addEventListener('click', generateWorkflow);
-        document.getElementById('refineBtn').addEventListener('click', refineWorkflow);
-        document.getElementById('exampleSelect').addEventListener('change', loadSelectedExample);
-        document.getElementById('clearBtn').addEventListener('click', clearWorkflow);
-        document.getElementById('executeBtn').addEventListener('click', executeWorkflow);
-        document.getElementById('stopBtn').addEventListener('click', stopExecution);
-        document.getElementById('saveBtn').addEventListener('click', saveCurrentWorkflow);
-        document.getElementById('exportBtn').addEventListener('click', exportCurrentWorkflowYAML);
-
-        document.getElementById('queryInput').addEventListener('keydown', function(e) {
-            if (e.ctrlKey && e.key === 'Enter') {
-                if (currentWorkflow) {
-                    refineWorkflow();
-                } else {
-                    generateWorkflow();
-                }
+        function initializeEventListeners() {
+            // Workflow controls
+            const exampleSelect = document.getElementById('exampleSelect');
+            const savedWorkflowSelect = document.getElementById('savedWorkflowSelect');
+            const clearBtn = document.getElementById('clearBtn');
+            const executeBtn = document.getElementById('executeBtn');
+            const runWithInputsBtn = document.getElementById('runWithInputsBtn');
+            const stopBtn = document.getElementById('stopBtn');
+            const saveBtn = document.getElementById('saveBtn');
+            const exportBtn = document.getElementById('exportBtn');
+            
+            if (exampleSelect) {
+                exampleSelect.addEventListener('change', loadSelectedExample);
             }
-        });
+            
+            if (savedWorkflowSelect) {
+                savedWorkflowSelect.addEventListener('change', loadSelectedSavedWorkflow);
+            }
+            
+            if (clearBtn) {
+                clearBtn.addEventListener('click', clearWorkflow);
+            }
+            
+            if (executeBtn) {
+                executeBtn.addEventListener('click', executeWorkflow);
+            }
+            
+            if (runWithInputsBtn) {
+                runWithInputsBtn.addEventListener('click', triggerWorkflowForInputs);
+            }
+            
+            if (stopBtn) {
+                stopBtn.addEventListener('click', stopExecution);
+            }
+            
+            if (saveBtn) {
+                saveBtn.addEventListener('click', saveCurrentWorkflow);
+            }
+            
+            if (exportBtn) {
+                exportBtn.addEventListener('click', exportCurrentWorkflowYAML);
+            }
+        }
 
         // Debug function to check loaded libraries
         function debugLibraries() {
@@ -1884,6 +2955,599 @@
         }
 
         // Initialize
+        // Chat Interface Functions
+        function initializeChatInterface() {
+            const chatInput = document.getElementById('chatInput');
+            const sendBtn = document.getElementById('sendBtn');
+            const clearChatBtn = document.getElementById('clearChatBtn');
+            
+            // Send on button click
+            sendBtn.addEventListener('click', sendChatMessage);
+            
+            // Send on Enter (but not Shift+Enter)
+            chatInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    sendChatMessage();
+                }
+            });
+            
+            // Clear chat
+            clearChatBtn.addEventListener('click', () => {
+                document.getElementById('chatMessages').innerHTML = `
+                    <div class="message assistant">
+                        <div class="message-bubble">
+                            👋 Hello! I'm your workflow design assistant. Tell me what kind of workflow you'd like to create and I'll help you build it!
+                        </div>
+                        <div class="message-time">Just now</div>
+                    </div>
+                `;
+                clearWorkflow();
+            });
+        }
+        
+        async function sendChatMessage() {
+            const chatInput = document.getElementById('chatInput');
+            const message = chatInput.value.trim();
+            
+            if (!message) return;
+            
+            // Add user message to chat
+            addMessageToChat(message, 'user');
+            
+            // Clear input
+            chatInput.value = '';
+            
+            // Generate workflow based on message
+            try {
+                setLoading(true);
+                const data = await apiCall('/generate', {
+                    method: 'POST',
+                    body: JSON.stringify({ 
+                        query: message,
+                        refine: currentWorkflow !== null
+                    })
+                });
+                
+                if (data.success) {
+                    handleWorkflowUpdate(data.workflow);
+                    // Add assistant response using the actual agent's reasoning/response
+                    const response = currentWorkflow && currentWorkflow.reasoning ? 
+                        currentWorkflow.reasoning :
+                        `✨ I've ${currentWorkflow.rev > 1 ? 'refined' : 'created'} your workflow "${currentWorkflow.title}". It has ${currentWorkflow.nodes.length} nodes and ${currentWorkflow.edges.length} edges.`;
+                    addMessageToChat(response, 'assistant');
+                } else {
+                    addMessageToChat('❌ Error: ' + data.error, 'assistant');
+                }
+            } catch (error) {
+                addMessageToChat('❌ Failed to generate workflow: ' + error.message, 'assistant');
+            } finally {
+                setLoading(false);
+            }
+        }
+        
+        function addMessageToChat(message, sender) {
+            const chatMessages = document.getElementById('chatMessages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${sender}`;
+            
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            
+            messageDiv.innerHTML = `
+                <div class="message-bubble">${message}</div>
+                <div class="message-time">${timeStr}</div>
+            `;
+            
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+        
+        // Tool Search Functions
+        function initializeToolSearch() {
+            const workflowToolSearch = document.getElementById('workflowToolSearch');
+            const workflowToolResults = document.getElementById('workflowToolResults');
+            
+            if (!workflowToolSearch || !workflowToolResults) {
+                console.error('Tool search elements not found');
+                return;
+            }
+            
+            workflowToolSearch.addEventListener('input', (e) => {
+                const query = e.target.value.toLowerCase().trim();
+                
+                if (query.length < 2) {
+                    workflowToolResults.style.display = 'none';
+                    return;
+                }
+                
+                const matches = Object.entries(availableTools).filter(([name, tool]) => {
+                    return name.toLowerCase().includes(query) || 
+                           tool.description.toLowerCase().includes(query);
+                }).slice(0, 10);
+                
+                if (matches.length > 0) {
+                    workflowToolResults.innerHTML = matches.map(([name, tool]) => `
+                        <div class="tool-result-item" onclick="selectTool('${name}')" style="padding: 0.5rem; cursor: pointer; border-bottom: 1px solid rgba(125, 249, 255, 0.2);">
+                            <div class="tool-result-name" style="font-weight: bold; color: #7DF9FF;">${name}</div>
+                            <div class="tool-result-desc" style="font-size: 0.8rem; color: #a0a0a0;">${tool.description}</div>
+                        </div>
+                    `).join('');
+                    workflowToolResults.style.display = 'block';
+                } else {
+                    workflowToolResults.style.display = 'none';
+                }
+            });
+            
+            // Hide results when clicking outside
+            document.addEventListener('click', (e) => {
+                if (!e.target.closest('.tool-search-container')) {
+                    workflowToolResults.style.display = 'none';
+                }
+            });
+        }
+        
+        function selectTool(toolName) {
+            const workflowToolSearch = document.getElementById('workflowToolSearch');
+            const workflowToolResults = document.getElementById('workflowToolResults');
+            
+            if (workflowToolSearch && workflowToolResults) {
+                workflowToolSearch.value = toolName;
+                workflowToolResults.style.display = 'none';
+                
+                // Add to chat as context
+                addMessageToChat(`ℹ️ Selected tool: ${toolName} - ${availableTools[toolName].description}`, 'assistant');
+            }
+        }
+        
+        // User Input Form Functions
+        let currentUserInputs = {};
+        let pendingFormExecution = false;
+        let nodeUserInputData = {}; // Store user input data for each node
+
+        function checkNodeForUserInput(node) {
+            console.log('🔍 checkNodeForUserInput called for node:', node.id, node.type);
+            console.log('🔍 Node data:', node.data);
+            console.log('🔍 Node.data.tool_name:', node.data.tool_name);
+            console.log('🔍 Node.data.tools:', node.data.tools);
+            console.log('🔍 Node.data.config:', node.data.config);
+            
+            // Check if this node has user_input tool (either tool type with tool_name user_input or agent type with user_input in tools)
+            const hasUserInputTool = (
+                (node.type === 'tool' && node.data.tool_name === 'user_input') ||
+                (node.type === 'agent' && node.data.tools && node.data.tools.some(tool => tool.includes('user_input'))) ||
+                (node.type === 'tool' && node.data.config && node.data.config.prompt) // Also check if tool has prompt config
+            );
+            
+            if (hasUserInputTool) {
+                console.log('✅ Node has user_input tool! Creating input form from node config...');
+                
+                // For user_input tools, create the form immediately from the node config
+                // Don't wait for execution results
+                const nodeId = node.id;
+                
+                // Check if we have execution results first
+                if (currentExecution && currentExecution.results && 
+                    currentExecution.results.results) {
+                    
+                    console.log('🔍 Available result keys:', Object.keys(currentExecution.results.results));
+                    
+                    // Try to find the result by matching node type and tool
+                    let nodeResult = null;
+                    let foundKey = null;
+                    
+                    // First try exact node ID match
+                    if (currentExecution.results.results[nodeId]) {
+                        nodeResult = currentExecution.results.results[nodeId];
+                        foundKey = nodeId;
+                    } else {
+                        // Look for user_input results in any node result
+                        for (const [key, result] of Object.entries(currentExecution.results.results)) {
+                            if (result && typeof result === 'object' && result.tool_type === 'user_input') {
+                                nodeResult = result;
+                                foundKey = key;
+                                console.log('🔍 Found user_input result under key:', key);
+                                break;
+                            }
+                        }
+                    }
+                    
+                    if (nodeResult) {
+                        console.log('✅ Using execution result for input form:', foundKey, nodeResult);
+                        nodeUserInputData[nodeId] = nodeResult;
+                        
+                        return {
+                            prompt: nodeResult.prompt || 'Enter your input:',
+                            placeholder: nodeResult.placeholder || 'Type here...',
+                            form_id: nodeResult.form_id || nodeId
+                        };
+                    }
+                }
+                
+                // No execution results yet, create form from node config
+                console.log('✅ Creating input form from node config:', node.data.config);
+                const config = node.data.config || {};
+                
+                // Create form data from the node configuration
+                const formData = {
+                    prompt: config.prompt || 'Enter your input:',
+                    placeholder: config.placeholder || 'Type here...',
+                    form_id: nodeId,
+                    input_type: config.input_type || 'text'
+                };
+                
+                // Store this for later execution
+                nodeUserInputData[nodeId] = formData;
+                
+                return formData;
+                
+            } else {
+                console.log('🔍 Node does not have user_input tool');
+            }
+            return false;
+        }
+
+        async function runWorkflowWithNodeInput(nodeId) {
+            console.log('🚀 Running workflow with input from node:', nodeId);
+            
+            const inputElement = document.getElementById(`input-${nodeId}`);
+            if (!inputElement) {
+                alert('Input field not found');
+                return;
+            }
+            
+            const userValue = inputElement.value;
+            if (!userValue || userValue.trim() === '') {
+                alert('Please enter a value before running the workflow');
+                return;
+            }
+            
+            if (!currentWorkflow) {
+                alert('No workflow available to execute');
+                return;
+            }
+            
+            console.log('✅ User input collected from node:', userValue);
+            
+            try {
+                setExecutionLoading(true);
+                
+                // Execute workflow with user inputs - same as regular run button but with inputs
+                const data = await apiCall('/execute', {
+                    method: 'POST',
+                    body: JSON.stringify({ 
+                        execute_current: true,
+                        user_inputs: { user_input: userValue },
+                        form_id: nodeId
+                    })
+                });
+                
+                if (data.execution_id) {
+                    currentExecution = {
+                        id: data.execution_id,
+                        status: 'running',
+                        results: null
+                    };
+                    executionTasks = {};
+                    updateExecutionInfo();
+                    
+                    console.log('✅ Workflow execution started with user input:', userValue);
+                } else {
+                    throw new Error('No execution ID received');
+                }
+            } catch (error) {
+                console.error('❌ Error executing workflow with input:', error);
+                alert('Failed to execute workflow: ' + error.message);
+            } finally {
+                setExecutionLoading(false);
+            }
+        }
+
+        function renderSimpleUserInputForm(inputData) {
+            console.log('📝 Rendering simple user input form:', inputData);
+            
+            const userInputSection = document.getElementById('userInputSection');
+            const userInputForm = document.getElementById('userInputForm');
+            
+            if (!userInputSection || !userInputForm) {
+                console.error('❌ User input elements not found');
+                return;
+            }
+            
+            let formHTML = `
+                <div class="user-input-form" id="form-${inputData.form_id}">
+                    <h3>${inputData.prompt}</h3>
+                    <div class="form-field">
+            `;
+            
+            // Create the appropriate input based on type
+            switch (inputData.input_type) {
+                case 'textarea':
+                    formHTML += `<textarea 
+                        id="user-input-field" 
+                        name="user_input"
+                        placeholder="${inputData.placeholder}"
+                        style="width: 100%; min-height: 100px;"
+                    >${inputData.default_value || ''}</textarea>`;
+                    break;
+                    
+                case 'select':
+                    formHTML += `<select id="user-input-field" name="user_input" style="width: 100%;">`;
+                    if (inputData.options) {
+                        inputData.options.forEach(option => {
+                            const selected = option === inputData.default_value ? 'selected' : '';
+                            formHTML += `<option value="${option}" ${selected}>${option}</option>`;
+                        });
+                    }
+                    formHTML += '</select>';
+                    break;
+                    
+                default: // text, number, etc.
+                    formHTML += `<input 
+                        type="${inputData.input_type}" 
+                        id="user-input-field" 
+                        name="user_input"
+                        placeholder="${inputData.placeholder}"
+                        value="${inputData.default_value || ''}"
+                        style="width: 100%;"
+                    />`;
+                    break;
+            }
+            
+            // Add submit button
+            formHTML += `
+                    </div>
+                    <div class="form-submit-container">
+                        <button type="button" class="form-submit-btn" onclick="submitUserInput('${inputData.form_id}')">
+                            Submit & Continue Workflow
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            userInputForm.innerHTML = formHTML;
+            userInputSection.style.display = 'block';
+            
+            // Focus on the input field
+            setTimeout(() => {
+                const inputField = document.getElementById('user-input-field');
+                if (inputField) {
+                    inputField.focus();
+                }
+            }, 100);
+            
+            // Scroll to show the form
+            userInputSection.scrollIntoView({ behavior: 'smooth' });
+            
+            console.log('✅ Simple user input form rendered');
+        }
+
+        function collectFormInputs(formId) {
+            const formElement = document.getElementById(`form-${formId}`);
+            if (!formElement) {
+                console.error('❌ Form not found:', formId);
+                return null;
+            }
+            
+            const inputs = {};
+            const errors = {};
+            let hasErrors = false;
+            
+            // Collect all form inputs
+            const formFields = formElement.querySelectorAll('input, textarea, select');
+            formFields.forEach(field => {
+                const fieldName = field.name;
+                if (!fieldName) return;
+                
+                let value = field.value;
+                
+                // Handle different input types
+                if (field.type === 'checkbox') {
+                    value = field.checked;
+                } else if (field.type === 'number') {
+                    value = field.value ? parseFloat(field.value) : '';
+                }
+                
+                inputs[fieldName] = value;
+                
+                // Basic validation
+                if (field.required && (!value || value === '')) {
+                    errors[fieldName] = 'This field is required';
+                    hasErrors = true;
+                }
+            });
+            
+            // Display validation errors
+            Object.keys(errors).forEach(fieldName => {
+                const errorElement = document.getElementById(`error-${fieldName}`);
+                if (errorElement) {
+                    errorElement.textContent = errors[fieldName];
+                    errorElement.style.display = 'block';
+                }
+            });
+            
+            // Clear previous errors for valid fields
+            Object.keys(inputs).forEach(fieldName => {
+                if (!errors[fieldName]) {
+                    const errorElement = document.getElementById(`error-${fieldName}`);
+                    if (errorElement) {
+                        errorElement.style.display = 'none';
+                    }
+                }
+            });
+            
+            if (hasErrors) {
+                console.log('❌ Form validation failed:', errors);
+                return null;
+            }
+            
+            console.log('✅ Form inputs collected:', inputs);
+            return inputs;
+        }
+
+        async function executeWorkflowWithInputs(formId, inputs = null) {
+            console.log('🚀 Executing workflow with user inputs for form:', formId);
+            
+            // If inputs weren't provided, try to collect them from the form
+            if (!inputs) {
+                inputs = collectFormInputs(formId);
+                if (!inputs) {
+                    return; // Validation failed
+                }
+            }
+            
+            if (!currentWorkflow) {
+                alert('No workflow available to execute');
+                return;
+            }
+            
+            try {
+                setLoading(true);
+                pendingFormExecution = true;
+                currentUserInputs = inputs;
+                
+                // Hide the input form and show execution status
+                const userInputSection = document.getElementById('userInputSection');
+                if (userInputSection) {
+                    userInputSection.style.display = 'none';
+                }
+                
+                addMessageToChat(`🚀 Running workflow "${currentWorkflow.title}" with your inputs...`, 'assistant');
+                
+                // Execute the workflow with user inputs
+                const response = await fetch('/api/execute', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        user_inputs: inputs,
+                        form_id: formId 
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                console.log('📦 Workflow execution response:', data);
+                
+                if (data.execution_id) {
+                    console.log('✅ Workflow execution started with ID:', data.execution_id);
+                    currentExecution = {
+                        id: data.execution_id,
+                        status: 'running',
+                        results: null
+                    };
+                    executionTasks = {};
+                    updateExecutionInfo();
+                } else {
+                    throw new Error('No execution ID received');
+                }
+                
+            } catch (error) {
+                console.error('❌ Error executing workflow with inputs:', error);
+                alert('Failed to execute workflow: ' + error.message);
+                pendingFormExecution = false;
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        function submitUserInput(formId) {
+            console.log('📝 Submitting user input for form:', formId);
+            
+            const inputField = document.getElementById('user-input-field');
+            if (!inputField) {
+                alert('Input field not found');
+                return;
+            }
+            
+            const userValue = inputField.value;
+            if (!userValue || userValue.trim() === '') {
+                alert('Please enter a value before submitting');
+                return;
+            }
+            
+            console.log('✅ User input collected:', userValue);
+            
+            // Hide the input form
+            const userInputSection = document.getElementById('userInputSection');
+            if (userInputSection) {
+                userInputSection.style.display = 'none';
+            }
+            
+            // Execute workflow with the collected input
+            executeWorkflowWithInputs(formId, { user_input: userValue });
+        }
+
+        function detectUserInputFormsInWorkflow(workflow) {
+            if (!workflow || !workflow.nodes) return false;
+            
+            // Check if any agent nodes have user input tools
+            const hasUserInputTools = workflow.nodes.some(node => {
+                if (node.type === 'agent' && node.data && node.data.tools) {
+                    return node.data.tools.some(tool => 
+                        tool.includes('user_input')
+                    );
+                }
+                return false;
+            });
+            
+            return hasUserInputTools;
+        }
+
+        async function triggerWorkflowForInputs() {
+            if (!currentWorkflow) {
+                alert('No workflow available to execute');
+                return;
+            }
+            
+            console.log('🔄 Triggering workflow to generate input forms...');
+            
+            try {
+                setExecutionLoading(true);
+                
+                addMessageToChat(`🔄 Preparing workflow "${currentWorkflow.title}" to collect user inputs...`, 'assistant');
+                
+                // Execute the workflow to generate user input forms
+                const response = await fetch('/api/execute', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        execute_current: true
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                console.log('📦 Workflow execution response:', data);
+                
+                if (data.execution_id) {
+                    console.log('✅ Workflow execution started with ID:', data.execution_id);
+                    currentExecution = {
+                        id: data.execution_id,
+                        status: 'running',
+                        results: null
+                    };
+                    executionTasks = {};
+                    updateExecutionInfo();
+                    
+                    addMessageToChat(`✅ Workflow started! Watch for input forms to appear below.`, 'assistant');
+                } else {
+                    throw new Error('No execution ID received');
+                }
+                
+            } catch (error) {
+                console.error('❌ Error triggering workflow for inputs:', error);
+                alert('Failed to trigger workflow: ' + error.message);
+            } finally {
+                setExecutionLoading(false);
+            }
+        }
+
         document.addEventListener('DOMContentLoaded', function() {
             console.log('🚀 DOM loaded, initializing...');
             debugLibraries();
@@ -1891,6 +3555,9 @@
             loadTools();
             loadExamples();
             updateButtons();
+            initializeChatInterface();
+            initializeToolSearch();
+            initializeEventListeners();
             console.log('✅ Initialization complete');
         });
     </script>

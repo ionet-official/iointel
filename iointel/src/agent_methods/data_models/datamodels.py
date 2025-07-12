@@ -402,8 +402,12 @@ class Tool(BaseModel):
     async def run(self, arguments: dict) -> Any:
         """Run the tool with arguments."""
         try:
+            # Separate execution_metadata from regular arguments
+            execution_metadata = arguments.pop('execution_metadata', None)
+            additional_args = {'execution_metadata': execution_metadata} if execution_metadata else None
+            
             return await self.fn_metadata.call_fn_with_arg_validation(
-                self.fn, self.is_async, arguments, None
+                self.fn, self.is_async, arguments, additional_args
             )
         except Exception as e:
             raise ToolError(f"Error executing tool {self.name}: {e}") from e

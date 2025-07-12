@@ -386,7 +386,7 @@ class WorkflowPlanner:
         context: Optional[Dict[str, Any]] = None,
         max_retries: int = 3,
         **kwargs
-    ) -> WorkflowSpec:
+    ) -> tuple[WorkflowSpec, str]:
         """
         Generate a workflow specification from a user query with auto-retry on validation failures.
         
@@ -432,6 +432,7 @@ Please fix these specific issues in your next attempt:
             if self.last_workflow:
                 previous_workflow_context = f"""
 📝 PREVIOUS WORKFLOW (for reference):
+Reasoning: {self.last_workflow.reasoning}
 Title: {self.last_workflow.title}
 Description: {self.last_workflow.description}
 Nodes: {len(self.last_workflow.nodes)} nodes

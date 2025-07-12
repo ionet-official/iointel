@@ -70,7 +70,11 @@ async def web_tool_executor(task_metadata, objective, agents, execution_metadata
         raise ValueError(error_msg)
     
     try:
-        result = await tool.run(config)
+        # Add execution_metadata to config - Tool.run will handle separating it
+        config_with_metadata = config.copy()
+        config_with_metadata['execution_metadata'] = execution_metadata
+        
+        result = await tool.run(config_with_metadata)
         print(f"✅ Tool '{tool_name}' completed: {result}")
         print(f"    📤 Result type: {type(result)}")
         
@@ -224,12 +228,15 @@ class WorkflowRequest(BaseModel):
 class WorkflowResponse(BaseModel):
     success: bool
     workflow: Optional[Dict] = None
+    agent_response: Optional[str] = None
     error: Optional[str] = None
 
 
 class ExecutionRequest(BaseModel):
     execute_current: bool = True
     workflow_data: Optional[Dict] = None
+    user_inputs: Optional[Dict] = None
+    form_id: Optional[str] = None
 
 
 class ExecutionResponse(BaseModel):
@@ -628,8 +635,13 @@ async def execute_workflow(request: ExecutionRequest):
     # Broadcast execution start
     await broadcast_execution_update(execution_id, "started")
     
-    # Start execution in background
-    asyncio.create_task(execute_workflow_background(workflow_to_execute, execution_id))
+    # Start execution in background with user inputs
+    asyncio.create_task(execute_workflow_background(
+        workflow_to_execute, 
+        execution_id, 
+        user_inputs=request.user_inputs,
+        form_id=request.form_id
+    ))
     
     return ExecutionResponse(
         success=True,
@@ -638,10 +650,17 @@ async def execute_workflow(request: ExecutionRequest):
     )
 
 
-async def execute_workflow_background(workflow_spec: WorkflowSpec, execution_id: str):
+async def execute_workflow_background(
+    workflow_spec: WorkflowSpec, 
+    execution_id: str, 
+    user_inputs: Optional[Dict] = None,
+    form_id: Optional[str] = None
+):
     """Execute workflow in background with real-time updates."""
     try:
         print(f"🛠️ Starting background execution: {execution_id}")
+        if user_inputs:
+            print(f"📝 User inputs provided: {list(user_inputs.keys())}")
         
         # Update status
         active_executions[execution_id]["status"] = "running"
@@ -660,11 +679,16 @@ async def execute_workflow_background(workflow_spec: WorkflowSpec, execution_id:
         # Execute workflow with execution context
         conversation_id = f"web_execution_{execution_id}"
         
-        # Add execution_id to all task metadata for real-time updates
+        # Add execution_id and user inputs to all task metadata for real-time updates
         for task in workflow.tasks:
             if "execution_metadata" not in task:
                 task["execution_metadata"] = {}
             task["execution_metadata"]["execution_id"] = execution_id
+            
+            # Add user inputs to task metadata if provided
+            if user_inputs:
+                task["execution_metadata"]["user_inputs"] = user_inputs
+                task["execution_metadata"]["form_id"] = form_id
         
         # Execute the workflow
         results = await workflow.run_tasks(conversation_id=conversation_id)

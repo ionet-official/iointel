@@ -178,8 +178,10 @@ class WorkflowConverter:
                         for tool_name in node.data.tools:
                             if tool_name in TOOLS_REGISTRY:
                                 agent_tools.append(tool_name)
+                                print(f"🔧 Loading tool '{tool_name}' for agent '{node.id}'")
                                 logger.info(f"Loading tool '{tool_name}' for agent '{node.id}'")
                             else:
+                                print(f"⚠️  Tool '{tool_name}' not found in registry for agent '{node.id}'")
                                 logger.warning(f"Tool '{tool_name}' not found in registry for agent '{node.id}'")
                     
                     # Clone the first custom agent and update with node-specific instructions
@@ -215,8 +217,10 @@ class WorkflowConverter:
                         for tool_name in node.data.tools:
                             if tool_name in TOOLS_REGISTRY:
                                 agent_tools.append(tool_name)
+                                print(f"🔧 Loading tool '{tool_name}' for agent '{node.id}'")
                                 logger.info(f"Loading tool '{tool_name}' for agent '{node.id}'")
                             else:
+                                print(f"⚠️  Tool '{tool_name}' not found in registry for agent '{node.id}'")
                                 logger.warning(f"Tool '{tool_name}' not found in registry for agent '{node.id}'")
                     
                     agent_params = AgentParams(

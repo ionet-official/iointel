@@ -432,6 +432,14 @@ class Workflow:
         nodes = [NodeSpec.model_validate(node_data) for node_data in dag_structure["nodes"]]
         edges = [EdgeSpec.model_validate(edge_data) for edge_data in dag_structure["edges"]]
         
+        # Extract execution_metadata from original workflow tasks
+        execution_metadata_by_node = {}
+        for task in self.tasks:
+            if "execution_metadata" in task:
+                node_id = task.get("task_id") or task.get("id")
+                if node_id:
+                    execution_metadata_by_node[node_id] = task["execution_metadata"]
+        
         # Create DAG executor
         executor = DAGExecutor()
         executor.build_execution_graph(
@@ -439,7 +447,8 @@ class Workflow:
             edges=edges,
             objective=self.objective,
             agents=self.agents,
-            conversation_id=conversation_id
+            conversation_id=conversation_id,
+            execution_metadata_by_node=execution_metadata_by_node
         )
         
         # Execute DAG
