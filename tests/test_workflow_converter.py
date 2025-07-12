@@ -196,7 +196,8 @@ class TestWorkflowConverter:
             label="Test Agent",
             data=NodeData(
                 agent_instructions="Do something intelligent",
-                config={"model": "gpt-4"},
+                model="gpt-4",
+                config={},
                 ins=["data"],
                 outs=["result"]
             )
@@ -206,7 +207,12 @@ class TestWorkflowConverter:
         
         assert task.type == "agent"
         assert task.task_metadata["agent_instructions"] == "Do something intelligent"
-        assert task.agents == default_agents
+        # Agent should be customized with node-specific instructions, not use defaults
+        assert len(task.agents) == 1
+        agent = task.agents[0]
+        assert agent.name == "agent_test_agent"
+        assert agent.instructions == "Do something intelligent"
+        assert agent.model == "gpt-4"
 
     def test_convert_node_to_task_workflow_call_type(self):
         """Test converting a workflow_call node to task."""

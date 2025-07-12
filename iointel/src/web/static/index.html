@@ -2358,6 +2358,15 @@
                         </div>
                     `;
                     
+                    // Add model information for agent nodes
+                    if (node.data.model) {
+                        nodeContent += `
+                            <div class="node-model" style="margin-top: 4px; font-size: 11px; color: #666;">
+                                🤖 ${node.data.model}
+                            </div>
+                        `;
+                    }
+                    
                     // Add tool pills for agent nodes
                     if (node.data.tools && node.data.tools.length > 0) {
                         const toolPills = node.data.tools.map(tool => 

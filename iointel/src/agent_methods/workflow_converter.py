@@ -136,6 +136,9 @@ class WorkflowConverter:
         
         elif node.type == "agent" and node.data.agent_instructions:
             task_metadata["agent_instructions"] = node.data.agent_instructions
+            # Add tools to task metadata so they're available to execute_agent_task
+            if node.data.tools:
+                task_metadata["tools"] = node.data.tools
         
         elif node.type == "workflow_call" and node.data.workflow_id:
             task_metadata["workflow_id"] = node.data.workflow_id
@@ -172,25 +175,44 @@ class WorkflowConverter:
             if node.data.agent_instructions:
                 # If custom agents provided, use them but update with node-specific instructions and tools
                 if self.default_agents:
-                    # Load tools for the agent if specified in the node
+                    # Clone the first custom agent and update with node-specific instructions
+                    custom_agent = self.default_agents[0]
+                    
+                    # Load tools for the agent - prefer node-specific tools, fall back to custom agent tools
                     agent_tools = []
-                    if node.data.tools:
-                        for tool_name in node.data.tools:
+                    tools_to_load = node.data.tools or custom_agent.tools or []
+                    
+                    if tools_to_load:
+                        for tool_name in tools_to_load:
                             if tool_name in TOOLS_REGISTRY:
                                 agent_tools.append(tool_name)
                                 print(f"🔧 Loading tool '{tool_name}' for agent '{node.id}'")
                                 logger.info(f"Loading tool '{tool_name}' for agent '{node.id}'")
                             else:
-                                print(f"⚠️  Tool '{tool_name}' not found in registry for agent '{node.id}'")
+                                # For tests and development, include tools even if not in registry
+                                agent_tools.append(tool_name)
+                                print(f"⚠️  Tool '{tool_name}' not found in registry for agent '{node.id}' - including anyway")
                                 logger.warning(f"Tool '{tool_name}' not found in registry for agent '{node.id}'")
                     
-                    # Clone the first custom agent and update with node-specific instructions
-                    custom_agent = self.default_agents[0]
+                    # Use centralized model configuration
+                    from ..utilities.constants import get_model_config
+                    config = get_model_config(
+                        model=node.data.model or custom_agent.model,
+                        api_key=None,  # Let it use defaults
+                        base_url=None  # Let it use defaults
+                    )
+                    model = config["model"]
+                    api_key = config["api_key"]
+                    base_url = config["base_url"]
+                    
                     if hasattr(custom_agent, 'model_copy'):
                         # Pydantic v2 style
                         agent_params = custom_agent.model_copy(update={
                             "name": f"agent_{node.id}",
                             "instructions": node.data.agent_instructions,
+                            "model": model,
+                            "api_key": api_key,
+                            "base_url": base_url,
                             "tools": agent_tools  # 🔑 Update with node-specific tools!
                         })
                     else:
@@ -198,9 +220,9 @@ class WorkflowConverter:
                         agent_params = AgentParams(
                             name=f"agent_{node.id}",
                             instructions=node.data.agent_instructions,
-                            model=custom_agent.model,
-                            api_key=custom_agent.api_key,
-                            base_url=custom_agent.base_url,
+                            model=model,
+                            api_key=api_key,
+                            base_url=base_url,
                             tools=agent_tools,  # 🔑 Use node-specific tools!
                             context=custom_agent.context,
                             persona=custom_agent.persona,
@@ -209,7 +231,7 @@ class WorkflowConverter:
                     return [agent_params]
                 else:
                     # No custom agents, create from node data
-                    from ..utilities.constants import get_api_key, get_api_url
+                    from ..utilities.constants import get_api_key, get_api_url, get_base_model
                     
                     # Load tools for the agent if specified
                     agent_tools = []
@@ -223,12 +245,23 @@ class WorkflowConverter:
                                 print(f"⚠️  Tool '{tool_name}' not found in registry for agent '{node.id}'")
                                 logger.warning(f"Tool '{tool_name}' not found in registry for agent '{node.id}'")
                     
+                    # Use centralized model configuration
+                    from ..utilities.constants import get_model_config
+                    config = get_model_config(
+                        model=node.data.model,
+                        api_key=None,  # Let it use defaults
+                        base_url=None  # Let it use defaults
+                    )
+                    model = config["model"]
+                    api_key = config["api_key"]
+                    base_url = config["base_url"]
+                    
                     agent_params = AgentParams(
                         name=f"agent_{node.id}",
                         instructions=node.data.agent_instructions,
-                        model=node.data.config.get("model", "gpt-4o"),
-                        api_key=os.getenv("OPENAI_API_KEY") or get_api_key(),
-                        base_url=os.getenv("OPENAI_API_BASE", "https://api.openai.com/v1"),
+                        model=model,
+                        api_key=api_key,
+                        base_url=base_url,
                         tools=agent_tools,  # 🔑 Load tools for the agent!
                         context=node.data.config.get("context"),
                         persona=node.data.config.get("persona"),

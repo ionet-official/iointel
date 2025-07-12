@@ -101,108 +101,7 @@ async def web_tool_executor(task_metadata, objective, agents, execution_metadata
         raise
 
 
-# Register global agent executor for web interface
-@register_custom_task("agent")
-async def execute_agent_task(task_metadata, objective, agents, execution_metadata):
-    """Agent executor that handles type='agent' tasks from WorkflowSpec."""
-    execution_id = execution_metadata.get("execution_id")
-    agent_instructions = task_metadata.get("agent_instructions", "")
-    
-    print(f"🤖 [WEB] Executing agent task (execution: {execution_id})")
-    print(f"    Instructions: {agent_instructions}")
-    
-    # Broadcast task start
-    if execution_id and len(connections) > 0:
-        try:
-            await broadcast_execution_update(
-                execution_id, 
-                "running", 
-                results={"current_task": "agent_task", "status": "started"}
-            )
-        except Exception as e:
-            print(f"⚠️ Failed to broadcast agent start: {e}")
-    
-    try:
-        # Import here to avoid circular imports
-        from ..utilities.runners import run_agents
-        from ..agents import Agent
-        from ..agent_methods.data_models.datamodels import AgentParams
-        
-        # Convert AgentParams to actual Agent instances if needed
-        if agents and isinstance(agents[0], AgentParams):
-            # Convert AgentParams to Agent instances
-            agents_to_use = [Agent(
-                name=ap.name or "Agent",
-                instructions=ap.instructions or "",
-                model=ap.model or "gpt-4o",  # Use OpenAI GPT-4o as default
-                api_key=ap.api_key,
-                base_url=ap.base_url
-            ) for ap in agents]
-        else:
-            # Use provided agents or create default with OpenAI
-            agents_to_use = agents or [Agent(
-                name="default-agent",
-                instructions="you are a generalist who is good at everything.",
-                model="gpt-4o",  # Explicitly use OpenAI GPT-4o
-                api_key=os.getenv("OPENAI_API_KEY"),
-                base_url="https://api.openai.com/v1"
-            )]
-        
-        # Use agent_instructions as the main objective, fall back to objective if needed
-        task_objective = agent_instructions or objective or "Process the available data"
-        
-        # Check if we have input data from previous nodes
-        available_data = task_metadata.get("available_results", {})
-        if available_data:
-            print(f"    Available context data: {list(available_data.keys())}")
-            # Include the available data in the objective/context
-            data_context = "\n\nContext from previous workflow steps:\n"
-            for key, value in available_data.items():
-                # Truncate very long values for readability
-                display_value = str(value)[:300] + "..." if len(str(value)) > 300 else str(value)
-                data_context += f"- {key}: {display_value}\n"
-            task_objective = task_objective + data_context
-        
-        print(f"    Objective: {task_objective}")
-        print(f"    Using {len(agents_to_use)} agents")
-        
-        # Execute agent using the standard runner
-        result = await run_agents(
-            objective=task_objective,
-            agents=agents_to_use,
-            conversation_id=execution_metadata.get("conversation_id", "web_agent_execution")
-        ).execute()
-        
-        # Extract the result content - handle different result formats
-        if isinstance(result, dict):
-            agent_result = result.get("result", result)
-        else:
-            agent_result = result
-            
-        print(f"✅ Agent task completed: {len(str(agent_result))} chars")
-        
-        # Broadcast completion
-        if execution_id and len(connections) > 0:
-            try:
-                await broadcast_execution_update(
-                    execution_id,
-                    "running",
-                    results={"current_task": "agent_task", "status": "completed", "result": agent_result}
-                )
-            except Exception as e:
-                print(f"⚠️ Failed to broadcast agent completion: {e}")
-        
-        return agent_result
-        
-    except Exception as e:
-        error_msg = f"Agent task failed: {str(e)}"
-        print(f"❌ {error_msg}")
-        if execution_id and len(connections) > 0:
-            try:
-                await broadcast_execution_update(execution_id, "failed", error=error_msg)
-            except Exception as e:
-                print(f"⚠️ Failed to broadcast agent error: {e}")
-        raise
+# Removed custom agent executor - let workflow system handle agent execution natively
 
 
 # Initialize FastAPI app
@@ -284,16 +183,44 @@ async def broadcast_workflow_update(workflow: WorkflowSpec):
         await broadcast_message(message)
 
 
+def serialize_execution_results(results: Optional[Dict] = None) -> Optional[Dict]:
+    """Serialize execution results for JSON transmission, handling AgentRunResult objects."""
+    if not results:
+        return results
+        
+    serialized = {}
+    for key, value in results.items():
+        if hasattr(value, '__class__') and 'AgentRunResult' in str(value.__class__):
+            # Serialize AgentRunResult to a dict
+            serialized[key] = {
+                "result": getattr(value, 'output', None) or getattr(value, 'result', None),
+                "tool_usage_results": getattr(value, 'tool_usage_results', []),
+                "conversation_id": getattr(value, 'conversation_id', None),
+                "type": "AgentRunResult"
+            }
+        elif isinstance(value, dict):
+            # Recursively serialize nested dicts
+            serialized[key] = serialize_execution_results(value)
+        else:
+            # Keep other values as-is
+            serialized[key] = value
+    return serialized
+
+
 async def broadcast_execution_update(execution_id: str, status: str, results: Optional[Dict] = None, error: Optional[str] = None):
     """Broadcast execution status updates to all connected clients."""
     # Only log significant status changes
     if status in ['started', 'completed', 'failed']:
         print(f"📢 Execution {execution_id[:8]}: {status}")
+    
+    # Serialize results to handle AgentRunResult objects
+    serialized_results = serialize_execution_results(results)
+    
     message = {
         "type": "execution_update",
         "execution_id": execution_id,
         "status": status,
-        "results": results,
+        "results": serialized_results,
         "error": error,
         "timestamp": datetime.now().isoformat()
     }
@@ -594,6 +521,10 @@ async def execute_workflow(request: ExecutionRequest):
     global current_workflow
     
     print(f"🚀 Execute workflow request: execute_current={request.execute_current}")
+    print(f"🔍 Current workflow exists: {current_workflow is not None}")
+    if current_workflow:
+        print(f"🔍 Current workflow title: '{current_workflow.title}'")
+    print(f"🔍 Request has workflow_data: {request.workflow_data is not None}")
     
     # Determine which workflow to execute
     workflow_to_execute = None
@@ -606,12 +537,14 @@ async def execute_workflow(request: ExecutionRequest):
             workflow_to_execute = WorkflowSpec.model_validate(request.workflow_data)
             print(f"📋 Executing provided workflow: '{workflow_to_execute.title}'")
         except Exception as e:
+            print(f"❌ Failed to validate workflow data: {e}")
             return ExecutionResponse(
                 success=False,
                 error=f"Invalid workflow data: {str(e)}"
             )
     
     if not workflow_to_execute:
+        print(f"❌ No workflow to execute - current_workflow: {current_workflow is not None}, workflow_data: {request.workflow_data is not None}")
         return ExecutionResponse(
             success=False,
             error="No workflow to execute. Generate a workflow first or provide workflow data."
@@ -693,11 +626,11 @@ async def execute_workflow_background(
         # Execute the workflow
         results = await workflow.run_tasks(conversation_id=conversation_id)
         
-        # Update execution info
+        # Update execution info with serialized results
         active_executions[execution_id].update({
             "status": "completed",
             "end_time": datetime.now().isoformat(),
-            "results": results,
+            "results": serialize_execution_results(results),
             "error": None
         })
         

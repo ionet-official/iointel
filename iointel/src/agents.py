@@ -131,12 +131,20 @@ class Agent(BaseModel):
         :param memory: A Memory instance to use for the agent. Memory module can store and retrieve data, and share context between agents.
 
         """
+        # Use centralized model configuration
+        from .utilities.constants import get_model_config
+        config = get_model_config(
+            model=model if isinstance(model, str) else None,
+            api_key=api_key if isinstance(api_key, str) else None,
+            base_url=base_url
+        )
+        
         resolved_api_key = (
             api_key
             if isinstance(api_key, SecretStr)
-            else SecretStr(api_key or get_api_key())
+            else SecretStr(config["api_key"])
         )
-        resolved_base_url = base_url or get_api_url()
+        resolved_base_url = config["base_url"]
 
         if isinstance(model, OpenAIModel):
             resolved_model = model
@@ -149,7 +157,7 @@ class Agent(BaseModel):
                 ),
             )
             resolved_model = OpenAIModel(
-                model_name=model if isinstance(model, str) else get_base_model(),
+                model_name=model if isinstance(model, str) else "gpt-4o",
                 **kwargs,
             )
 

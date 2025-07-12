@@ -1,3 +1,4 @@
+import os
 import pytest
 from iointel.src.utilities.decorators import _unregister_custom_task
 from iointel.src.utilities.constants import get_api_url, get_base_model, get_api_key
@@ -8,6 +9,11 @@ from iointel.src.agent_methods.data_models.datamodels import (
     ModerationException,
     PersonaConfig,
 )
+
+
+def extract_result_value(result):
+    """Helper to extract the actual result value from the full result structure."""
+    return result.get("result", result) if isinstance(result, dict) else result
 
 text = """A long time ago, In a galaxy far, far away, 
 It is a period of civil wars in the galaxy. 
@@ -20,9 +26,13 @@ To crush the rebellion once and for all, the EMPIRE is constructing a sinister n
 Powerful enough to destroy an entire planet, its completion spells certain doom for the champions of freedom.
 """
 
+# Use OpenAI models for tests to avoid API key issues
 llm = OpenAIModel(
-    model_name=get_base_model(),
-    provider=OpenAIProvider(base_url=get_api_url(), api_key=get_api_key()),
+    model_name="gpt-4o",
+    provider=OpenAIProvider(
+        base_url="https://api.openai.com/v1", 
+        api_key=os.getenv("OPENAI_API_KEY")
+    ),
 )
 
 
@@ -58,7 +68,10 @@ async def test_composite_workflow(poet):
     results = (await workflow.run_tasks())["results"]
     assert "translate_text" in results, results
     assert "sentiment" in results, results
-    assert float(results["sentiment"]) >= 0
+    # Extract result value from the full result structure
+    sentiment_result = results["sentiment"]
+    sentiment_value = sentiment_result.get("result", sentiment_result) if isinstance(sentiment_result, dict) else sentiment_result
+    assert float(sentiment_value) >= 0
 
 
 async def test_defaulting_workflow():
@@ -66,7 +79,10 @@ async def test_defaulting_workflow():
     workflow.translate_text(target_language="spanish").sentiment()
     results = (await workflow.run_tasks())["results"]
     assert "translate_text" in results, results
-    assert float(results["sentiment"]) >= 0, results
+    # Extract result value from the full result structure
+    sentiment_result = results["sentiment"]
+    sentiment_value = sentiment_result.get("result", sentiment_result) if isinstance(sentiment_result, dict) else sentiment_result
+    assert float(sentiment_value) >= 0, results
 
 
 async def test_translation_workflow(poet):
@@ -74,7 +90,10 @@ async def test_translation_workflow(poet):
     results = (await workflow.translate_text(target_language="spanish").run_tasks())[
         "results"
     ]
-    assert "galaxia" in results["translate_text"]
+    # Extract result value from the full result structure
+    translate_result = results["translate_text"]
+    translate_value = translate_result.get("result", translate_result) if isinstance(translate_result, dict) else translate_result
+    assert "galaxia" in translate_value
 
 
 async def test_summarize_text_workflow(poet):
@@ -85,9 +104,13 @@ async def test_summarize_text_workflow(poet):
         client_mode=False,
     )
     results = (await workflow.summarize_text().run_tasks())["results"]
+    # Extract result value from the full result structure
+    summarize_result = results["summarize_text"]
+    summarize_value = summarize_result.get("result", summarize_result) if isinstance(summarize_result, dict) else summarize_result
+    summary_text = summarize_value.summary if hasattr(summarize_value, 'summary') else str(summarize_value)
     assert (
-        "emptiness" in results["summarize_text"].summary
-        or "void" in results["summarize_text"].summary
+        "emptiness" in summary_text
+        or "void" in summary_text
     )
 
 
@@ -163,7 +186,10 @@ async def test_sentiment_classify_workflow():
             classify_by=["fact", "fiction", "sci-fi", "fantasy"]
         ).run_tasks()
     )["results"]
-    assert results["classify"] == "fact"
+    # Extract result value from the full result structure
+    classify_result = results["classify"]
+    classify_value = extract_result_value(classify_result)
+    assert classify_value == "fact"
 
 
 async def test_custom_steps_workflow(custom_hi_task, poet):

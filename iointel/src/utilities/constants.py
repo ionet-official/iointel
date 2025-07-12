@@ -25,3 +25,44 @@ def get_base_model() -> str:
 @cache
 def get_api_key() -> str:
     return _get_env_var("KEY")
+
+
+def get_model_config(model: str = None, api_key: str = None, base_url: str = None) -> dict:
+    """
+    Centralized function to get the correct API configuration for any model.
+    
+    Args:
+        model: Model name (e.g., "gpt-4o", "meta-llama/Llama-3.3-70B-Instruct")
+        api_key: Override API key
+        base_url: Override base URL
+        
+    Returns:
+        dict with keys: model, api_key, base_url, is_openai
+    """
+    import os
+    
+    # Default model if none provided
+    resolved_model = model or "gpt-4o"
+    
+    # Determine if this is an OpenAI model
+    is_openai_model = (
+        resolved_model.startswith("gpt-") or 
+        "openai" in resolved_model.lower() or
+        resolved_model in ["gpt-4o", "gpt-4", "gpt-3.5-turbo"]
+    )
+    
+    if is_openai_model:
+        # OpenAI configuration
+        resolved_api_key = api_key or os.getenv("OPENAI_API_KEY")
+        resolved_base_url = base_url or os.getenv("OPENAI_API_BASE", "https://api.openai.com/v1")
+    else:
+        # IO Intel configuration  
+        resolved_api_key = api_key or get_api_key()
+        resolved_base_url = base_url or get_api_url()
+    
+    return {
+        "model": resolved_model,
+        "api_key": resolved_api_key,
+        "base_url": resolved_base_url,
+        "is_openai": is_openai_model
+    }

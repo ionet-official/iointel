@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 class NodeData(BaseModel):
     """Data structure for React Flow node configuration - LLM generated only."""
     # Core configuration that LLM understands
-    config: Dict = Field(default_factory=dict, description="Tool/agent parameters (e.g., query, format, model)")
+    config: Dict = Field(default_factory=dict, description="Tool/agent parameters (e.g., query, format)")
     
     # Data flow ports
     ins: List[str] = Field(default_factory=list, description="Input port names (e.g., 'data', 'query', 'config')")
@@ -17,6 +17,7 @@ class NodeData(BaseModel):
     agent_instructions: Optional[str] = Field(None, description="Instructions for agent (for agent nodes)")
     tools: Optional[List[str]] = Field(None, description="List of tool names available to agent (for agent nodes)")
     workflow_id: Optional[str] = Field(None, description="ID of workflow to call (for workflow_call nodes)")
+    model: Optional[Literal["gpt-4o", "gpt-4", "gpt-3.5-turbo", "meta-llama/Llama-3.3-70B-Instruct", "meta-llama/Llama-3.1-8B-Instruct"]] = Field("gpt-4o", description="Model to use for agent nodes")
 
 
 class NodeSpec(BaseModel):

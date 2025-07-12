@@ -1,4 +1,4 @@
-from typing import Sequence
+from typing import Sequence, Dict, Any
 
 from .helpers import LazyCaller
 from ..task import Task
@@ -51,9 +51,10 @@ async def _run(objective: str, output_type=None, **all_kwargs):
     return await Task(agents=agents).run(definition=definition, output_type=output_type)
 
 
-async def _unpack(func, *args, **kwargs):
+async def _unpack(func, *args, **kwargs) -> Dict[str, Any]:
     result = await (await func(*args, **kwargs)).execute()
-    return result["result"]
+    # Return full result structure to preserve tool_usage_results
+    return result
 
 
 def run_agents_stream(objective: str, **kwargs) -> LazyCaller:

@@ -110,13 +110,15 @@ async def execute_sentiment(
     if client_mode:
         return sentiment_analysis(text=objective)
     else:
-        sentiment_val = await run_agents(
+        result = await run_agents(
             objective=f"Classify the sentiment of the text as a value between 0 and 1.\nText: {objective}",
             agents=agents,
             output_type=float,
             # result_validator=between(0, 1),
             # context={"text": text},
         ).execute()
+        # Extract the actual result value from the response dict
+        sentiment_val = result.get("result", result) if isinstance(result, dict) else result
         if not isinstance(sentiment_val, float):
             try:
                 return float(sentiment_val)
@@ -288,8 +290,10 @@ async def execute_agent_task(
     This executor:
     1. Converts AgentParams to Agent instances using agents_factory
     2. Uses agent_instructions from task_metadata as the primary objective
-    3. Executes using the standard run_agents function
-    4. Follows the same pattern as other chainable tasks
+    3. Passes available results from previous tasks as context to the agent
+    4. Combines agent instructions with available data in the objective
+    5. Executes using the standard run_agents function
+    6. Follows the same pattern as other chainable tasks
     """
     client_mode = execution_metadata.get("client_mode", False)
     agent_instructions = task_metadata.get("agent_instructions", "")
@@ -300,24 +304,44 @@ async def execute_agent_task(
     else:
         agents_to_use = agents or [Agent.make_default()]
     
-    # Use agent_instructions as the primary objective
-    task_objective = agent_instructions or objective or "Process the available data"
+    # Build context with available results from previous tasks
+    context = task_metadata.get("kwargs", {}).copy()
+    available_results = task_metadata.get("available_results", {})
     
-    if client_mode:
-        from ..client.client import run_agent_task
-        return run_agent_task(
-            objective=task_objective,
-            agents=agents_to_use,
-            context=task_metadata.get("kwargs", {})
-        )
+    # Extract actual result values from the result structure
+    processed_results = {}
+    for key, value in available_results.items():
+        if isinstance(value, dict) and 'result' in value:
+            # Extract the actual result value
+            processed_results[key] = value['result']
+        else:
+            processed_results[key] = value
+    
+    # Add available results to context so agent can access them
+    if processed_results:
+        context["available_results"] = processed_results
+        # Also add individual results for easy access
+        context.update(processed_results)
+    
+    # Build task objective that includes both instructions and data context
+    if agent_instructions:
+        if processed_results:
+            # Include information about available data in the objective
+            available_data_info = ", ".join([f"{k}: {v}" for k, v in processed_results.items()])
+            task_objective = f"{agent_instructions}\n\nAvailable data from previous tasks:\n{available_data_info}"
+        else:
+            task_objective = agent_instructions
     else:
-        response = await run_agents(
-            objective=task_objective,
-            agents=agents_to_use,
-            context=task_metadata.get("kwargs", {}),
-            output_type=str,
-        ).execute()
-        return response
+        task_objective = objective or "Process the available data"
+    
+    # Always use local execution for now (client mode not implemented for agent tasks)
+    response = await run_agents(
+        objective=task_objective,
+        agents=agents_to_use,
+        context=context,
+        output_type=str,
+    ).execute()
+    return response
 
 
 ##############################################
