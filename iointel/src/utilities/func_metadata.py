@@ -56,7 +56,15 @@ class FuncMetadata(BaseModel):
         arguments_parsed_model = self.arg_model.model_validate(arguments_pre_parsed)
         arguments_parsed_dict = arguments_parsed_model.model_dump_one_level()
 
-        arguments_parsed_dict |= arguments_to_pass_directly or {}
+        # Only add arguments_to_pass_directly that the function can accept
+        if arguments_to_pass_directly:
+            import inspect
+            if isinstance(fn, Callable):
+                sig = inspect.signature(fn)
+                for key, value in arguments_to_pass_directly.items():
+                    # Only add the parameter if the function accepts it
+                    if key in sig.parameters:
+                        arguments_parsed_dict[key] = value
 
         if fn_is_async:
             if isinstance(fn, Awaitable):

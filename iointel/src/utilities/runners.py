@@ -48,7 +48,9 @@ async def _run_stream(objective: str, output_type=None, **all_kwargs):
 async def _run(objective: str, output_type=None, **all_kwargs):
     definition = _to_task_definition(objective, **all_kwargs)
     agents = definition.agents or []
-    return await Task(agents=agents).run(definition=definition, output_type=output_type)
+    # Extract task-specific kwargs (like result_format) and pass them to Task.run
+    task_kwargs = {k: v for k, v in all_kwargs.items() if k not in ['agents', 'conversation_id', 'name', 'task_id', 'context']}
+    return await Task(agents=agents).run(definition=definition, output_type=output_type, **task_kwargs)
 
 
 async def _unpack(func, *args, **kwargs) -> Dict[str, Any]:

@@ -199,8 +199,21 @@ def serialize_execution_results(results: Optional[Dict] = None) -> Optional[Dict
                 "type": "AgentRunResult"
             }
         elif isinstance(value, dict):
-            # Recursively serialize nested dicts
-            serialized[key] = serialize_execution_results(value)
+            # Check if this is an already-processed agent result dict
+            if 'tool_usage_results' in value and 'full_result' in value:
+                # This is already a processed agent result, preserve tool_usage_results
+                serialized[key] = value.copy()
+                # Only serialize the full_result if it's an AgentRunResult object
+                if hasattr(value.get('full_result'), '__class__') and 'AgentRunResult' in str(value['full_result'].__class__):
+                    full_result = value['full_result']
+                    serialized[key]['full_result'] = {
+                        "result": getattr(full_result, 'output', None),
+                        "conversation_id": getattr(full_result, 'conversation_id', None),
+                        "type": "AgentRunResult"
+                    }
+            else:
+                # Recursively serialize nested dicts
+                serialized[key] = serialize_execution_results(value)
         else:
             # Keep other values as-is
             serialized[key] = value
@@ -262,11 +275,23 @@ def create_tool_catalog() -> Dict[str, Any]:
         # {"properties": {"city": {"type": "string"}}, "required": ["city"], "title": "...", "type": "object"}
         # We need to extract the parameter names from the "properties" field
         parameters = {}
+        required_params = []
+        
         if isinstance(tool.parameters, dict) and "properties" in tool.parameters:
             properties = tool.parameters["properties"]
+            required_params = tool.parameters.get("required", [])
+            
             for param_name, param_info in properties.items():
                 # Extract type from JSON schema type
                 param_type = param_info.get("type", "any")
+                # Handle complex types like anyOf (optional nullable types)
+                if "anyOf" in param_info:
+                    # Look for the non-null type in anyOf
+                    for type_option in param_info["anyOf"]:
+                        if type_option.get("type") != "null":
+                            param_type = type_option.get("type", "any")
+                            break
+                
                 # Map JSON schema types to Python types
                 type_mapping = {
                     "string": "str",
@@ -281,7 +306,8 @@ def create_tool_catalog() -> Dict[str, Any]:
         catalog[tool_name] = {
             "name": tool.name,
             "description": tool.description,
-            "parameters": parameters,  # Now contains actual parameter names and types
+            "parameters": parameters,  # All parameter names and types
+            "required_parameters": required_params,  # Only actually required parameters
             "is_async": tool.is_async
         }
     

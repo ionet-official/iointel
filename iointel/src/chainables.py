@@ -6,7 +6,7 @@ from .utilities.decorators import register_custom_task
 from .utilities.registries import CHAINABLE_METHODS, CUSTOM_WORKFLOW_REGISTRY
 from .agents import Agent
 from .agent_methods.agents.agents_factory import create_agent
-from .agent_methods.data_models.datamodels import AgentParams
+from .agent_methods.data_models.datamodels import AgentParams, AgentResultFormat
 
 ##############################################
 # Example Executor Functions
@@ -298,11 +298,32 @@ async def execute_agent_task(
     client_mode = execution_metadata.get("client_mode", False)
     agent_instructions = task_metadata.get("agent_instructions", "")
     
+    # Determine result format for workflow/agent chaining
+    agent_result_format_str = execution_metadata.get("agent_result_format", "full")
+    # print(f"🔧 execute_agent_task: agent_result_format = {agent_result_format_str}")
+    
+    # Convert string format to AgentResultFormat instance
+    if agent_result_format_str == "chat":
+        result_format = AgentResultFormat.chat()
+    elif agent_result_format_str == "chat_w_tools":
+        result_format = AgentResultFormat.chat_w_tools()
+    elif agent_result_format_str == "workflow":
+        result_format = AgentResultFormat.workflow()
+    elif agent_result_format_str == "minimal":
+        # Legacy support - map to workflow format
+        result_format = AgentResultFormat.workflow()
+    else:
+        # Default to full format
+        result_format = AgentResultFormat.full()
+    
+    # print(f"🔧 execute_agent_task: using format with fields = {result_format.get_included_fields()}")
+    
     # Convert AgentParams to Agent instances if needed
     if agents and isinstance(agents[0], AgentParams):
         agents_to_use = [create_agent(ap) for ap in agents]
     else:
         agents_to_use = agents or [Agent.make_default()]
+    
     
     # Build context with available results from previous tasks
     context = task_metadata.get("kwargs", {}).copy()
@@ -340,7 +361,13 @@ async def execute_agent_task(
         agents=agents_to_use,
         context=context,
         output_type=str,
+        result_format=result_format,
     ).execute()
+    
+    # AgentResultFormat should have already filtered the response appropriately
+    print(f"🔧 execute_agent_task: final response type = {type(response)}")
+    print(f"🔧 execute_agent_task: final response keys = {list(response.keys()) if isinstance(response, dict) else 'not a dict'}")
+    
     return response
 
 

@@ -106,8 +106,13 @@ class TaskNode(BaseNode[WorkflowState]):
             if "available_results" not in resolved_task["task_metadata"]:
                 resolved_task["task_metadata"]["available_results"] = state.results.copy()
         
+        # Pass agent_result_format if it was set on this node
+        agent_result_format = getattr(self, '_agent_result_format', 'full')
+        # print(f"🔧 graph_nodes: using agent_result_format = {agent_result_format}")
+        
         result = await wf.run_task(
-            resolved_task, self.default_text, self.default_agents, self.conversation_id
+            resolved_task, self.default_text, self.default_agents, self.conversation_id,
+            agent_result_format=agent_result_format
         )
 
         state.results[task_key] = (

@@ -54,6 +54,77 @@ class ToolUsageResult(BaseModel):
     tool_result: Any = None
 
 
+class AgentResultFormat(BaseModel):
+    """
+    Defines which fields to include in agent execution results.
+    
+    Predefined formats:
+    - chat: Just the result text (for simple chat responses)
+    - chat_w_tools: Result text + tool usage (for tool-aware chat)
+    - workflow: Result + conversation_id + tools (for workflow chaining)
+    - full: All available fields (complete debugging info)
+    """
+    
+    # Available field options
+    include_result: bool = Field(True, description="Include the main result/output text")
+    include_conversation_id: bool = Field(False, description="Include conversation ID")
+    include_tool_usage_results: bool = Field(False, description="Include tool usage details")
+    include_full_result: bool = Field(False, description="Include complete AgentRunResult object")
+    
+    @classmethod
+    def chat(cls) -> "AgentResultFormat":
+        """Simple chat format: just the result text"""
+        return cls(
+            include_result=True,
+            include_conversation_id=False,
+            include_tool_usage_results=False,
+            include_full_result=False
+        )
+    
+    @classmethod
+    def chat_w_tools(cls) -> "AgentResultFormat":
+        """Chat with tools: result + tool usage"""
+        return cls(
+            include_result=True,
+            include_conversation_id=False,
+            include_tool_usage_results=True,
+            include_full_result=False
+        )
+    
+    @classmethod
+    def workflow(cls) -> "AgentResultFormat":
+        """Workflow format: result + conversation_id + tools (for chaining)"""
+        return cls(
+            include_result=True,
+            include_conversation_id=True,
+            include_tool_usage_results=True,
+            include_full_result=False
+        )
+    
+    @classmethod
+    def full(cls) -> "AgentResultFormat":
+        """Full format: all available fields (for debugging)"""
+        return cls(
+            include_result=True,
+            include_conversation_id=True,
+            include_tool_usage_results=True,
+            include_full_result=True
+        )
+    
+    def get_included_fields(self) -> List[str]:
+        """Returns list of field names to include in the result"""
+        fields = []
+        if self.include_result:
+            fields.append('result')
+        if self.include_conversation_id:
+            fields.append('conversation_id')
+        if self.include_tool_usage_results:
+            fields.append('tool_usage_results')
+        if self.include_full_result:
+            fields.append('full_result')
+        return fields
+
+
 ###### persona ########
 class PersonaConfig(BaseModel):
     """

@@ -2,7 +2,7 @@ import dataclasses
 import json
 
 from .memory import AsyncMemory
-from .agent_methods.data_models.datamodels import PersonaConfig, Tool, ToolUsageResult
+from .agent_methods.data_models.datamodels import PersonaConfig, Tool, ToolUsageResult, AgentResultFormat
 from .utilities.rich import pretty_output
 from .utilities.constants import get_api_url, get_base_model, get_api_key
 from .utilities.registries import TOOLS_REGISTRY
@@ -19,7 +19,7 @@ from pydantic_ai.settings import ModelSettings
 
 from pydantic import ConfigDict, SecretStr, BaseModel, ValidationError
 from pydantic_ai.messages import PartDeltaEvent, TextPartDelta, ToolCallPart
-from typing import Callable, Dict, Any, Optional, Union, Literal
+from typing import Callable, Dict, Any, Optional, Union, Literal, List
 
 
 class PatchedValidatorTool(PydanticTool):
@@ -330,7 +330,15 @@ class Agent(BaseModel):
         query: str,
         conversation_id: Union[str, int],
         pretty: bool = True,
+        result_format: Optional[Union[AgentResultFormat, List[str]]] = None,
     ):
+        """
+        Post-process agent result with configurable output fields.
+        
+        Args:
+            result_format: Either an AgentResultFormat instance or legacy list of field names.
+                If None, uses full format (backward compatibility)
+        """
         messages: list[ModelMessage] = (
             result.all_messages() if hasattr(result, "all_messages") else []
         )
@@ -345,12 +353,30 @@ class Agent(BaseModel):
                 show_tool_calls=self.show_tool_calls,
                 tool_pil_layout=self.tool_pil_layout,
             )
-        return dict(
-            result=result.output,
-            conversation_id=conversation_id,
-            full_result=result,
-            tool_usage_results=tool_usage_results,
-        )
+        
+        # Handle different result_format types
+        if result_format is None:
+            # Default to full format for backward compatibility
+            include_fields = ['result', 'conversation_id', 'full_result', 'tool_usage_results']
+        elif isinstance(result_format, AgentResultFormat):
+            include_fields = result_format.get_included_fields()
+        elif isinstance(result_format, list):
+            # Legacy support for list of field names
+            include_fields = result_format
+        else:
+            raise ValueError(f"Invalid result_format type: {type(result_format)}")
+        
+        result_dict = {}
+        if 'result' in include_fields:
+            result_dict['result'] = result.output
+        if 'conversation_id' in include_fields:
+            result_dict['conversation_id'] = conversation_id
+        if 'full_result' in include_fields:
+            result_dict['full_result'] = result
+        if 'tool_usage_results' in include_fields:
+            result_dict['tool_usage_results'] = tool_usage_results
+            
+        return result_dict
     
     def _resolve_conversation_id(self, conversation_id: Optional[str]) -> str | None:
         res = conversation_id or self.conversation_id or None
@@ -389,6 +415,7 @@ class Agent(BaseModel):
         conversation_id: Optional[str] = None,
         pretty: bool = None,
         message_history_limit=100,
+        result_format: Optional[Union[AgentResultFormat, List[str]]] = None,
         **kwargs,
     ) -> dict[str, Any]:
         """
@@ -397,6 +424,7 @@ class Agent(BaseModel):
         :param conversation_id: The conversation ID to use for the agent.
         :param pretty: Whether to pretty print the result as a rich panel, useful for cli or notebook.
         :param message_history_limit: The number of messages to load from the memory.
+        :param result_format: AgentResultFormat instance or list of field names to include in result
         :param kwargs: Additional keyword arguments to pass to the agent.
         :return: The result of the agent run.
         """
@@ -425,7 +453,7 @@ class Agent(BaseModel):
                 print("Error storing run history:", e)
 
         return self._postprocess_agent_result(
-            result, query, conversation_id, pretty=pretty
+            result, query, conversation_id, pretty=pretty, result_format=result_format
         )
 
     async def _stream_tokens(
@@ -470,6 +498,7 @@ class Agent(BaseModel):
         return_markdown=False,
         message_history_limit=100,
         pretty: bool = None,
+        result_format: Optional[Union[AgentResultFormat, List[str]]] = None,
         **kwargs,
     ) -> dict[str, Any]:
         """
@@ -479,6 +508,7 @@ class Agent(BaseModel):
         :param return_markdown: Whether to return the result as markdown.
         :param message_history_limit: The number of messages to load from the memory.
         :param pretty: Whether to pretty print the result as a rich panel, useful for cli or notebook.
+        :param result_format: AgentResultFormat instance or list of field names to include in result
         :param kwargs: Additional keyword arguments to pass to the agent.
         :return: The result of the agent run.
         """
@@ -507,7 +537,7 @@ class Agent(BaseModel):
                 print("Error storing run history:", e)
 
         result_dict = self._postprocess_agent_result(
-            agent_result, query, conversation_id, pretty=pretty
+            agent_result, query, conversation_id, pretty=pretty, result_format=result_format
         )
         if return_markdown:
             result_dict["result"] = markdown_content
