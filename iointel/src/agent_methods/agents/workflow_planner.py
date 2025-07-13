@@ -418,6 +418,7 @@ class WorkflowPlanner:
             # Build the query with any previous validation errors
             error_feedback = ""
             if validation_errors:
+                print(f"❌ Validation errors: {validation_errors}")
                 error_feedback = f"""
 ❌ PREVIOUS ATTEMPT FAILED WITH VALIDATION ERRORS:
 {chr(10).join(f"- {error}" for error in validation_errors[-1])}

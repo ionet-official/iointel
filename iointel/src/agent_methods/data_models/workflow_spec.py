@@ -55,12 +55,12 @@ class WorkflowSpec(BaseModel):
     """
     id: UUID
     rev: int
+    reasoning: str = Field(default="", description="LLM's chat bot response to the user's query about workflow creation, including constraints and limitations or suggestions for improvements.")
     title: str
     description: str = ""
     nodes: List[NodeSpec]
     edges: List[EdgeSpec]
     metadata: Dict = Field(default_factory=dict)  # tags, owner, created_at
-    reasoning: str = Field(default="", description="LLM's chat bot response to the user's query about workflow creation, including constraints and limitations")
     
     def to_workflow_definition(self, **kwargs):
         """Convert to executable WorkflowDefinition format."""
@@ -109,17 +109,18 @@ class WorkflowSpec(BaseModel):
                 elif tool_catalog and node.data.tool_name in tool_catalog:
                     # Validate tool parameters
                     tool_info = tool_catalog[node.data.tool_name]
-                    required_params = tool_info.get("parameters", {})
+                    required_params = tool_info.get("required_parameters", [])
+                    all_params = tool_info.get("parameters", {})
                     config_params = set(node.data.config.keys())
                     
-                    # Check for missing required parameters
-                    missing_params = set(required_params.keys()) - config_params
+                    # Check for missing required parameters (only check actually required ones)
+                    missing_params = set(required_params) - config_params
                     if missing_params:
                         issues.append(f"🚨 MISSING PARAMETERS: Tool node '{node.id}' ({node.data.tool_name}) missing required parameters: {sorted(missing_params)}. Config has: {sorted(config_params)}")
                     
                     # Check for empty config when parameters are required
                     if required_params and not node.data.config:
-                        issues.append(f"🚨 EMPTY CONFIG: Tool node '{node.id}' ({node.data.tool_name}) has empty config but requires parameters: {sorted(required_params.keys())}")
+                        issues.append(f"🚨 EMPTY CONFIG: Tool node '{node.id}' ({node.data.tool_name}) has empty config but requires parameters: {sorted(required_params)}")
             
             elif node.type == "agent":
                 if not node.data.agent_instructions:
@@ -132,7 +133,6 @@ class WorkflowSpec(BaseModel):
             elif node.type == "decision" and node.data.tool_name:
                 if tool_catalog and node.data.tool_name not in tool_catalog:
                     issues.append(f"🚨 TOOL HALLUCINATION: Decision node '{node.id}' uses non-existent tool '{node.data.tool_name}'. Available tools: {sorted(tool_catalog.keys())}")
-        
         return issues
     
     def validate_tools(self, tool_catalog: dict) -> List[str]:
@@ -143,7 +143,7 @@ class WorkflowSpec(BaseModel):
         for node in self.nodes:
             if node.data.tool_name:
                 if node.data.tool_name not in available_tools:
-                    issues.append(f"Node '{node.id}' uses unavailable tool '{node.data.tool_name}'")
+                    issues.append(f"Node '{node.id}' uses (hallucinated) unavailable tool '{node.data.tool_name}'")
         
         return issues
 
