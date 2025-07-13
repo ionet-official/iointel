@@ -138,6 +138,14 @@ def func_metadata(func: Callable) -> FuncMetadata:
                 f"Parameter {param.name} of {func.__name__} cannot start with '_'"
             )
 
+        # Skip **kwargs parameters - they don't need validation as they accept arbitrary keywords
+        if param.kind == inspect.Parameter.VAR_KEYWORD:
+            continue
+            
+        # Skip *args parameters as well
+        if param.kind == inspect.Parameter.VAR_POSITIONAL:
+            continue
+
         annotation = param.annotation
 
         # `x: None` / `x: None = None`
