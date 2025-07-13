@@ -529,16 +529,40 @@ Generate a WorkflowSpec that fulfills the user's requirements using ONLY the ava
         raise ValueError(f"Failed to generate valid workflow after {max_retries + 1} attempts")
     
     def _format_tool_catalog(self, tool_catalog: dict) -> str:
-        """Format the tool catalog for clear display to the LLM."""
+        """Format the tool catalog for clear display to the LLM using rich parameter descriptions."""
         if not tool_catalog:
             return "❌ NO TOOLS AVAILABLE - Cannot create workflow without tools"
         
         formatted_tools = []
         for tool_name, tool_info in tool_catalog.items():
+            # Format parameters with rich descriptions from pydantic-ai schema generation
+            parameters = tool_info.get('parameters', {})
+            required_params = tool_info.get('required_parameters', [])
+            
+            param_details = []
+            for param_name, param_info in parameters.items():
+                if isinstance(param_info, dict):
+                    # New rich format with descriptions
+                    param_type = param_info.get('type', 'any')
+                    param_desc = param_info.get('description', 'No description')
+                    is_required = param_info.get('required', param_name in required_params)
+                    default_val = param_info.get('default')
+                    
+                    req_indicator = " (required)" if is_required else " (optional)"
+                    default_info = f" [default: {default_val}]" if default_val is not None else ""
+                    param_details.append(f"     • {param_name} ({param_type}){req_indicator}{default_info}: {param_desc}")
+                else:
+                    # Fallback for simple format
+                    req_indicator = " (required)" if param_name in required_params else " (optional)"
+                    param_details.append(f"     • {param_name} ({param_info}){req_indicator}")
+            
+            params_section = "\n".join(param_details) if param_details else "     • No parameters"
+            
             formatted_tools.append(f"""
 📦 {tool_name}
    Description: {tool_info.get('description', 'No description')}
-   Parameters: {tool_info.get('parameters', {})}
+   Parameters:
+{params_section}
    Usage: {{"tool_name": "{tool_name}", "config": {{ ... }} }}
 """)
         

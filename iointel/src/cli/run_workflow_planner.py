@@ -42,50 +42,92 @@ CONVERSATION_ID = "workflow_planner_session"
 
 
 def create_tool_catalog() -> Dict[str, Any]:
-    """Create a tool catalog from available tools."""
+    """Create a tool catalog from available tools using pydantic-ai's schema generation."""
+    from pydantic_ai._function_schema import function_schema
+    from pydantic_ai.tools import GenerateToolJsonSchema
+    
     catalog = {}
     
     for tool_name, tool in TOOLS_REGISTRY.items():
-        # Extract parameter names from JSON schema
-        # tool.parameters is a JSON schema like:
-        # {"properties": {"city": {"type": "string"}}, "required": ["city"], "title": "...", "type": "object"}
-        # We need to extract the parameter names from the "properties" field
-        parameters = {}
-        required_params = []
-        
-        if isinstance(tool.parameters, dict) and "properties" in tool.parameters:
-            properties = tool.parameters["properties"]
-            required_params = tool.parameters.get("required", [])
+        try:
+            # Use pydantic-ai's sophisticated function schema generation
+            func_schema = function_schema(
+                tool.get_wrapped_fn(),
+                schema_generator=GenerateToolJsonSchema,
+                takes_ctx=False,  # Our tools don't use RunContext
+                docstring_format='auto',  # Auto-detect docstring format
+                require_parameter_descriptions=False
+            )
             
+            # Extract rich parameter information from the generated schema
+            json_schema = func_schema.json_schema
+            properties = json_schema.get("properties", {})
+            required_params = json_schema.get("required", [])
+            
+            # Build parameter descriptions with type info
+            parameters_with_descriptions = {}
             for param_name, param_info in properties.items():
-                # Extract type from JSON schema type
                 param_type = param_info.get("type", "any")
-                # Handle complex types like anyOf (optional nullable types)
-                if "anyOf" in param_info:
-                    # Look for the non-null type in anyOf
-                    for type_option in param_info["anyOf"]:
-                        if type_option.get("type") != "null":
-                            param_type = type_option.get("type", "any")
-                            break
+                param_desc = param_info.get("description", "No description available")
+                default_val = param_info.get("default")
                 
-                # Map JSON schema types to Python types
-                type_mapping = {
-                    "string": "str",
-                    "integer": "int", 
-                    "number": "float",
-                    "boolean": "bool",
-                    "array": "list",
-                    "object": "dict"
+                # Create rich parameter description
+                param_entry = {
+                    "type": param_type,
+                    "description": param_desc,
+                    "required": param_name in required_params
                 }
-                parameters[param_name] = type_mapping.get(param_type, param_type)
-        
-        catalog[tool_name] = {
-            "name": tool.name,
-            "description": tool.description,
-            "parameters": parameters,  # All parameter names and types
-            "required_parameters": required_params,  # Only actually required parameters
-            "is_async": tool.is_async
-        }
+                if default_val is not None:
+                    param_entry["default"] = default_val
+                    
+                parameters_with_descriptions[param_name] = param_entry
+            
+            catalog[tool_name] = {
+                "name": tool.name,
+                "description": func_schema.description or tool.description,
+                "parameters": parameters_with_descriptions,  # Rich parameter info with descriptions
+                "required_parameters": required_params,
+                "is_async": func_schema.is_async,
+                "json_schema": json_schema  # Full schema for advanced use cases
+            }
+            
+        except Exception as e:
+            # Fallback to original method if pydantic-ai schema generation fails
+            print(f"⚠️ Failed to generate enhanced schema for {tool_name}, using fallback: {e}")
+            
+            # Original parameter extraction as fallback
+            parameters = {}
+            required_params = []
+            
+            if isinstance(tool.parameters, dict) and "properties" in tool.parameters:
+                properties = tool.parameters["properties"]
+                required_params = tool.parameters.get("required", [])
+                
+                for param_name, param_info in properties.items():
+                    param_type = param_info.get("type", "any")
+                    if "anyOf" in param_info:
+                        for type_option in param_info["anyOf"]:
+                            if type_option.get("type") != "null":
+                                param_type = type_option.get("type", "any")
+                                break
+                    
+                    type_mapping = {
+                        "string": "str", "integer": "int", "number": "float",
+                        "boolean": "bool", "array": "list", "object": "dict"
+                    }
+                    parameters[param_name] = {
+                        "type": type_mapping.get(param_type, param_type),
+                        "description": param_info.get("description", "No description"),
+                        "required": param_name in required_params
+                    }
+            
+            catalog[tool_name] = {
+                "name": tool.name,
+                "description": tool.description,
+                "parameters": parameters,
+                "required_parameters": required_params,
+                "is_async": tool.is_async
+            }
     
     return catalog
 
