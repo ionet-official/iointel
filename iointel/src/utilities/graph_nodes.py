@@ -115,9 +115,27 @@ class TaskNode(BaseNode[WorkflowState]):
             agent_result_format=agent_result_format
         )
 
-        state.results[task_key] = (
-            result.get("data", result) if isinstance(result, dict) else result
-        )
+        # Store the core result value for data flow
+        if isinstance(result, dict):
+            # Extract the main value from different result formats
+            if "result" in result:
+                # Standard format: {"result": value, ...}
+                core_value = result["result"]
+            elif "user_input" in result:
+                # User input format: {"user_input": value, ...}
+                core_value = result["user_input"]
+            elif "data" in result:
+                # Legacy format: {"data": value, ...}
+                core_value = result["data"]
+            else:
+                # For complex results, store the whole dict
+                core_value = result
+        else:
+            # Simple value, store directly
+            core_value = result
+            
+        state.results[task_key] = core_value
+        print(f"   💾 Stored '{task_key}' = {core_value} (type: {type(core_value)})")
         return self.next_task if self.next_task else End(state)
 
 

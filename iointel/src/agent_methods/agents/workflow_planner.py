@@ -263,10 +263,15 @@ tool_catalog = {
    - ✅ CORRECT: `{"a": "{solver_agent.number}", "b": "{riddle_generator.value}"}` (gets data from other nodes)
    - ❌ WRONG: `{"a": 10, "b": 5}` (hardcoded values when data should come from workflow)
    - ✅ ACCEPTABLE: `{"api_key": "sk-12345", "endpoint": "https://api.com"}` (configuration constants)
-3. **USE DATA FLOW REFERENCES**: Use `{node_id.field}` syntax to reference previous results
-   - ✅ CORRECT: `{"a": "{get_weather_ny.result.temp}", "b": "{get_weather_la.result.temp}"}`
-   - ❌ WRONG: `{"a": "get_weather_ny.result.temp", "b": "get_weather_la.result.temp"}` (missing braces)
-   - ❌ WRONG: `{"a": "{get_weather_ny.result}", "b": "{get_weather_la.result}"}` (missing field access)
+3. **USE DATA FLOW REFERENCES**: Reference previous node outputs correctly based on tool type
+   - **For user_input tools**: Use `{node_id}` directly (stores the input value)
+     ✅ CORRECT: `{"a": "{user_input_node}", "multiplier": "{double_input_node}"}`
+   - **For most other tools**: Use `{node_id.result}` for the main output
+     ✅ CORRECT: `{"a": "{get_weather_ny.result}", "b": "{calculator_agent.result}"}`
+   - **For complex outputs**: Use specific field access when tools return structured data
+     ✅ CORRECT: `{"temp": "{weather_node.result.temperature}", "city": "{weather_node.result.city}"}`
+   - ❌ WRONG: `{"a": "get_weather_ny.result"}` (missing braces)
+   - ❌ WRONG: `{"a": "{user_input_node.input_value}"}` (user_input stores value directly)
 4. **AGENT OUTPUTS**: When agents generate numbers or values, tools should reference those outputs:
    - If agent says "The answer is 42", tool should use `{"number": "{agent_node.result}"}`
    - If agent extracts values, tool should use `{"a": "{agent_node.first_number}", "b": "{agent_node.second_number}"}`
@@ -558,12 +563,17 @@ Generate a WorkflowSpec that fulfills the user's requirements using ONLY the ava
             
             params_section = "\n".join(param_details) if param_details else "     • No parameters"
             
+            # Add special notes for user_input tool
+            usage_note = f'{{"tool_name": "{tool_name}", "config": {{ ... }} }}'
+            if tool_name == 'user_input':
+                usage_note += f'\n   🔗 Data Flow: Use `{{node_id}}` to reference user input (stores value directly)'
+            
             formatted_tools.append(f"""
 📦 {tool_name}
    Description: {tool_info.get('description', 'No description')}
    Parameters:
 {params_section}
-   Usage: {{"tool_name": "{tool_name}", "config": {{ ... }} }}
+   Usage: {usage_note}
 """)
         
         return f"""

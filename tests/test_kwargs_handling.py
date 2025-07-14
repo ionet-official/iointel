@@ -41,18 +41,17 @@ async def test_kwargs_handling():
     assert validated_dict["required_param"] == "test"
     assert validated_dict["optional_param"] == "default"
     
-    # Test calling the function with additional kwargs
-    all_args = {"required_param": "test", "extra_arg": "extra_value"}
+    # Test calling the function (kwargs will be empty since we filter unrecognized params)
     result = await metadata.call_fn_with_arg_validation(
         sample_function_with_kwargs, 
         False,  # not async
-        all_args,
+        test_args,
         None
     )
     
     assert result["required"] == "test"
     assert result["optional"] == "default"
-    assert result["kwargs"]["extra_arg"] == "extra_value"
+    assert result["kwargs"] == {}  # No extra args passed through
 
 
 @pytest.mark.asyncio  

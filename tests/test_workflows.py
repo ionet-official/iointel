@@ -143,7 +143,9 @@ async def test_sentiment_workflow():
     workflow = Workflow("The dinner was awesome!", client_mode=False)
     results = (await workflow.sentiment().run_tasks())["results"]
     sentiment_result = results["sentiment"]
-    assert float(sentiment_result["result"]) > 0.5, results
+    # With new result storage, sentiment value is extracted directly
+    sentiment_value = sentiment_result if isinstance(sentiment_result, (int, float)) else sentiment_result.get("result", sentiment_result)
+    assert float(sentiment_value) > 0.5, results
 
 
 async def test_extract_categorized_entities_workflow():
@@ -211,7 +213,10 @@ async def test_task_level_agent_workflow(poet):
     workflow.translate_text(agents=[poet], target_language="spanish").sentiment()
     results = (await workflow.run_tasks())["results"]
     assert "translate_text" in results, results
-    assert float(results["sentiment"]["result"]) >= 0, results
+    # With new result storage, sentiment value is extracted directly
+    sentiment_result = results["sentiment"] 
+    sentiment_value = sentiment_result if isinstance(sentiment_result, (int, float)) else sentiment_result.get("result", sentiment_result)
+    assert float(sentiment_value) >= 0, results
 
 
 async def test_sentiment_classify_workflow():
