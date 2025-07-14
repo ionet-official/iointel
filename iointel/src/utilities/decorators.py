@@ -88,8 +88,8 @@ def register_tool(_fn=None, name: Optional[str] = None):
     def decorator(executor_fn: Callable):
         tool_name = check_fn_name(name) or compute_fn_name(executor_fn)
         if executor_fn.__qualname__.count(".") > 1:
-            logger.warning(
-                f"Tool name {tool_name} is too deeply nested: qualified name {executor_fn.__qualname__}"
+            logger.debug(
+                f"Tool name {tool_name} is nested: qualified name {executor_fn.__qualname__}"
             )
 
         if tool_name in TOOLS_REGISTRY:

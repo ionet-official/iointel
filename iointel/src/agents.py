@@ -18,10 +18,13 @@ from .ui.io_gradio_ui import IOGradioUI
 
 from pydantic_ai.models.openai import OpenAIModel
 from pydantic_ai.providers.openai import OpenAIProvider
-from pydantic_ai import Agent as PydanticAgent, Tool as PydanticTool
+from pydantic_ai import Agent as PydanticAIAgent, Tool as PydanticTool
 from pydantic_ai.agent import AgentRunResult
 from pydantic_ai.messages import ModelMessage
 from pydantic_ai.settings import ModelSettings
+
+from .agent_methods.secure_pydantic_agent import SecurePydanticAgent
+from .utilities.hybrid_tool_registry import secure_registry, register_secure_tool
 
 from pydantic import ConfigDict, SecretStr, BaseModel, ValidationError
 from pydantic_ai.messages import PartDeltaEvent, TextPartDelta, ToolCallPart
@@ -84,7 +87,7 @@ class Agent(BaseModel):
     api_key: SecretStr
     base_url: Optional[str] = None
     output_type: Optional[Any] = str
-    _runner: PydanticAgent
+    _runner: PydanticAIAgent
     conversation_id: Optional[str] = None
     show_tool_calls: bool = True
     tool_pil_layout: Literal["vertical", "horizontal"] = (
@@ -93,6 +96,7 @@ class Agent(BaseModel):
     debug: bool = False
     _allow_unregistered_tools: bool
     _use_registry: bool
+    _use_pydantic_ai: bool
 
     # args must stay in sync with AgentParams, because we use that model
     # to reconstruct agents
@@ -119,6 +123,7 @@ class Agent(BaseModel):
         debug: bool = False,
         allow_unregistered_tools: bool = False,
         use_registry: bool = True,
+        use_pydantic_ai: bool = False,
         **model_kwargs,
     ) -> None:
         """
@@ -134,6 +139,7 @@ class Agent(BaseModel):
         :param tool_pil_layout: 'horizontal' (default) or 'vertical' for tool PIL stacking.
         :param use_registry: If True, use global registry for tool resolution (server mode).
                             If False, use direct tool resolution (local mode).
+        :param use_pydantic_ai: If True, use pydantic-ai's native tool system with security validation.
 
         If model_provider is given, you rely entirely on it for the model and ignore other model-related kwargs.
         If not, you fall back to ChatOpenAI with model_kwargs such as model="gpt-4o-mini", api_key="..."
@@ -205,7 +211,28 @@ class Agent(BaseModel):
         )
         self._allow_unregistered_tools = allow_unregistered_tools
         self._use_registry = use_registry
-        self._runner = PydanticAgent(
+        self._use_pydantic_ai = use_pydantic_ai
+        
+        # If using pydantic-ai mode, delegate to SecurePydanticAgent
+        if use_pydantic_ai:
+            self._pydantic_agent = SecurePydanticAgent(
+                name=name,
+                instructions=instructions,
+                model=resolved_model,
+                tools=tools,
+                api_key=resolved_api_key,
+                base_url=resolved_base_url,
+                memory=memory,
+                use_registry=use_registry,
+                validate_security=True,
+                output_type=output_type,
+                model_settings=model_settings,
+            )
+            # Initialize the tools attribute for compatibility
+            self.tools = self._pydantic_agent.tools
+            # Skip the rest of the initialization since SecurePydanticAgent handles it
+            return
+        self._runner = PydanticAIAgent(
             name=name,
             tools=[
                 PatchedValidatorTool(
@@ -295,6 +322,11 @@ class Agent(BaseModel):
         return combined_instructions
 
     def add_tool(self, tool):
+        # If using pydantic-ai mode, delegate to SecurePydanticAgent
+        if self._use_pydantic_ai:
+            self._pydantic_agent.add_tool(tool)
+            return
+            
         if self._use_registry:
             registered_tool = self._get_registered_tool(
                 tool, self._allow_unregistered_tools
@@ -425,6 +457,14 @@ class Agent(BaseModel):
         :param kwargs: Additional keyword arguments to pass to the agent.
         :return: The result of the agent run.
         """
+        
+        # If using pydantic-ai mode, delegate to SecurePydanticAgent
+        if self._use_pydantic_ai:
+            return await self._pydantic_agent.run(
+                query=query,
+                conversation_id=conversation_id,
+                **kwargs
+            )
 
         message_history = await self._load_message_history(
             conversation_id, message_history_limit
@@ -502,6 +542,15 @@ class Agent(BaseModel):
         :param kwargs: Additional keyword arguments to pass to the agent.
         :return: The result of the agent run.
         """
+        
+        # If using pydantic-ai mode, delegate to SecurePydanticAgent
+        if self._use_pydantic_ai:
+            # Note: pydantic-ai doesn't have run_stream, so we fall back to run
+            return await self._pydantic_agent.run(
+                query=query,
+                conversation_id=conversation_id,
+                **kwargs
+            )
 
         markdown_content = ""
         agent_result = None
@@ -539,6 +588,38 @@ class Agent(BaseModel):
         :param context: The context to set for the agent.
         """
         self.context = context
+    
+    def tool(self, func: Optional[Callable] = None, *, name: Optional[str] = None) -> Callable:
+        """
+        Decorator to register a tool that takes RunContext (only available in pydantic-ai mode).
+        
+        Args:
+            func: Function to register
+            name: Optional custom name
+            
+        Returns:
+            Decorated function
+        """
+        if not self._use_pydantic_ai:
+            raise ValueError("Agent.tool decorator is only available when use_pydantic_ai=True")
+        
+        return self._pydantic_agent.tool(func, name=name)
+    
+    def tool_plain(self, func: Optional[Callable] = None, *, name: Optional[str] = None) -> Callable:
+        """
+        Decorator to register a tool that doesn't take RunContext (only available in pydantic-ai mode).
+        
+        Args:
+            func: Function to register
+            name: Optional custom name
+            
+        Returns:
+            Decorated function
+        """
+        if not self._use_pydantic_ai:
+            raise ValueError("Agent.tool_plain decorator is only available when use_pydantic_ai=True")
+        
+        return self._pydantic_agent.tool_plain(func, name=name)
 
     @classmethod
     def make_default(cls) -> "Agent":
@@ -564,6 +645,58 @@ class Agent(BaseModel):
         """
         ui = IOGradioUI(agent=self, interface_title=interface_title)
         return await ui.launch(share=share)
+
+
+class PydanticAgent(Agent):
+    """
+    A subclass of iointel.Agent that uses pydantic-ai's native tool system
+    with security validation. This provides the best of both worlds:
+    - pydantic-ai's advanced tool validation and schema generation
+    - Our security validation and anti-spoofing measures
+    """
+
+    def __init__(
+        self,
+        name: str,
+        instructions: str,
+        persona: Optional[PersonaConfig] = None,
+        context: Optional[Any] = None,
+        tools: Optional[list] = None,
+        model: Optional[Union[OpenAIModel, str]] = None,
+        memory: Optional[AsyncMemory] = None,
+        model_settings: Optional[Dict[str, Any]] = None,
+        api_key: Optional[SecretStr | str] = None,
+        base_url: Optional[str] = None,
+        output_type: Optional[Any] = str,
+        retries: int = 3,
+        output_retries: int | None = None,
+        show_tool_calls: bool = True,
+        tool_pil_layout: Literal["vertical", "horizontal"] = "horizontal",
+        debug: bool = False,
+        **model_kwargs,
+    ):
+        super().__init__(
+            name=name,
+            instructions=instructions,
+            persona=persona,
+            context=context,
+            tools=tools,
+            model=model,
+            memory=memory,
+            model_settings=model_settings,
+            api_key=api_key,
+            base_url=base_url,
+            output_type=output_type,
+            retries=retries,
+            output_retries=output_retries,
+            allow_unregistered_tools=True,
+            use_registry=True,
+            use_pydantic_ai=True,  # Always use pydantic-ai mode
+            show_tool_calls=show_tool_calls,
+            tool_pil_layout=tool_pil_layout,
+            debug=debug,
+            **model_kwargs,
+        )
 
 
 class LocalAgent(Agent):
