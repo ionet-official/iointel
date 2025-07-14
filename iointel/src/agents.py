@@ -92,6 +92,7 @@ class Agent(BaseModel):
     )
     debug: bool = False
     _allow_unregistered_tools: bool
+    _use_registry: bool
 
     # args must stay in sync with AgentParams, because we use that model
     # to reconstruct agents
@@ -117,6 +118,7 @@ class Agent(BaseModel):
         tool_pil_layout: Literal["vertical", "horizontal"] = "horizontal",
         debug: bool = False,
         allow_unregistered_tools: bool = False,
+        use_registry: bool = True,
         **model_kwargs,
     ) -> None:
         """
@@ -130,6 +132,8 @@ class Agent(BaseModel):
         :param model_kwargs: Additional keyword arguments passed to the model factory or ChatOpenAI if no factory is provided.
         :param verbose: If True, displays detailed tool usage information during execution.
         :param tool_pil_layout: 'horizontal' (default) or 'vertical' for tool PIL stacking.
+        :param use_registry: If True, use global registry for tool resolution (server mode).
+                            If False, use direct tool resolution (local mode).
 
         If model_provider is given, you rely entirely on it for the model and ignore other model-related kwargs.
         If not, you fall back to ChatOpenAI with model_kwargs such as model="gpt-4o-mini", api_key="..."
@@ -159,10 +163,17 @@ class Agent(BaseModel):
                 **kwargs,
             )
 
-        resolved_tools = [
-            self._get_registered_tool(tool, allow_unregistered_tools)
-            for tool in (tools or ())
-        ]
+        if use_registry:
+            resolved_tools = [
+                self._get_registered_tool(tool, allow_unregistered_tools)
+                for tool in (tools or ())
+            ]
+        else:
+            # For local mode, convert tools directly without registry lookup
+            resolved_tools = [
+                self._convert_tool_for_local(tool)
+                for tool in (tools or ())
+            ]
 
         if isinstance(model, str):
             model_supports_tool_choice = supports_tool_choice_required(model)
@@ -193,6 +204,7 @@ class Agent(BaseModel):
             conversation_id=conversation_id,
         )
         self._allow_unregistered_tools = allow_unregistered_tools
+        self._use_registry = use_registry
         self._runner = PydanticAgent(
             name=name,
             tools=[
@@ -249,6 +261,25 @@ class Agent(BaseModel):
             update={"name": found_tool.name, "description": found_tool.description}
         )
 
+    @classmethod
+    def _convert_tool_for_local(cls, tool: str | Tool | Callable) -> Tool:
+        """
+        Convert a tool to Tool object for local execution without registry lookup.
+        """
+        if isinstance(tool, str):
+            raise ValueError(
+                f"String tool reference '{tool}' not supported in local mode. "
+                "Pass the tool function or Tool object directly."
+            )
+        elif isinstance(tool, Tool):
+            return tool
+        elif callable(tool):
+            return Tool.from_function(tool)
+        else:
+            raise ValueError(
+                f"Tool '{tool}' is neither a Tool object nor a callable."
+            )
+
     def _make_init_prompt(self) -> str:
         # Combine user instructions with persona content
         combined_instructions = self.instructions
@@ -264,9 +295,13 @@ class Agent(BaseModel):
         return combined_instructions
 
     def add_tool(self, tool):
-        registered_tool = self._get_registered_tool(
-            tool, self._allow_unregistered_tools
-        )
+        if self._use_registry:
+            registered_tool = self._get_registered_tool(
+                tool, self._allow_unregistered_tools
+            )
+        else:
+            registered_tool = self._convert_tool_for_local(tool)
+        
         self.tools += [registered_tool]
         self._runner._register_tool(
             PatchedValidatorTool(registered_tool.get_wrapped_fn())
@@ -531,10 +566,11 @@ class Agent(BaseModel):
         return await ui.launch(share=share)
 
 
-class LiberalToolAgent(Agent):
+class LocalAgent(Agent):
     """
-    A subclass of iointel.Agent that allows passing in arbitrary callables as tools
-    without requiring one to register them first
+    A subclass of iointel.Agent optimized for local execution.
+    Tools are used directly without registry lookup, making it unnecessary
+    to register tools for local agent execution.
     """
 
     def __init__(
@@ -572,6 +608,57 @@ class LiberalToolAgent(Agent):
             retries=retries,
             output_retries=output_retries,
             allow_unregistered_tools=True,
+            use_registry=False,  # Always use local mode
+            show_tool_calls=show_tool_calls,
+            tool_pil_layout=tool_pil_layout,
+            debug=debug,
+            **model_kwargs,
+        )
+
+
+class LiberalToolAgent(Agent):
+    """
+    A subclass of iointel.Agent that allows passing in arbitrary callables as tools
+    without requiring one to register them first. This is now the default behavior
+    for local execution mode.
+    """
+
+    def __init__(
+        self,
+        name: str,
+        instructions: str,
+        persona: Optional[PersonaConfig] = None,
+        context: Optional[Any] = None,
+        tools: Optional[list] = None,
+        model: Optional[Union[OpenAIModel, str]] = None,
+        memory: Optional[AsyncMemory] = None,
+        model_settings: Optional[Dict[str, Any]] = None,
+        api_key: Optional[SecretStr | str] = None,
+        base_url: Optional[str] = None,
+        output_type: Optional[Any] = str,
+        retries: int = 3,
+        output_retries: int | None = None,
+        show_tool_calls: bool = True,
+        tool_pil_layout: Literal["vertical", "horizontal"] = "horizontal",
+        debug: bool = False,
+        **model_kwargs,
+    ):
+        super().__init__(
+            name=name,
+            instructions=instructions,
+            persona=persona,
+            context=context,
+            tools=tools,
+            model=model,
+            memory=memory,
+            model_settings=model_settings,
+            api_key=api_key,
+            base_url=base_url,
+            output_type=output_type,
+            retries=retries,
+            output_retries=output_retries,
+            allow_unregistered_tools=True,
+            use_registry=False,  # Default to local mode
             show_tool_calls=show_tool_calls,
             tool_pil_layout=tool_pil_layout,
             debug=debug,

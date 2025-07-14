@@ -1,7 +1,7 @@
 import inspect
 from pydantic import BaseModel
 from ..data_models.datamodels import AgentParams
-from typing import Callable, List
+from typing import Callable, List, Union
 import re
 from ...utilities.registries import TOOLS_REGISTRY
 from ...utilities.helpers import make_logger
@@ -69,6 +69,7 @@ async def resolve_tools(
     tool_instantiator: Callable[
         [Tool, dict | None], BaseModel | None
     ] = instantiate_stateful_tool,
+    use_registry: bool = True,
 ) -> List[Tool]:
     """
     Resolve the tools in an AgentParams object.
@@ -82,7 +83,19 @@ async def resolve_tools(
 
     The `tool_instantiator` is called when a tool is "stateful",
     i.e. it is an instancemethod, and its `self` is not yet initialized.
+    
+    Args:
+        params: AgentParams containing tools to resolve
+        tool_instantiator: Function to instantiate stateful tools
+        use_registry: If True, use global registry for tool resolution (server mode).
+                     If False, use direct tool resolution (local mode).
     """
+    # If use_registry is False, use local tool resolution
+    if not use_registry:
+        return await LocalToolResolver.resolve_tools_local(
+            tools=params.tools,
+            tool_instantiator=tool_instantiator,
+        )
     resolved_tools = []
     for tool_data in params.tools:
         state_args: dict | None = None
@@ -170,3 +183,106 @@ async def resolve_tools(
             )
             continue
     return resolved_tools
+
+
+class LocalToolResolver:
+    """
+    Tool resolver for local agent execution that bypasses the global registry.
+    This allows agents to use tools directly without requiring registration.
+    """
+    
+    @staticmethod
+    async def resolve_tools_local(
+        tools: List[Union[str, Tool, Callable, tuple]],
+        tool_instantiator: Callable[[Tool, dict | None], BaseModel | None] = instantiate_stateful_tool,
+    ) -> List[Tool]:
+        """
+        Resolve tools for local execution without using the global registry.
+        
+        Args:
+            tools: List of tools to resolve (functions, Tool objects, or callables)
+            tool_instantiator: Function to instantiate stateful tools
+            
+        Returns:
+            List of resolved Tool objects
+        """
+        resolved_tools = []
+        
+        for tool_data in tools:
+            state_args: dict | None = None
+            
+            # Handle stateful tools (tuple of name and state args)
+            if isinstance(tool_data, (tuple, list)):
+                logger.debug(f"Processing stateful tool: {tool_data}")
+                try:
+                    name, state_args = tool_data
+                    if not isinstance(name, str) or not isinstance(state_args, dict):
+                        raise ValueError("Incorrect types of pair of name and args")
+                except ValueError as err:
+                    raise ValueError(
+                        f"Stateful tool data should be a pair of name and args, got {tool_data}"
+                    ) from err
+                
+                # For local execution, the name should be a callable or Tool object
+                # If it's a string, we can't resolve it without registry
+                if isinstance(name, str):
+                    # Try to look up in registry as fallback
+                    if not (tool_obj := TOOLS_REGISTRY.get(name)):
+                        raise ValueError(f"Local tool '{name}' not found and no registry lookup available")
+                else:
+                    tool_data = name
+            
+            # Handle different tool types
+            if isinstance(tool_data, str):
+                # For local execution, string references are not supported without registry
+                # This ensures we don't depend on global registry for local tools
+                raise ValueError(
+                    f"String tool reference '{tool_data}' not supported in local mode. "
+                    "Pass the tool function or Tool object directly."
+                )
+            elif isinstance(tool_data, Tool):
+                logger.debug(f"Using Tool object directly: {tool_data}")
+                tool_obj = tool_data
+            elif callable(tool_data):
+                logger.debug(f"Converting callable to Tool object: {tool_data}")
+                tool_obj = Tool.from_function(tool_data)
+            elif isinstance(tool_data, dict):
+                logger.debug(f"Converting dict to Tool object: {tool_data}")
+                tool_obj = Tool.model_validate(tool_data)
+                if "body" in tool_data:
+                    tool_obj.body = tool_data["body"]
+            else:
+                raise ValueError(
+                    f"Unsupported tool type for local execution: {type(tool_data)}. "
+                    "Expected Tool object, callable, or dict."
+                )
+            
+            # Handle stateful tools
+            if state_args is not None:
+                if not tool_obj.fn_metadata or not tool_obj.fn_metadata.stateful:
+                    raise ValueError(
+                        f"Tool {tool_obj.name} got state args but is not marked as stateful"
+                    )
+                
+                if (
+                    tool_obj.fn_metadata
+                    and tool_obj.fn_metadata.stateful
+                    and tool_obj.fn_self is None
+                ):
+                    fn_self = tool_instantiator(tool_obj, state_args)
+                    if inspect.isawaitable(fn_self):
+                        fn_self = await fn_self
+                    if fn_self is not None:
+                        fn_method = getattr(fn_self, tool_obj.fn.__name__, None)
+                        if (
+                            not inspect.ismethod(fn_method)
+                            or fn_method.__func__ != tool_obj.fn
+                        ):
+                            raise ValueError(
+                                f"Tool {tool_obj.name} got code replaced when instantiating, spoofing detected"
+                            )
+                        tool_obj = tool_obj.instantiate_from_state(fn_self)
+            
+            resolved_tools.append(tool_obj)
+        
+        return resolved_tools
