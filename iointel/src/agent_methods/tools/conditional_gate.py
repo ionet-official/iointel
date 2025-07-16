@@ -26,10 +26,18 @@ logger = logging.getLogger(__name__)
 
 class RouteAction(str, Enum):
     """Standardized routing actions for workflows."""
-    CONTINUE = "continue"      # Continue to next node
-    TERMINATE = "terminate"    # Stop all downstream execution
-    BRANCH = "branch"         # Branch to specific path
-    
+    CONTINUE = Field(
+        "continue",
+        description="Continue execution to the next node in the workflow sequence"
+    )
+    TERMINATE = Field(
+        "terminate", 
+        description="Stop all downstream execution and end the workflow branch"
+    )
+    BRANCH = Field(
+        "branch",
+        description="Branch execution to a specific conditional path in the workflow"
+    )
 
 class ComparisonOperator(str, Enum):
     """Supported comparison operators with explicit semantics."""
@@ -68,7 +76,7 @@ class ConditionRule(BaseModel):
 
 class RouteConfig(BaseModel):
     """Configuration for a routing decision."""
-    route_name: str = Field(..., description="Name of this route (e.g., 'buy_path', 'sell_path')")
+    route_name: str = Field(..., description="Name of this route (e.g., 'buy', 'sell')")
     action: RouteAction = Field(RouteAction.BRANCH, description="What action to take")
     conditions: List[ConditionRule] = Field(..., description="All conditions must be true")
     condition_logic: str = Field("AND", description="AND or OR logic for multiple conditions")
