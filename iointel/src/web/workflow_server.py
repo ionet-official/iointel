@@ -307,39 +307,67 @@ async def broadcast_workflow_update(workflow: WorkflowSpec):
 
 
 def serialize_execution_results(results: Optional[Dict] = None) -> Optional[Dict]:
-    """Serialize execution results for JSON transmission, handling AgentRunResult objects."""
+    """Serialize execution results for JSON transmission, handling all custom objects."""
     if not results:
         return results
         
-    serialized = {}
-    for key, value in results.items():
-        if hasattr(value, '__class__') and 'AgentRunResult' in str(value.__class__):
-            # Serialize AgentRunResult to a dict
-            serialized[key] = {
+    def serialize_value(value):
+        """Recursively serialize a value for JSON transmission."""
+        # Handle BaseModel objects (Pydantic models like ToolUsageResult, GateResult)
+        if hasattr(value, 'model_dump'):
+            try:
+                # Use Pydantic's model_dump for clean serialization
+                return value.model_dump()
+            except Exception:
+                # Fallback to dict conversion
+                return dict(value)
+        
+        # Handle AgentRunResult objects specifically
+        elif hasattr(value, '__class__') and 'AgentRunResult' in str(value.__class__):
+            return {
                 "result": getattr(value, 'output', None) or getattr(value, 'result', None),
-                "tool_usage_results": getattr(value, 'tool_usage_results', []),
+                "tool_usage_results": [serialize_value(tur) for tur in getattr(value, 'tool_usage_results', [])],
                 "conversation_id": getattr(value, 'conversation_id', None),
                 "type": "AgentRunResult"
             }
+        
+        # Handle lists
+        elif isinstance(value, list):
+            return [serialize_value(item) for item in value]
+        
+        # Handle dictionaries
         elif isinstance(value, dict):
             # Check if this is an already-processed agent result dict
             if 'tool_usage_results' in value and 'full_result' in value:
                 # This is already a processed agent result, preserve tool_usage_results
-                serialized[key] = value.copy()
-                # Only serialize the full_result if it's an AgentRunResult object
-                if hasattr(value.get('full_result'), '__class__') and 'AgentRunResult' in str(value['full_result'].__class__):
-                    full_result = value['full_result']
-                    serialized[key]['full_result'] = {
-                        "result": getattr(full_result, 'output', None),
-                        "conversation_id": getattr(full_result, 'conversation_id', None),
-                        "type": "AgentRunResult"
-                    }
+                result = value.copy()
+                # Serialize tool_usage_results
+                result['tool_usage_results'] = [serialize_value(tur) for tur in value.get('tool_usage_results', [])]
+                # Only serialize the full_result if it's an object
+                if hasattr(value.get('full_result'), '__class__'):
+                    result['full_result'] = serialize_value(value['full_result'])
+                return result
             else:
                 # Recursively serialize nested dicts
-                serialized[key] = serialize_execution_results(value)
+                return {k: serialize_value(v) for k, v in value.items()}
+        
+        # Handle other objects that might not be JSON serializable
+        elif hasattr(value, '__dict__'):
+            try:
+                # Try to convert to dict
+                return {k: serialize_value(v) for k, v in value.__dict__.items()}
+            except Exception:
+                # If that fails, convert to string
+                return str(value)
+        
+        # Return primitive values as-is
         else:
-            # Keep other values as-is
-            serialized[key] = value
+            return value
+    
+    # Apply serialization to all values in the results dict
+    serialized = {}
+    for key, value in results.items():
+        serialized[key] = serialize_value(value)
     return serialized
 
 
