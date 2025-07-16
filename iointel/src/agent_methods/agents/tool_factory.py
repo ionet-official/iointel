@@ -100,7 +100,18 @@ async def resolve_tools(
         if isinstance(tool_data, str):
             logger.debug(f"Looking up the registry for tool `{tool_data}`")
             if not (tool_obj := TOOLS_REGISTRY.get(tool_data)):
-                raise ValueError(f"Tool {tool_data} is not known")
+                # Try smart search for the tool
+                from ...utilities.tool_search import smart_tool_search
+                search_results = smart_tool_search(tool_data, limit=1)
+                if search_results:
+                    suggested_name, score, match_type = search_results[0]
+                    if score > 0.7:  # High confidence match
+                        logger.info(f"Smart search found '{suggested_name}' (score: {score:.2f}, type: {match_type}) for query '{tool_data}'")
+                        tool_obj = TOOLS_REGISTRY[suggested_name]
+                    else:
+                        raise ValueError(f"Tool '{tool_data}' is not known. Did you mean '{suggested_name}'? (score: {score:.2f})")
+                else:
+                    raise ValueError(f"Tool '{tool_data}' is not known")
         elif isinstance(tool_data, dict):
             logger.debug(f"Rehydrating tool from dict: {tool_data}")
             tool_obj = Tool.model_validate(tool_data)
