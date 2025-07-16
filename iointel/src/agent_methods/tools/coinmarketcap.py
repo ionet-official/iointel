@@ -1,6 +1,6 @@
 import datetime
 import os
-from typing import Any, Optional, Dict, Literal, Annotated
+from typing import Any, Optional, Dict, Literal, Annotated, Union
 import httpx
 import urllib.parse
 from pydantic import Field
@@ -8,7 +8,13 @@ from pydantic import Field
 from iointel.src.utilities.decorators import register_tool
 
 COINMARKETCAP_API_BASE = "pro-api.coinmarketcap.com"
-COINMARKETCAP_API_KEY = os.getenv("COINMARKETCAP_API_KEY")
+
+def get_coinmarketcap_api_key() -> str:
+    """Get the CoinMarketCap API key, loading it lazily."""
+    key = os.getenv("COINMARKETCAP_API_KEY")
+    if not key:
+        raise RuntimeError("CoinMarketCap API key is not set - please set COINMARKETCAP_API_KEY environment variable")
+    return key
 
 
 def build_url(endpoint: str, params: Dict[str, Any]) -> str:
@@ -32,11 +38,15 @@ def coinmarketcap_request(
 
 def make_coinmarketcap_request(client: httpx.Client, url: str) -> dict[str, Any] | None:
     """Make a request to the CoinMarketCap API with proper error handling."""
-    if not COINMARKETCAP_API_KEY:
-        raise RuntimeError("Coinmarketcap API key is not set")
+    try:
+        api_key = get_coinmarketcap_api_key()
+    except RuntimeError as e:
+        print(f"❌ {e}")
+        return None
+        
     headers = {
         "Accepts": "application/json",
-        "X-CMC_PRO_API_KEY": COINMARKETCAP_API_KEY,
+        "X-CMC_PRO_API_KEY": api_key,
     }
     try:
         response = client.get(url, headers=headers, timeout=10.0)
@@ -232,8 +242,8 @@ def get_coin_quotes_historical(
     convert_id: Optional[list[str]] = None,
     aux: Optional[list[str]] = None,
     skip_invalid: bool = False,
-    time_start: Optional[datetime.datetime] = None,
-    time_end: Optional[datetime.datetime] = None,
+    time_start: Optional[Union[datetime.datetime, str]] = None,
+    time_end: Optional[Union[datetime.datetime, str]] = None,
     count: int = 10,
     interval: str = "5m",
 ) -> Optional[Dict[str, Any]]:
@@ -265,8 +275,22 @@ def get_coin_quotes_historical(
     Returns:
         A dictionary containing the latest market quote data if the request is successful, or None otherwise.
     """
-    time_start = time_start.replace(microsecond=0).isoformat() if time_start else None
-    time_end = time_end.replace(microsecond=0).isoformat() if time_end else None
+    # Handle both string and datetime inputs for time parameters
+    if time_start:
+        if isinstance(time_start, str):
+            time_start = time_start
+        else:
+            time_start = time_start.replace(microsecond=0).isoformat()
+    else:
+        time_start = None
+        
+    if time_end:
+        if isinstance(time_end, str):
+            time_end = time_end
+        else:
+            time_end = time_end.replace(microsecond=0).isoformat()
+    else:
+        time_end = None
     params = _parse_triplet(id, slug, symbol) | {
         "convert": ",".join(convert) if convert else None,
         "convert_id": ",".join(convert_id) if convert_id else None,

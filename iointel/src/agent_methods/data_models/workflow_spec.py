@@ -20,8 +20,17 @@ class NodeData(BaseModel):
     model: Optional[Literal["gpt-4o", "gpt-4", "gpt-3.5-turbo", "meta-llama/Llama-3.3-70B-Instruct", "meta-llama/Llama-3.1-8B-Instruct"]] = Field("gpt-4o", description="Model to use for agent nodes")
 
 
+class NodeSpecLLM(BaseModel):
+    """Node specification for LLM generation - no ID field."""
+    type: Literal["tool", "agent", "workflow_call", "decision"]
+    label: str
+    data: NodeData
+    position: Optional[Dict[str, float]] = None  # FE inserts {x,y}
+    runtime: Dict = Field(default_factory=dict)  # e.g. {"timeout":30,"retries":1}
+
+
 class NodeSpec(BaseModel):
-    """React Flow compatible node specification."""
+    """React Flow compatible node specification with deterministic ID."""
     id: str
     type: Literal["tool", "agent", "workflow_call", "decision"]
     label: str
@@ -35,8 +44,17 @@ class EdgeData(BaseModel):
     condition: Optional[str] = Field(None, description="e.g. \"status=='success'\"")
 
 
+class EdgeSpecLLM(BaseModel):
+    """Edge specification for LLM generation - no ID field."""
+    source: str = Field(..., description="Source node label or descriptive name")
+    target: str = Field(..., description="Target node label or descriptive name")
+    sourceHandle: Optional[str] = None
+    targetHandle: Optional[str] = None
+    data: EdgeData = Field(default_factory=EdgeData)
+
+
 class EdgeSpec(BaseModel):
-    """React Flow compatible edge specification."""
+    """React Flow compatible edge specification with deterministic ID."""
     id: str
     source: str
     target: str
@@ -45,12 +63,23 @@ class EdgeSpec(BaseModel):
     data: EdgeData = Field(default_factory=EdgeData)
 
 
+class WorkflowSpecLLM(BaseModel):
+    """
+    Workflow specification for LLM generation - no IDs, system generates them.
+    """
+    reasoning: str = Field(default="", description="LLM's chat bot response to the user's query about workflow creation, including constraints and limitations or suggestions for improvements.")
+    title: str
+    description: str = ""
+    nodes: List[NodeSpecLLM]
+    edges: List[EdgeSpecLLM]
+
+
 class WorkflowSpec(BaseModel):
     """
     Immutable definition of a DAG that the execution engine can run
     and the FE can render with React Flow.
     
-    This is the clean output from the LLM - minimal and focused on structure.
+    This is the clean output from the LLM with deterministic IDs added.
     System concerns (auth, resources, etc.) are added during conversion.
     """
     id: UUID
@@ -61,6 +90,65 @@ class WorkflowSpec(BaseModel):
     nodes: List[NodeSpec]
     edges: List[EdgeSpec]
     metadata: Dict = Field(default_factory=dict)  # tags, owner, created_at
+    
+    @classmethod
+    def from_llm_spec(cls, llm_spec: WorkflowSpecLLM, workflow_id: UUID = None, rev: int = 1) -> "WorkflowSpec":
+        """Convert LLM-generated spec to final spec with deterministic IDs."""
+        from uuid import uuid4
+        
+        # Generate deterministic node IDs based on type and order
+        nodes = []
+        node_type_counters = {}
+        label_to_id_map = {}  # Map node labels to deterministic IDs
+        
+        for llm_node in llm_spec.nodes:
+            node_type = llm_node.type
+            counter = node_type_counters.get(node_type, 0) + 1
+            node_type_counters[node_type] = counter
+            
+            # Create deterministic ID: type_counter (e.g., "tool_1", "agent_1", "user_input_1")
+            if llm_node.type == "tool" and llm_node.data.tool_name == "user_input":
+                node_id = f"user_input_{counter}"
+            else:
+                node_id = f"{node_type}_{counter}"
+            
+            # Map node label to deterministic ID for edge mapping
+            label_to_id_map[llm_node.label] = node_id
+            
+            nodes.append(NodeSpec(
+                id=node_id,
+                type=llm_node.type,
+                label=llm_node.label,
+                data=llm_node.data,
+                position=llm_node.position,
+                runtime=llm_node.runtime
+            ))
+        
+        # Generate deterministic edge IDs and map source/target to new node IDs
+        edges = []
+        for i, llm_edge in enumerate(llm_spec.edges, 1):
+            # Map source and target labels to deterministic IDs
+            source_id = label_to_id_map.get(llm_edge.source, llm_edge.source)
+            target_id = label_to_id_map.get(llm_edge.target, llm_edge.target)
+            
+            edges.append(EdgeSpec(
+                id=f"edge_{i}",
+                source=source_id,
+                target=target_id,
+                sourceHandle=llm_edge.sourceHandle,
+                targetHandle=llm_edge.targetHandle,
+                data=llm_edge.data
+            ))
+        
+        return cls(
+            id=workflow_id or uuid4(),
+            rev=rev,
+            reasoning=llm_spec.reasoning,
+            title=llm_spec.title,
+            description=llm_spec.description,
+            nodes=nodes,
+            edges=edges
+        )
     
     def to_workflow_definition(self, **kwargs):
         """Convert to executable WorkflowDefinition format."""

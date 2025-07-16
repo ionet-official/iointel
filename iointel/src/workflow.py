@@ -196,10 +196,32 @@ class Workflow:
         # Debug: Check task structure for agent tasks
         if task.get("type") == "agent":
             logger.debug(f"Agent task '{task.get('name', 'unnamed')}' executing with {len(agents_for_task)} agents")
+            logger.debug(f"Task has 'agents' key: {'agents' in task}")
+            logger.debug(f"Task keys: {list(task.keys())}")
+            print(f"🔍 DEBUG AGENT TASK: '{task.get('name', 'unnamed')}'")
+            print(f"   Has 'agents' key: {'agents' in task}")
+            print(f"   Task keys: {list(task.keys())}")
+            print(f"   Number of agents: {len(agents_for_task)}")
             if agents_for_task and hasattr(agents_for_task[0], 'tools'):
                 logger.debug(f"Agent has {len(agents_for_task[0].tools)} tools: {agents_for_task[0].tools}")
         
         execution_metadata = task.get("execution_metadata") or {}
+        
+        # Debug: Show what we're starting with
+        print(f"🔍 DEBUG: run_task called with task keys: {list(task.keys())}")
+        print(f"🔍 DEBUG: task execution_metadata: {execution_metadata}")
+        
+        # Add current task/node ID to execution metadata for tool context
+        task_id = task.get("task_id") or task.get("id") or task.get("name")
+        if task_id:
+            execution_metadata["task_id"] = task_id
+            execution_metadata["node_id"] = task_id  # Alias for compatibility
+            print(f"🔍 DEBUG: Added task_id/node_id: {task_id}")
+        else:
+            print(f"🔍 DEBUG: No task_id found in task")
+        
+        print(f"🔍 DEBUG: Final execution_metadata: {execution_metadata}")
+        
         # Ensure conversation_id is in metadata
         if task.get("conversation_id"):
             execution_metadata["conversation_id"] = task["conversation_id"]
@@ -520,13 +542,27 @@ class Workflow:
         nodes = [NodeSpec.model_validate(node_data) for node_data in dag_structure["nodes"]]
         edges = [EdgeSpec.model_validate(edge_data) for edge_data in dag_structure["edges"]]
         
-        # Extract execution_metadata from original workflow tasks
+        # Extract execution_metadata and agents from original workflow tasks
         execution_metadata_by_node = {}
+        agents_by_node = {}
         for task in self.tasks:
-            if "execution_metadata" in task:
-                node_id = task.get("task_id") or task.get("id")
-                if node_id:
+            node_id = task.get("task_id") or task.get("id")
+            if node_id:
+                # Extract execution metadata
+                if "execution_metadata" in task:
                     execution_metadata_by_node[node_id] = task["execution_metadata"]
+                    print(f"🔍 Extracted execution_metadata for node {node_id}")
+                    if "user_inputs" in task["execution_metadata"]:
+                        print(f"🔍 User inputs found for node {node_id}: {task['execution_metadata']['user_inputs']}")
+                else:
+                    print(f"🔍 Task missing execution_metadata: {node_id}")
+                
+                # Extract task-specific agents
+                if "agents" in task and task["agents"]:
+                    agents_by_node[node_id] = task["agents"]
+                    print(f"🔍 Extracted {len(task['agents'])} agents for node {node_id}")
+            else:
+                print(f"🔍 Task missing task_id/id: {task}")
         
         # Create DAG executor
         executor = DAGExecutor()
@@ -536,7 +572,8 @@ class Workflow:
             objective=self.objective,
             agents=self.agents,
             conversation_id=conversation_id,
-            execution_metadata_by_node=execution_metadata_by_node
+            execution_metadata_by_node=execution_metadata_by_node,
+            agents_by_node=agents_by_node
         )
         
         # Execute DAG

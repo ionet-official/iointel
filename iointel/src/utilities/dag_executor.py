@@ -33,11 +33,14 @@ class DAGNode:
 class DAGExecutor:
     """
     Executes workflows as proper DAGs with parallel execution of independent branches.
+    Supports conditional execution gating through decision nodes.
     """
     
     def __init__(self):
         self.nodes: Dict[str, DAGNode] = {}
         self.execution_order: List[List[str]] = []  # List of batches that can run in parallel
+        self.edges: List[EdgeSpec] = []  # Store edges for conditional checking
+        self.skipped_nodes: Set[str] = set()  # Track nodes skipped due to decision gating
     
     def build_execution_graph(
         self, 
@@ -46,7 +49,8 @@ class DAGExecutor:
         objective: str = "",
         agents: Optional[List[Any]] = None,
         conversation_id: Optional[str] = None,
-        execution_metadata_by_node: Optional[Dict[str, Dict]] = None
+        execution_metadata_by_node: Optional[Dict[str, Dict]] = None,
+        agents_by_node: Optional[Dict[str, List[Any]]] = None
     ) -> Dict[str, DAGNode]:
         """
         Build a DAG from nodes and edges, with proper dependency tracking.
@@ -88,10 +92,26 @@ class DAGExecutor:
             if execution_metadata_by_node and node.id in execution_metadata_by_node:
                 task_data["execution_metadata"] = execution_metadata_by_node[node.id]
             
+            # Ensure node_id is in the execution metadata for tool context
+            if "execution_metadata" not in task_data:
+                task_data["execution_metadata"] = {}
+            task_data["execution_metadata"]["node_id"] = node.id
+            task_data["execution_metadata"]["task_id"] = node.id  # Alias for compatibility
+            
+            # Determine agents for this node
+            node_agents = None
+            if agents_by_node and node.id in agents_by_node:
+                node_agents = agents_by_node[node.id]
+                print(f"🔧 Using {len(node_agents)} task-specific agents for node {node.id}")
+            else:
+                node_agents = agents or []
+                if node.type == "agent" and len(node_agents) == 0:
+                    print(f"⚠️ WARNING: Agent node {node.id} has no agents!")
+            
             task_node_class = make_task_node(
                 task=task_data,
                 default_text=objective,
-                default_agents=agents or [],
+                default_agents=node_agents,
                 conv_id=conversation_id or "default"
             )
             
@@ -101,6 +121,9 @@ class DAGExecutor:
                 dependencies=set(),
                 dependents=set()
             )
+        
+        # Store edges for conditional checking
+        self.edges = edges
         
         # Build dependency relationships from edges
         for edge in edges:
@@ -159,6 +182,83 @@ class DAGExecutor:
         
         return execution_batches
     
+    def _should_execute_node(self, node_id: str, state: WorkflowState) -> bool:
+        """
+        Check if a node should be executed based on decision node results.
+        
+        Args:
+            node_id: Node to check
+            state: Current workflow state with results
+            
+        Returns:
+            True if node should execute, False if it should be skipped
+        """
+        # Check if any dependency is a decision node that has gated this node
+        for dep_id in self.nodes[node_id].dependencies:
+            dep_node = self.nodes[dep_id]
+            
+            # Check if this is a decision node OR an agent node with routing information
+            if dep_node.node_spec.type == "decision" or dep_node.node_spec.type == "agent":
+                dep_result = state.results.get(dep_id)
+                if dep_result:
+                    # Check if result contains routing information
+                    routed_to = None
+                    
+                    # Support both dict and Pydantic model formats
+                    if isinstance(dep_result, dict):
+                        # First check direct routed_to field
+                        routed_to = dep_result.get("routed_to")
+                        
+                        # If not found, check for tool_usage_results with conditional_gate
+                        if not routed_to and "tool_usage_results" in dep_result:
+                            for tool_result in dep_result["tool_usage_results"]:
+                                if hasattr(tool_result, "tool_name") and tool_result.tool_name == "conditional_gate":
+                                    if hasattr(tool_result, "tool_result"):
+                                        gate_result = tool_result.tool_result
+                                        if hasattr(gate_result, "routed_to"):
+                                            routed_to = gate_result.routed_to
+                                            print(f"🔍 Found routing decision from tool: {routed_to}")
+                                            break
+                    else:
+                        # Pydantic model (like GateResult)
+                        routed_to = getattr(dep_result, "routed_to", None)
+                    
+                    if routed_to:
+                        # Find edges from this decision node to our target node
+                        target_edges = [e for e in self.edges if e.source == dep_id and e.target == node_id]
+                        if target_edges:
+                            # Check if any edge condition matches the routing result
+                            for edge in target_edges:
+                                if edge.data and edge.data.condition:
+                                    # Simple condition matching: if condition contains routed_to value
+                                    if str(routed_to) in edge.data.condition:
+                                        logger.info(f"  ✅ Node {node_id} matches decision route: {routed_to}")
+                                        print(f"🎯 Node {node_id} will execute - matches route: {routed_to}")
+                                        return True
+                                elif not edge.data or not edge.data.condition:
+                                    # If no condition is specified, execute the node
+                                    logger.info(f"  ✅ Node {node_id} has no condition, executing")
+                                    return True
+                            
+                            # No matching edge condition found - this node should be skipped
+                            logger.info(f"  ⏭️  Node {node_id} skipped - decision routed to: {routed_to}")
+                            print(f"⏭️ Node {node_id} will be skipped - routed to: {routed_to}")
+                            return False
+                    
+                    # Check for simple boolean result (for boolean_mux, etc.)
+                    result_value = None
+                    if isinstance(dep_result, dict):
+                        result_value = dep_result.get("result")
+                    else:
+                        result_value = getattr(dep_result, "result", None)
+                    
+                    if result_value is not None and isinstance(result_value, bool):
+                        if not result_value:
+                            logger.info(f"  ⏭️  Node {node_id} skipped - decision result: False")
+                            return False
+        
+        return True
+    
     async def execute_dag(self, initial_state: WorkflowState) -> WorkflowState:
         """
         Execute the DAG respecting dependencies and enabling parallel execution.
@@ -176,22 +276,45 @@ class DAGExecutor:
             logger.info(f"Executing batch {batch_idx}: {batch}")
             
             if len(batch) == 1:
-                # Single node - execute directly
+                # Single node - check if it should execute
                 node_id = batch[0]
-                result = await self._execute_node(node_id, state)
-                state.results[node_id] = result
-                logger.info(f"  ✅ {node_id} → {result}")
-            else:
-                # Multiple nodes - execute in parallel
-                logger.info(f"  🔄 Executing {len(batch)} nodes in parallel")
-                results = await self._execute_batch_parallel(batch, state)
-                
-                # Update state with all results
-                for node_id, result in results.items():
+                if self._should_execute_node(node_id, state):
+                    result = await self._execute_node(node_id, state)
                     state.results[node_id] = result
                     logger.info(f"  ✅ {node_id} → {result}")
+                else:
+                    self.skipped_nodes.add(node_id)
+                    state.results[node_id] = {"status": "skipped", "reason": "decision_gated"}
+                    logger.info(f"  ⏭️  {node_id} → skipped")
+            else:
+                # Multiple nodes - check each and execute those that should run
+                logger.info(f"  🔄 Checking {len(batch)} nodes for execution")
+                nodes_to_execute = []
+                for node_id in batch:
+                    if self._should_execute_node(node_id, state):
+                        nodes_to_execute.append(node_id)
+                    else:
+                        self.skipped_nodes.add(node_id)
+                        state.results[node_id] = {"status": "skipped", "reason": "decision_gated"}
+                        logger.info(f"  ⏭️  {node_id} → skipped")
+                
+                if nodes_to_execute:
+                    logger.info(f"  🔄 Executing {len(nodes_to_execute)} nodes in parallel")
+                    results = await self._execute_batch_parallel(nodes_to_execute, state)
+                    
+                    # Update state with all results
+                    for node_id, result in results.items():
+                        state.results[node_id] = result
+                        logger.info(f"  ✅ {node_id} → {result}")
+                else:
+                    logger.info(f"  ⏭️  All nodes in batch skipped")
         
-        logger.info("DAG execution completed")
+        # Log execution summary
+        executed_nodes = set(state.results.keys()) - self.skipped_nodes
+        logger.info(f"DAG execution completed: {len(executed_nodes)} executed, {len(self.skipped_nodes)} skipped")
+        if self.skipped_nodes:
+            logger.info(f"  Skipped nodes: {list(self.skipped_nodes)}")
+        
         return state
     
     async def _execute_node(self, node_id: str, state: WorkflowState) -> Any:
@@ -289,6 +412,24 @@ class DAGExecutor:
                 node_id: list(node.dependencies) 
                 for node_id, node in self.nodes.items()
             }
+        }
+    
+    def get_execution_statistics(self) -> Dict[str, Any]:
+        """
+        Get execution statistics including skipped nodes.
+        
+        Returns:
+            Dict with execution statistics
+        """
+        total_nodes = len(self.nodes)
+        executed_nodes = total_nodes - len(self.skipped_nodes)
+        
+        return {
+            "total_nodes": total_nodes,
+            "executed_nodes": executed_nodes,
+            "skipped_nodes": len(self.skipped_nodes),
+            "skipped_node_ids": list(self.skipped_nodes),
+            "execution_efficiency": f"{executed_nodes}/{total_nodes} ({100*executed_nodes/total_nodes:.1f}%)" if total_nodes > 0 else "0/0 (0%)"
         }
 
 

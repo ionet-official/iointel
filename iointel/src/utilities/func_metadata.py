@@ -61,9 +61,10 @@ class FuncMetadata(BaseModel):
             import inspect
             if isinstance(fn, Callable):
                 sig = inspect.signature(fn)
+                has_var_keyword = any(p.kind == inspect.Parameter.VAR_KEYWORD for p in sig.parameters.values())
                 for key, value in arguments_to_pass_directly.items():
-                    # Only add the parameter if the function accepts it
-                    if key in sig.parameters:
+                    # Add the parameter if it's explicitly in the signature OR if the function accepts **kwargs
+                    if key in sig.parameters or has_var_keyword:
                         arguments_parsed_dict[key] = value
 
         if fn_is_async:

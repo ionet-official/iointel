@@ -33,6 +33,8 @@ TOOL_ENV_REQUIREMENTS = {
     "aws_lambda": ["AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY"],
     "calculator": [],  # No API key needed
     "cartesia": ["CARTESIA_API_KEY"],
+    "conditional_gate": [],  # No API key needed
+    "user_input": [],  # No API key needed
     "clickup": ["CLICKUP_API_KEY"],
     "confluence": ["CONFLUENCE_API_KEY", "CONFLUENCE_BASE_URL"],
     "crawl4ai": [],  # No API key needed for basic usage
@@ -56,6 +58,8 @@ TOOL_INITIALIZERS = {
     "wolfram": lambda: _init_wolfram(),
     "agentql": lambda: _init_agentql(),
     "calculator": lambda: _init_calculator(),
+    "conditional_gate": lambda: _init_conditional_gate(),
+    "user_input": lambda: _init_user_input(),
     "yfinance": lambda: _init_yfinance(),
     "file": lambda: _init_file_toolkit(),
     "shell": lambda: _init_shell_tool(),
@@ -168,6 +172,30 @@ def _init_calculator():
                 "calculator_is_prime"]
     except ImportError as e:
         logger.warning(f"Calculator not available: {e}")
+        return []
+
+
+def _init_conditional_gate():
+    """Initialize Conditional Gate tools."""
+    try:
+        # Import the module to register the tools
+        from . import conditional_gate
+        # Tools are auto-registered via @register_tool decorators
+        return ["conditional_gate", "threshold_gate", "percentage_change_gate"]
+    except ImportError as e:
+        logger.warning(f"Conditional Gate not available: {e}")
+        return []
+
+
+def _init_user_input():
+    """Initialize User Input tools."""
+    try:
+        # Import the module to register the tools
+        from . import user_input
+        # Tools are auto-registered via @register_tool decorators
+        return ["user_input", "prompt_tool"]
+    except ImportError as e:
+        logger.warning(f"User Input not available: {e}")
         return []
 
 

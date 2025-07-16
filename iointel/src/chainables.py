@@ -286,7 +286,6 @@ async def execute_agent_task(
 ):
     """
     Generic agent task executor that handles type='agent' tasks from WorkflowSpec.
-    
     This executor:
     1. Converts AgentParams to Agent instances using agents_factory
     2. Uses agent_instructions from task_metadata as the primary objective
@@ -319,13 +318,26 @@ async def execute_agent_task(
     # print(f"🔧 execute_agent_task: using format with fields = {result_format.get_included_fields()}")
     
     # Convert AgentParams to Agent instances if needed
-    if agents and isinstance(agents[0], AgentParams):
+    if not agents:
+        # This should never happen for properly constructed agent nodes
+        # The workflow_converter ALWAYS provides AgentParams for agent nodes
+        raise ValueError(
+            f"No agent configuration provided for agent node. "
+            f"Task metadata: {list(task_metadata.keys())}. "
+            f"This indicates a workflow construction error."
+        )
+    
+    if isinstance(agents[0], AgentParams):
+        # Convert AgentParams to Agent instances using the factory
+        # This properly handles model, tools, instructions, and all other fields
+        print(f"🔧 execute_agent_task: Converting {len(agents)} AgentParams to Agent instances")
         agents_to_use = [create_agent(ap) for ap in agents]
+        # Log what was created
+        for i, agent in enumerate(agents_to_use):
+            print(f"   Agent {i}: model={getattr(agent.model, 'model_name', 'unknown')}, tools={len(agent.tools)}, name={agent.name}")
     else:
-        agents_to_use = agents or [Agent.make_default()]
-    
-    
-    # Build context with available results from previous tasks
+        # Already Agent instances
+        agents_to_use = agents
     context = task_metadata.get("kwargs", {}).copy()
     available_results = task_metadata.get("available_results", {})
     
@@ -367,8 +379,38 @@ async def execute_agent_task(
     # AgentResultFormat should have already filtered the response appropriately
     print(f"🔧 execute_agent_task: final response type = {type(response)}")
     print(f"🔧 execute_agent_task: final response keys = {list(response.keys()) if isinstance(response, dict) else 'not a dict'}")
-    
     return response
+
+
+@register_custom_task("tool")
+async def execute_tool_task(task_metadata, objective, agents, execution_metadata):
+    """Portable, backend-agnostic tool executor for 'tool' nodes."""
+    from .utilities.registries import TOOLS_REGISTRY
+    import inspect
+    import logging
+    logger = logging.getLogger("iointel.chainables.tool_executor")
+
+    tool_name = task_metadata.get("tool_name")
+    config = task_metadata.get("config", {})
+    logger.info(f"[CHAINABLES] Executing tool: {tool_name}")
+    logger.debug(f"    Config: {config}")
+    tool = TOOLS_REGISTRY.get(tool_name)
+    if not tool:
+        error_msg = f"Tool '{tool_name}' not found in TOOLS_REGISTRY"
+        logger.error(error_msg)
+        raise ValueError(error_msg)
+    try:
+        config_with_metadata = config.copy()
+        config_with_metadata['execution_metadata'] = execution_metadata
+        result = tool.run(config_with_metadata)
+        if inspect.isawaitable(result):
+            result = await result
+        logger.info(f"[CHAINABLES] Tool '{tool_name}' completed: {result}")
+        return result
+    except Exception as e:
+        error_msg = f"Tool '{tool_name}' failed: {str(e)}"
+        logger.error(error_msg)
+        raise
 
 
 ##############################################

@@ -24,6 +24,7 @@ from iointel.src.utilities.registries import TOOLS_REGISTRY
 from iointel.src.memory import AsyncMemory
 from iointel.src.workflow import Workflow
 from iointel.src.utilities.decorators import register_custom_task
+from iointel.src import chainables  # Import chainables to ensure agent executor is available
 import uuid
 import asyncio
 import json
@@ -31,24 +32,23 @@ import json
 # Import example tools to register them globally
 import iointel.src.RL.example_tools
 
+# Import conditional gate tools to register them globally
+import iointel.src.agent_methods.tools.conditional_gate
+
 # Import workflow storage
 from .workflow_storage import WorkflowStorage
+from iointel.src.chainables import execute_tool_task, execute_agent_task
 
 
-# Register global tool executor for web interface
+# Register executors for web interface
 @register_custom_task("tool")
 async def web_tool_executor(task_metadata, objective, agents, execution_metadata):
-    """Tool executor for web interface with real-time updates."""
-    tool_name = task_metadata.get("tool_name")
-    config = task_metadata.get("config", {})
+    """Tool executor for web interface with real-time updates, delegates to backend executor."""
     execution_id = execution_metadata.get("execution_id")
-    
+    tool_name = task_metadata.get("tool_name")
     print(f"🔧 [WEB] Executing tool: {tool_name} (execution: {execution_id})")
-    print(f"    📋 Config: {config}")
-    print(f"    🔍 Config type check: {[(k, type(v), v) for k, v in config.items()]}")
-    
     # Broadcast task start if we have connections available
-    if execution_id and len(connections) > 0:
+    if execution_id and 'connections' in globals() and len(connections) > 0:
         try:
             await broadcast_execution_update(
                 execution_id, 
@@ -57,29 +57,12 @@ async def web_tool_executor(task_metadata, objective, agents, execution_metadata
             )
         except Exception as e:
             print(f"⚠️ Failed to broadcast task start: {e}")
-    
-    tool = TOOLS_REGISTRY.get(tool_name)
-    if not tool:
-        error_msg = f"Tool '{tool_name}' not found"
-        print(f"❌ {error_msg}")
-        if execution_id and len(connections) > 0:
-            try:
-                await broadcast_execution_update(execution_id, "failed", error=error_msg)
-            except Exception as e:
-                print(f"⚠️ Failed to broadcast error: {e}")
-        raise ValueError(error_msg)
-    
     try:
-        # Add execution_metadata to config - Tool.run will handle separating it
-        config_with_metadata = config.copy()
-        config_with_metadata['execution_metadata'] = execution_metadata
-        
-        result = await tool.run(config_with_metadata)
+        # Delegate to backend portable executor
+        result = await execute_tool_task(task_metadata, objective, agents, execution_metadata)
         print(f"✅ Tool '{tool_name}' completed: {result}")
-        print(f"    📤 Result type: {type(result)}")
-        
         # Broadcast task completion
-        if execution_id and len(connections) > 0:
+        if execution_id and 'connections' in globals() and len(connections) > 0:
             try:
                 await broadcast_execution_update(
                     execution_id,
@@ -88,12 +71,11 @@ async def web_tool_executor(task_metadata, objective, agents, execution_metadata
                 )
             except Exception as e:
                 print(f"⚠️ Failed to broadcast completion: {e}")
-        
         return result
     except Exception as e:
         error_msg = f"Tool '{tool_name}' failed: {str(e)}"
         print(f"❌ {error_msg}")
-        if execution_id and len(connections) > 0:
+        if execution_id and 'connections' in globals() and len(connections) > 0:
             try:
                 await broadcast_execution_update(execution_id, "failed", error=error_msg)
             except Exception as e:
@@ -101,7 +83,148 @@ async def web_tool_executor(task_metadata, objective, agents, execution_metadata
         raise
 
 
-# Removed custom agent executor - let workflow system handle agent execution natively
+@register_custom_task("agent")
+async def web_agent_executor(task_metadata, objective, agents, execution_metadata):
+    """Agent executor for web interface with real-time updates."""
+    execution_id = execution_metadata.get("execution_id")
+    
+    print(f"🤖 [WEB] Executing agent task (execution: {execution_id})")
+    
+    # Use the chainables agent executor to avoid duplication
+    # from iointel.src.chainables import execute_agent_task # This line is removed as per the edit hint
+    
+    # Broadcast task start if we have connections available
+    if execution_id and len(connections) > 0:
+        try:
+            await broadcast_execution_update(
+                execution_id, 
+                "running", 
+                results={"current_task": "agent", "status": "started"}
+            )
+        except Exception as e:
+            print(f"⚠️ Failed to broadcast agent start: {e}")
+    
+    try:
+        result = await execute_agent_task(task_metadata, objective, agents, execution_metadata)
+        print(f"✅ Agent task completed: {result}")
+        
+        # Broadcast task completion
+        if execution_id and len(connections) > 0:
+            try:
+                await broadcast_execution_update(
+                    execution_id, 
+                    "running", 
+                    results={"agent_completed": True, "result": result}
+                )
+            except Exception as e:
+                print(f"⚠️ Failed to broadcast agent completion: {e}")
+        
+        return result
+    except Exception as e:
+        error_msg = f"Agent task failed: {str(e)}"
+        print(f"❌ {error_msg}")
+        if execution_id and len(connections) > 0:
+            try:
+                await broadcast_execution_update(execution_id, "failed", error=error_msg)
+            except Exception as e:
+                print(f"⚠️ Failed to broadcast agent error: {e}")
+        raise
+
+
+@register_custom_task("decision")
+async def web_decision_executor(task_metadata, objective, agents, execution_metadata):
+    """Decision executor for web interface - delegates to tool executor or agent."""
+    execution_id = execution_metadata.get("execution_id")
+    tool_name = task_metadata.get('tool_name')
+    
+    print(f"🤔 [WEB] Executing decision task: {tool_name or 'agent-based'} (execution: {execution_id})")
+    
+    # If no tool_name specified, treat as agent-based decision
+    if not tool_name:
+        print(f"   📝 No tool_name specified, treating as agent-based decision")
+        
+        # Create a simple agent-based decision that returns a boolean result
+        # This is a fallback for workflows with null tool_name in decision nodes
+        try:
+            # For now, return a default decision result
+            # In a real implementation, you might analyze the available data
+            result = {
+                "result": True,  # Default decision
+                "details": "Agent-based decision (fallback)",
+                "confidence": 0.5
+            }
+            
+            # Broadcast completion
+            if execution_id and len(connections) > 0:
+                try:
+                    await broadcast_execution_update(
+                        execution_id, 
+                        "running", 
+                        results={"decision_completed": True, "result": result}
+                    )
+                except Exception as e:
+                    print(f"⚠️ Failed to broadcast decision completion: {e}")
+            
+            return result
+            
+        except Exception as e:
+            error_msg = f"Agent-based decision failed: {str(e)}"
+            print(f"❌ {error_msg}")
+            if execution_id and len(connections) > 0:
+                try:
+                    await broadcast_execution_update(execution_id, "failed", error=error_msg)
+                except Exception as e:
+                    print(f"⚠️ Failed to broadcast decision error: {e}")
+            raise
+    
+    # If tool_name is specified, use tool-based decision
+    return await web_tool_executor(task_metadata, objective, agents, execution_metadata)
+
+
+@register_custom_task("workflow_call")
+async def web_workflow_call_executor(task_metadata, objective, agents, execution_metadata):
+    """Workflow call executor for web interface."""
+    execution_id = execution_metadata.get("execution_id")
+    workflow_id = task_metadata.get("workflow_id", "unknown")
+    
+    print(f"📞 [WEB] Executing workflow call: {workflow_id} (execution: {execution_id})")
+    
+    # Broadcast task start
+    if execution_id and len(connections) > 0:
+        try:
+            await broadcast_execution_update(
+                execution_id, 
+                "running", 
+                results={"current_task": f"workflow_call:{workflow_id}", "status": "started"}
+            )
+        except Exception as e:
+            print(f"⚠️ Failed to broadcast workflow_call start: {e}")
+    
+    try:
+        # For now, return a success message (implement actual workflow calling later)
+        result = f"Workflow '{workflow_id}' executed successfully (mock)"
+        
+        # Broadcast completion
+        if execution_id and len(connections) > 0:
+            try:
+                await broadcast_execution_update(
+                    execution_id, 
+                    "running", 
+                    results={"workflow_call_completed": True, "result": result}
+                )
+            except Exception as e:
+                print(f"⚠️ Failed to broadcast workflow_call completion: {e}")
+        
+        return result
+    except Exception as e:
+        error_msg = f"Workflow call '{workflow_id}' failed: {str(e)}"
+        print(f"❌ {error_msg}")
+        if execution_id and len(connections) > 0:
+            try:
+                await broadcast_execution_update(execution_id, "failed", error=error_msg)
+            except Exception as e:
+                print(f"⚠️ Failed to broadcast workflow_call error: {e}")
+        raise
 
 
 # Initialize FastAPI app
@@ -479,7 +602,7 @@ async def generate_workflow(request: WorkflowRequest):
                 planner.set_current_workflow(current_workflow)
             
             # Generate new workflow
-            current_workflow = await planner.generate_workflow(
+            current_workflow, agent_response = await planner.generate_workflow(
                 query=request.query,
                 tool_catalog=tool_catalog,
                 context={"timestamp": datetime.now().isoformat()}
@@ -648,6 +771,7 @@ async def execute_workflow_background(
             if user_inputs:
                 task["execution_metadata"]["user_inputs"] = user_inputs
                 task["execution_metadata"]["form_id"] = form_id
+                print(f"🔍 Adding user_inputs to task {task.get('task_id', 'unknown')}: {user_inputs}")
         
         # Execute the workflow
         results = await workflow.run_tasks(conversation_id=conversation_id)
@@ -943,12 +1067,19 @@ async def get_combined_workflows():
     
     # Get saved workflows if storage is available
     saved_data = {}
+    lineage_groups = {}
     if workflow_storage:
         try:
             saved_workflows = workflow_storage.list_workflows()
+            
+            # Group workflows by lineage (base_id)
             for workflow in saved_workflows:
                 workflow_id = workflow["id"]
-                saved_data[workflow_id] = {
+                
+                # Extract base_id (first 8 chars before first hyphen)
+                base_id = workflow_id.split('-')[0] if '-' in workflow_id else workflow_id[:8]
+                
+                workflow_data = {
                     "id": workflow_id,
                     "title": workflow.get("name", "Unnamed Workflow"),
                     "description": workflow.get("description", "No description"),
@@ -957,14 +1088,39 @@ async def get_combined_workflows():
                     "edge_count": workflow.get("edge_count", 0),
                     "complexity": workflow.get("complexity", "Unknown"),
                     "created_at": workflow.get("created_at"),
-                    "tags": workflow.get("tags", [])
+                    "tags": workflow.get("tags", []),
+                    "rev": workflow.get("rev", 1),
+                    "base_id": base_id
                 }
+                
+                # Add to lineage groups
+                if base_id not in lineage_groups:
+                    lineage_groups[base_id] = {
+                        "base_id": base_id,
+                        "title": workflow_data["title"],
+                        "revisions": [],
+                        "latest_rev": 0,
+                        "total_revisions": 0
+                    }
+                
+                lineage_groups[base_id]["revisions"].append(workflow_data)
+                lineage_groups[base_id]["latest_rev"] = max(lineage_groups[base_id]["latest_rev"], workflow_data["rev"])
+                lineage_groups[base_id]["total_revisions"] = len(lineage_groups[base_id]["revisions"])
+                
+                # Keep individual workflows for backward compatibility
+                saved_data[workflow_id] = workflow_data
+                
+            # Sort revisions within each group
+            for group in lineage_groups.values():
+                group["revisions"].sort(key=lambda x: x["rev"], reverse=True)  # Latest first
+                
         except Exception as e:
             print(f"⚠️ Error loading saved workflows: {e}")
     
     return {
         "examples": examples_data,
-        "saved": saved_data
+        "saved": saved_data,
+        "lineage_groups": lineage_groups
     }
 
 

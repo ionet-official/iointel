@@ -194,13 +194,17 @@ class WorkflowConverter:
                                 print(f"⚠️  Tool '{tool_name}' not found in registry for agent '{node.id}' - including anyway")
                                 logger.warning(f"Tool '{tool_name}' not found in registry for agent '{node.id}'")
                     
-                    # Use centralized model configuration
+                    # Use centralized model configuration, but prefer custom agent model over node model
                     from ..utilities.constants import get_model_config
+                    # Custom agent model takes precedence over node model when custom agents are provided
+                    preferred_model = custom_agent.model or node.data.model
                     config = get_model_config(
-                        model=node.data.model or custom_agent.model,
+                        model=preferred_model,
                         api_key=None,  # Let it use defaults
                         base_url=None  # Let it use defaults
                     )
+                    
+                    # Always use the resolved model from config (which honors the preferred_model)
                     model = config["model"]
                     api_key = config["api_key"]
                     base_url = config["base_url"]

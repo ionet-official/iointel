@@ -3,7 +3,7 @@ import uuid
 from typing import Dict, Any, Optional
 from ...agents import Agent
 from ...memory import AsyncMemory
-from ..data_models.workflow_spec import WorkflowSpec
+from ..data_models.workflow_spec import WorkflowSpec, WorkflowSpecLLM
 
 
 WORKFLOW_PLANNER_INSTRUCTIONS = """
@@ -12,7 +12,7 @@ You are WorkflowPlanner-GPT for IO.net, a specialized AI that designs executable
 📌 Core Responsibility
 ----------------------
 Transform user requirements into a structured workflow (DAG) using available tools and agents.
-You output ONLY valid JSON conforming to WorkflowSpec schema - no explanations or comments.
+You output ONLY valid JSON conforming to WorkflowSpecLLM schema - no explanations or comments.
 
 🏗️ Workflow Taxonomy
 --------------------
@@ -292,11 +292,11 @@ tool_catalog = {
 
 🎯 Output Requirements
 ----------------------
-Generate a WorkflowSpec with:
+Generate a WorkflowSpecLLM with:
 - `title`: Clear, action-oriented name
 - `description`: One sentence explaining the workflow purpose
 - `nodes`: Array of nodes accomplishing the goal
-- `edges`: Connections between nodes with optional conditions
+- `edges`: Connections between nodes using node labels as source/target, with optional conditions
 - `reasoning`: Your thought process including:
   - Which tools from the catalog you used and why
   - Any limitations or constraints you encountered
@@ -377,7 +377,7 @@ class WorkflowPlanner:
             base_url=base_url or os.getenv("OPENAI_API_BASE", "https://api.openai.com/v1"),
             memory=memory,
             conversation_id=self.conversation_id,
-            output_type=WorkflowSpec,  # 🔑 guarantees structured JSON
+            output_type=WorkflowSpecLLM,  # 🔑 guarantees structured JSON
             show_tool_calls=True,
             tool_pil_layout="horizontal",
             debug=debug,
@@ -411,8 +411,8 @@ class WorkflowPlanner:
             "additional_context": context or {}
         }
         
-        # Get the JSON schema for WorkflowSpec
-        workflow_schema = WorkflowSpec.model_json_schema()
+        # Get the JSON schema for WorkflowSpecLLM
+        workflow_schema = WorkflowSpecLLM.model_json_schema()
         
         validation_errors = []
         attempt = 0
@@ -484,7 +484,7 @@ User Query: {query}
 
 Additional Context: {context or {}}
 
-Generate a WorkflowSpec that fulfills the user's requirements using ONLY the available tools above.
+Generate a WorkflowSpecLLM that fulfills the user's requirements using ONLY the available tools above.
 """
             
             try:
@@ -498,9 +498,12 @@ Generate a WorkflowSpec that fulfills the user's requirements using ONLY the ava
                 )
                 
                 # Extract the structured output
-                workflow_spec = result.get("result")
-                if not isinstance(workflow_spec, WorkflowSpec):
-                    raise ValueError(f"Expected WorkflowSpec, got {type(workflow_spec)}")
+                workflow_spec_llm = result.get("result")
+                if not isinstance(workflow_spec_llm, WorkflowSpecLLM):
+                    raise ValueError(f"Expected WorkflowSpecLLM, got {type(workflow_spec_llm)}")
+                
+                # Convert LLM spec to final spec with deterministic IDs
+                workflow_spec = WorkflowSpec.from_llm_spec(workflow_spec_llm)
                 
                 # 🚨 CRITICAL VALIDATION: Check for tool hallucination and structural issues
                 structural_issues = workflow_spec.validate_structure(tool_catalog or {})
@@ -517,7 +520,8 @@ Generate a WorkflowSpec that fulfills the user's requirements using ONLY the ava
                 # Success! Store as last workflow for future context
                 print(f"✅ Workflow validated successfully on attempt {attempt}")
                 self.last_workflow = workflow_spec
-                return workflow_spec
+                agent_response = result.get("conversation_id", "")
+                return workflow_spec, agent_response
                 
             except ValueError:
                 raise  # Re-raise validation errors
@@ -608,12 +612,10 @@ Available Tools ({len(tool_catalog)} total):
     ) -> WorkflowSpec:
         """
         Refine an existing workflow based on user feedback.
-        
         Args:
             workflow_spec: Current workflow specification
             feedback: User feedback for refinement
             **kwargs: Additional arguments passed to agent.run()
-            
         Returns:
             WorkflowSpec: Refined workflow specification
         """
@@ -624,18 +626,19 @@ User Feedback: {feedback}
 
 Please generate an improved WorkflowSpec that addresses the feedback while maintaining the core functionality.
 """
-        
         result = await self.agent.run(
             refinement_query,
             conversation_id=self.conversation_id,
             message_history_limit=5,  # Limit to last 5 messages to prevent context overflow
             **kwargs
         )
-        
-        refined_spec = result.get("result")
-        if not isinstance(refined_spec, WorkflowSpec):
-            raise ValueError(f"Expected WorkflowSpec, got {type(refined_spec)}")
-        
+        refined_spec: WorkflowSpecLLM = result.get("result")
+        # Patch: Convert WorkflowSpecLLM to WorkflowSpec if needed
+        from ..data_models.workflow_spec import WorkflowSpecLLM, WorkflowSpec
+        if isinstance(refined_spec, WorkflowSpecLLM):
+            refined_spec = WorkflowSpec.from_llm_spec(refined_spec)
+        if isinstance(refined_spec, WorkflowSpec):
+            raise ValueError(f"Expected WorkflowSpecLLM, got {type(refined_spec)}, spec: {refined_spec}")
         # Store as last workflow for future context
         self.last_workflow = refined_spec
         return refined_spec
