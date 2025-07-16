@@ -1,0 +1,55 @@
+[
+  {
+    "name": "Basic reasoning template",
+    "context": {
+      "goal": "Solve mathematical optimization problem",
+      "previous_context": "We have identified the constraint equations",
+      "constraints": "x >= 0, y >= 0, x + y <= 10"
+    },
+    "expected": "Solve mathematical optimization problem"
+  },
+  {
+    "name": "Agent base template",
+    "context": {
+      "agent_name": "DataAnalyst",
+      "role_description": "Analyze datasets and provide insights",
+      "domain": "data science",
+      "tool_list": "pandas, matplotlib, seaborn",
+      "context": "Working with sales data from Q3 2024"
+    },
+    "expected": "DataAnalyst"
+  },
+  {
+    "name": "Coding assistant template",
+    "context": {
+      "project_type": "web application",
+      "language": "Python",
+      "framework": "FastAPI",
+      "current_task": "Implement user authentication",
+      "coding_tools": "git, pytest, black, mypy",
+      "requirements": "JWT tokens, password hashing, role-based access"
+    },
+    "expected": "web application"
+  },
+  {
+    "name": "Collaborative agent template",
+    "context": {
+      "agent_name": "CodeReviewer",
+      "role_description": "Review code for quality and security",
+      "team_members": "Developer, Tester, SecurityAnalyst",
+      "shared_goal": "Deploy secure and maintainable code",
+      "responsibility": "Code quality and security review"
+    },
+    "expected": "CodeReviewer"
+  },
+  {
+    "name": "Security agent template",
+    "context": {
+      "agent_name": "SecurityGuard",
+      "risk_level": "high",
+      "compliance_requirements": "SOC 2, GDPR",
+      "security_policies": "Zero-trust architecture, encryption at rest"
+    },
+    "expected": "SecurityGuard"
+  }
+]
