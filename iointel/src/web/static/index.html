@@ -1382,6 +1382,101 @@
             min-height: 80px;
         }
 
+        /* Enhanced Text Input Styles */
+        .enhanced-text-input-container {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            padding: 12px;
+            background: rgba(20, 20, 35, 0.8);
+            border-radius: 10px;
+            border: 1px solid rgba(125, 249, 255, 0.2);
+            margin-bottom: 16px;
+        }
+
+        .enhanced-input-label {
+            color: #7DF9FF;
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 4px;
+        }
+
+        .enhanced-textarea-wrapper {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .enhanced-textarea {
+            width: 100%;
+            min-height: 120px;
+            padding: 12px;
+            border: 2px solid rgba(125, 249, 255, 0.3);
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.05);
+            color: #e0e0e0;
+            font-family: 'Segoe UI', monospace;
+            font-size: 14px;
+            resize: vertical;
+            transition: all 0.3s ease;
+            line-height: 1.5;
+        }
+
+        .enhanced-textarea:focus {
+            outline: none;
+            border-color: #7DF9FF;
+            background: rgba(255, 255, 255, 0.1);
+            box-shadow: 0 0 0 2px rgba(125, 249, 255, 0.2);
+        }
+
+        .enhanced-textarea::placeholder {
+            color: rgba(224, 224, 224, 0.6);
+            font-style: italic;
+        }
+
+        .textarea-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 6px;
+            font-size: 12px;
+            color: rgba(224, 224, 224, 0.6);
+        }
+
+        .char-count {
+            color: rgba(125, 249, 255, 0.7);
+        }
+
+        .enhanced-run-button {
+            align-self: flex-end;
+            padding: 8px 16px;
+            background: linear-gradient(135deg, #7DF9FF 0%, #4ecdc4 100%);
+            color: #0f0f1a;
+            border: none;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 8px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .enhanced-run-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(125, 249, 255, 0.4);
+        }
+
+        .enhanced-run-button:active {
+            transform: translateY(0);
+        }
+
+        .enhanced-run-button .icon {
+            width: 14px;
+            height: 14px;
+        }
+
         .form-field .field-description {
             color: #a0a0a0;
             font-size: 0.8rem;
@@ -1454,7 +1549,7 @@
                 <!-- Messages will be added here -->
                 <div class="message assistant">
                     <div class="message-bubble">
-                        👋 Hello! I'm your IO.net intelligence workflow design assistant. Tell me what kind of workflow you'd like to create and I'll help you build it!
+                        👋 Hello! I'm your intelligence workflow design assistant. Tell me what kind of workflow you'd like to create and I'll help you build it!
                     </div>
                     <div class="message-time">Just now</div>
                 </div>
@@ -1724,6 +1819,8 @@
                 if (resultsContent) {
                     resultsContent.innerHTML = '';
                 }
+                // Clear cached user inputs only if explicitly clearing workflow
+                clearCachedInputs();
             } catch (error) {
                 alert('Failed to clear workflow: ' + error.message);
             }
@@ -1734,9 +1831,22 @@
             
             setExecutionLoading(true);
             try {
+                // Always include cached user inputs with execution
+                const executionData = { execute_current: true };
+                
+                // Add cached user inputs if any exist
+                if (Object.keys(cachedUserInputs).length > 0) {
+                    executionData.user_inputs = cachedUserInputs;
+                    console.log('🚀 Executing workflow with cached user inputs:', cachedUserInputs);
+                    console.log('🔍 DEBUG: executionData being sent:', JSON.stringify(executionData, null, 2));
+                } else {
+                    console.log('🚀 Executing workflow without user inputs');
+                    console.log('🔍 DEBUG: cachedUserInputs is empty or undefined:', cachedUserInputs);
+                }
+                
                 const data = await apiCall('/execute', {
                     method: 'POST',
-                    body: JSON.stringify({ execute_current: true })
+                    body: JSON.stringify(executionData)
                 });
                 
                 if (data.success) {
@@ -1800,6 +1910,15 @@
                     edges: workflow.edges?.length || 0,
                     id: workflow.id
                 });
+                
+                // Only clear cached inputs if we're loading a completely different workflow
+                // Don't clear if we're just refreshing the same workflow
+                if (currentWorkflow && currentWorkflow.id !== workflow.id) {
+                    clearCachedInputs();
+                    console.log('🔄 Cleared cached inputs for different workflow');
+                } else {
+                    console.log('🔄 Keeping cached inputs for same workflow');
+                }
                 console.log('📋 Full workflow data:', workflow);
                 
                 updateWorkflowInfo(workflow);
@@ -2204,9 +2323,9 @@
                                 if (toolUsage.tool_result && typeof toolUsage.tool_result === 'object' && 
                                     toolUsage.tool_result.tool_type === 'user_input') {
                                     
-                                    // Render the simple user input form
+                                    // Render the simple user input form with task context
                                     setTimeout(() => {
-                                        renderSimpleUserInputForm(toolUsage.tool_result);
+                                        renderSimpleUserInputForm(toolUsage.tool_result, taskKey);
                                     }, 100);
                                     
                                     resultsHTML += '<div class="tool-usage-panel">';
@@ -2414,22 +2533,35 @@
                 const shouldShowInput = checkNodeForUserInput(node);
                 console.log('🔍 Node', node.id, 'should show input:', shouldShowInput);
                 if (shouldShowInput) {
-                    nodeContent += `
-                        <div class="user-input-section" style="margin-top: 8px; padding: 8px; background: rgba(100, 255, 100, 0.1); border-radius: 6px;">
-                            <input 
-                                type="text" 
-                                id="input-${node.id}" 
-                                placeholder="${shouldShowInput.placeholder || 'Enter your input...'}"
-                                style="width: 100%; padding: 6px; border: 1px solid rgba(100, 255, 100, 0.5); border-radius: 4px; background: rgba(0,0,0,0.3); color: white;"
-                            />
-                            <button 
-                                onclick="runWorkflowWithNodeInput('${node.id}')"
-                                style="width: 100%; margin-top: 6px; padding: 6px; background: linear-gradient(135deg, #64FF64, #4CAF50); color: black; border: none; border-radius: 4px; font-weight: 600; cursor: pointer;"
-                            >
-                                Run Workflow
-                            </button>
-                        </div>
-                    `;
+                    // Use enhanced UI for text input tools
+                    const toolName = node.data.tool_name || 'user_input';
+                    if (isTextInputTool(toolName)) {
+                        nodeContent += `
+                            <div class="user-input-section" style="margin-top: 8px;">
+                                ${createEnhancedTextInput(node.id, toolName, node.data.config || {}, '')}
+                            </div>
+                        `;
+                        // Initialize character counts after DOM update
+                        setTimeout(() => initializeCharacterCounts(), 100);
+                    } else {
+                        // Fallback for non-enhanced tools
+                        nodeContent += `
+                            <div class="user-input-section" style="margin-top: 8px; padding: 8px; background: rgba(100, 255, 100, 0.1); border-radius: 6px;">
+                                <input 
+                                    type="text" 
+                                    id="input-${node.id}" 
+                                    placeholder="${shouldShowInput.placeholder || 'Enter your input...'}"
+                                    style="width: 100%; padding: 6px; border: 1px solid rgba(100, 255, 100, 0.5); border-radius: 4px; background: rgba(0,0,0,0.3); color: white;"
+                                />
+                                <button 
+                                    onclick="runWorkflowWithNodeInput('${node.id}')"
+                                    style="width: 100%; margin-top: 6px; padding: 6px; background: linear-gradient(135deg, #64FF64, #4CAF50); color: black; border: none; border-radius: 4px; font-weight: 600; cursor: pointer;"
+                                >
+                                    Run Workflow
+                                </button>
+                            </div>
+                        `;
+                    }
                 }
                 
                 nodeContent += `</div>`;
@@ -2699,15 +2831,41 @@
                     exampleSelect.appendChild(option);
                 });
                 
-                // Add saved workflows to saved dropdown
-                Object.entries(data.saved).forEach(([key, workflow]) => {
-                    const option = document.createElement('option');
-                    option.value = key;
-                    option.textContent = `💾 ${workflow.name} (${workflow.node_count} nodes)`;
-                    option.title = workflow.description;
-                    option.dataset.source = 'saved';
-                    savedSelect.appendChild(option);
-                });
+                // Add saved workflows grouped by lineage
+                if (data.lineage_groups && Object.keys(data.lineage_groups).length > 0) {
+                    Object.values(data.lineage_groups).forEach(group => {
+                        // Add group header (not selectable)
+                        const groupHeader = document.createElement('option');
+                        groupHeader.disabled = true;
+                        groupHeader.textContent = `📁 ${group.title} (${group.total_revisions} revisions)`;
+                        groupHeader.style.fontWeight = 'bold';
+                        groupHeader.style.backgroundColor = '#f0f0f0';
+                        savedSelect.appendChild(groupHeader);
+                        
+                        // Add individual revisions
+                        group.revisions.forEach(revision => {
+                            const option = document.createElement('option');
+                            option.value = revision.id;
+                            const isLatest = revision.rev === group.latest_rev ? ' ← Current' : '';
+                            option.textContent = `  ├── Rev ${revision.rev} (${revision.node_count} nodes)${isLatest}`;
+                            option.title = revision.description;
+                            option.dataset.source = 'saved';
+                            option.dataset.baseId = group.base_id;
+                            option.dataset.rev = revision.rev;
+                            savedSelect.appendChild(option);
+                        });
+                    });
+                } else {
+                    // Fallback to individual workflows if no lineage groups
+                    Object.entries(data.saved).forEach(([key, workflow]) => {
+                        const option = document.createElement('option');
+                        option.value = key;
+                        option.textContent = `💾 ${workflow.title} (${workflow.node_count} nodes)`;
+                        option.title = workflow.description;
+                        option.dataset.source = 'saved';
+                        savedSelect.appendChild(option);
+                    });
+                }
                 
                 console.log('✅ Loaded examples:', {
                     examples: Object.keys(data.examples).length,
@@ -3113,6 +3271,72 @@
         let currentUserInputs = {};
         let pendingFormExecution = false;
         let nodeUserInputData = {}; // Store user input data for each node
+        let cachedUserInputs = {}; // Cache user input values as they're entered
+        
+        function cacheUserInput(formId, value) {
+            cachedUserInputs[formId] = value;
+            console.log('💾 Cached user input:', formId, '=', value);
+            console.log('💾 All cached inputs:', cachedUserInputs);
+            
+            // DEBUGGING: Log the exact keys being used
+            console.log('🔍 DEBUG: Cache keys available:', Object.keys(cachedUserInputs));
+            console.log('🔍 DEBUG: Cache key types:', Object.keys(cachedUserInputs).map(k => typeof k));
+        }
+        
+        function cacheUserInputDual(primaryKey, secondaryKey, value) {
+            // Cache with both keys to ensure backend can find it
+            cachedUserInputs[primaryKey] = value;
+            if (secondaryKey && secondaryKey !== primaryKey) {
+                cachedUserInputs[secondaryKey] = value;
+            }
+            console.log('💾 Cached user input with dual keys:', primaryKey, '&', secondaryKey, '=', value);
+            console.log('💾 All cached inputs:', cachedUserInputs);
+            
+            // DEBUGGING: Log the exact keys being used
+            console.log('🔍 DEBUG: Primary key:', primaryKey, 'type:', typeof primaryKey);
+            console.log('🔍 DEBUG: Secondary key:', secondaryKey, 'type:', typeof secondaryKey);
+            console.log('🔍 DEBUG: Cache keys available:', Object.keys(cachedUserInputs));
+        }
+        
+        function clearCachedInputs() {
+            // Don't clear cache during active execution
+            if (executionStatus === 'running') {
+                console.log('⏸️ Not clearing cached inputs during active execution');
+                return;
+            }
+            
+            cachedUserInputs = {};
+            console.log('🧹 Cleared all cached user inputs');
+        }
+        
+        function submitAndRunWorkflow(formId) {
+            console.log('📝 Submitting and running workflow for form:', formId);
+            
+            // Get the current value from the input field
+            const inputField = document.getElementById('user-input-field');
+            if (inputField && inputField.value) {
+                // Cache the current value with the form ID as well for backup
+                const formElement = inputField.closest('.user-input-form');
+                const actualFormId = formElement ? formElement.id.replace('form-', '') : null;
+                
+                if (actualFormId && actualFormId !== formId) {
+                    cacheUserInputDual(formId, actualFormId, inputField.value);
+                } else {
+                    cacheUserInput(formId, inputField.value);
+                }
+                
+                // Hide the input form
+                const userInputSection = document.getElementById('userInputSection');
+                if (userInputSection) {
+                    userInputSection.style.display = 'none';
+                }
+                
+                // Execute the workflow with cached inputs
+                executeWorkflow();
+            } else {
+                alert('Please enter a value before submitting');
+            }
+        }
 
         function checkNodeForUserInput(node) {
             console.log('🔍 checkNodeForUserInput called for node:', node.id, node.type);
@@ -3121,15 +3345,15 @@
             console.log('🔍 Node.data.tools:', node.data.tools);
             console.log('🔍 Node.data.config:', node.data.config);
             
-            // Check if this node has user_input tool (either tool type with tool_name user_input or agent type with user_input in tools)
-            const hasUserInputTool = (
-                (node.type === 'tool' && node.data.tool_name === 'user_input') ||
+            // Check if this node has a text input tool (user_input or prompt_tool)
+            const hasTextInputTool = (
+                (node.type === 'tool' && (node.data.tool_name === 'user_input' || node.data.tool_name === 'prompt_tool')) ||
                 (node.type === 'agent' && node.data.tools && node.data.tools.some(tool => tool.includes('user_input'))) ||
                 (node.type === 'tool' && node.data.config && node.data.config.prompt) // Also check if tool has prompt config
             );
             
-            if (hasUserInputTool) {
-                console.log('✅ Node has user_input tool! Creating input form from node config...');
+            if (hasTextInputTool) {
+                console.log('✅ Node has text input tool! Creating input form from node config...');
                 
                 // For user_input tools, create the form immediately from the node config
                 // Don't wait for execution results
@@ -3182,7 +3406,8 @@
                     prompt: config.prompt || 'Enter your input:',
                     placeholder: config.placeholder || 'Type here...',
                     form_id: nodeId,
-                    input_type: config.input_type || 'text'
+                    input_type: config.input_type || 'textarea', // Default to textarea for better UX
+                    tool_name: node.data.tool_name || 'user_input' // Add tool_name for enhanced UI
                 };
                 
                 // Store this for later execution
@@ -3191,7 +3416,7 @@
                 return formData;
                 
             } else {
-                console.log('🔍 Node does not have user_input tool');
+                console.log('🔍 Node does not have text input tool');
             }
             return false;
         }
@@ -3221,12 +3446,12 @@
             try {
                 setExecutionLoading(true);
                 
-                // Execute workflow with user inputs - same as regular run button but with inputs
+                // Execute workflow with user inputs - use nodeId as key instead of generic 'user_input'
                 const data = await apiCall('/execute', {
                     method: 'POST',
                     body: JSON.stringify({ 
                         execute_current: true,
-                        user_inputs: { user_input: userValue },
+                        user_inputs: { [nodeId]: userValue },
                         form_id: nodeId
                     })
                 });
@@ -3252,8 +3477,9 @@
             }
         }
 
-        function renderSimpleUserInputForm(inputData) {
+        function renderSimpleUserInputForm(inputData, taskKey = null) {
             console.log('📝 Rendering simple user input form:', inputData);
+            console.log('📝 Task context:', taskKey);
             
             const userInputSection = document.getElementById('userInputSection');
             const userInputForm = document.getElementById('userInputForm');
@@ -3269,19 +3495,40 @@
                     <div class="form-field">
             `;
             
+            // Determine the cache key - prefer taskKey (node_id) if available, fallback to form_id
+            const cacheKey = taskKey || inputData.form_id;
+            console.log('📝 Using cache key:', cacheKey, '(taskKey:', taskKey, ', form_id:', inputData.form_id, ')');
+            
             // Create the appropriate input based on type
             switch (inputData.input_type) {
                 case 'textarea':
-                    formHTML += `<textarea 
-                        id="user-input-field" 
-                        name="user_input"
-                        placeholder="${inputData.placeholder}"
-                        style="width: 100%; min-height: 100px;"
-                    >${inputData.default_value || ''}</textarea>`;
+                    // Check if this is an enhanced text input tool
+                    const toolName = inputData.tool_name || 'user_input'; // Default to user_input for backward compatibility
+                    if (isTextInputTool(toolName)) {
+                        // Use enhanced text input component
+                        formHTML += createEnhancedTextInput(
+                            inputData.form_id, 
+                            toolName, 
+                            inputData, 
+                            inputData.default_value || ''
+                        );
+                        // Initialize character counts after DOM update
+                        setTimeout(() => initializeCharacterCounts(), 50);
+                    } else {
+                        // Use regular textarea
+                        formHTML += `<textarea 
+                            id="user-input-field" 
+                            name="${inputData.form_id}"
+                            placeholder="${inputData.placeholder}"
+                            style="width: 100%; min-height: 100px;"
+                            oninput="cacheUserInputDual('${cacheKey}', '${inputData.form_id}', this.value)"
+                            onchange="cacheUserInputDual('${cacheKey}', '${inputData.form_id}', this.value)"
+                        >${inputData.default_value || ''}</textarea>`;
+                    }
                     break;
                     
                 case 'select':
-                    formHTML += `<select id="user-input-field" name="user_input" style="width: 100%;">`;
+                    formHTML += `<select id="user-input-field" name="${inputData.form_id}" style="width: 100%;" onchange="cacheUserInputDual('${cacheKey}', '${inputData.form_id}', this.value)">`;
                     if (inputData.options) {
                         inputData.options.forEach(option => {
                             const selected = option === inputData.default_value ? 'selected' : '';
@@ -3295,10 +3542,12 @@
                     formHTML += `<input 
                         type="${inputData.input_type}" 
                         id="user-input-field" 
-                        name="user_input"
+                        name="${inputData.form_id}"
                         placeholder="${inputData.placeholder}"
                         value="${inputData.default_value || ''}"
                         style="width: 100%;"
+                        oninput="cacheUserInputDual('${cacheKey}', '${inputData.form_id}', this.value)"
+                        onchange="cacheUserInputDual('${cacheKey}', '${inputData.form_id}', this.value)"
                     />`;
                     break;
             }
@@ -3307,8 +3556,8 @@
             formHTML += `
                     </div>
                     <div class="form-submit-container">
-                        <button type="button" class="form-submit-btn" onclick="submitUserInput('${inputData.form_id}')">
-                            Submit & Continue Workflow
+                        <button type="button" class="form-submit-btn" onclick="submitAndRunWorkflow('${cacheKey}')">
+                            Submit & Run Workflow
                         </button>
                     </div>
                 </div>
@@ -3555,6 +3804,130 @@
             } finally {
                 setExecutionLoading(false);
             }
+        }
+
+        // Enhanced Text Input Components
+        // ==============================
+
+        // UI configurations for text input tools
+        const TEXT_INPUT_UI_CONFIGS = {
+            "prompt_tool": {
+                tool_name: "prompt_tool",
+                input_type: "textarea",
+                height: "120px",
+                min_height: "80px",
+                has_run_button: false,
+                is_readonly: false,
+                placeholder: "Enter your prompt or message...",
+                prompt_label: "Prompt Message",
+                show_character_count: true
+            },
+            "user_input": {
+                tool_name: "user_input",
+                input_type: "textarea", 
+                height: "120px",
+                min_height: "80px",
+                has_run_button: true,
+                is_readonly: false,
+                placeholder: "Enter your input...",
+                prompt_label: "User Input",
+                show_character_count: true
+            }
+        };
+
+        function getTextInputUIConfig(toolName, nodeConfig = {}) {
+            if (!TEXT_INPUT_UI_CONFIGS[toolName]) {
+                return null;
+            }
+            
+            const config = { ...TEXT_INPUT_UI_CONFIGS[toolName] };
+            
+            // Override with node-specific config
+            if (nodeConfig.placeholder) config.placeholder = nodeConfig.placeholder;
+            if (nodeConfig.prompt) config.prompt_label = nodeConfig.prompt;
+            if (nodeConfig.height) config.height = nodeConfig.height;
+            
+            return config;
+        }
+
+        function createEnhancedTextInput(nodeId, toolName, nodeConfig, defaultValue = '') {
+            const uiConfig = getTextInputUIConfig(toolName, nodeConfig);
+            if (!uiConfig) {
+                // Fallback to regular input for non-enhanced tools
+                return createRegularTextInput(nodeId, nodeConfig, defaultValue);
+            }
+
+            const textareaId = `enhanced-textarea-${nodeId}`;
+            const charCountId = `char-count-${nodeId}`;
+            
+            return `
+                <div class="enhanced-text-input-container">
+                    <label class="enhanced-input-label">${uiConfig.prompt_label}</label>
+                    <div class="enhanced-textarea-wrapper">
+                        <textarea 
+                            id="${textareaId}"
+                            name="${nodeId}"
+                            class="enhanced-textarea"
+                            placeholder="${uiConfig.placeholder}"
+                            style="height: ${uiConfig.height}; min-height: ${uiConfig.min_height};"
+                            ${uiConfig.is_readonly ? 'readonly' : ''}
+                            oninput="updateCharacterCount('${textareaId}', '${charCountId}'); cacheUserInputDual('${nodeId}', '${nodeId}', this.value)"
+                            onchange="cacheUserInputDual('${nodeId}', '${nodeId}', this.value)"
+                        >${defaultValue}</textarea>
+                        ${uiConfig.show_character_count ? `
+                            <div class="textarea-footer">
+                                <span class="char-count" id="${charCountId}">0 characters</span>
+                            </div>
+                        ` : ''}
+                    </div>
+                    ${uiConfig.has_run_button ? `
+                        <button class="enhanced-run-button" onclick="submitAndRunWorkflow('${nodeId}')">
+                            <span class="icon">▶</span>
+                            Run Workflow
+                        </button>
+                    ` : ''}
+                </div>
+            `;
+        }
+
+        function createRegularTextInput(nodeId, nodeConfig, defaultValue = '') {
+            // Fallback for non-enhanced tools
+            return `
+                <div class="form-field">
+                    <label>${nodeConfig.prompt || 'Enter your input:'}</label>
+                    <textarea 
+                        id="user-input-field"
+                        name="${nodeId}"
+                        placeholder="${nodeConfig.placeholder || 'Type here...'}"
+                        style="min-height: 80px;"
+                        oninput="cacheUserInputDual('${nodeId}', '${nodeId}', this.value)"
+                        onchange="cacheUserInputDual('${nodeId}', '${nodeId}', this.value)"
+                    >${defaultValue}</textarea>
+                </div>
+            `;
+        }
+
+        function updateCharacterCount(textareaId, charCountId) {
+            const textarea = document.getElementById(textareaId);
+            const charCount = document.getElementById(charCountId);
+            
+            if (textarea && charCount) {
+                const length = textarea.value.length;
+                charCount.textContent = `${length} character${length !== 1 ? 's' : ''}`;
+            }
+        }
+
+        function isTextInputTool(toolName) {
+            return TEXT_INPUT_UI_CONFIGS.hasOwnProperty(toolName);
+        }
+
+        // Initialize character counts after DOM updates
+        function initializeCharacterCounts() {
+            document.querySelectorAll('.enhanced-textarea').forEach(textarea => {
+                const textareaId = textarea.id;
+                const charCountId = textareaId.replace('enhanced-textarea-', 'char-count-');
+                updateCharacterCount(textareaId, charCountId);
+            });
         }
 
         document.addEventListener('DOMContentLoaded', function() {
