@@ -220,6 +220,13 @@ tool_catalog = {
 
 **🚨 CRITICAL DATA FLOW PRINCIPLE**: Tools should get their input data from OTHER nodes, not hardcoded values (unless it's initial configuration data like API endpoints, constants, etc.)
 
+**🚨 TOOL USAGE PATTERNS**:
+- **prompt_tool**: Use for INPUT generation or message passing at the BEGINNING/MIDDLE of workflows
+- **user_input**: Use for collecting user input at the BEGINNING of workflows  
+- **conditional_gate**: Use for routing/decision making in the MIDDLE of workflows
+- **Agent nodes**: Can be FINAL output nodes - no tool needed after them for display
+- **NEVER use prompt_tool as final output** - agents should be the final nodes that produce results
+
 **✅ GOOD Examples:**
 
 **Example 1: Riddle Solving with Tool-Enabled Agents**
@@ -436,15 +443,42 @@ Please fix these specific issues in your next attempt:
             # Add previous workflow context if available
             previous_workflow_context = ""
             if self.last_workflow:
+                # Build comprehensive node descriptions
+                node_descriptions = []
+                for node in self.last_workflow.nodes:
+                    node_desc = f"  - {node.id} ({node.type}): {node.label}"
+                    if node.type == "tool":
+                        node_desc += f" | tool: {node.data.tool_name}"
+                    elif node.type == "agent":
+                        # Show first 100 chars of instructions
+                        inst_preview = node.data.agent_instructions[:100] + "..." if len(node.data.agent_instructions) > 100 else node.data.agent_instructions
+                        node_desc += f" | instructions: {inst_preview}"
+                        if node.data.tools:
+                            node_desc += f" | tools: {node.data.tools}"
+                    node_descriptions.append(node_desc)
+                
+                # Build edge descriptions
+                edge_descriptions = []
+                for edge in self.last_workflow.edges:
+                    edge_desc = f"  - {edge.source} → {edge.target}"
+                    if edge.data and edge.data.condition:
+                        edge_desc += f" (condition: {edge.data.condition})"
+                    edge_descriptions.append(edge_desc)
+                
                 previous_workflow_context = f"""
 📝 PREVIOUS WORKFLOW (for reference):
-Reasoning: {self.last_workflow.reasoning}
 Title: {self.last_workflow.title}
 Description: {self.last_workflow.description}
-Nodes: {len(self.last_workflow.nodes)} nodes
-Structure: {[node.id for node in self.last_workflow.nodes]}
+Reasoning: {self.last_workflow.reasoning}
 
-🔄 REFINEMENT MODE: You can build upon, modify, or completely replace the previous workflow based on the new user query.
+📊 NODES ({len(self.last_workflow.nodes)} total):
+{chr(10).join(node_descriptions)}
+
+🔗 EDGES ({len(self.last_workflow.edges)} total):
+{chr(10).join(edge_descriptions) if edge_descriptions else "  - No edges defined"}
+
+🔄 REFINEMENT MODE: You should preserve the overall structure and only modify what the user specifically requests. 
+When user says "change X to Y", find node X and replace it with Y while keeping all connections intact.
 """
 
             # Format the query with context
@@ -632,13 +666,13 @@ Please generate an improved WorkflowSpec that addresses the feedback while maint
             message_history_limit=5,  # Limit to last 5 messages to prevent context overflow
             **kwargs
         )
-        refined_spec: WorkflowSpecLLM = result.get("result")
+        refined_spec: WorkflowSpec = result.get("result")
         # Patch: Convert WorkflowSpecLLM to WorkflowSpec if needed
         from ..data_models.workflow_spec import WorkflowSpecLLM, WorkflowSpec
         if isinstance(refined_spec, WorkflowSpecLLM):
             refined_spec = WorkflowSpec.from_llm_spec(refined_spec)
-        if isinstance(refined_spec, WorkflowSpec):
-            raise ValueError(f"Expected WorkflowSpecLLM, got {type(refined_spec)}, spec: {refined_spec}")
+        if not isinstance(refined_spec, WorkflowSpec):
+            raise ValueError(f"Expected WorkflowSpec after conversion, got {type(refined_spec)}, spec: {refined_spec}")
         # Store as last workflow for future context
         self.last_workflow = refined_spec
         return refined_spec
