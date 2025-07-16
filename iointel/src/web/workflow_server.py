@@ -609,26 +609,33 @@ async def generate_workflow(request: WorkflowRequest):
         raise HTTPException(status_code=500, detail="WorkflowPlanner not initialized")
     
     try:
-        if request.refine and current_workflow:
-            print(f"🔧 Refining existing workflow (rev {current_workflow.rev})")
-            # Refine existing workflow
-            new_workflow = await planner.refine_workflow(
-                workflow_spec=current_workflow,
-                feedback=request.query
-            )
-            new_workflow.rev = current_workflow.rev + 1
+        print(f"✨ Generating workflow with {len(tool_catalog)} tools available")
+        
+        # Always use generate_workflow, but provide current workflow as context for continual improvement
+        if current_workflow:
+            print(f"🔧 Building upon existing workflow (rev {current_workflow.rev}): '{current_workflow.title}'")
+            # Set current workflow context so planner can reference it
+            planner.set_current_workflow(current_workflow)
             
-            # Store in history
+            # Store current workflow in history before generating new one
             workflow_history.append(current_workflow)
-            current_workflow = new_workflow
-            print(f"✅ Workflow refined to rev {current_workflow.rev}")
+            
+            # Generate new workflow that can build upon, modify, or completely replace the previous one
+            current_workflow, agent_response = await planner.generate_workflow(
+                query=request.query,
+                tool_catalog=tool_catalog,
+                context={
+                    "timestamp": datetime.now().isoformat(),
+                    "is_refinement": request.refine,
+                    "previous_workflow_title": current_workflow.title
+                }
+            )
+            # Increment revision for continual improvement tracking
+            current_workflow.rev = len(workflow_history) + 1
+            print(f"✅ Workflow evolved to rev {current_workflow.rev}: '{current_workflow.title}'")
             
         else:
-            print(f"✨ Generating new workflow with {len(tool_catalog)} tools available")
-            # Set current workflow context so planner can reference it
-            if current_workflow:
-                planner.set_current_workflow(current_workflow)
-            
+            print(f"✨ Generating new workflow from scratch")
             # Generate new workflow
             current_workflow, agent_response = await planner.generate_workflow(
                 query=request.query,
