@@ -38,6 +38,7 @@ import iointel.src.agent_methods.tools.conditional_gate
 # Import workflow storage
 from .workflow_storage import WorkflowStorage
 from iointel.src.chainables import execute_tool_task, execute_agent_task
+from iointel.src.agent_methods.tools.collection_manager import search_collections, create_collection
 
 
 # Register executors for web interface
@@ -284,6 +285,25 @@ class SaveWorkflowResponse(BaseModel):
 class SearchWorkflowsRequest(BaseModel):
     query: Optional[str] = None
     tags: Optional[List[str]] = None
+
+class SearchCollectionsRequest(BaseModel):
+    query: str
+    tool_filter: Optional[str] = None
+
+class SearchCollectionsResponse(BaseModel):
+    success: bool
+    results: Optional[List[Dict]] = None
+    error: Optional[str] = None
+
+class SaveToCollectionRequest(BaseModel):
+    collection_name: str
+    record: str
+    tool_type: Optional[str] = None
+
+class SaveToCollectionResponse(BaseModel):
+    success: bool
+    message: Optional[str] = None
+    error: Optional[str] = None
 
 
 async def broadcast_workflow_update(workflow: WorkflowSpec):
@@ -1080,6 +1100,80 @@ async def get_workflow_stats():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error getting stats: {str(e)}")
 
+
+@app.post("/api/search_collections", response_model=SearchCollectionsResponse)
+async def search_collections_endpoint(request: SearchCollectionsRequest):
+    """Search collections for matching prompts/inputs."""
+    try:
+        # Use the collection manager tool to search
+        search_result = search_collections(
+            query=request.query,
+            tool_filter=request.tool_filter
+        )
+        
+        if search_result.get("status") == "success":
+            return SearchCollectionsResponse(
+                success=True,
+                results=search_result.get("results", [])
+            )
+        else:
+            return SearchCollectionsResponse(
+                success=False,
+                error=search_result.get("message", "Search failed")
+            )
+            
+    except Exception as e:
+        return SearchCollectionsResponse(
+            success=False,
+            error=f"Search error: {str(e)}"
+        )
+
+@app.post("/api/save_to_collection", response_model=SaveToCollectionResponse)
+async def save_to_collection_endpoint(request: SaveToCollectionRequest):
+    """Save a record to a collection."""
+    try:
+        # Import here to avoid circular imports
+        from iointel.src.agent_methods.data_models.prompt_collections import prompt_collection_manager
+        
+        # Try to find existing collection by name
+        existing_collection = None
+        for collection in prompt_collection_manager.list_collections():
+            if collection.name == request.collection_name:
+                existing_collection = collection
+                break
+        
+        if existing_collection:
+            # Add to existing collection
+            existing_collection.add_record(request.record)
+            prompt_collection_manager.save_collection(existing_collection)
+            message = f"Added to existing collection '{request.collection_name}'"
+        else:
+            # Create new collection
+            create_result = create_collection(
+                name=request.collection_name,
+                records=[request.record],
+                description=f"Collection for {request.tool_type or 'prompts'}",
+                tags=[request.tool_type or "prompt_tool", "web_interface"]
+            )
+            
+            if create_result.get("status") == "success":
+                message = f"Created new collection '{request.collection_name}'"
+            else:
+                return SaveToCollectionResponse(
+                    success=False,
+                    error=create_result.get("message", "Failed to create collection")
+                )
+        
+        return SaveToCollectionResponse(
+            success=True,
+            message=message
+        )
+        
+    except Exception as e:
+        return SaveToCollectionResponse(
+            success=False,
+            error=f"Save error: {str(e)}"
+        )
 
 @app.get("/api/workflows/combined")
 async def get_combined_workflows():

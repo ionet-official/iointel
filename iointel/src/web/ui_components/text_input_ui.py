@@ -25,6 +25,12 @@ class TextInputUIConfig:
     placeholder: str = "Type here..."
     prompt_label: str = "Enter your text:"
     
+    # Collection support
+    supports_collections: bool = True
+    show_suggestions: bool = True
+    show_collection_actions: bool = True
+    max_suggestions: int = 5
+    
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         return {
@@ -38,7 +44,11 @@ class TextInputUIConfig:
             "has_run_button": self.has_run_button,
             "is_readonly": self.is_readonly,
             "placeholder": self.placeholder,
-            "prompt_label": self.prompt_label
+            "prompt_label": self.prompt_label,
+            "supports_collections": self.supports_collections,
+            "show_suggestions": self.show_suggestions,
+            "show_collection_actions": self.show_collection_actions,
+            "max_suggestions": self.max_suggestions
         }
 
 # UI configurations for different text input tools

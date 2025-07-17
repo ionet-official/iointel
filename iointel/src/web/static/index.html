@@ -1477,6 +1477,111 @@
             height: 14px;
         }
 
+        /* Collection Suggestions Styles */
+        .suggestions-container {
+            margin-bottom: 12px;
+            background: rgba(15, 15, 35, 0.9);
+            border: 1px solid rgba(125, 249, 255, 0.2);
+            border-radius: 8px;
+            padding: 8px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .suggestions-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid rgba(125, 249, 255, 0.1);
+        }
+
+        .suggestions-title {
+            font-size: 12px;
+            font-weight: 500;
+            color: #7DF9FF;
+        }
+
+        .suggestions-source {
+            font-size: 10px;
+            color: rgba(224, 224, 224, 0.7);
+            font-style: italic;
+        }
+
+        .suggestions-list {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .suggestion-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 6px 8px;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: 1px solid transparent;
+        }
+
+        .suggestion-item:hover {
+            background: rgba(125, 249, 255, 0.1);
+            border-color: rgba(125, 249, 255, 0.3);
+        }
+
+        .suggestion-text {
+            font-size: 12px;
+            color: #e0e0e0;
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            margin-right: 8px;
+        }
+
+        .suggestion-apply {
+            font-size: 10px;
+            color: #7DF9FF;
+            font-weight: 500;
+            opacity: 0.7;
+            transition: opacity 0.2s ease;
+        }
+
+        .suggestion-item:hover .suggestion-apply {
+            opacity: 1;
+        }
+
+        /* Collection Actions Styles */
+        .collection-actions {
+            display: flex;
+            gap: 4px;
+            margin-left: 8px;
+        }
+
+        .collection-action-btn {
+            background: rgba(125, 249, 255, 0.1);
+            border: 1px solid rgba(125, 249, 255, 0.3);
+            border-radius: 4px;
+            padding: 4px 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 12px;
+            color: #7DF9FF;
+        }
+
+        .collection-action-btn:hover {
+            background: rgba(125, 249, 255, 0.2);
+            border-color: rgba(125, 249, 255, 0.5);
+            transform: translateY(-1px);
+        }
+
+        .collection-action-btn:active {
+            transform: translateY(0);
+        }
+
         .form-field .field-description {
             color: #a0a0a0;
             font-size: 0.8rem;
@@ -2099,11 +2204,15 @@
             if (data.status === 'completed' && data.results) {
                 showExecutionResults(data.results);
                 
-                // Re-render the workflow to show any user input forms in nodes
-                if (currentWorkflow) {
-                    console.log('🔄 Re-rendering workflow to show user input forms');
-                    handleWorkflowUpdate(currentWorkflow);
-                }
+                // Don't re-render after completion to preserve user input in textareas
+                // The re-render was causing user input to be cleared
+                // Only re-render if we're awaiting input
+            }
+            
+            // Re-render the workflow to show any user input forms in nodes
+            if (currentWorkflow && data.status === 'awaiting_input') {
+                console.log('🔄 Re-rendering workflow to show user input forms');
+                handleWorkflowUpdate(currentWorkflow);
             }
             
             // Handle completion or failure
@@ -2538,7 +2647,7 @@
                     if (isTextInputTool(toolName)) {
                         nodeContent += `
                             <div class="user-input-section" style="margin-top: 8px;">
-                                ${createEnhancedTextInput(node.id, toolName, node.data.config || {}, '')}
+                                ${createEnhancedTextInput(node.id, toolName, node.data.config || {}, '', [], null)}
                             </div>
                         `;
                         // Initialize character counts after DOM update
@@ -3312,9 +3421,13 @@
         function submitAndRunWorkflow(formId) {
             console.log('📝 Submitting and running workflow for form:', formId);
             
-            // Get the current value from the input field
-            const inputField = document.getElementById('user-input-field');
-            if (inputField && inputField.value) {
+            // Try to find the input field - could be enhanced textarea or regular input
+            let inputField = document.getElementById(`enhanced-textarea-${formId}`);
+            if (!inputField) {
+                inputField = document.getElementById('user-input-field');
+            }
+            
+            if (inputField) {
                 // Cache the current value with the form ID as well for backup
                 const formElement = inputField.closest('.user-input-form');
                 const actualFormId = formElement ? formElement.id.replace('form-', '') : null;
@@ -3325,11 +3438,11 @@
                     cacheUserInput(formId, inputField.value);
                 }
                 
-                // Hide the input form
-                const userInputSection = document.getElementById('userInputSection');
-                if (userInputSection) {
-                    userInputSection.style.display = 'none';
-                }
+                // Don't hide the input form - let user see their input during execution
+                // const userInputSection = document.getElementById('userInputSection');
+                // if (userInputSection) {
+                //     userInputSection.style.display = 'none';
+                // }
                 
                 // Execute the workflow with cached inputs
                 executeWorkflow();
@@ -3505,12 +3618,14 @@
                     // Check if this is an enhanced text input tool
                     const toolName = inputData.tool_name || 'user_input'; // Default to user_input for backward compatibility
                     if (isTextInputTool(toolName)) {
-                        // Use enhanced text input component
+                        // Use enhanced text input component with suggestions and collection data
                         formHTML += createEnhancedTextInput(
                             inputData.form_id, 
                             toolName, 
                             inputData, 
-                            inputData.default_value || ''
+                            inputData.default_value || '',
+                            inputData.suggestions || [],
+                            inputData.collection_data || null
                         );
                         // Initialize character counts after DOM update
                         setTimeout(() => initializeCharacterCounts(), 50);
@@ -3820,7 +3935,11 @@
                 is_readonly: false,
                 placeholder: "Enter your prompt or message...",
                 prompt_label: "Prompt Message",
-                show_character_count: true
+                show_character_count: true,
+                supports_collections: true,
+                show_suggestions: true,
+                show_collection_actions: true,
+                max_suggestions: 5
             },
             "user_input": {
                 tool_name: "user_input",
@@ -3831,7 +3950,11 @@
                 is_readonly: false,
                 placeholder: "Enter your input...",
                 prompt_label: "User Input",
-                show_character_count: true
+                show_character_count: true,
+                supports_collections: true,
+                show_suggestions: true,
+                show_collection_actions: true,
+                max_suggestions: 5
             }
         };
 
@@ -3850,7 +3973,7 @@
             return config;
         }
 
-        function createEnhancedTextInput(nodeId, toolName, nodeConfig, defaultValue = '') {
+        function createEnhancedTextInput(nodeId, toolName, nodeConfig, defaultValue = '', suggestions = [], collectionData = null) {
             const uiConfig = getTextInputUIConfig(toolName, nodeConfig);
             if (!uiConfig) {
                 // Fallback to regular input for non-enhanced tools
@@ -3859,10 +3982,36 @@
 
             const textareaId = `enhanced-textarea-${nodeId}`;
             const charCountId = `char-count-${nodeId}`;
+            const suggestionsId = `suggestions-${nodeId}`;
+            
+            // Build suggestions HTML
+            let suggestionsHTML = '';
+            if (uiConfig.show_suggestions && suggestions && suggestions.length > 0) {
+                const limitedSuggestions = suggestions.slice(0, uiConfig.max_suggestions || 5);
+                suggestionsHTML = `
+                    <div class="suggestions-container" id="${suggestionsId}">
+                        <div class="suggestions-header">
+                            <span class="suggestions-title">💡 Suggestions</span>
+                            ${collectionData ? `<span class="suggestions-source">from ${collectionData.name}</span>` : ''}
+                        </div>
+                        <div class="suggestions-list">
+                            ${limitedSuggestions.map((suggestion, index) => `
+                                <div class="suggestion-item" onclick="applySuggestion('${textareaId}', '${charCountId}', '${suggestion.replace(/'/g, "\\'")}', '${nodeId}')">
+                                    <span class="suggestion-text">${suggestion}</span>
+                                    <span class="suggestion-apply">Apply</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            }
             
             return `
                 <div class="enhanced-text-input-container">
                     <label class="enhanced-input-label">${uiConfig.prompt_label}</label>
+                    
+                    ${suggestionsHTML}
+                    
                     <div class="enhanced-textarea-wrapper">
                         <textarea 
                             id="${textareaId}"
@@ -3877,6 +4026,16 @@
                         ${uiConfig.show_character_count ? `
                             <div class="textarea-footer">
                                 <span class="char-count" id="${charCountId}">0 characters</span>
+                                ${uiConfig.show_collection_actions ? `
+                                    <div class="collection-actions">
+                                        <button class="collection-action-btn" onclick="saveToCollection('${nodeId}', '${textareaId}')" title="Save to collection">
+                                            💾
+                                        </button>
+                                        <button class="collection-action-btn" onclick="searchCollections('${nodeId}', '${textareaId}')" title="Search collections">
+                                            🔍
+                                        </button>
+                                    </div>
+                                ` : ''}
                             </div>
                         ` : ''}
                     </div>
@@ -3928,6 +4087,200 @@
                 const charCountId = textareaId.replace('enhanced-textarea-', 'char-count-');
                 updateCharacterCount(textareaId, charCountId);
             });
+        }
+
+        // Collection-related functions
+        function applySuggestion(textareaId, charCountId, suggestion, nodeId) {
+            const textarea = document.getElementById(textareaId);
+            if (textarea) {
+                textarea.value = suggestion;
+                updateCharacterCount(textareaId, charCountId);
+                cacheUserInputDual(nodeId, nodeId, suggestion);
+                
+                // Hide suggestions after applying
+                const suggestionsContainer = document.getElementById(`suggestions-${nodeId}`);
+                if (suggestionsContainer) {
+                    suggestionsContainer.style.display = 'none';
+                }
+                
+                console.log('✅ Applied suggestion:', suggestion);
+            }
+        }
+
+        async function saveToCollection(nodeId, textareaId) {
+            const textarea = document.getElementById(textareaId);
+            if (!textarea) {
+                alert('Cannot find text input field');
+                return;
+            }
+            
+            const collectionName = prompt('Enter collection name (will create if doesn\'t exist):');
+            if (!collectionName) return;
+            
+            const text = textarea.value;
+            
+            // Show loading state
+            const saveBtn = document.querySelector(`[onclick="saveToCollection('${nodeId}', '${textareaId}')"]`);
+            let originalText = '💾';
+            if (saveBtn) {
+                originalText = saveBtn.textContent;
+                saveBtn.textContent = '⏳';
+                saveBtn.style.color = '#FFA500';
+            }
+            
+            try {
+                // Make API call to save to collection
+                const response = await fetch('/api/save_to_collection', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        collection_name: collectionName,
+                        record: text,
+                        tool_type: 'prompt_tool'
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Save request failed');
+                }
+                
+                const data = await response.json();
+                console.log('💾 Save result:', data);
+                
+                if (data.success) {
+                    // Show success feedback
+                    if (saveBtn) {
+                        saveBtn.textContent = '✅';
+                        saveBtn.style.color = '#4CAF50';
+                    }
+                    console.log('✅ Successfully saved to collection:', data.message);
+                    
+                    // Optional: Show a brief success message
+                    const successMsg = document.createElement('div');
+                    successMsg.style.cssText = `
+                        position: fixed;
+                        top: 50%;
+                        left: 50%;
+                        transform: translate(-50%, -50%);
+                        background: #4CAF50;
+                        color: white;
+                        padding: 12px 24px;
+                        border-radius: 8px;
+                        z-index: 1000;
+                        font-size: 14px;
+                    `;
+                    successMsg.textContent = data.message;
+                    document.body.appendChild(successMsg);
+                    
+                    setTimeout(() => {
+                        document.body.removeChild(successMsg);
+                    }, 3000);
+                    
+                } else {
+                    throw new Error(data.error || 'Save failed');
+                }
+                
+            } catch (error) {
+                console.error('Save error:', error);
+                alert(`Failed to save to collection: ${error.message}`);
+                
+                // Show error state
+                if (saveBtn) {
+                    saveBtn.textContent = '❌';
+                    saveBtn.style.color = '#FF6B6B';
+                }
+            }
+            
+            // Reset button after delay
+            setTimeout(() => {
+                if (saveBtn) {
+                    saveBtn.textContent = originalText;
+                    saveBtn.style.color = '#7DF9FF';
+                }
+            }, 2000);
+        }
+
+        async function searchCollections(nodeId, textareaId) {
+            const query = prompt('Enter search query:');
+            if (!query) return;
+            
+            console.log('🔍 Searching collections for:', query);
+            
+            try {
+                // Make API call to search collections
+                const response = await fetch('/api/search_collections', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        query: query,
+                        tool_filter: 'prompt_tool' // Filter by current tool type
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Search request failed');
+                }
+                
+                const data = await response.json();
+                console.log('🔍 Search results:', data);
+                
+                if (data.success && data.results && data.results.length > 0) {
+                    // Show results in a nice format
+                    let resultsText = `Found ${data.results.length} collection(s) with matches for "${query}":\n\n`;
+                    
+                    data.results.forEach((result, index) => {
+                        resultsText += `📁 ${result.collection_name} (${result.matching_records.length} matches):\n`;
+                        result.matching_records.forEach((record, recordIndex) => {
+                            resultsText += `  ${recordIndex + 1}. "${record}"\n`;
+                        });
+                        resultsText += '\n';
+                    });
+                    
+                    const selectedRecord = prompt(resultsText + '\nEnter the number of the record you want to use (or cancel):');
+                    
+                    if (selectedRecord) {
+                        const recordNum = parseInt(selectedRecord);
+                        if (!isNaN(recordNum) && recordNum > 0) {
+                            // Find the selected record
+                            let foundRecord = null;
+                            let currentIndex = 0;
+                            
+                            for (const result of data.results) {
+                                for (const record of result.matching_records) {
+                                    currentIndex++;
+                                    if (currentIndex === recordNum) {
+                                        foundRecord = record;
+                                        break;
+                                    }
+                                }
+                                if (foundRecord) break;
+                            }
+                            
+                            if (foundRecord) {
+                                // Apply the selected record to the textarea
+                                const textarea = document.getElementById(textareaId);
+                                if (textarea) {
+                                    textarea.value = foundRecord;
+                                    const charCountId = textareaId.replace('enhanced-textarea-', 'char-count-');
+                                    updateCharacterCount(textareaId, charCountId);
+                                    cacheUserInputDual(nodeId, nodeId, foundRecord);
+                                    console.log('✅ Applied search result:', foundRecord);
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    alert(`No results found for "${query}"\n\nTry different search terms or create some collections first.`);
+                }
+                
+            } catch (error) {
+                console.error('Search error:', error);
+                alert(`Search failed: ${error.message}\n\nMake sure the backend collection API is running.`);
+            }
         }
 
         document.addEventListener('DOMContentLoaded', function() {
