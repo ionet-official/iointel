@@ -217,40 +217,9 @@ class Agent(BaseModel):
     def _get_registered_tool(
         cls, tool: str | Tool | Callable, allow_unregistered_tools: bool
     ) -> Tool:
-        if isinstance(tool, str):
-            if not (registered_tool := TOOLS_REGISTRY.get(tool)):
-                raise ValueError(
-                    f"Tool '{tool}' not found in registry, did you forget to @register_tool?"
-                )
-        elif isinstance(tool, Tool):
-            registered_tool = tool
-        elif callable(tool):
-            registered_tool = Tool.from_function(tool)
-        else:
-            raise ValueError(
-                f"Tool '{tool}' is neither a registered name nor a callable."
-            )
-        found_tool = next(
-            (
-                tool
-                for tool in TOOLS_REGISTRY.values()
-                if tool.body == registered_tool.body
-            ),
-            None,
-        )
-        if not found_tool:
-            if allow_unregistered_tools:
-                found_tool = registered_tool
-            else:
-                raise ValueError(
-                    f"Tool '{registered_tool.name}' not found in registry, did you forget to @register_tool?"
-                )
-        # we need to take tool name and description from the registry,
-        # as the user might have passed in an underlying function
-        # instead of the registered tool object
-        return registered_tool.model_copy(
-            update={"name": found_tool.name, "description": found_tool.description}
-        )
+        """Get a registered tool using the centralized tool registry utils."""
+        from .utilities.tool_registry_utils import resolve_tool
+        return resolve_tool(tool, allow_unregistered_tools)
 
     def _make_init_prompt(self) -> str:
         # Combine user instructions with persona content
