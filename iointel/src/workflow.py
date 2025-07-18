@@ -510,16 +510,15 @@ class Workflow:
         
         # print(f"🔧 Workflow: running with agent_result_format = {agent_result_format}")
 
-        # Check if we should use DAG execution or fall back to sequential
+        # Always use DAG execution - convert sequential tasks to DAG format if needed
         if self._has_dag_structure():
             print("🔄 Using DAG execution for workflow with edge topology")
             logger.info("Using DAG execution for workflow with edge topology")
             final_state = await self._run_tasks_dag(initial_state, conversation_id, agent_result_format=agent_result_format)
         else:
-            print("🔄 Using sequential execution for simple task list")
-            logger.info("Using sequential execution for simple task list")
-            self.graph = self.build_workflow_graph(conversation_id)
-            final_state = await self.execute_graph(self.graph, initial_state, agent_result_format=agent_result_format)
+            print("🔄 Converting sequential tasks to DAG format and using DAG execution")
+            logger.info("Converting sequential tasks to DAG format and using DAG execution")
+            final_state = await self._run_tasks_sequential_as_dag(initial_state, conversation_id, agent_result_format=agent_result_format)
 
         return dict(conversation_id=conversation_id, results=final_state.results)
     
@@ -580,6 +579,86 @@ class Workflow:
         logger.info(f"Executing DAG with {len(nodes)} nodes and {len(edges)} edges")
         summary = executor.get_execution_summary()
         logger.info(f"DAG execution plan: {summary['total_batches']} batches, max parallelism: {summary['max_parallelism']}")
+        
+        return await executor.execute_dag(initial_state)
+    
+    async def _run_tasks_sequential_as_dag(self, initial_state: WorkflowState, conversation_id: str, agent_result_format: str = "full") -> WorkflowState:
+        """Convert sequential tasks to DAG format and run using DAG executor."""
+        from .agent_methods.data_models.workflow_spec import WorkflowSpec, NodeSpec, EdgeSpec, NodeData, EdgeData
+        
+        # Convert tasks to DAG nodes
+        nodes = []
+        edges = []
+        
+        for i, task in enumerate(self.tasks):
+            task_id = task.get("task_id") or task.get("name") or f"task_{i}"
+            task_type = task.get("type", "tool")
+            task_name = task.get("name", f"Task {i+1}")
+            
+            # Extract task metadata
+            task_metadata = task.get("task_metadata", {})
+            
+            # Create node data
+            node_data = NodeData(
+                tool_name=task_metadata.get("tool_name"),
+                agent_instructions=task_metadata.get("agent_instructions"),
+                config=task_metadata.get("config", {}),
+                tools=task_metadata.get("tools", []),
+                model=task_metadata.get("model"),
+                ins=[] if i == 0 else [f"task_{i-1}_out"],  # Sequential: depend on previous task
+                outs=[f"{task_id}_out"]
+            )
+            
+            # Create node
+            node = NodeSpec(
+                id=task_id,
+                type=task_type,
+                label=task_name,
+                data=node_data
+            )
+            nodes.append(node)
+            
+            # Create edge to next task (except for last task)
+            if i > 0:
+                edge = EdgeSpec(
+                    id=f"edge_{i-1}_to_{i}",
+                    source=self.tasks[i-1].get("task_id") or self.tasks[i-1].get("name") or f"task_{i-1}",
+                    target=task_id,
+                    data=EdgeData()
+                )
+                edges.append(edge)
+        
+        # Extract execution metadata and agents from tasks
+        execution_metadata_by_node = {}
+        agents_by_node = {}
+        
+        for i, task in enumerate(self.tasks):
+            task_id = task.get("task_id") or task.get("name") or f"task_{i}"
+            
+            # Extract execution metadata
+            if "execution_metadata" in task and task["execution_metadata"]:
+                execution_metadata_by_node[task_id] = task["execution_metadata"]
+            
+            # Extract agents
+            if "agents" in task and task["agents"]:
+                agents_by_node[task_id] = task["agents"]
+        
+        # Create DAG executor
+        executor = DAGExecutor()
+        executor.build_execution_graph(
+            nodes=nodes,
+            edges=edges,
+            objective=self.objective,
+            agents=self.agents,
+            conversation_id=conversation_id,
+            execution_metadata_by_node=execution_metadata_by_node,
+            agents_by_node=agents_by_node
+        )
+        
+        # Execute DAG
+        logger.info(f"Executing converted sequential workflow as DAG with {len(nodes)} nodes and {len(edges)} edges")
+        summary = executor.get_execution_summary()
+        logger.info(f"Sequential-to-DAG execution plan: {summary['total_batches']} batches, max parallelism: {summary['max_parallelism']}")
         
         return await executor.execute_dag(initial_state)
 
