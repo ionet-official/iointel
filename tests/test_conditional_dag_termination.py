@@ -414,27 +414,7 @@ class TestConditionalDAGTermination:
         TASK_EXECUTOR_REGISTRY["decision"] = web_tool_executor
         
         # Create workflow where agent uses conditional_gate tool
-        # Create agents list for workflow
-        from iointel.src.agent_methods.data_models.datamodels import AgentParams
-        
-        agents = [
-            AgentParams(
-                name="decision_agent",
-                model="gpt-4o-mini",
-                instructions="You are a market decision agent. You MUST use the conditional_gate tool.",
-                tools=["conditional_gate"]
-            ),
-            AgentParams(
-                name="positive_agent", 
-                model="gpt-4o-mini",
-                instructions="You received a positive market signal. Confirm and analyze."
-            ),
-            AgentParams(
-                name="negative_agent",
-                model="gpt-4o-mini", 
-                instructions="You received a negative market signal. Confirm and analyze."
-            )
-        ]
+        # Agents will be auto-created from WorkflowSpec node data
         
         nodes = [
             NodeSpec(
@@ -528,8 +508,7 @@ class TestConditionalDAGTermination:
         executor.build_execution_graph(
             nodes=spec.nodes,
             edges=spec.edges,
-            objective="Test agent conditional gating",
-            agents=agents
+            objective="Test agent conditional gating"
         )
         
         # Execute workflow

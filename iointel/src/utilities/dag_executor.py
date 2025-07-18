@@ -106,7 +106,13 @@ class DAGExecutor:
             else:
                 node_agents = agents or []
                 if node.type == "agent" and len(node_agents) == 0:
-                    print(f"⚠️ WARNING: Agent node {node.id} has no agents!")
+                    # Auto-create agents from WorkflowSpec node data
+                    hydrated_agents = self._hydrate_agents_from_node(node)
+                    if hydrated_agents:
+                        node_agents = hydrated_agents
+                        print(f"🔧 Auto-created {len(node_agents)} agents for node {node.id}")
+                    else:
+                        print(f"⚠️ WARNING: Agent node {node.id} has no agents and no agent_instructions!")
             
             task_node_class = make_task_node(
                 task=task_data,
@@ -442,6 +448,62 @@ class DAGExecutor:
                 for node_id, node in self.nodes.items()
             }
         }
+    
+    def _hydrate_agents_from_node(self, node: NodeSpec) -> Optional[List[Any]]:
+        """
+        Create AgentParams from WorkflowSpec node data.
+        
+        Args:
+            node: Node specification with agent_instructions
+            
+        Returns:
+            List of AgentParams if successful, None otherwise
+        """
+        if node.type != "agent" or not node.data.agent_instructions:
+            return None
+            
+        try:
+            # Import necessary modules
+            from ..agent_methods.data_models.datamodels import AgentParams
+            from ..utilities.registries import TOOLS_REGISTRY
+            from ..utilities.constants import get_model_config
+            
+            # Load tools for the agent if specified
+            agent_tools = []
+            if node.data.tools:
+                for tool_name in node.data.tools:
+                    if tool_name in TOOLS_REGISTRY:
+                        agent_tools.append(tool_name)
+                        logger.info(f"Loading tool '{tool_name}' for agent '{node.id}'")
+                    else:
+                        logger.warning(f"Tool '{tool_name}' not found in registry for agent '{node.id}'")
+            
+            # Use centralized model configuration
+            config = get_model_config(
+                model=node.data.model,
+                api_key=None,  # Let it use defaults
+                base_url=None  # Let it use defaults
+            )
+            model = config["model"]
+            api_key = config["api_key"]
+            base_url = config["base_url"]
+            
+            agent_params = AgentParams(
+                name=f"agent_{node.id}",
+                instructions=node.data.agent_instructions,
+                model=model,
+                api_key=api_key,
+                base_url=base_url,
+                tools=agent_tools,
+                context=node.data.config.get("context") if node.data.config else None,
+                persona=node.data.config.get("persona") if node.data.config else None,
+                model_settings=node.data.config.get("model_settings") if node.data.config else None,
+            )
+            return [agent_params]
+            
+        except Exception as e:
+            logger.error(f"Failed to hydrate agents for node {node.id}: {e}")
+            return None
     
     def get_execution_statistics(self) -> Dict[str, Any]:
         """
