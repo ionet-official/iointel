@@ -17,7 +17,7 @@ class NodeData(BaseModel):
     agent_instructions: Optional[str] = Field(None, description="Instructions for agent (for agent nodes)")
     tools: Optional[List[str]] = Field(None, description="List of tool names available to agent (for agent nodes)")
     workflow_id: Optional[str] = Field(None, description="ID of workflow to call (for workflow_call nodes)")
-    model: Optional[Literal["gpt-4o", "gpt-4", "gpt-3.5-turbo", "meta-llama/Llama-3.3-70B-Instruct", "meta-llama/Llama-3.1-8B-Instruct"]] = Field("gpt-4o", description="Model to use for agent nodes")
+    model: Optional[Literal["gpt-4o", "meta-llama/Llama-3.3-70B-Instruct", "meta-llama/Llama-3.1-8B-Instruct"]] = Field("gpt-4o", description="Model to use for agent nodes")
 
 
 class NodeSpecLLM(BaseModel):
@@ -66,12 +66,13 @@ class EdgeSpec(BaseModel):
 class WorkflowSpecLLM(BaseModel):
     """
     Workflow specification for LLM generation - no IDs, system generates them.
+    For chat-only responses, set nodes and edges to null.
     """
-    reasoning: str = Field(default="", description="LLM's chat bot response to the user's query about workflow creation, including constraints and limitations or suggestions for improvements.")
-    title: str
-    description: str = ""
-    nodes: List[NodeSpecLLM]
-    edges: List[EdgeSpecLLM]
+    reasoning: str = Field(default="", description="Your engaging response to the user! For tool listings: organize by category with emojis, highlight capabilities, suggest use cases. For workflows: explain your design decisions. Be enthusiastic about IO.net's capabilities!")
+    title: Optional[str] = Field(None, description="Workflow title. Use null for chat-only responses.")
+    description: str = Field(default="", description="Workflow description or chat response message.")
+    nodes: Optional[List[NodeSpecLLM]] = Field(None, description="Workflow nodes. Use null for chat-only responses to preserve previous DAG.")
+    edges: Optional[List[EdgeSpecLLM]] = Field(None, description="Workflow edges. Use null for chat-only responses to preserve previous DAG.")
 
 
 class WorkflowSpec(BaseModel):
@@ -84,7 +85,7 @@ class WorkflowSpec(BaseModel):
     """
     id: UUID
     rev: int
-    reasoning: str = Field(default="", description="LLM's chat bot response to the user's query about workflow creation, including constraints and limitations or suggestions for improvements.")
+    reasoning: str = Field(default="", description="Your engaging response to the user! For tool listings: organize by category with emojis, highlight capabilities, suggest use cases. For workflows: explain your design decisions. Be enthusiastic about IO.net's capabilities!")
     title: str
     description: str = ""
     nodes: List[NodeSpec]
