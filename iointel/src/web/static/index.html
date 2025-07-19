@@ -191,6 +191,79 @@
             color: #e0e0e0;
             border-bottom-left-radius: 5px;
         }
+        
+        .message-bubble strong {
+            color: #7DF9FF;
+            font-weight: 600;
+        }
+        
+        .message-bubble em {
+            font-style: italic;
+            color: #a0d8ff;
+        }
+        
+        .message-bubble code {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            color: #7DF9FF;
+        }
+        
+        .message-bubble pre {
+            background: rgba(0, 0, 0, 0.4);
+            padding: 12px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 8px 0;
+        }
+        
+        .message-bubble pre code {
+            background: none;
+            padding: 0;
+        }
+        
+        .message-bubble h2, .message-bubble h3, .message-bubble h4 {
+            color: #7DF9FF;
+            margin: 12px 0 8px 0;
+            font-weight: 600;
+        }
+        
+        .message-bubble h2 {
+            font-size: 1.3em;
+        }
+        
+        .message-bubble h3 {
+            font-size: 1.2em;
+        }
+        
+        .message-bubble h4 {
+            font-size: 1.1em;
+        }
+        
+        .message-bubble ul, .message-bubble ol {
+            margin: 8px 0;
+            padding-left: 24px;
+        }
+        
+        .message-bubble li {
+            margin: 4px 0;
+            line-height: 1.5;
+        }
+        
+        .message-bubble p {
+            margin: 8px 0;
+            line-height: 1.5;
+        }
+        
+        .message-bubble p:first-child {
+            margin-top: 0;
+        }
+        
+        .message-bubble p:last-child {
+            margin-bottom: 0;
+        }
 
         .message-time {
             font-size: 0.7rem;
@@ -2006,6 +2079,9 @@
         // Handle workflow updates
         function handleWorkflowUpdate(workflow) {
             console.log('🔄 handleWorkflowUpdate called with:', workflow);
+            
+            // Store previous workflow before updating
+            const previousWorkflow = currentWorkflow;
             currentWorkflow = workflow;
             
             if (workflow) {
@@ -2018,7 +2094,7 @@
                 
                 // Only clear cached inputs if we're loading a completely different workflow
                 // Don't clear if we're just refreshing the same workflow
-                if (currentWorkflow && currentWorkflow.id !== workflow.id) {
+                if (previousWorkflow && previousWorkflow.id !== workflow.id) {
                     clearCachedInputs();
                     console.log('🔄 Cleared cached inputs for different workflow');
                 } else {
@@ -2030,7 +2106,7 @@
                 renderWorkflow(workflow);
                 showWorkflowView();
             } else {
-                console.log('❌ No workflow data received');
+                console.log('❌ No workflow data received (null workflow)');
                 hideWorkflowInfo();
                 showEmptyState();
             }
@@ -3285,17 +3361,48 @@
                     })
                 });
                 
+                console.log('📦 API Response:', {
+                    success: data.success,
+                    has_workflow: !!data.workflow,
+                    has_agent_response: !!data.agent_response,
+                    agent_response_length: data.agent_response ? data.agent_response.length : 0,
+                    full_data: data
+                });
+                
                 if (data.success) {
-                    handleWorkflowUpdate(data.workflow);
-                    // Add assistant response using the actual agent's reasoning/response
-                    const response = currentWorkflow && currentWorkflow.reasoning ? 
-                        currentWorkflow.reasoning :
-                        `✨ I've ${currentWorkflow.rev > 1 ? 'refined' : 'created'} your workflow "${currentWorkflow.title}". It has ${currentWorkflow.nodes.length} nodes and ${currentWorkflow.edges.length} edges.`;
-                    addMessageToChat(response, 'assistant');
+                    // Check if this is a chat-only response (no workflow)
+                    if (data.agent_response && !data.workflow) {
+                        console.log('💬 Chat-only response detected in frontend');
+                        // Chat-only response - don't update workflow, just show message
+                        addMessageToChat(data.agent_response, 'assistant');
+                        return; // IMPORTANT: Exit early for chat-only responses
+                    } else if (data.workflow) {
+                        console.log('🔧 Normal workflow response detected');
+                        // Normal workflow response
+                        handleWorkflowUpdate(data.workflow);
+                        // Wait for handleWorkflowUpdate to complete before accessing currentWorkflow
+                        // Use agent_response if available, otherwise use workflow reasoning or default message
+                        console.log('🔍 Debug response data:', {
+                            agent_response: data.agent_response,
+                            workflow_reasoning: data.workflow?.reasoning,
+                            agent_response_length: data.agent_response?.length,
+                            workflow_reasoning_length: data.workflow?.reasoning?.length
+                        });
+                        
+                        const response = data.agent_response || 
+                            (data.workflow && data.workflow.reasoning) || 
+                            `✨ I've ${data.workflow && data.workflow.rev > 1 ? 'refined' : 'created'} your workflow "${data.workflow ? data.workflow.title : 'unnamed'}". It has ${data.workflow ? data.workflow.nodes.length : 0} nodes and ${data.workflow ? data.workflow.edges.length : 0} edges.`;
+                        addMessageToChat(response, 'assistant');
+                    } else {
+                        console.log('⚠️ Success but no workflow or agent_response');
+                        addMessageToChat('✨ Request processed successfully', 'assistant');
+                    }
                 } else {
                     addMessageToChat('❌ Error: ' + data.error, 'assistant');
                 }
             } catch (error) {
+                console.error('❌ Full error object:', error);
+                console.error('❌ Error stack:', error.stack);
                 addMessageToChat('❌ Failed to generate workflow: ' + error.message, 'assistant');
             } finally {
                 setLoading(false);
@@ -3310,8 +3417,51 @@
             const now = new Date();
             const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
             
+            // Simple markdown to HTML converter
+            let formattedMessage = message;
+            
+            // Headers
+            formattedMessage = formattedMessage.replace(/^### (.*?)$/gm, '<h4>$1</h4>');
+            formattedMessage = formattedMessage.replace(/^## (.*?)$/gm, '<h3>$1</h3>');
+            formattedMessage = formattedMessage.replace(/^# (.*?)$/gm, '<h2>$1</h2>');
+            
+            // Bold and italic
+            formattedMessage = formattedMessage.replace(/\*\*\*(.*?)\*\*\*/g, '<strong><em>$1</em></strong>');
+            formattedMessage = formattedMessage.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+            formattedMessage = formattedMessage.replace(/\*(.*?)\*/g, '<em>$1</em>');
+            
+            // Code blocks and inline code
+            formattedMessage = formattedMessage.replace(/```(.*?)```/gs, '<pre><code>$1</code></pre>');
+            formattedMessage = formattedMessage.replace(/`(.*?)`/g, '<code>$1</code>');
+            
+            // Lists
+            formattedMessage = formattedMessage.replace(/^\* (.*?)$/gm, '<li>$1</li>');
+            formattedMessage = formattedMessage.replace(/^- (.*?)$/gm, '<li>$1</li>');
+            formattedMessage = formattedMessage.replace(/^• (.*?)$/gm, '<li>$1</li>');
+            formattedMessage = formattedMessage.replace(/(<li>.*<\/li>\n?)+/gs, function(match) {
+                return '<ul>' + match + '</ul>';
+            });
+            
+            // Numbered lists
+            formattedMessage = formattedMessage.replace(/^\d+\. (.*?)$/gm, '<li class="numbered">$1</li>');
+            formattedMessage = formattedMessage.replace(/(<li class="numbered">.*<\/li>\n?)+/gs, function(match) {
+                return '<ol>' + match.replace(/class="numbered"/g, '') + '</ol>';
+            });
+            
+            // Line breaks
+            formattedMessage = formattedMessage.replace(/\n\n/g, '</p><p>');
+            formattedMessage = formattedMessage.replace(/\n/g, '<br>');
+            formattedMessage = '<p>' + formattedMessage + '</p>';
+            
+            // Clean up empty paragraphs
+            formattedMessage = formattedMessage.replace(/<p><\/p>/g, '');
+            formattedMessage = formattedMessage.replace(/<p>(<h[1-6]>)/g, '$1');
+            formattedMessage = formattedMessage.replace(/(<\/h[1-6]>)<\/p>/g, '$1');
+            formattedMessage = formattedMessage.replace(/<p>(<ul>|<ol>)/g, '$1');
+            formattedMessage = formattedMessage.replace(/(<\/ul>|<\/ol>)<\/p>/g, '$1');
+            
             messageDiv.innerHTML = `
-                <div class="message-bubble">${message}</div>
+                <div class="message-bubble">${formattedMessage}</div>
                 <div class="message-time">${timeStr}</div>
             `;
             
