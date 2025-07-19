@@ -54,6 +54,7 @@ class TaskNode(BaseNode[WorkflowState]):
             Workflow,
             _get_task_key,
         )  # import must happen here, or circular issue occurs
+        from .data_flow_resolver import data_flow_resolver
 
         wf = Workflow()
         state = context.state
@@ -66,13 +67,75 @@ class TaskNode(BaseNode[WorkflowState]):
 
         task_key = _get_task_key(self.task)
 
+        # 🔧 NEW: Resolve variable references in task metadata before execution
+        resolved_task = self.task.copy()
+        if state.results and "task_metadata" in resolved_task:
+            task_metadata = resolved_task["task_metadata"]
+            if isinstance(task_metadata, dict):
+                try:
+                    print(f"   📊 Resolving variables for task '{task_key}'")
+                    print(f"   📊 Available results: {list(state.results.keys())}")
+                    
+                    # Resolve variables in config
+                    if "config" in task_metadata:
+                        print(f"   📊 Original config: {task_metadata['config']}")
+                        resolved_config = data_flow_resolver.resolve_config(
+                            task_metadata["config"], state.results
+                        )
+                        resolved_task["task_metadata"] = task_metadata.copy()
+                        resolved_task["task_metadata"]["config"] = resolved_config
+                        print(f"   ✅ Resolved config: {resolved_config}")
+                    
+                    # Resolve variables in agent_instructions for agent tasks
+                    if "agent_instructions" in task_metadata and isinstance(task_metadata["agent_instructions"], str):
+                        print(f"   📊 Original agent instructions: {task_metadata['agent_instructions']}")
+                        resolved_instructions = data_flow_resolver._resolve_value(
+                            task_metadata["agent_instructions"], state.results
+                        )
+                        if "task_metadata" not in resolved_task:
+                            resolved_task["task_metadata"] = task_metadata.copy()
+                        resolved_task["task_metadata"]["agent_instructions"] = resolved_instructions
+                        print(f"   ✅ Resolved agent instructions: {resolved_instructions}")
+                        
+                except Exception as e:
+                    print(f"   ⚠️  Variable resolution failed for '{task_key}': {e}")
+                    # Continue with original task if resolution fails
+
+        # Add available results to the task for agent context
+        if resolved_task.get("task_metadata") and state.results:
+            if "available_results" not in resolved_task["task_metadata"]:
+                resolved_task["task_metadata"]["available_results"] = state.results.copy()
+        
+        # Pass agent_result_format if it was set on this node
+        agent_result_format = getattr(self, '_agent_result_format', 'full')
+        # print(f"🔧 graph_nodes: using agent_result_format = {agent_result_format}")
+        
         result = await wf.run_task(
-            self.task, self.default_text, self.default_agents, self.conversation_id
+            resolved_task, self.default_text, self.default_agents, self.conversation_id,
+            agent_result_format=agent_result_format
         )
 
-        state.results[task_key] = (
-            result.get("data", result) if isinstance(result, dict) else result
-        )
+        # Store the core result value for data flow
+        if isinstance(result, dict):
+            # Extract the main value from different result formats
+            if "result" in result:
+                # Standard format: {"result": value, ...}
+                core_value = result["result"]
+            elif "user_input" in result:
+                # User input format: {"user_input": value, ...}
+                core_value = result["user_input"]
+            elif "data" in result:
+                # Legacy format: {"data": value, ...}
+                core_value = result["data"]
+            else:
+                # For complex results, store the whole dict
+                core_value = result
+        else:
+            # Simple value, store directly
+            core_value = result
+            
+        state.results[task_key] = core_value
+        print(f"   💾 Stored '{task_key}' = {core_value} (type: {type(core_value)})")
         return self.next_task if self.next_task else End(state)
 
 

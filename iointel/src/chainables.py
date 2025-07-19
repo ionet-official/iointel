@@ -5,6 +5,8 @@ from .utilities.runners import run_agents
 from .utilities.decorators import register_custom_task
 from .utilities.registries import CHAINABLE_METHODS, CUSTOM_WORKFLOW_REGISTRY
 from .agents import Agent
+from .agent_methods.agents.agents_factory import create_agent
+from .agent_methods.data_models.datamodels import AgentParams, AgentResultFormat
 
 ##############################################
 # Example Executor Functions
@@ -108,13 +110,15 @@ async def execute_sentiment(
     if client_mode:
         return sentiment_analysis(text=objective)
     else:
-        sentiment_val = await run_agents(
+        result = await run_agents(
             objective=f"Classify the sentiment of the text as a value between 0 and 1.\nText: {objective}",
             agents=agents,
             output_type=float,
             # result_validator=between(0, 1),
             # context={"text": text},
         ).execute()
+        # Extract the actual result value from the response dict
+        sentiment_val = result.get("result", result) if isinstance(result, dict) else result
         if not isinstance(sentiment_val, float):
             try:
                 return float(sentiment_val)
@@ -274,6 +278,139 @@ def execute_custom(
                 output_type=str,
             )
             return response.execute()
+
+
+@register_custom_task("agent")
+async def execute_agent_task(
+    task_metadata: dict, objective: str, agents: List[Agent], execution_metadata: dict
+):
+    """
+    Generic agent task executor that handles type='agent' tasks from WorkflowSpec.
+    This executor:
+    1. Converts AgentParams to Agent instances using agents_factory
+    2. Uses agent_instructions from task_metadata as the primary objective
+    3. Passes available results from previous tasks as context to the agent
+    4. Combines agent instructions with available data in the objective
+    5. Executes using the standard run_agents function
+    6. Follows the same pattern as other chainable tasks
+    """
+    client_mode = execution_metadata.get("client_mode", False)
+    agent_instructions = task_metadata.get("agent_instructions", "")
+    
+    # Determine result format for workflow/agent chaining
+    agent_result_format_str = execution_metadata.get("agent_result_format", "full")
+    # print(f"🔧 execute_agent_task: agent_result_format = {agent_result_format_str}")
+    
+    # Convert string format to AgentResultFormat instance
+    if agent_result_format_str == "chat":
+        result_format = AgentResultFormat.chat()
+    elif agent_result_format_str == "chat_w_tools":
+        result_format = AgentResultFormat.chat_w_tools()
+    elif agent_result_format_str == "workflow":
+        result_format = AgentResultFormat.workflow()
+    elif agent_result_format_str == "minimal":
+        # Legacy support - map to workflow format
+        result_format = AgentResultFormat.workflow()
+    else:
+        # Default to full format
+        result_format = AgentResultFormat.full()
+    
+    # print(f"🔧 execute_agent_task: using format with fields = {result_format.get_included_fields()}")
+    
+    # Convert AgentParams to Agent instances if needed
+    if not agents:
+        # This should never happen for properly constructed agent nodes
+        # The workflow_converter ALWAYS provides AgentParams for agent nodes
+        raise ValueError(
+            f"No agent configuration provided for agent node. "
+            f"Task metadata: {list(task_metadata.keys())}. "
+            f"This indicates a workflow construction error."
+        )
+    
+    if isinstance(agents[0], AgentParams):
+        # Convert AgentParams to Agent instances using the factory
+        # This properly handles model, tools, instructions, and all other fields
+        print(f"🔧 execute_agent_task: Converting {len(agents)} AgentParams to Agent instances")
+        agents_to_use = [create_agent(ap) for ap in agents]
+        # Log what was created
+        for i, agent in enumerate(agents_to_use):
+            print(f"   Agent {i}: model={getattr(agent.model, 'model_name', 'unknown')}, tools={len(agent.tools)}, name={agent.name}")
+    else:
+        # Already Agent instances
+        agents_to_use = agents
+    context = task_metadata.get("kwargs", {}).copy()
+    available_results = task_metadata.get("available_results", {})
+    
+    # Extract actual result values from the result structure
+    processed_results = {}
+    for key, value in available_results.items():
+        if isinstance(value, dict) and 'result' in value:
+            # Extract the actual result value
+            processed_results[key] = value['result']
+        else:
+            processed_results[key] = value
+    
+    # Add available results to context so agent can access them
+    if processed_results:
+        context["available_results"] = processed_results
+        # Also add individual results for easy access
+        context.update(processed_results)
+    
+    # Build task objective that includes both instructions and data context
+    if agent_instructions:
+        if processed_results:
+            # Include information about available data in the objective
+            available_data_info = ", ".join([f"{k}: {v}" for k, v in processed_results.items()])
+            task_objective = f"{agent_instructions}\n\nAvailable data from previous tasks:\n{available_data_info}"
+        else:
+            task_objective = agent_instructions
+    else:
+        task_objective = objective or "Process the available data"
+    
+    # Always use local execution for now (client mode not implemented for agent tasks)
+    response = await run_agents(
+        objective=task_objective,
+        agents=agents_to_use,
+        context=context,
+        output_type=str,
+        result_format=result_format,
+    ).execute()
+    
+    # AgentResultFormat should have already filtered the response appropriately
+    print(f"🔧 execute_agent_task: final response type = {type(response)}")
+    print(f"🔧 execute_agent_task: final response keys = {list(response.keys()) if isinstance(response, dict) else 'not a dict'}")
+    return response
+
+
+@register_custom_task("tool")
+async def execute_tool_task(task_metadata, objective, agents, execution_metadata):
+    """Portable, backend-agnostic tool executor for 'tool' nodes."""
+    from .utilities.registries import TOOLS_REGISTRY
+    import inspect
+    import logging
+    logger = logging.getLogger("iointel.chainables.tool_executor")
+
+    tool_name = task_metadata.get("tool_name")
+    config = task_metadata.get("config", {})
+    logger.info(f"[CHAINABLES] Executing tool: {tool_name}")
+    logger.debug(f"    Config: {config}")
+    tool = TOOLS_REGISTRY.get(tool_name)
+    if not tool:
+        error_msg = f"Tool '{tool_name}' not found in TOOLS_REGISTRY"
+        logger.error(error_msg)
+        raise ValueError(error_msg)
+    try:
+        config_with_metadata = config.copy()
+        config_with_metadata['execution_metadata'] = execution_metadata
+        result = tool.run(config_with_metadata)
+        if inspect.isawaitable(result):
+            result = await result
+        logger.info(f"[CHAINABLES] Tool '{tool_name}' completed: {result}")
+        return result
+    except Exception as e:
+        error_msg = f"Tool '{tool_name}' failed: {str(e)}"
+        logger.error(error_msg)
+        raise
 
 
 ##############################################

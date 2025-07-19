@@ -99,13 +99,32 @@ def resolve_tools(
             tool_data = name
         if isinstance(tool_data, str):
             logger.debug(f"Looking up the registry for tool `{tool_data}`")
-            if not (tool_obj := TOOLS_REGISTRY.get(tool_data)):
-                raise ValueError(f"Tool {tool_data} is not known")
+            # Use centralized tool resolution
+            from ...utilities.tool_registry_utils import resolve_tool
+            try:
+                tool_obj = resolve_tool(tool_data, allow_unregistered=False)
+                logger.debug(f"Resolved tool: name={tool_obj.name}, fn={tool_obj.fn.__name__}")
+                resolved_tools.append(tool_obj.model_copy(update={"fn_self": tool_obj.fn_self}))
+                continue
+            except ValueError as e:
+                raise ValueError(f"Tool {tool_data} is not known") from e
         elif isinstance(tool_data, dict):
             logger.debug(f"Rehydrating tool from dict: {tool_data}")
             tool_obj = Tool.model_validate(tool_data)
             if "body" in tool_data:
                 tool_obj.body = tool_data["body"]
+            # If the dict has a name, try to resolve it as a string first
+            if "name" in tool_data:
+                tool_name = tool_data["name"]
+                logger.debug(f"Dict has tool name '{tool_name}', trying string resolution first")
+                try:
+                    from ...utilities.tool_registry_utils import resolve_tool
+                    resolved_tool = resolve_tool(tool_name, allow_unregistered=False)
+                    logger.debug(f"Successfully resolved dict tool by name: {tool_name}")
+                    resolved_tools.append(resolved_tool.model_copy(update={"fn_self": resolved_tool.fn_self}))
+                    continue
+                except ValueError:
+                    logger.debug(f"Could not resolve dict tool by name '{tool_name}', continuing with body-based resolution")
         elif isinstance(tool_data, Tool):
             logger.debug(f"Rehydrating tool from Tool instance: {tool_data}")
             tool_obj = tool_data
@@ -123,14 +142,31 @@ def resolve_tools(
                 "Unexpected type for tool_data; expected str, dict, Tool instance, or callable."
             )
 
-        registered_tool_name, registered_tool = next(
-            (
-                (name, t)
-                for name, t in TOOLS_REGISTRY.items()
-                if t.body == tool_obj.body
-            ),
-            (None, None),
-        )
+        # For non-string tool lookups, use centralized tool resolution
+        if not isinstance(tool_data, str):
+            # Use centralized tool resolution for all tool types
+            from ...utilities.tool_registry_utils import resolve_tool
+            try:
+                resolved_tool = resolve_tool(tool_obj, allow_unregistered=False)
+                fn_name = resolved_tool.fn.__name__ if resolved_tool.fn else "None"
+                logger.debug(f"Resolved non-string tool: name={resolved_tool.name}, fn={fn_name}")
+                resolved_tools.append(resolved_tool.model_copy(update={"fn_self": resolved_tool.fn_self}))
+                continue
+            except ValueError as e:
+                logger.warning(f"Could not resolve tool {tool_obj.name} using centralized resolver: {e}")
+                # Fallback to old body comparison logic only if centralized resolution fails
+                registered_tool_name, registered_tool = next(
+                    (
+                        (name, t)
+                        for name, t in TOOLS_REGISTRY.items()
+                        if t.body == tool_obj.body
+                    ),
+                    (None, None),
+                )
+        else:
+            # This should not happen since string lookups are handled above
+            registered_tool_name = tool_data
+            registered_tool = TOOLS_REGISTRY.get(tool_data)
         if registered_tool_name:
             logger.debug(
                 f"Tool '{tool_obj.name}' found in TOOLS_REGISTRY under the custom name '{registered_tool_name}'."
@@ -158,8 +194,9 @@ def resolve_tools(
                         )
                     tool_obj = tool_obj.instantiate_from_state(fn_self)
 
+            # Use the registered tool which should have fn populated
             resolved_tools.append(
-                registered_tool.model_copy(update={"fn_self": tool_obj.fn_self})
+                registered_tool.model_copy(update={"fn_self": tool_obj.fn_self if hasattr(tool_obj, 'fn_self') else None})
             )
             continue
         else:

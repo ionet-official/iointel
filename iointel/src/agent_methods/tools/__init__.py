@@ -6,7 +6,7 @@ and convenient imports. Tools are organized into logical groups for easy discove
 """
 
 import importlib
-from typing import Any, Dict, List
+from typing import Any, Dict
 
 
 def _lazy_import(module_path: str, name: str):
@@ -36,6 +36,9 @@ from .utils import what_time_is_it
 
 # Import the smart tool loader first
 from .tool_loader import load_tools_from_env, get_registered_tools, get_tool_by_name
+
+# Import user input tools
+from . import user_input
 
 # Tool Clusters for convenience
 class ToolClusters:

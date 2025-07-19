@@ -1,0 +1,4450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WorkflowPlanner - Visual Interface</title>
+    
+    <!-- React Flow CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/reactflow@11.10.4/dist/style.css">
+    
+    <!-- Custom CSS -->
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #0f0f1a;
+            height: 100vh;
+            overflow: hidden;
+            color: #e0e0e0;
+        }
+
+        .container {
+            display: grid;
+            grid-template-columns: 400px 1fr;
+            grid-template-rows: 1fr 350px;
+            gap: 1rem;
+            height: 100vh;
+            width: 100vw;
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 100%);
+            overflow: hidden;
+            padding: 1rem;
+            box-sizing: border-box;
+        }
+
+        /* Chat Sidebar */
+        .chat-panel {
+            grid-row: 1 / -1;
+            grid-column: 1;
+            background: rgba(20, 20, 35, 0.95);
+            border-radius: 20px;
+            border: 1px solid rgba(100, 255, 100, 0.3);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .chat-header {
+            background: linear-gradient(135deg, #7DF9FF 0%, #4ecdc4 100%);
+            padding: 1rem;
+            border-radius: 20px 20px 0 0;
+            color: #0f0f1a;
+            font-weight: bold;
+            text-align: center;
+            font-size: 1.2rem;
+        }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .chat-input-container {
+            padding: 1rem;
+            border-top: 1px solid rgba(125, 249, 255, 0.3);
+            background: rgba(30, 30, 45, 0.8);
+        }
+
+        .chat-input {
+            width: 100%;
+            padding: 0.75rem;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(125, 249, 255, 0.3);
+            border-radius: 10px;
+            color: #e0e0e0;
+            font-size: 0.95rem;
+            transition: all 0.3s ease;
+        }
+
+        .chat-input:focus {
+            outline: none;
+            border-color: #7DF9FF;
+            background: rgba(255, 255, 255, 0.15);
+            box-shadow: 0 0 0 2px rgba(125, 249, 255, 0.2);
+        }
+
+        /* Main Content Area */
+        .main-content {
+            grid-column: 2;
+            grid-row: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        
+        .flow-area {
+            flex: 1;
+            background: rgba(20, 20, 35, 0.95);
+            border-radius: 20px;
+            border: 1px solid rgba(100, 255, 100, 0.3);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+            overflow: hidden;
+            position: relative;
+        }
+        
+        /* Bottom Panel - Only for main content area */
+        .bottom-panel {
+            grid-column: 2;
+            grid-row: 2;
+            background: rgba(10, 10, 10, 0.95);
+            border-top: 1px solid rgba(100, 255, 100, 0.2);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 1rem;
+            overflow: hidden;
+            width: 100%;
+            box-sizing: border-box;
+            padding: 1rem;
+            border-radius: 0 0 20px 20px;
+        }
+        
+        .bottom-section {
+            background: rgba(30, 30, 45, 0.8);
+            padding: 1.5rem;
+            overflow-y: auto;
+            position: relative;
+        }
+        
+        .bottom-section:not(:last-child)::after {
+            content: '';
+            position: absolute;
+            right: 0;
+            top: 10%;
+            bottom: 10%;
+            width: 1px;
+            background: linear-gradient(to bottom, transparent, rgba(125, 249, 255, 0.5), transparent);
+        }
+        
+        .bottom-section h3 {
+            margin: 0 0 1rem 0;
+            font-size: 1.2rem;
+            color: #7DF9FF;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* Message Bubbles */
+        .message {
+            max-width: 80%;
+            word-wrap: break-word;
+        }
+
+        .message.user {
+            align-self: flex-end;
+        }
+
+        .message.assistant {
+            align-self: flex-start;
+        }
+
+        .message-bubble {
+            padding: 0.75rem 1rem;
+            border-radius: 15px;
+            position: relative;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        }
+
+        .message.user .message-bubble {
+            background: linear-gradient(135deg, #7DF9FF 0%, #4ecdc4 100%);
+            color: #0f0f1a;
+            border-bottom-right-radius: 5px;
+        }
+
+        .message.assistant .message-bubble {
+            background: rgba(50, 50, 70, 0.8);
+            color: #e0e0e0;
+            border-bottom-left-radius: 5px;
+        }
+        
+        .message-bubble strong {
+            color: #7DF9FF;
+            font-weight: 600;
+        }
+        
+        .message-bubble em {
+            font-style: italic;
+            color: #a0d8ff;
+        }
+        
+        .message-bubble code {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            color: #7DF9FF;
+        }
+        
+        .message-bubble pre {
+            background: rgba(0, 0, 0, 0.4);
+            padding: 12px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 8px 0;
+        }
+        
+        .message-bubble pre code {
+            background: none;
+            padding: 0;
+        }
+        
+        .message-bubble h2, .message-bubble h3, .message-bubble h4 {
+            color: #7DF9FF;
+            margin: 12px 0 8px 0;
+            font-weight: 600;
+        }
+        
+        .message-bubble h2 {
+            font-size: 1.3em;
+        }
+        
+        .message-bubble h3 {
+            font-size: 1.2em;
+        }
+        
+        .message-bubble h4 {
+            font-size: 1.1em;
+        }
+        
+        .message-bubble ul, .message-bubble ol {
+            margin: 8px 0;
+            padding-left: 24px;
+        }
+        
+        .message-bubble li {
+            margin: 4px 0;
+            line-height: 1.5;
+        }
+        
+        .message-bubble p {
+            margin: 8px 0;
+            line-height: 1.5;
+        }
+        
+        .message-bubble p:first-child {
+            margin-top: 0;
+        }
+        
+        .message-bubble p:last-child {
+            margin-bottom: 0;
+        }
+
+        .message-time {
+            font-size: 0.7rem;
+            opacity: 0.7;
+            margin-top: 0.25rem;
+        }
+
+        /* Header */
+        .header {
+            display: none;
+        }
+
+        .header p {
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        /* Tool Search */
+        .tool-search-container {
+            position: relative;
+            margin-bottom: 1rem;
+        }
+
+        .tool-search {
+            width: 100%;
+            padding: 0.75rem;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(125, 249, 255, 0.3);
+            border-radius: 10px;
+            color: #e0e0e0;
+            font-size: 0.95rem;
+            transition: all 0.3s ease;
+        }
+
+        .tool-search:focus {
+            outline: none;
+            border-color: #7DF9FF;
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        .tool-results {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            margin-top: 0.5rem;
+            background: rgba(30, 30, 45, 0.98);
+            border: 1px solid rgba(125, 249, 255, 0.3);
+            border-radius: 10px;
+            max-height: 300px;
+            overflow-y: auto;
+            z-index: 1000;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+        }
+
+        .tool-result-item {
+            padding: 0.75rem;
+            border-bottom: 1px solid rgba(125, 249, 255, 0.1);
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .tool-result-item:hover {
+            background: rgba(125, 249, 255, 0.1);
+        }
+
+        .tool-result-name {
+            color: #7DF9FF;
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+        }
+
+        .tool-result-desc {
+            font-size: 0.85rem;
+            color: #a0a0a0;
+        }
+
+        /* Buttons */
+        .button {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: rgba(125, 249, 255, 0.2);
+            color: #7DF9FF;
+            border: 1px solid rgba(125, 249, 255, 0.3);
+        }
+
+        .button:hover:not(:disabled) {
+            background: rgba(125, 249, 255, 0.3);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(125, 249, 255, 0.2);
+        }
+
+        .button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .button-primary {
+            background: linear-gradient(135deg, #7DF9FF 0%, #4ecdc4 100%);
+            color: #0f0f1a;
+            border: none;
+        }
+
+        .button-danger {
+            background: rgba(244, 67, 54, 0.2);
+            color: #ff6b6b;
+            border-color: rgba(244, 67, 54, 0.3);
+        }
+
+        /* Dark theme selects */
+        .example-select, .orchestration-select {
+            padding: 0.75rem 1rem;
+            border: 1px solid rgba(125, 249, 255, 0.3);
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            background: rgba(255, 255, 255, 0.1);
+            color: #e0e0e0;
+            cursor: pointer;
+            transition: all 0.3s;
+            width: 100%;
+        }
+
+        .example-select:hover, .orchestration-select:hover {
+            background: rgba(255, 255, 255, 0.15);
+            border-color: #7DF9FF;
+        }
+
+        .example-select:focus, .orchestration-select:focus {
+            outline: none;
+            border-color: #7DF9FF;
+            box-shadow: 0 0 0 2px rgba(125, 249, 255, 0.2);
+        }
+
+        /* New orchestration section styles */
+        .orchestration-section {
+            background: #f1f3f4;
+            padding: 1rem;
+            border-radius: 8px;
+            border: 1px solid #e1e5e9;
+        }
+
+        .search-container {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .search-input {
+            flex: 1;
+            padding: 0.6rem 0.8rem;
+            border: 2px solid #e1e5e9;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            background: white;
+            transition: border-color 0.3s;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .orchestration-dropdown {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .dropdown-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .dropdown-actions .button {
+            flex: 1;
+            font-size: 0.8rem;
+            padding: 0.5rem 0.7rem;
+        }
+
+        .button-success {
+            background: linear-gradient(135deg, #28a745, #20c997);
+            color: white;
+            border: none;
+        }
+
+        .button-success:hover {
+            background: linear-gradient(135deg, #218838, #1ba885);
+            transform: translateY(-1px);
+        }
+
+        .button-danger {
+            background: linear-gradient(135deg, #dc3545, #e74c3c);
+            color: white;
+            border: none;
+        }
+
+        .button-danger:hover {
+            background: linear-gradient(135deg, #c82333, #dc2626);
+            transform: translateY(-1px);
+        }
+
+        .button-danger:disabled {
+            background: #e9ecef;
+            color: #6c757d;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .workflow-info {
+            background: #f8f9fa;
+            padding: 1rem;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .workflow-info h3 {
+            color: #333;
+            margin-bottom: 0.5rem;
+            font-size: 1rem;
+        }
+
+        .workflow-info p {
+            color: #666;
+            font-size: 0.85rem;
+            margin-bottom: 0.25rem;
+        }
+
+        .expandable-section {
+            margin-top: 1rem;
+            border-top: 1px solid #e1e5e9;
+            padding-top: 1rem;
+        }
+
+        .expandable-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            padding: 0.5rem;
+            background: #e9ecef;
+            border-radius: 6px;
+            margin-bottom: 0.5rem;
+            transition: background 0.3s;
+        }
+
+        .expandable-header:hover {
+            background: #dee2e6;
+        }
+
+        .expandable-header h4 {
+            margin: 0;
+            font-size: 0.9rem;
+            color: #333;
+        }
+
+        .expandable-header .toggle-icon {
+            transition: transform 0.3s;
+        }
+
+        .expandable-header.expanded .toggle-icon {
+            transform: rotate(180deg);
+        }
+
+        .expandable-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out;
+        }
+
+        .expandable-content.expanded {
+            max-height: 500px;
+            overflow-y: auto;
+        }
+
+        .node-item, .edge-item {
+            background: white;
+            border: 1px solid #e1e5e9;
+            border-radius: 6px;
+            padding: 0.5rem;
+            margin-bottom: 0.3rem;
+        }
+
+        .tool-pill {
+            display: inline-block;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 0.2rem 0.5rem;
+            border-radius: 12px;
+            font-size: 0.65rem;
+            margin: 0.1rem 0.2rem 0.1rem 0;
+            font-weight: 500;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Enhanced Results Display - Rich Panel Inspired */
+        .enhanced-results {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .results-section h4 {
+            color: #333;
+            margin: 0 0 1rem 0;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid #7DF9FF;
+            font-size: 1.1rem;
+        }
+
+        .task-result-card {
+            border: 2px solid #7DF9FF;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            background: #f8feff;
+            overflow: hidden;
+        }
+
+        .task-header {
+            background: linear-gradient(135deg, #7DF9FF, #4ecdc4);
+            color: white;
+            padding: 0.75rem;
+            font-weight: bold;
+        }
+
+        .agent-tools-used {
+            margin-top: 0.5rem;
+            font-size: 0.8rem;
+            font-weight: normal;
+        }
+
+        .agent-tools-used .tool-pill {
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            font-size: 0.7rem;
+        }
+
+        .task-content {
+            padding: 1rem;
+        }
+
+        .result-text {
+            line-height: 1.6;
+            color: #333;
+        }
+
+        .result-json {
+            background: #f1f3f4;
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+            padding: 1rem;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 0.9rem;
+            color: #333;
+            overflow-x: auto;
+        }
+
+        .tool-usage-highlight {
+            background: #ffeb3b;
+            color: #333;
+            padding: 0.1rem 0.3rem;
+            border-radius: 3px;
+            font-weight: 500;
+        }
+
+        /* Tool Usage Results Panels */
+        .tool-usage-panels {
+            margin-top: 1rem;
+        }
+
+        .tool-usage-panel {
+            border: 2px solid #00bcd4;
+            border-radius: 6px;
+            margin-bottom: 0.5rem;
+            background: #e0f7fa;
+        }
+
+        .tool-usage-header {
+            background: #00bcd4;
+            color: white;
+            padding: 0.5rem;
+            font-weight: bold;
+            font-size: 0.9rem;
+        }
+
+        .tool-usage-content {
+            padding: 0.75rem;
+        }
+
+        .tool-args {
+            color: #ff9800;
+            font-family: monospace;
+            font-size: 0.85rem;
+            margin: 0.25rem 0;
+        }
+
+        .tool-result {
+            color: #4caf50;
+            font-weight: 500;
+            margin: 0.25rem 0;
+        }
+
+        .tool-result::before {
+            content: "✅ ";
+            margin-right: 0.25rem;
+        }
+
+        /* Execution Task Enhancement */
+        .execution-task {
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 0.75rem;
+            margin-bottom: 0.5rem;
+            background: #fafafa;
+        }
+
+        .execution-task.completed {
+            border-color: #4caf50;
+            background: #e8f5e8;
+        }
+
+        .execution-task.running {
+            border-color: #ff9800;
+            background: #fff8e1;
+        }
+
+        .execution-task.failed {
+            border-color: #f44336;
+            background: #ffebee;
+        }
+
+        .node-item h5, .edge-item h5 {
+            margin: 0 0 0.5rem 0;
+            font-size: 0.85rem;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .node-item .detail-row, .edge-item .detail-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.75rem;
+            color: #666;
+            margin-bottom: 0.25rem;
+        }
+
+        .node-item .config-box, .edge-item .condition-box {
+            background: #f8f9fa;
+            border: 1px solid #e1e5e9;
+            border-radius: 4px;
+            padding: 0.5rem;
+            margin-top: 0.5rem;
+            font-family: monospace;
+            font-size: 0.7rem;
+            overflow-x: auto;
+        }
+
+        .port-badge {
+            display: inline-block;
+            background: #e9ecef;
+            color: #495057;
+            padding: 0.2rem 0.5rem;
+            border-radius: 12px;
+            font-size: 0.7rem;
+            margin-right: 0.25rem;
+        }
+
+        .port-badge.input {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+
+        .port-badge.output {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status {
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            display: inline-block;
+        }
+
+        .status-connected {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-disconnected {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .status-loading {
+            background: #fff3cd;
+            color: #856404;
+        }
+        
+        .status-running {
+            background: #cce5ff;
+            color: #004085;
+        }
+        
+        .status-completed {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .status-failed {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .status-started {
+            background: #e2e3e5;
+            color: #383d41;
+        }
+        
+        .execution-task {
+            padding: 0.25rem 0.5rem;
+            margin: 0.25rem 0;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            background: #f8f9fa;
+            border-left: 3px solid #28a745;
+        }
+        
+        .execution-task.running {
+            border-left-color: #007bff;
+            background: #e3f2fd;
+        }
+        
+        .execution-task.completed {
+            border-left-color: #28a745;
+            background: #e8f5e8;
+        }
+        
+        .execution-task.failed {
+            border-left-color: #dc3545;
+            background: #ffeaea;
+        }
+
+        /* Loading and thinking animations */
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.6; }
+            100% { opacity: 1; }
+        }
+
+        @keyframes thinking-dots {
+            0% { content: '...'; }
+            33% { content: '.'; }
+            66% { content: '..'; }
+            100% { content: '...'; }
+        }
+
+        @keyframes running-glow {
+            0% { box-shadow: 0 0 5px rgba(0, 123, 255, 0.3); }
+            50% { box-shadow: 0 0 15px rgba(0, 123, 255, 0.6); }
+            100% { box-shadow: 0 0 5px rgba(0, 123, 255, 0.3); }
+        }
+
+        .execution-task.running {
+            animation: running-glow 2s ease-in-out infinite;
+        }
+
+        .execution-task.running::after {
+            content: " ⚡ processing...";
+            animation: pulse 1.5s ease-in-out infinite;
+            color: #007bff;
+            font-weight: 600;
+        }
+
+        .button.loading {
+            animation: pulse 1.5s ease-in-out infinite;
+            position: relative;
+        }
+
+        .button.loading::after {
+            content: "";
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            margin: auto;
+            border: 2px solid transparent;
+            border-top-color: currentColor;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+
+        @keyframes spin {
+            0% { transform: translateY(-50%) rotate(0deg); }
+            100% { transform: translateY(-50%) rotate(360deg); }
+        }
+
+        .thinking-indicator {
+            display: inline-block;
+            animation: thinking-dots 2s ease-in-out infinite;
+        }
+
+        .thinking-indicator::after {
+            content: "...";
+            animation: pulse 1s ease-in-out infinite;
+        }
+
+        .flow-container {
+            width: 100%;
+            height: 100%;
+            background: transparent;
+        }
+        
+        /* React Flow Background */
+        .react-flow {
+            background: transparent !important;
+        }
+        
+        .react-flow__background {
+            background: transparent !important;
+        }
+        
+        .react-flow__background pattern {
+            stroke: rgba(100, 255, 100, 0.05) !important;
+        }
+
+        .controls {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 10;
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .control-button {
+            padding: 0.5rem;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            transition: all 0.3s;
+        }
+
+        .control-button:hover {
+            background: #f8f9fa;
+            transform: scale(1.05);
+        }
+
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: #7DF9FF;
+            text-align: center;
+            padding: 2rem;
+        }
+
+        .empty-state .icon {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+            opacity: 0.7;
+            animation: pulse 2s infinite;
+        }
+        
+        .empty-state h2 {
+            color: #e0e0e0;
+            margin-bottom: 0.5rem;
+        }
+        
+        .empty-state p {
+            color: #a0a0a0;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .loading {
+            animation: pulse 1.5s infinite;
+        }
+        
+        /* Node and Edge Items */
+        .node-item, .edge-item {
+            background: rgba(125, 249, 255, 0.1);
+            border: 1px solid rgba(125, 249, 255, 0.3);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 0.75rem;
+            transition: all 0.3s ease;
+        }
+        
+        .node-item:hover, .edge-item:hover {
+            background: rgba(125, 249, 255, 0.2);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(125, 249, 255, 0.2);
+        }
+        
+        .port-badge {
+            display: inline-block;
+            padding: 0.2rem 0.5rem;
+            border-radius: 12px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            margin: 0 0.2rem;
+        }
+        
+        .port-badge.input {
+            background: rgba(255, 152, 0, 0.2);
+            color: #ff9800;
+            border: 1px solid rgba(255, 152, 0, 0.3);
+        }
+        
+        .port-badge.output {
+            background: rgba(76, 175, 80, 0.2);
+            color: #4caf50;
+            border: 1px solid rgba(76, 175, 80, 0.3);
+        }
+        
+        .config-box {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 6px;
+            padding: 0.5rem;
+            margin-top: 0.5rem;
+            font-family: monospace;
+            font-size: 0.8rem;
+            white-space: pre-wrap;
+            color: #7DF9FF;
+        }
+        
+        .condition-box {
+            background: rgba(255, 193, 7, 0.2);
+            color: #ffc107;
+            border: 1px solid rgba(255, 193, 7, 0.3);
+            border-radius: 6px;
+            padding: 0.5rem;
+            margin-top: 0.5rem;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+        
+        /* Fix select option colors for dark theme */
+        select option {
+            background: #1a1a2e;
+            color: #e0e0e0;
+        }
+        
+        /* Scrollbar styling */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: rgba(125, 249, 255, 0.3);
+            border-radius: 4px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(125, 249, 255, 0.5);
+        }
+        
+        /* React Flow Node Styling - IO.net Inspired Electric Theme */
+        .react-flow__node {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%) !important;
+            border: 2px solid rgba(100, 255, 100, 0.3) !important;
+            border-radius: 16px !important;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+        }
+        
+        .react-flow__node:hover {
+            transform: translateY(-3px) scale(1.02);
+            box-shadow: 0 12px 35px rgba(100, 255, 100, 0.3), 0 0 20px rgba(100, 255, 100, 0.2) !important;
+            border-color: rgba(100, 255, 100, 0.8) !important;
+            background: linear-gradient(135deg, #1e1e35 0%, #1a2545 100%) !important;
+        }
+        
+        .react-flow__node.selected {
+            box-shadow: 0 0 0 3px rgba(100, 255, 100, 0.6), 0 8px 25px rgba(100, 255, 100, 0.2) !important;
+            border-color: rgba(100, 255, 100, 1) !important;
+            background: linear-gradient(135deg, #22223a 0%, #1e2948 100%) !important;
+        }
+
+        /* Specific node type styling */
+        .react-flow__node[data-type="tool"] {
+            background: linear-gradient(135deg, #1a1a2e 0%, #0f1419 100%) !important;
+            border-color: rgba(100, 255, 100, 0.4) !important;
+        }
+
+        .react-flow__node[data-type="agent"] {
+            background: linear-gradient(135deg, #16213e 0%, #0a1628 100%) !important;
+            border-color: rgba(125, 249, 255, 0.4) !important;
+        }
+
+        .react-flow__node[data-type="agent"]:hover {
+            border-color: rgba(125, 249, 255, 0.8) !important;
+            box-shadow: 0 12px 35px rgba(125, 249, 255, 0.3), 0 0 20px rgba(125, 249, 255, 0.2) !important;
+        }
+
+        .react-flow__node[data-type="agent"].selected {
+            border-color: rgba(125, 249, 255, 1) !important;
+            box-shadow: 0 0 0 3px rgba(125, 249, 255, 0.6), 0 8px 25px rgba(125, 249, 255, 0.2) !important;
+        }
+        
+        .react-flow__edge {
+            transition: all 0.3s ease;
+        }
+        
+        .react-flow__edge:hover {
+            stroke: rgba(100, 255, 100, 1) !important;
+            stroke-width: 3px !important;
+            filter: drop-shadow(0 0 8px rgba(100, 255, 100, 0.6));
+        }
+        
+        .react-flow__edge.selected {
+            stroke: rgba(100, 255, 100, 1) !important;
+            stroke-width: 3px !important;
+            filter: drop-shadow(0 0 12px rgba(100, 255, 100, 0.8));
+        }
+        
+        /* Node Content Styling */
+        .node-content {
+            font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-weight: 500;
+            letter-spacing: -0.01em;
+        }
+        
+        .node-title {
+            font-size: 12px;
+            font-weight: 700;
+            color: rgba(255, 255, 255, 0.98);
+            margin-bottom: 6px;
+            text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+            letter-spacing: -0.02em;
+            background: linear-gradient(135deg, #ffffff, #e0e0e0);
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.3));
+        }
+        
+        .node-id {
+            font-size: 8px;
+            color: rgba(255, 255, 255, 0.5);
+            font-weight: 500;
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            background: rgba(0, 0, 0, 0.2);
+            padding: 2px 6px;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            display: inline-block;
+        }
+        
+        .node-instructions {
+            font-size: 9px;
+            color: rgba(255, 255, 255, 0.85);
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(125, 249, 255, 0.2);
+            border-radius: 6px;
+            padding: 6px 8px;
+            margin: 6px 0;
+            line-height: 1.4;
+            max-height: 60px;
+            overflow-y: auto;
+            backdrop-filter: blur(4px);
+            transition: all 0.3s ease;
+        }
+
+        .node-instructions:hover {
+            border-color: rgba(125, 249, 255, 0.4);
+            background: rgba(0, 0, 0, 0.4);
+            max-height: 120px;
+        }
+
+        .node-instructions-collapsed {
+            max-height: 20px;
+            overflow: hidden;
+            cursor: pointer;
+        }
+
+        .node-instructions-collapsed::after {
+            content: " ▼";
+            color: rgba(125, 249, 255, 0.7);
+            font-size: 8px;
+        }
+
+        .instructions-toggle {
+            color: rgba(125, 249, 255, 0.8);
+            cursor: pointer;
+            font-size: 8px;
+            float: right;
+            margin-top: -2px;
+        }
+
+        .node-instructions-expandable {
+            cursor: pointer;
+            position: relative;
+        }
+
+        .node-instructions-expandable::after {
+            content: "👁️";
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            font-size: 10px;
+            opacity: 0.7;
+            transition: opacity 0.3s ease;
+        }
+
+        .node-instructions-expandable:hover::after {
+            opacity: 1;
+        }
+
+        .instructions-full {
+            animation: fadeIn 0.3s ease;
+        }
+
+        .instructions-preview {
+            transition: opacity 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Rich Panel-Inspired Tool Usage Display */
+        .tool-usage-panels {
+            margin-top: 1rem;
+        }
+
+        .tool-usage-panel {
+            border: 2px solid #00bcd4;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0, 188, 212, 0.1);
+            background: rgba(0, 188, 212, 0.02);
+        }
+
+        .tool-usage-header {
+            background: linear-gradient(135deg, #00bcd4, #0097a7);
+            color: white;
+            padding: 0.75rem 1rem;
+            font-weight: 600;
+            font-size: 0.9rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .tool-usage-content {
+            padding: 1rem;
+            background: rgba(255, 255, 255, 0.98);
+            color: #333;
+        }
+
+        .tool-args {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 6px;
+            padding: 0.75rem;
+            margin: 0.5rem 0;
+            font-family: 'Fira Code', 'Monaco', 'Consolas', monospace;
+            font-size: 0.85rem;
+            overflow-x: auto;
+            border-left: 4px solid #00bcd4;
+        }
+
+        .tool-result {
+            background: #f0fdf4;
+            border: 1px solid #bbf7d0;
+            border-radius: 6px;
+            padding: 0.75rem;
+            margin: 0.5rem 0;
+            color: #166534;
+            font-weight: 500;
+            border-left: 4px solid #22c55e;
+        }
+
+        .tool-result::before {
+            content: "✅ ";
+            margin-right: 0.5rem;
+        }
+
+        .tool-result pre {
+            margin: 0;
+            background: transparent;
+            border: none;
+            padding: 0;
+            color: inherit;
+            font-family: 'Fira Code', 'Monaco', 'Consolas', monospace;
+        }
+        
+        .tool-pill {
+            display: inline-block;
+            background: linear-gradient(135deg, rgba(100, 255, 100, 0.15), rgba(100, 255, 100, 0.08));
+            border: 1px solid rgba(100, 255, 100, 0.4);
+            color: rgba(100, 255, 100, 0.95);
+            padding: 3px 8px;
+            border-radius: 14px;
+            font-size: 8px;
+            font-weight: 700;
+            margin: 2px 3px;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(6px);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+        
+        .tool-pill:hover {
+            background: linear-gradient(135deg, rgba(100, 255, 100, 0.25), rgba(100, 255, 100, 0.15));
+            border-color: rgba(100, 255, 100, 0.8);
+            color: rgba(100, 255, 100, 1);
+            transform: translateY(-1px) scale(1.05);
+            box-shadow: 0 4px 12px rgba(100, 255, 100, 0.3);
+        }
+        
+        .port-badge {
+            display: inline-block;
+            padding: 2px 4px;
+            border-radius: 8px;
+            font-size: 7px;
+            font-weight: 600;
+            margin: 1px;
+            text-transform: uppercase;
+            letter-spacing: 0.02em;
+            transition: all 0.2s ease;
+            backdrop-filter: blur(4px);
+        }
+        
+        .port-badge.input {
+            background: rgba(255, 152, 0, 0.15);
+            border: 1px solid rgba(255, 152, 0, 0.3);
+            color: rgba(255, 152, 0, 0.9);
+        }
+        
+        .port-badge.input:hover {
+            background: rgba(255, 152, 0, 0.25);
+            border-color: rgba(255, 152, 0, 0.6);
+            color: rgba(255, 152, 0, 1);
+            transform: scale(1.05);
+            box-shadow: 0 2px 8px rgba(255, 152, 0, 0.3);
+        }
+        
+        .port-badge.output {
+            background: rgba(76, 175, 80, 0.15);
+            border: 1px solid rgba(76, 175, 80, 0.3);
+            color: rgba(76, 175, 80, 0.9);
+        }
+        
+        .port-badge.output:hover {
+            background: rgba(76, 175, 80, 0.25);
+            border-color: rgba(76, 175, 80, 0.6);
+            color: rgba(76, 175, 80, 1);
+            transform: scale(1.05);
+            box-shadow: 0 2px 8px rgba(76, 175, 80, 0.3);
+        }
+        
+        /* Tool Search Results */
+        .tool-results {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: rgba(20, 20, 35, 0.95);
+            border: 1px solid rgba(125, 249, 255, 0.3);
+            border-radius: 8px;
+            border-top: none;
+            border-top-left-radius: 0;
+            border-top-right-radius: 0;
+            max-height: 300px;
+            overflow-y: auto;
+            z-index: 1000;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+        
+        .tool-result-item {
+            padding: 0.75rem;
+            cursor: pointer;
+            border-bottom: 1px solid rgba(125, 249, 255, 0.2);
+            transition: background 0.2s ease;
+        }
+        
+        .tool-result-item:hover {
+            background: rgba(125, 249, 255, 0.1);
+        }
+        
+        .tool-result-item:last-child {
+            border-bottom: none;
+        }
+        
+        .tool-result-name {
+            font-weight: bold;
+            color: #7DF9FF;
+            margin-bottom: 0.25rem;
+        }
+        
+        .tool-result-desc {
+            font-size: 0.8rem;
+            color: #a0a0a0;
+            line-height: 1.3;
+        }
+
+        /* User Input Form Styles */
+        .user-input-form {
+            background: rgba(20, 20, 30, 0.95);
+            border: 1px solid rgba(100, 255, 100, 0.3);
+            border-radius: 10px;
+            padding: 1.5rem;
+            margin: 1rem 0;
+        }
+
+        .user-input-form h3 {
+            color: #64FF64;
+            margin: 0 0 1rem 0;
+            font-size: 1.2rem;
+        }
+
+        .user-input-form .form-description {
+            color: #b0b0b0;
+            margin-bottom: 1.5rem;
+            font-size: 0.9rem;
+        }
+
+        .form-field {
+            margin-bottom: 1rem;
+        }
+
+        .form-field label {
+            display: block;
+            color: #e0e0e0;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+        }
+
+        .form-field label .required {
+            color: #ff6b6b;
+        }
+
+        .form-field input,
+        .form-field textarea,
+        .form-field select {
+            width: 100%;
+            padding: 0.75rem;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(100, 255, 100, 0.3);
+            border-radius: 8px;
+            color: #e0e0e0;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+
+        .form-field input:focus,
+        .form-field textarea:focus,
+        .form-field select:focus {
+            outline: none;
+            border-color: #64FF64;
+            background: rgba(255, 255, 255, 0.15);
+            box-shadow: 0 0 0 2px rgba(100, 255, 100, 0.2);
+        }
+
+        .form-field textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        /* Enhanced Text Input Styles */
+        .enhanced-text-input-container {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            padding: 12px;
+            background: rgba(20, 20, 35, 0.8);
+            border-radius: 10px;
+            border: 1px solid rgba(125, 249, 255, 0.2);
+            margin-bottom: 16px;
+        }
+
+        .enhanced-input-label {
+            color: #7DF9FF;
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 4px;
+        }
+
+        .enhanced-textarea-wrapper {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .enhanced-textarea {
+            width: 100%;
+            min-height: 120px;
+            padding: 12px;
+            border: 2px solid rgba(125, 249, 255, 0.3);
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.05);
+            color: #e0e0e0;
+            font-family: 'Segoe UI', monospace;
+            font-size: 14px;
+            resize: vertical;
+            transition: all 0.3s ease;
+            line-height: 1.5;
+        }
+
+        .enhanced-textarea:focus {
+            outline: none;
+            border-color: #7DF9FF;
+            background: rgba(255, 255, 255, 0.1);
+            box-shadow: 0 0 0 2px rgba(125, 249, 255, 0.2);
+        }
+
+        .enhanced-textarea::placeholder {
+            color: rgba(224, 224, 224, 0.6);
+            font-style: italic;
+        }
+
+        .textarea-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 6px;
+            font-size: 12px;
+            color: rgba(224, 224, 224, 0.6);
+        }
+
+        .char-count {
+            color: rgba(125, 249, 255, 0.7);
+        }
+
+        .enhanced-run-button {
+            align-self: flex-end;
+            padding: 8px 16px;
+            background: linear-gradient(135deg, #7DF9FF 0%, #4ecdc4 100%);
+            color: #0f0f1a;
+            border: none;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 8px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .enhanced-run-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(125, 249, 255, 0.4);
+        }
+
+        .enhanced-run-button:active {
+            transform: translateY(0);
+        }
+
+        .enhanced-run-button .icon {
+            width: 14px;
+            height: 14px;
+        }
+
+        /* Collection Suggestions Styles */
+        .suggestions-container {
+            margin-bottom: 12px;
+            background: rgba(15, 15, 35, 0.9);
+            border: 1px solid rgba(125, 249, 255, 0.2);
+            border-radius: 8px;
+            padding: 8px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .suggestions-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid rgba(125, 249, 255, 0.1);
+        }
+
+        .suggestions-title {
+            font-size: 12px;
+            font-weight: 500;
+            color: #7DF9FF;
+        }
+
+        .suggestions-source {
+            font-size: 10px;
+            color: rgba(224, 224, 224, 0.7);
+            font-style: italic;
+        }
+
+        .suggestions-list {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .suggestion-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 6px 8px;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: 1px solid transparent;
+        }
+
+        .suggestion-item:hover {
+            background: rgba(125, 249, 255, 0.1);
+            border-color: rgba(125, 249, 255, 0.3);
+        }
+
+        .suggestion-text {
+            font-size: 12px;
+            color: #e0e0e0;
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            margin-right: 8px;
+        }
+
+        .suggestion-apply {
+            font-size: 10px;
+            color: #7DF9FF;
+            font-weight: 500;
+            opacity: 0.7;
+            transition: opacity 0.2s ease;
+        }
+
+        .suggestion-item:hover .suggestion-apply {
+            opacity: 1;
+        }
+
+        /* Collection Actions Styles */
+        .collection-actions {
+            display: flex;
+            gap: 4px;
+            margin-left: 8px;
+        }
+
+        .collection-action-btn {
+            background: rgba(125, 249, 255, 0.1);
+            border: 1px solid rgba(125, 249, 255, 0.3);
+            border-radius: 4px;
+            padding: 4px 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 12px;
+            color: #7DF9FF;
+        }
+
+        .collection-action-btn:hover {
+            background: rgba(125, 249, 255, 0.2);
+            border-color: rgba(125, 249, 255, 0.5);
+            transform: translateY(-1px);
+        }
+
+        .collection-action-btn:active {
+            transform: translateY(0);
+        }
+
+        .form-field .field-description {
+            color: #a0a0a0;
+            font-size: 0.8rem;
+            margin-top: 0.25rem;
+        }
+
+        .form-field.checkbox {
+            display: flex;
+            align-items: center;
+        }
+
+        .form-field.checkbox input {
+            width: auto;
+            margin-right: 0.5rem;
+        }
+
+        .form-field.checkbox label {
+            margin-bottom: 0;
+        }
+
+        .form-submit-container {
+            margin-top: 1.5rem;
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .form-submit-btn {
+            background: linear-gradient(135deg, #64FF64, #4CAF50);
+            color: #000;
+            border: none;
+            padding: 0.75rem 2rem;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 0.95rem;
+        }
+
+        .form-submit-btn:hover {
+            background: linear-gradient(135deg, #4CAF50, #64FF64);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(100, 255, 100, 0.3);
+        }
+
+        .form-submit-btn:disabled {
+            background: #666;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .form-validation-error {
+            color: #ff6b6b;
+            font-size: 0.8rem;
+            margin-top: 0.25rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Chat Panel -->
+        <div class="chat-panel">
+            <div class="chat-header">
+                🌊 WorkflowPlanner AI
+                <div id="connectionStatus" class="status status-disconnected" style="float: right; font-size: 0.8rem;">Disconnected</div>
+            </div>
+            
+            <div class="chat-messages" id="chatMessages">
+                <!-- Messages will be added here -->
+                <div class="message assistant">
+                    <div class="message-bubble">
+                        👋 Hello! I'm your intelligence workflow design assistant. Tell me what kind of workflow you'd like to create and I'll help you build it!
+                    </div>
+                    <div class="message-time">Just now</div>
+                </div>
+            </div>
+            
+            <div class="chat-input-container">
+                <textarea class="chat-input" id="chatInput" placeholder="Describe your workflow..." rows="3"></textarea>
+                <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem;">
+                    <button class="button button-primary" id="sendBtn" style="flex: 1;">
+                        <span>✨ Send</span>
+                    </button>
+                    <button class="button" id="clearChatBtn">
+                        <span>🗑️ Clear</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Workflow Controls -->
+            <div class="workflow-controls" style="display: flex; gap: 1rem; padding: 1rem; background: rgba(10, 10, 10, 0.95); border-bottom: 1px solid rgba(100, 255, 100, 0.2); align-items: center;">
+                <select id="exampleSelect" class="example-select" style="width: 180px;">
+                    <option value="">📋 Examples</option>
+                </select>
+                <select id="savedWorkflowSelect" class="orchestration-select" style="width: 180px;">
+                    <option value="">💾 Saved</option>
+                </select>
+                
+                <div style="width: 1px; height: 24px; background: rgba(100, 255, 100, 0.3);"></div>
+                
+                <div class="tool-search-container" style="position: relative; width: 300px;">
+                    <input type="text" class="tool-search" id="workflowToolSearch" placeholder="🔍 Search tools..." style="width: 100%;">
+                    <div class="tool-results" id="workflowToolResults" style="display: none;"></div>
+                </div>
+                
+                <div style="flex: 1;"></div>
+                
+                <button class="button" id="executeBtn" disabled>Run</button>
+                <button class="button" id="runWithInputsBtn" disabled style="display: none;">📝 Run with Inputs</button>
+                <button class="button" id="stopBtn" disabled style="display: none;">⏹️</button>
+                <button class="button" id="saveBtn" disabled>💾</button>
+                <button class="button" id="exportBtn" disabled>📤</button>
+                <button class="button button-danger" id="clearBtn" disabled>🗑️</button>
+            </div>
+            
+            <div class="flow-area">
+                <div id="emptyState" class="empty-state">
+                    <div class="icon">🌊</div>
+                    <h2>Start a conversation</h2>
+                    <p>Tell me what workflow you want to create in the chat!</p>
+                </div>
+                
+                <div id="flowContainer" class="flow-container" style="display: none;"></div>
+            </div>
+        </div>
+        
+        <!-- Enhanced Bottom Panel - Results and Status -->
+        <div id="bottomPanel" class="bottom-panel" style="display: none; grid-template-columns: 1fr; overflow-y: auto;">
+            <!-- Compact Results Section -->
+            <div class="bottom-section" id="resultsSection">
+                <div id="workflowInfo" style="margin-bottom: 1rem;">
+                    <h4 id="workflowTitle" style="margin: 0; font-size: 1.1rem; color: rgba(100, 255, 100, 1); display: inline;">Workflow Title</h4>
+                    <span style="margin-left: 1rem; font-size: 0.85rem; color: #a0a0a0;">
+                        <strong id="nodeCount" style="color: rgba(100, 255, 100, 1);">0</strong> nodes, 
+                        <strong id="edgeCount" style="color: rgba(100, 255, 100, 1);">0</strong> edges, 
+                        rev <strong id="revNumber" style="color: rgba(100, 255, 100, 1);">1</strong>
+                    </span>
+                </div>
+                
+                <!-- User Input Form Section -->
+                <div id="userInputSection" style="display: none;">
+                    <h4 style="margin: 0.5rem 0 0.5rem 0; color: #64FF64;">📝 Workflow Inputs</h4>
+                    <div id="userInputForm"></div>
+                </div>
+                
+                <!-- Enhanced Execution Status Section -->
+                <div id="executionStatusSection" style="display: none; background: rgba(255, 152, 0, 0.1); border: 1px solid rgba(255, 152, 0, 0.3); border-radius: 8px; padding: 1rem; margin: 1rem 0;">
+                    <h4 style="margin: 0 0 1rem 0; color: #ff9800; font-size: 1.2rem; display: flex; align-items: center; gap: 0.5rem;">
+                        ⚡ Execution Status
+                        <span id="executionSpinner" style="display: none; font-size: 0.8rem; animation: spin 1s linear infinite;">🔄</span>
+                    </h4>
+                    <div id="executionInfo" style="font-size: 1rem; line-height: 1.5;"></div>
+                </div>
+                
+                <!-- Enhanced Execution Results -->
+                <div id="executionResults" style="display: none; background: rgba(76, 175, 80, 0.1); border: 1px solid rgba(76, 175, 80, 0.3); border-radius: 8px; padding: 1rem; margin: 1rem 0;">
+                    <h4 style="margin: 0 0 1rem 0; color: #4caf50; font-size: 1.2rem;">✅ Results</h4>
+                    <div id="resultsContent" style="font-size: 1rem; line-height: 1.5; max-height: 200px; overflow-y: auto;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- React and React Flow -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/reactflow@11.10.4/dist/umd/index.js"></script>
+
+    <script>
+        // Global state
+        let currentWorkflow = null;
+        let reactFlowInstance = null;
+        let ws = null;
+        let currentExecution = null;
+        let executionTasks = {};
+        let availableTools = {};
+
+        // Initialize WebSocket connection
+        function initWebSocket() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${protocol}//${window.location.host}/ws`;
+            console.log('🔌 Connecting to WebSocket:', wsUrl);
+            
+            ws = new WebSocket(wsUrl);
+            
+            ws.onopen = function() {
+                console.log('✅ WebSocket connected');
+                updateConnectionStatus('connected');
+            };
+            
+            ws.onmessage = function(event) {
+                const data = JSON.parse(event.data);
+                console.log('📩 WebSocket message:', data.type, data);
+                if (data.type === 'workflow_update') {
+                    handleWorkflowUpdate(data.workflow);
+                } else if (data.type === 'execution_update') {
+                    handleExecutionUpdate(data);
+                }
+            };
+            
+            ws.onclose = function() {
+                console.log('❌ WebSocket closed');
+                updateConnectionStatus('disconnected');
+                // Reconnect after 3 seconds
+                setTimeout(initWebSocket, 3000);
+            };
+            
+            ws.onerror = function(error) {
+                console.error('❌ WebSocket error:', error);
+                updateConnectionStatus('disconnected');
+            };
+        }
+
+        function updateConnectionStatus(status) {
+            const statusEl = document.getElementById('connectionStatus');
+            statusEl.className = `status status-${status}`;
+            statusEl.textContent = status.charAt(0).toUpperCase() + status.slice(1);
+        }
+
+        // API calls
+        async function apiCall(endpoint, options = {}) {
+            try {
+                console.log(`Making API call to: /api${endpoint}`, options);
+                const response = await fetch(`/api${endpoint}`, {
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...options.headers
+                    },
+                    ...options
+                });
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error(`API call failed with status ${response.status}:`, errorText);
+                    throw new Error(`HTTP ${response.status}: ${errorText}`);
+                }
+                
+                const data = await response.json();
+                console.log(`API response from /api${endpoint}:`, data);
+                return data;
+            } catch (error) {
+                console.error('API call failed:', error);
+                throw error;
+            }
+        }
+
+        // Load available tools
+        async function loadTools() {
+            try {
+                const data = await apiCall('/tools');
+                const toolsList = document.getElementById('toolsList');
+                
+                if (data.tools && Object.keys(data.tools).length > 0) {
+                    const toolsHtml = Object.entries(data.tools)
+                        .slice(0, 10) // Show first 10 tools
+                        .map(([name, tool]) => `
+                            <div style="margin-bottom: 0.5rem; padding: 0.25rem; background: #f8f9fa; border-radius: 4px;">
+                                <strong>${name}</strong><br>
+                                <small>${tool.description}</small>
+                            </div>
+                        `).join('');
+                    
+                    const remaining = Object.keys(data.tools).length - 10;
+                    const suffix = remaining > 0 ? `<div style="text-align: center; color: #666; margin-top: 0.5rem;">...and ${remaining} more tools</div>` : '';
+                    
+                    toolsList.innerHTML = toolsHtml + suffix;
+                    availableTools = data.tools;
+                } else {
+                    availableTools = {};
+                }
+            } catch (error) {
+                console.error('Failed to load tools:', error);
+                availableTools = {};
+            }
+        }
+
+        // Workflow operations
+        async function generateWorkflow() {
+            const query = document.getElementById('queryInput').value.trim();
+            if (!query) return;
+
+            setLoading(true);
+            try {
+                const data = await apiCall('/generate', {
+                    method: 'POST',
+                    body: JSON.stringify({ query, refine: false })
+                });
+                
+                if (data.success) {
+                    handleWorkflowUpdate(data.workflow);
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            } catch (error) {
+                alert('Failed to generate workflow: ' + error.message);
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        async function refineWorkflow() {
+            const query = document.getElementById('queryInput').value.trim();
+            if (!query || !currentWorkflow) return;
+
+            setLoading(true);
+            try {
+                const data = await apiCall('/generate', {
+                    method: 'POST',
+                    body: JSON.stringify({ query, refine: true })
+                });
+                
+                if (data.success) {
+                    handleWorkflowUpdate(data.workflow);
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            } catch (error) {
+                alert('Failed to refine workflow: ' + error.message);
+            } finally {
+                setLoading(false);
+            }
+        }
+
+
+        async function clearWorkflow() {
+            try {
+                await apiCall('/clear', { method: 'POST' });
+                handleWorkflowUpdate(null);
+                clearExecutionStatus();
+                // Clear execution results
+                const executionResults = document.getElementById('executionResults');
+                const resultsContent = document.getElementById('resultsContent');
+                if (executionResults) {
+                    executionResults.style.display = 'none';
+                }
+                if (resultsContent) {
+                    resultsContent.innerHTML = '';
+                }
+                // Clear cached user inputs only if explicitly clearing workflow
+                clearCachedInputs();
+            } catch (error) {
+                alert('Failed to clear workflow: ' + error.message);
+            }
+        }
+        
+        async function executeWorkflow() {
+            if (!currentWorkflow) return;
+            
+            setExecutionLoading(true);
+            try {
+                // Always include cached user inputs with execution
+                const executionData = { execute_current: true };
+                
+                // Add cached user inputs if any exist
+                if (Object.keys(cachedUserInputs).length > 0) {
+                    executionData.user_inputs = cachedUserInputs;
+                    console.log('🚀 Executing workflow with cached user inputs:', cachedUserInputs);
+                    console.log('🔍 DEBUG: executionData being sent:', JSON.stringify(executionData, null, 2));
+                } else {
+                    console.log('🚀 Executing workflow without user inputs');
+                    console.log('🔍 DEBUG: cachedUserInputs is empty or undefined:', cachedUserInputs);
+                }
+                
+                const data = await apiCall('/execute', {
+                    method: 'POST',
+                    body: JSON.stringify(executionData)
+                });
+                
+                if (data.success) {
+                    currentExecution = {
+                        id: data.execution_id,
+                        status: data.status,
+                        workflow_title: currentWorkflow.title
+                    };
+                    showExecutionStatus();
+                    updateExecutionInfo();
+                } else {
+                    alert('Failed to start execution: ' + data.error);
+                }
+            } catch (error) {
+                alert('Failed to execute workflow: ' + error.message);
+            } finally {
+                setExecutionLoading(false);
+            }
+        }
+        
+        async function stopExecution() {
+            if (!currentExecution) return;
+            
+            try {
+                await apiCall(`/executions/${currentExecution.id}`, { method: 'DELETE' });
+                clearExecutionStatus();
+            } catch (error) {
+                alert('Failed to stop execution: ' + error.message);
+            }
+        }
+
+        function setLoading(loading) {
+            const sendBtn = document.getElementById('sendBtn');
+            const exampleSelect = document.getElementById('exampleSelect');
+            
+            if (sendBtn) {
+                sendBtn.disabled = loading;
+                if (loading) {
+                    sendBtn.innerHTML = '<span>⏳ Generating...</span>';
+                    sendBtn.classList.add('loading');
+                } else {
+                    sendBtn.innerHTML = '<span>✨ Send</span>';
+                    sendBtn.classList.remove('loading');
+                }
+            }
+            
+            if (exampleSelect) {
+                exampleSelect.disabled = loading;
+            }
+        }
+
+        // Handle workflow updates
+        function handleWorkflowUpdate(workflow) {
+            console.log('🔄 handleWorkflowUpdate called with:', workflow);
+            
+            // Store previous workflow before updating
+            const previousWorkflow = currentWorkflow;
+            currentWorkflow = workflow;
+            
+            if (workflow) {
+                console.log('✅ Workflow received:', {
+                    title: workflow.title,
+                    nodes: workflow.nodes?.length || 0,
+                    edges: workflow.edges?.length || 0,
+                    id: workflow.id
+                });
+                
+                // Only clear cached inputs if we're loading a completely different workflow
+                // Don't clear if we're just refreshing the same workflow
+                if (previousWorkflow && previousWorkflow.id !== workflow.id) {
+                    clearCachedInputs();
+                    console.log('🔄 Cleared cached inputs for different workflow');
+                } else {
+                    console.log('🔄 Keeping cached inputs for same workflow');
+                }
+                console.log('📋 Full workflow data:', workflow);
+                
+                updateWorkflowInfo(workflow);
+                renderWorkflow(workflow);
+                showWorkflowView();
+            } else {
+                console.log('❌ No workflow data received (null workflow)');
+                hideWorkflowInfo();
+                showEmptyState();
+            }
+            
+            updateButtons();
+        }
+
+        function updateWorkflowInfo(workflow) {
+            document.getElementById('workflowTitle').textContent = workflow.title;
+            document.getElementById('nodeCount').textContent = workflow.nodes.length;
+            document.getElementById('edgeCount').textContent = workflow.edges.length;
+            document.getElementById('revNumber').textContent = workflow.rev;
+            document.getElementById('bottomPanel').style.display = 'grid';
+        }
+        
+        function hideWorkflowInfo() {
+            const bottomPanel = document.getElementById('bottomPanel');
+            if (bottomPanel) {
+                bottomPanel.style.display = 'none';
+            }
+        }
+        
+        
+
+        function updateButtons() {
+            const buttons = ['clearBtn', 'executeBtn', 'saveBtn', 'exportBtn', 'runWithInputsBtn'];
+            
+            buttons.forEach(buttonId => {
+                const button = document.getElementById(buttonId);
+                if (button) {
+                    button.disabled = !currentWorkflow;
+                }
+            });
+            
+            // Show/hide the "Run with Inputs" button based on whether workflow has user input tools
+            const runWithInputsBtn = document.getElementById('runWithInputsBtn');
+            if (runWithInputsBtn) {
+                const hasUserInputTools = detectUserInputFormsInWorkflow(currentWorkflow);
+                if (hasUserInputTools) {
+                    runWithInputsBtn.style.display = 'inline-block';
+                    runWithInputsBtn.disabled = !currentWorkflow;
+                } else {
+                    runWithInputsBtn.style.display = 'none';
+                }
+            }
+        }
+        
+        function setExecutionLoading(loading) {
+            const executeBtn = document.getElementById('executeBtn');
+            const stopBtn = document.getElementById('stopBtn');
+            
+            if (executeBtn) {
+                executeBtn.disabled = loading || !currentWorkflow;
+                if (loading) {
+                    executeBtn.innerHTML = '🚀 Running';
+                    executeBtn.classList.add('loading');
+                } else {
+                    executeBtn.innerHTML = 'Run';
+                    executeBtn.classList.remove('loading');
+                }
+            }
+            
+            if (stopBtn) {
+                stopBtn.disabled = !currentExecution;
+            }
+        }
+
+        function showExecutionStatus() {
+            console.log('🚨 showExecutionStatus called');
+            
+            // Ensure bottom panel is visible
+            const bottomPanel = document.getElementById('bottomPanel');
+            if (bottomPanel) {
+                bottomPanel.style.display = 'grid';
+                console.log('✅ Bottom panel made visible');
+            }
+            
+            // Show execution status section
+            const executionStatusSection = document.getElementById('executionStatusSection');
+            const executionSpinner = document.getElementById('executionSpinner');
+            
+            if (executionStatusSection) {
+                executionStatusSection.style.display = 'block';
+                console.log('✅ Execution status section made visible');
+            } else {
+                console.error('❌ Execution status section not found');
+            }
+            
+            if (executionSpinner && currentExecution && currentExecution.status === 'running') {
+                executionSpinner.style.display = 'inline';
+                console.log('✅ Execution spinner made visible');
+            }
+        }
+
+        function hideExecutionStatus() {
+            const executionStatusSection = document.getElementById('executionStatusSection');
+            const executionSpinner = document.getElementById('executionSpinner');
+            
+            if (executionStatusSection) {
+                executionStatusSection.style.display = 'none';
+            }
+            
+            if (executionSpinner) {
+                executionSpinner.style.display = 'none';
+            }
+        }
+
+        function clearExecutionStatus() {
+            currentExecution = null;
+            executionTasks = {};
+            hideExecutionStatus();
+            
+            // Hide results section too
+            const executionResults = document.getElementById('executionResults');
+            if (executionResults) {
+                executionResults.style.display = 'none';
+            }
+            
+            setExecutionLoading(false);
+        }
+        
+        function handleExecutionUpdate(data) {
+            console.log('🔄 Execution update:', data);
+            
+            if (!currentExecution || currentExecution.id !== data.execution_id) {
+                console.log('Ignoring update for unknown execution');
+                return;
+            }
+            
+            currentExecution.status = data.status;
+            
+            // Control spinner based on execution status
+            const executionSpinner = document.getElementById('executionSpinner');
+            if (executionSpinner) {
+                if (data.status === 'running') {
+                    executionSpinner.style.display = 'inline';
+                } else {
+                    executionSpinner.style.display = 'none';
+                }
+            }
+            
+            if (data.results) {
+                currentExecution.results = data.results;
+                
+                // Handle task-level updates
+                if (data.results.current_task) {
+                    const taskName = data.results.current_task;
+                    const taskStatus = data.results.status;
+                    const taskResult = data.results.result;
+                    
+                    if (!executionTasks[taskName]) {
+                        executionTasks[taskName] = {};
+                    }
+                    
+                    executionTasks[taskName].status = taskStatus;
+                    if (taskResult !== undefined) {
+                        executionTasks[taskName].result = taskResult;
+                    }
+                    
+                    updateTaskDisplay(taskName, taskStatus, taskResult);
+                }
+            }
+            
+            if (data.error) {
+                currentExecution.error = data.error;
+            }
+            
+            updateExecutionInfo();
+            
+            // Show results if completed
+            if (data.status === 'completed' && data.results) {
+                showExecutionResults(data.results);
+                
+                // Don't re-render after completion to preserve user input in textareas
+                // The re-render was causing user input to be cleared
+                // Only re-render if we're awaiting input
+            }
+            
+            // Re-render the workflow to show any user input forms in nodes
+            if (currentWorkflow && data.status === 'awaiting_input') {
+                console.log('🔄 Re-rendering workflow to show user input forms');
+                handleWorkflowUpdate(currentWorkflow);
+            }
+            
+            // Handle completion or failure
+            if (data.status === 'completed' || data.status === 'failed') {
+                setExecutionLoading(false);
+                const stopBtn = document.getElementById('stopBtn');
+                if (stopBtn) {
+                    stopBtn.disabled = true;
+                }
+            }
+        }
+        
+        function showExecutionStatus() {
+            const executionStatusSection = document.getElementById('executionStatusSection');
+            if (executionStatusSection) {
+                executionStatusSection.style.display = 'block';
+            }
+        }
+        
+        function clearExecutionStatus() {
+            currentExecution = null;
+            executionTasks = {};
+            
+            const executionStatusSection = document.getElementById('executionStatusSection');
+            const executionResults = document.getElementById('executionResults');
+            const stopBtn = document.getElementById('stopBtn');
+            
+            if (executionStatusSection) {
+                executionStatusSection.style.display = 'none';
+            }
+            if (executionResults) {
+                executionResults.style.display = 'none';
+            }
+            if (stopBtn) {
+                stopBtn.disabled = true;
+            }
+        }
+        
+        function updateExecutionInfo() {
+            console.log('📊 updateExecutionInfo called', currentExecution);
+            if (!currentExecution) return;
+            
+            // Ensure the status section is visible
+            const executionStatusSection = document.getElementById('executionStatusSection');
+            if (executionStatusSection) {
+                executionStatusSection.style.display = 'block';
+            }
+            
+            const statusClass = `status-${currentExecution.status}`;
+            const statusText = currentExecution.status.charAt(0).toUpperCase() + currentExecution.status.slice(1);
+            
+            // Enhanced status text with thinking indicators
+            let enhancedStatusText = statusText;
+            if (currentExecution.status === 'running') {
+                enhancedStatusText = `${statusText} <span class="thinking-indicator"></span>`;
+            }
+
+            let infoHTML = `
+                <div class="detail-row">
+                    <span>Status:</span>
+                    <span class="status ${statusClass}">${enhancedStatusText}</span>
+                </div>
+                <div class="detail-row">
+                    <span>Execution ID:</span>
+                    <span style="font-family: monospace; font-size: 0.8em;">${currentExecution.id}</span>
+                </div>
+                <div class="detail-row">
+                    <span>Workflow:</span>
+                    <span>${currentExecution.workflow_title}</span>
+                </div>
+            `;
+            
+            if (currentExecution.error) {
+                infoHTML += `
+                    <div class="detail-row" style="margin-top: 0.5rem;">
+                        <span style="color: #dc3545; font-weight: bold;">Error:</span>
+                    </div>
+                    <div style="background: #f8d7da; color: #721c24; padding: 0.5rem; border-radius: 4px; margin-top: 0.25rem; font-size: 0.8rem;">
+                        ${currentExecution.error}
+                    </div>
+                `;
+            }
+            
+            // Add task progress with enhanced tool usage display
+            if (Object.keys(executionTasks).length > 0) {
+                infoHTML += '<div style="margin-top: 1rem;"><h4 style="margin: 0 0 0.5rem 0; font-size: 0.9rem;">📋 Task Progress:</h4>';
+                for (const [taskName, task] of Object.entries(executionTasks)) {
+                    const taskClass = task.status === 'completed' ? 'completed' : 
+                                     task.status === 'started' ? 'running' : 
+                                     task.status === 'failed' ? 'failed' : '';
+                    
+                    // Get task node info for enhanced display
+                    const taskNode = currentWorkflow?.nodes?.find(n => n.id === taskName);
+                    const isAgentTask = taskNode?.type === 'agent';
+                    const agentTools = taskNode?.data?.tools || [];
+                    const taskIcon = isAgentTask ? '🤖' : '🔧';
+                    
+                    infoHTML += `<div class="execution-task ${taskClass}">`;
+                    
+                    // Enhanced task status with thinking indicators
+                    let taskStatusDisplay = task.status;
+                    if (task.status === 'started' || task.status === 'running') {
+                        const taskTypeText = isAgentTask ? 'thinking' : 'processing';
+                        taskStatusDisplay = `${taskStatusDisplay} - ${taskTypeText}<span class="thinking-indicator"></span>`;
+                    }
+                    
+                    infoHTML += `<strong>${taskIcon} ${taskName}</strong>: ${taskStatusDisplay}`;
+                    
+                    // Show available tools for agent tasks
+                    if (isAgentTask && agentTools.length > 0) {
+                        const toolPills = agentTools.map(tool => `<span class="tool-pill" style="font-size: 0.6rem; padding: 0.1rem 0.3rem;">🔧 ${tool}</span>`).join('');
+                        infoHTML += `<div style="margin-top: 0.25rem;">${toolPills}</div>`;
+                    }
+                    
+                    // Show result if available
+                    if (task.result !== undefined) {
+                        if (typeof task.result === 'object' && task.result !== null && task.result.tool_usage_results) {
+                            // Show summary of tool usage results
+                            const toolCount = task.result.tool_usage_results.length;
+                            infoHTML += `<br><small style="color: #00bcd4;">🛠️ Used ${toolCount} tool${toolCount !== 1 ? 's' : ''}</small>`;
+                        } else if (typeof task.result === 'string') {
+                            const truncatedResult = task.result.length > 100 ? task.result.substring(0, 100) + '...' : task.result;
+                            infoHTML += `<br><small>→ ${truncatedResult}</small>`;
+                        } else {
+                            infoHTML += `<br><small>→ ${JSON.stringify(task.result)}</small>`;
+                        }
+                    }
+                    
+                    infoHTML += '</div>';
+                }
+                infoHTML += '</div>';
+            }
+            
+            document.getElementById('executionInfo').innerHTML = infoHTML;
+        }
+        
+        function updateTaskDisplay(taskName, status, result) {
+            // This is called for real-time task updates
+            console.log(`📋 Task Update: ${taskName} - ${status}`, result);
+            updateExecutionInfo(); // Refresh the entire display
+        }
+        
+        function showExecutionResults(results) {
+            const resultsDiv = document.getElementById('executionResults');
+            const resultsContent = document.getElementById('resultsContent');
+            
+            let resultsHTML = '';
+            
+            // Enhanced results display with tool usage highlighting
+            if (results.results && typeof results.results === 'object') {
+                resultsHTML = '<div class="enhanced-results">';
+                
+                // Show workflow summary
+                resultsHTML += '<div class="results-section"><h4>🎯 Workflow Results</h4>';
+                
+                // Process each task result
+                for (const [taskKey, taskResult] of Object.entries(results.results)) {
+                    const taskNode = currentWorkflow?.nodes?.find(n => n.id === taskKey);
+                    const isAgentTask = taskNode?.type === 'agent';
+                    const agentTools = taskNode?.data?.tools || [];
+                    
+                    resultsHTML += '<div class="task-result-card">';
+                    
+                    // Task header with icon and tools if available
+                    const taskIcon = isAgentTask ? '🤖' : '🔧';
+                    let taskHeader = `${taskIcon} <strong>${taskKey}</strong>`;
+                    
+                    if (isAgentTask && agentTools.length > 0) {
+                        const toolPills = agentTools.map(tool => `<span class="tool-pill">🔧 ${tool}</span>`).join('');
+                        taskHeader += `<div class="agent-tools-used">Tools Available: ${toolPills}</div>`;
+                    }
+                    
+                    resultsHTML += `<div class="task-header">${taskHeader}</div>`;
+                    
+                    // Task result content
+                    resultsHTML += '<div class="task-content">';
+                    
+                    // Check if this is an agent result with tool usage results
+                    if (typeof taskResult === 'object' && taskResult !== null) {
+                        console.log(`🔍 Processing task result for ${taskKey}:`, taskResult);
+                        // Handle structured agent result with potential tool usage
+                        const agentOutput = taskResult.result || taskResult.output || taskResult;
+                        const toolUsageResults = taskResult.tool_usage_results;
+                        console.log(`🔍 Agent output:`, agentOutput);
+                        console.log(`🔍 Tool usage results:`, toolUsageResults);
+                        
+                        // Display main agent output
+                        if (typeof agentOutput === 'string') {
+                            let displayResult = agentOutput;
+                            
+                            if (isAgentTask && agentTools.length > 0) {
+                                // Highlight potential tool usage in agent responses (only once per term)
+                                const highlightedTerms = new Set();
+                                agentTools.forEach(tool => {
+                                    if (!highlightedTerms.has(tool.toLowerCase())) {
+                                        const toolPattern = new RegExp(`\\b(${tool})\\b`, 'gi');
+                                        displayResult = displayResult.replace(toolPattern, '<mark class="tool-usage-highlight">$1</mark>');
+                                        highlightedTerms.add(tool.toLowerCase());
+                                    }
+                                });
+                            }
+                            
+                            resultsHTML += `<div class="result-text">${displayResult}</div>`;
+                        } else {
+                            resultsHTML += `<pre class="result-json">${JSON.stringify(agentOutput, null, 2)}</pre>`;
+                        }
+                        
+                        // Display tool usage results in Rich panel style
+                        console.log('🔍 Checking for tool usage results:', toolUsageResults);
+                        if (toolUsageResults && Array.isArray(toolUsageResults) && toolUsageResults.length > 0) {
+                            console.log('✅ Found tool usage results, displaying panels');
+                            resultsHTML += '<div class="tool-usage-panels">';
+                            resultsHTML += '<h5 style="margin: 1rem 0 0.5rem 0; color: #333;">🛠️ Tool Usage Results</h5>';
+                            
+                            toolUsageResults.forEach((toolUsage, index) => {
+                                // Check if this is a user input tool
+                                if (toolUsage.tool_result && typeof toolUsage.tool_result === 'object' && 
+                                    toolUsage.tool_result.tool_type === 'user_input') {
+                                    
+                                    // Render the simple user input form with task context
+                                    setTimeout(() => {
+                                        renderSimpleUserInputForm(toolUsage.tool_result, taskKey);
+                                    }, 100);
+                                    
+                                    resultsHTML += '<div class="tool-usage-panel">';
+                                    resultsHTML += `<div class="tool-usage-header">📝 ${toolUsage.tool_name} - User Input Required</div>`;
+                                    resultsHTML += '<div class="tool-usage-content">';
+                                    resultsHTML += `<div class="tool-result">✅ Input form "${toolUsage.tool_result.prompt}" is now available below.</div>`;
+                                    resultsHTML += '</div>';
+                                    resultsHTML += '</div>';
+                                } else {
+                                    // Regular tool usage result
+                                    resultsHTML += '<div class="tool-usage-panel">';
+                                    resultsHTML += `<div class="tool-usage-header">🛠️ ${toolUsage.tool_name}</div>`;
+                                    resultsHTML += '<div class="tool-usage-content">';
+                                    
+                                    // Show tool arguments
+                                    if (toolUsage.tool_args && Object.keys(toolUsage.tool_args).length > 0) {
+                                        resultsHTML += '<div><strong>Arguments:</strong></div>';
+                                        resultsHTML += `<div class="tool-args">${JSON.stringify(toolUsage.tool_args, null, 2)}</div>`;
+                                    }
+                                    
+                                    // Show tool result
+                                    if (toolUsage.tool_result !== undefined && toolUsage.tool_result !== null) {
+                                        resultsHTML += '<div><strong>Result:</strong></div>';
+                                        if (typeof toolUsage.tool_result === 'string') {
+                                            resultsHTML += `<div class="tool-result">${toolUsage.tool_result}</div>`;
+                                        } else {
+                                            resultsHTML += `<div class="tool-result"><pre>${JSON.stringify(toolUsage.tool_result, null, 2)}</pre></div>`;
+                                        }
+                                    }
+                                    
+                                    resultsHTML += '</div>'; // tool-usage-content
+                                    resultsHTML += '</div>'; // tool-usage-panel
+                                }
+                            });
+                            
+                            resultsHTML += '</div>'; // tool-usage-panels
+                        }
+                    } else if (typeof taskResult === 'string') {
+                        // Simple string result
+                        let displayResult = taskResult;
+                        
+                        if (isAgentTask && agentTools.length > 0) {
+                            // Highlight potential tool usage in agent responses (only once per term)
+                            const highlightedTerms = new Set();
+                            agentTools.forEach(tool => {
+                                if (!highlightedTerms.has(tool.toLowerCase())) {
+                                    const toolPattern = new RegExp(`\\b(${tool})\\b`, 'gi');
+                                    displayResult = displayResult.replace(toolPattern, '<mark class="tool-usage-highlight">$1</mark>');
+                                    highlightedTerms.add(tool.toLowerCase());
+                                }
+                            });
+                        }
+                        
+                        resultsHTML += `<div class="result-text">${displayResult}</div>`;
+                    } else {
+                        // Fallback to JSON display
+                        resultsHTML += `<pre class="result-json">${JSON.stringify(taskResult, null, 2)}</pre>`;
+                    }
+                    
+                    resultsHTML += '</div>'; // task-content
+                    resultsHTML += '</div>'; // task-result-card
+                }
+                
+                resultsHTML += '</div>'; // results-section
+                resultsHTML += '</div>'; // enhanced-results
+            } else {
+                // Fallback to original JSON display
+                const jsonString = results.results ? JSON.stringify(results.results, null, 2) : JSON.stringify(results, null, 2);
+                resultsHTML = `<pre class="result-json">${jsonString}</pre>`;
+            }
+            
+            resultsContent.innerHTML = resultsHTML;
+            resultsDiv.style.display = 'block';
+        }
+
+        function showEmptyState() {
+            document.getElementById('emptyState').style.display = 'flex';
+            document.getElementById('flowContainer').style.display = 'none';
+        }
+
+        function showWorkflowView() {
+            document.getElementById('emptyState').style.display = 'none';
+            document.getElementById('flowContainer').style.display = 'block';
+        }
+
+        // React Flow state management
+        let currentNodes = [];
+        let currentEdges = [];
+        
+        // Instructions toggle function
+        function toggleInstructions(nodeId) {
+            const preview = document.getElementById(`preview-${nodeId}`);
+            const full = document.getElementById(`full-${nodeId}`);
+            
+            if (preview && full) {
+                if (full.style.display === 'none') {
+                    preview.style.display = 'none';
+                    full.style.display = 'block';
+                } else {
+                    preview.style.display = 'block';
+                    full.style.display = 'none';
+                }
+            }
+        }
+
+        // React Flow rendering with rich node display
+        function renderWorkflow(workflow) {
+            console.log('🎨 renderWorkflow called with:', workflow);
+            const container = document.getElementById('flowContainer');
+            
+            // Convert workflow to React Flow format with rich node content
+            console.log('🔄 Converting nodes:', workflow.nodes);
+            console.log('🔍 Current execution results:', currentExecution);
+            if (currentExecution && currentExecution.results) {
+                console.log('🔍 Available result node IDs:', Object.keys(currentExecution.results.results || {}));
+            }
+            currentNodes = workflow.nodes.map((node, index) => {
+                // Create rich HTML content for the node with new styling
+                const nodeIcon = getNodeIcon(node.type);
+                let nodeContent = `
+                    <div class="node-content" style="padding: 12px; min-width: 200px;">
+                        <div class="node-title">
+                            ${nodeIcon} ${node.label}
+                        </div>
+                        <div class="node-id">
+                            ${node.id}
+                        </div>
+                `;
+                
+                // Add type-specific information
+                if (node.type === 'agent' && node.data.agent_instructions) {
+                    const fullInstructions = node.data.agent_instructions;
+                    const preview = fullInstructions.length > 80 ? 
+                        fullInstructions.substring(0, 80) + '...' : 
+                        fullInstructions;
+                    
+                    nodeContent += `
+                        <div class="node-instructions ${fullInstructions.length > 80 ? 'node-instructions-expandable' : ''}" 
+                             title="${fullInstructions.replace(/"/g, '&quot;')}"
+                             onclick="toggleInstructions('${node.id}')">
+                            <div class="instructions-preview" id="preview-${node.id}">
+                                📋 ${preview}
+                            </div>
+                            ${fullInstructions.length > 80 ? `
+                            <div class="instructions-full" id="full-${node.id}" style="display: none;">
+                                📋 ${fullInstructions}
+                            </div>
+                            ` : ''}
+                        </div>
+                    `;
+                    
+                    // Add model information for agent nodes
+                    if (node.data.model) {
+                        nodeContent += `
+                            <div class="node-model" style="margin-top: 4px; font-size: 11px; color: #666;">
+                                🤖 ${node.data.model}
+                            </div>
+                        `;
+                    }
+                    
+                    // Add tool pills for agent nodes
+                    if (node.data.tools && node.data.tools.length > 0) {
+                        const toolPills = node.data.tools.map(tool => 
+                            `<span class="tool-pill">🔧${tool}</span>`
+                        ).join(' ');
+                        nodeContent += `
+                            <div style="margin-top: 6px;">
+                                ${toolPills}
+                            </div>
+                        `;
+                    }
+                } else if (node.type === 'tool' && node.data.tool_name) {
+                    nodeContent += `
+                        <div class="node-instructions">
+                            Tool: ${node.data.tool_name}
+                        </div>
+                    `;
+                }
+                
+                // Add input/output ports
+                const inputPorts = node.data.ins || [];
+                const outputPorts = node.data.outs || [];
+                
+                if (inputPorts.length > 0 || outputPorts.length > 0) {
+                    nodeContent += `<div style="margin-top: 8px;">`;
+                    
+                    if (inputPorts.length > 0) {
+                        const inputs = inputPorts.map(p => 
+                            `<span class="port-badge input">→${p}</span>`
+                        ).join(' ');
+                        nodeContent += `<div style="margin-bottom: 3px;">${inputs}</div>`;
+                    }
+                    
+                    if (outputPorts.length > 0) {
+                        const outputs = outputPorts.map(p => 
+                            `<span class="port-badge output">${p}→</span>`
+                        ).join(' ');
+                        nodeContent += `<div>${outputs}</div>`;
+                    }
+                    
+                    nodeContent += `</div>`;
+                }
+                
+                // Check if this node should show a user input form
+                const shouldShowInput = checkNodeForUserInput(node);
+                console.log('🔍 Node', node.id, 'should show input:', shouldShowInput);
+                if (shouldShowInput) {
+                    // Use enhanced UI for text input tools
+                    const toolName = node.data.tool_name || 'user_input';
+                    if (isTextInputTool(toolName)) {
+                        nodeContent += `
+                            <div class="user-input-section" style="margin-top: 8px;">
+                                ${createEnhancedTextInput(node.id, toolName, node.data.config || {}, '', [], null)}
+                            </div>
+                        `;
+                        // Initialize character counts after DOM update
+                        setTimeout(() => initializeCharacterCounts(), 100);
+                    } else {
+                        // Fallback for non-enhanced tools
+                        nodeContent += `
+                            <div class="user-input-section" style="margin-top: 8px; padding: 8px; background: rgba(100, 255, 100, 0.1); border-radius: 6px;">
+                                <input 
+                                    type="text" 
+                                    id="input-${node.id}" 
+                                    placeholder="${shouldShowInput.placeholder || 'Enter your input...'}"
+                                    style="width: 100%; padding: 6px; border: 1px solid rgba(100, 255, 100, 0.5); border-radius: 4px; background: rgba(0,0,0,0.3); color: white;"
+                                />
+                                <button 
+                                    onclick="runWorkflowWithNodeInput('${node.id}')"
+                                    style="width: 100%; margin-top: 6px; padding: 6px; background: linear-gradient(135deg, #64FF64, #4CAF50); color: black; border: none; border-radius: 4px; font-weight: 600; cursor: pointer;"
+                                >
+                                    Run Workflow
+                                </button>
+                            </div>
+                        `;
+                    }
+                }
+                
+                nodeContent += `</div>`;
+                
+                const reactFlowNode = {
+                    id: node.id,
+                    type: 'default',
+                    position: node.position || { x: index * 280, y: index * 120 },
+                    data: {
+                        label: React.createElement('div', {
+                            dangerouslySetInnerHTML: { __html: nodeContent }
+                        })
+                    },
+                    draggable: true,
+                    selectable: true,
+                    style: {
+                        background: `linear-gradient(135deg, ${getNodeColor(node.type)}88, ${getNodeColor(node.type)}44)`,
+                        color: 'white',
+                        border: '1px solid rgba(100, 255, 100, 0.3)',
+                        borderRadius: '16px',
+                        padding: '0px',
+                        fontSize: '11px',
+                        cursor: 'grab',
+                        minWidth: '240px',
+                        minHeight: '90px',
+                        boxShadow: '0 4px 20px rgba(0, 0, 0, 0.15)',
+                        overflow: 'hidden',
+                        backdropFilter: 'blur(8px)',
+                        WebkitBackdropFilter: 'blur(8px)'
+                    }
+                };
+                console.log(`   Node ${index}: ${node.id} -> ReactFlow node:`, reactFlowNode);
+                return reactFlowNode;
+            });
+
+            console.log('🔄 Converting edges:', workflow.edges);
+            currentEdges = workflow.edges.map((edge, index) => {
+                // Create rich edge label with connection details
+                let edgeLabel = '';
+                const sourceHandle = edge.sourceHandle || 'default';
+                const targetHandle = edge.targetHandle || 'default';
+                
+                if (sourceHandle !== 'default' || targetHandle !== 'default') {
+                    edgeLabel = `${sourceHandle} → ${targetHandle}`;
+                }
+                
+                if (edge.data?.condition) {
+                    edgeLabel = edgeLabel ? `${edgeLabel}\\nif: ${edge.data.condition}` : `if: ${edge.data.condition}`;
+                }
+                
+                const reactFlowEdge = {
+                    id: edge.id,
+                    source: edge.source,
+                    target: edge.target,
+                    sourceHandle: edge.sourceHandle,
+                    targetHandle: edge.targetHandle,
+                    label: edgeLabel,
+                    style: { 
+                        stroke: 'rgba(100, 255, 100, 0.8)', 
+                        strokeWidth: 2,
+                        strokeDasharray: edge.data?.condition ? '5,5' : 'none'
+                    },
+                    labelStyle: { 
+                        fontSize: '9px', 
+                        fill: 'rgba(100, 255, 100, 1)', 
+                        fontWeight: 'bold'
+                    },
+                    labelBgStyle: { 
+                        fill: 'rgba(10, 10, 10, 0.95)', 
+                        fillOpacity: 0.9,
+                        rx: 4,
+                        ry: 4
+                    },
+                    markerEnd: {
+                        type: 'arrowclosed',
+                        color: 'rgba(100, 255, 100, 0.8)'
+                    }
+                };
+                console.log(`   Edge ${index}: ${edge.source} -> ${edge.target}:`, reactFlowEdge);
+                return reactFlowEdge;
+            });
+
+            console.log('📊 Final ReactFlow data:', { currentNodes, currentEdges });
+
+            // Check if ReactFlow is available
+            if (typeof ReactFlow === 'undefined') {
+                console.error('ReactFlow not loaded properly');
+                container.innerHTML = '<div style="padding: 2rem; text-align: center; color: #666;">React Flow failed to load. Please refresh the page.</div>';
+                return;
+            }
+
+            console.log('ReactFlow object:', ReactFlow);
+
+            // Create React Flow component using React.createElement
+            // Use the hooks from ReactFlow
+            const { ReactFlowProvider, applyNodeChanges, applyEdgeChanges } = ReactFlow;
+            const ReactFlowComponent = ReactFlow.default || ReactFlow.ReactFlow;
+            
+            console.log('Using ReactFlow component:', ReactFlowComponent);
+            console.log('ReactFlow hooks available:', { ReactFlowProvider, applyNodeChanges, applyEdgeChanges });
+            
+            if (!ReactFlowComponent) {
+                console.error('ReactFlow component not found!');
+                container.innerHTML = '<div style="padding: 2rem; text-align: center; color: #dc3545;">ReactFlow failed to load. Check console for details.</div>';
+                return;
+            }
+            
+            // Create a controlled component that manages nodes/edges state
+            const FlowApp = function() {
+                const [nodes, setNodes] = React.useState(currentNodes);
+                const [edges, setEdges] = React.useState(currentEdges);
+                
+                const onNodesChange = React.useCallback((changes) => {
+                    setNodes((nds) => {
+                        const updated = applyNodeChanges(changes, nds);
+                        console.log('Nodes updated:', changes);
+                        return updated;
+                    });
+                }, []);
+                
+                const onEdgesChange = React.useCallback((changes) => {
+                    setEdges((eds) => applyEdgeChanges(changes, eds));
+                }, []);
+                
+                const onConnect = React.useCallback((connection) => {
+                    console.log('New connection:', connection);
+                }, []);
+                
+                const onInit = React.useCallback((instance) => {
+                    reactFlowInstance = instance;
+                    console.log('ReactFlow initialized with instance:', instance);
+                    console.log('fitView available:', typeof instance.fitView);
+                    // Fit view after initialization
+                    setTimeout(() => instance.fitView({ padding: 0.1 }), 100);
+                }, []);
+                
+                const onNodeDragStart = React.useCallback((event, node) => {
+                    console.log('Node drag started:', node.id);
+                }, []);
+                
+                const onNodeDrag = React.useCallback((event, node) => {
+                    console.log('Node dragging:', node.id, node.position);
+                }, []);
+                
+                const onNodeDragStop = React.useCallback((event, node) => {
+                    console.log('Node drag stopped:', node.id, node.position);
+                }, []);
+                
+                return React.createElement(ReactFlowComponent, {
+                    nodes: nodes,
+                    edges: edges,
+                    onNodesChange: onNodesChange,
+                    onEdgesChange: onEdgesChange,
+                    onConnect: onConnect,
+                    onInit: onInit,
+                    onNodeDragStart: onNodeDragStart,
+                    onNodeDrag: onNodeDrag,
+                    onNodeDragStop: onNodeDragStop,
+                    nodesDraggable: true,
+                    nodesConnectable: true,
+                    elementsSelectable: true,
+                    panOnDrag: [1, 2], // Left or middle mouse button
+                    selectionOnDrag: false,
+                    zoomOnScroll: true,
+                    zoomOnPinch: true,
+                    zoomOnDoubleClick: true,
+                    preventScrolling: true,
+                    fitView: false,
+                    attributionPosition: 'bottom-left',
+                    defaultViewport: { x: 0, y: 0, zoom: 1 }
+                });
+            };
+
+            // Wrap in ReactFlowProvider for proper functionality
+            console.log('Creating wrapped component with provider...');
+            
+            let AppComponent;
+            if (ReactFlowProvider) {
+                // Wrap the flow component in provider
+                AppComponent = React.createElement(ReactFlowProvider, {},
+                    React.createElement(FlowApp)
+                );
+                console.log('Created component with ReactFlowProvider');
+            } else {
+                // Use without provider if not available
+                AppComponent = React.createElement(FlowApp);
+                console.log('Created component without provider');
+            }
+            
+            // Render to DOM
+            try {
+                const root = ReactDOM.createRoot ? ReactDOM.createRoot(container) : null;
+                if (root) {
+                    root.render(AppComponent);
+                } else {
+                    ReactDOM.render(AppComponent, container);
+                }
+                console.log('Workflow rendered successfully with controlled state management');
+            } catch (error) {
+                console.error('Error rendering workflow:', error);
+                container.innerHTML = `<div style="padding: 2rem; text-align: center; color: #dc3545;">Error rendering workflow: ${error.message}</div>`;
+            }
+        }
+
+        function getNodeIcon(type) {
+            const icons = {
+                'tool': '🔧',
+                'agent': '🤖',
+                'workflow_call': '📞',
+                'decision': '🤔'
+            };
+            return icons[type] || '⚙️';
+        }
+
+        function getNodeColor(type) {
+            const colors = {
+                'tool': 'rgba(50, 50, 50, 0.9)',
+                'agent': 'rgba(30, 30, 30, 0.9)',
+                'workflow_call': 'rgba(40, 40, 40, 0.9)',
+                'decision': 'rgba(45, 45, 45, 0.9)'
+            };
+            return colors[type] || 'rgba(35, 35, 35, 0.9)';
+        }
+
+        // Utility functions
+        function fitView() {
+            if (reactFlowInstance) {
+                console.log('Fitting view with instance:', reactFlowInstance);
+                reactFlowInstance.fitView({ padding: 0.2, duration: 800 });
+            } else {
+                console.log('ReactFlow instance not available yet');
+            }
+        }
+
+        function downloadWorkflow() {
+            if (!currentWorkflow) return;
+            
+            const dataStr = JSON.stringify(currentWorkflow, null, 2);
+            const dataBlob = new Blob([dataStr], {type: 'application/json'});
+            
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(dataBlob);
+            link.download = `${currentWorkflow.title.replace(/\s+/g, '_')}.json`;
+            link.click();
+        }
+
+        // Example workflows functions
+        async function loadExamples() {
+            try {
+                const response = await fetch('/api/workflows/combined');
+                const data = await response.json();
+                
+                const exampleSelect = document.getElementById('exampleSelect');
+                const savedSelect = document.getElementById('savedWorkflowSelect');
+                
+                // Clear existing options except the first one
+                exampleSelect.innerHTML = '<option value="">📋 Select Example...</option>';
+                savedSelect.innerHTML = '<option value="">💾 Select Saved...</option>';
+                
+                // Add example options to examples dropdown
+                Object.entries(data.examples).forEach(([key, example]) => {
+                    const option = document.createElement('option');
+                    option.value = key;
+                    option.textContent = `📋 ${example.title} (${example.node_count} nodes)`;
+                    option.title = example.description;
+                    option.dataset.source = 'example';
+                    exampleSelect.appendChild(option);
+                });
+                
+                // Add saved workflows grouped by lineage
+                if (data.lineage_groups && Object.keys(data.lineage_groups).length > 0) {
+                    Object.values(data.lineage_groups).forEach(group => {
+                        // Add group header (not selectable)
+                        const groupHeader = document.createElement('option');
+                        groupHeader.disabled = true;
+                        groupHeader.textContent = `📁 ${group.title} (${group.total_revisions} revisions)`;
+                        groupHeader.style.fontWeight = 'bold';
+                        groupHeader.style.backgroundColor = '#f0f0f0';
+                        savedSelect.appendChild(groupHeader);
+                        
+                        // Add individual revisions
+                        group.revisions.forEach(revision => {
+                            const option = document.createElement('option');
+                            option.value = revision.id;
+                            const isLatest = revision.rev === group.latest_rev ? ' ← Current' : '';
+                            option.textContent = `  ├── Rev ${revision.rev} (${revision.node_count} nodes)${isLatest}`;
+                            option.title = revision.description;
+                            option.dataset.source = 'saved';
+                            option.dataset.baseId = group.base_id;
+                            option.dataset.rev = revision.rev;
+                            savedSelect.appendChild(option);
+                        });
+                    });
+                } else {
+                    // Fallback to individual workflows if no lineage groups
+                    Object.entries(data.saved).forEach(([key, workflow]) => {
+                        const option = document.createElement('option');
+                        option.value = key;
+                        option.textContent = `💾 ${workflow.title} (${workflow.node_count} nodes)`;
+                        option.title = workflow.description;
+                        option.dataset.source = 'saved';
+                        savedSelect.appendChild(option);
+                    });
+                }
+                
+                console.log('✅ Loaded examples:', {
+                    examples: Object.keys(data.examples).length,
+                    saved: Object.keys(data.saved).length
+                });
+            } catch (error) {
+                console.error('❌ Error loading examples:', error);
+            }
+        }
+        
+        async function loadSelectedExample() {
+            const selectElement = document.getElementById('exampleSelect');
+            const selectedValue = selectElement.value;
+            
+            if (!selectedValue) {
+                return; // No selection made
+            }
+            
+            try {
+                setLoading(true);
+                console.log('📋 Loading workflow:', selectedValue);
+                
+                const isExample = selectElement.options[selectElement.selectedIndex].dataset.source === 'example';
+                
+                let response;
+                if (isExample) {
+                    response = await fetch(`/api/example/${selectedValue}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' }
+                    });
+                } else {
+                    response = await fetch(`/api/workflows/load/${selectedValue}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' }
+                    });
+                }
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                console.log('📦 Received workflow data:', data);
+                
+                if (data.workflow) {
+                    console.log('🔄 Updating workflow with data');
+                    
+                    // Use the same function that handles AI-generated workflows
+                    handleWorkflowUpdate(data.workflow);
+                    
+                    // Reset dropdown to placeholder
+                    selectElement.value = '';
+                    
+                    console.log('✅ Workflow loaded:', data.workflow.title);
+                } else {
+                    console.error('❌ No workflow in response:', data);
+                    alert('Failed to load workflow: No workflow data received');
+                }
+            } catch (error) {
+                console.error('❌ Error loading workflow:', error);
+                alert('Failed to load workflow: ' + error.message);
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        async function loadSelectedSavedWorkflow() {
+            const selectElement = document.getElementById('savedWorkflowSelect');
+            const selectedValue = selectElement.value;
+            
+            if (!selectedValue) {
+                return; // No selection made
+            }
+            
+            try {
+                setLoading(true);
+                console.log('💾 Loading saved workflow:', selectedValue);
+                
+                const response = await fetch(`/api/workflows/load/${selectedValue}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                console.log('📦 Received saved workflow data:', data);
+                
+                if (data.workflow) {
+                    console.log('🔄 Updating workflow with saved data');
+                    
+                    // Use the same function that handles AI-generated workflows
+                    handleWorkflowUpdate(data.workflow);
+                    
+                    // Reset dropdown to placeholder
+                    selectElement.value = '';
+                    
+                    console.log('✅ Saved workflow loaded:', data.workflow.title);
+                    addMessageToChat(`💾 Loaded saved workflow: "${data.workflow.title}"`, 'assistant');
+                } else {
+                    console.error('❌ No workflow in response:', data);
+                    alert('Failed to load saved workflow: No workflow data received');
+                }
+            } catch (error) {
+                console.error('❌ Error loading saved workflow:', error);
+                alert('Failed to load saved workflow: ' + error.message);
+            } finally {
+                setLoading(false);
+            }
+        }
+        
+        // Delete workflow functionality removed - can be added to a separate UI later
+        
+        async function saveCurrentWorkflow() {
+            if (!currentWorkflow) {
+                alert('No workflow to save');
+                return;
+            }
+            
+            const name = prompt('Enter a name for this workflow:', currentWorkflow.title || 'My Workflow');
+            if (!name) return;
+            
+            const description = prompt('Enter a description (optional):', currentWorkflow.description || '');
+            const tagsInput = prompt('Enter tags (comma-separated, optional):', '');
+            const tags = tagsInput ? tagsInput.split(',').map(t => t.trim()).filter(t => t) : [];
+            
+            try {
+                setLoading(true);
+                
+                const response = await fetch('/api/workflows/save', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, description, tags })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    console.log('✅ Workflow saved:', data.workflow_id);
+                    alert(`Workflow "${name}" saved successfully!`);
+                    await loadExamples(); // Refresh the list
+                } else {
+                    throw new Error(data.error || 'Save failed');
+                }
+            } catch (error) {
+                console.error('❌ Error saving workflow:', error);
+                alert('Failed to save workflow: ' + error.message);
+            } finally {
+                setLoading(false);
+            }
+        }
+        
+        async function exportCurrentWorkflowYAML() {
+            if (!currentWorkflow) {
+                alert('No workflow to export');
+                return;
+            }
+            
+            try {
+                // Generate YAML from current workflow
+                const response = await fetch('/api/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        query: 'export current workflow as yaml',
+                        refine: false 
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to generate YAML export');
+                }
+                
+                // For now, just download the workflow as JSON
+                // TODO: Add proper YAML export endpoint
+                const workflowName = currentWorkflow.title?.replace(/[^a-z0-9]/gi, '_') || 'workflow';
+                const dataStr = JSON.stringify(currentWorkflow, null, 2);
+                const dataBlob = new Blob([dataStr], {type: 'application/json'});
+                
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(dataBlob);
+                link.download = `${workflowName}.json`;
+                link.click();
+                
+                console.log('✅ Workflow exported');
+            } catch (error) {
+                console.error('❌ Error exporting workflow:', error);
+                alert('Failed to export workflow: ' + error.message);
+            }
+        }
+
+        // Event listeners
+        function initializeEventListeners() {
+            // Workflow controls
+            const exampleSelect = document.getElementById('exampleSelect');
+            const savedWorkflowSelect = document.getElementById('savedWorkflowSelect');
+            const clearBtn = document.getElementById('clearBtn');
+            const executeBtn = document.getElementById('executeBtn');
+            const runWithInputsBtn = document.getElementById('runWithInputsBtn');
+            const stopBtn = document.getElementById('stopBtn');
+            const saveBtn = document.getElementById('saveBtn');
+            const exportBtn = document.getElementById('exportBtn');
+            
+            if (exampleSelect) {
+                exampleSelect.addEventListener('change', loadSelectedExample);
+            }
+            
+            if (savedWorkflowSelect) {
+                savedWorkflowSelect.addEventListener('change', loadSelectedSavedWorkflow);
+            }
+            
+            if (clearBtn) {
+                clearBtn.addEventListener('click', clearWorkflow);
+            }
+            
+            if (executeBtn) {
+                executeBtn.addEventListener('click', executeWorkflow);
+            }
+            
+            if (runWithInputsBtn) {
+                runWithInputsBtn.addEventListener('click', triggerWorkflowForInputs);
+            }
+            
+            if (stopBtn) {
+                stopBtn.addEventListener('click', stopExecution);
+            }
+            
+            if (saveBtn) {
+                saveBtn.addEventListener('click', saveCurrentWorkflow);
+            }
+            
+            if (exportBtn) {
+                exportBtn.addEventListener('click', exportCurrentWorkflowYAML);
+            }
+        }
+
+        // Debug function to check loaded libraries
+        function debugLibraries() {
+            console.log('=== Library Debug ===');
+            console.log('React:', typeof React);
+            console.log('ReactDOM:', typeof ReactDOM);
+            console.log('ReactFlow:', typeof ReactFlow);
+            console.log('window.ReactFlow:', typeof window.ReactFlow);
+            if (typeof ReactFlow !== 'undefined') {
+                console.log('ReactFlow keys:', Object.keys(ReactFlow));
+                console.log('ReactFlow.default:', typeof ReactFlow.default);
+                console.log('ReactFlow.ReactFlow:', typeof ReactFlow.ReactFlow);
+                console.log('applyNodeChanges:', typeof ReactFlow.applyNodeChanges);
+                console.log('applyEdgeChanges:', typeof ReactFlow.applyEdgeChanges);
+            }
+            console.log('==================');
+        }
+
+        // Initialize
+        // Chat Interface Functions
+        function initializeChatInterface() {
+            const chatInput = document.getElementById('chatInput');
+            const sendBtn = document.getElementById('sendBtn');
+            const clearChatBtn = document.getElementById('clearChatBtn');
+            
+            // Send on button click
+            sendBtn.addEventListener('click', sendChatMessage);
+            
+            // Send on Enter (but not Shift+Enter)
+            chatInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    sendChatMessage();
+                }
+            });
+            
+            // Clear chat
+            clearChatBtn.addEventListener('click', () => {
+                document.getElementById('chatMessages').innerHTML = `
+                    <div class="message assistant">
+                        <div class="message-bubble">
+                            👋 Hello! I'm your workflow design assistant. Tell me what kind of workflow you'd like to create and I'll help you build it!
+                        </div>
+                        <div class="message-time">Just now</div>
+                    </div>
+                `;
+                clearWorkflow();
+            });
+        }
+        
+        async function sendChatMessage() {
+            const chatInput = document.getElementById('chatInput');
+            const message = chatInput.value.trim();
+            
+            if (!message) return;
+            
+            // Add user message to chat
+            addMessageToChat(message, 'user');
+            
+            // Clear input
+            chatInput.value = '';
+            
+            // Generate workflow based on message
+            try {
+                setLoading(true);
+                const data = await apiCall('/generate', {
+                    method: 'POST',
+                    body: JSON.stringify({ 
+                        query: message,
+                        refine: currentWorkflow !== null
+                    })
+                });
+                
+                console.log('📦 API Response:', {
+                    success: data.success,
+                    has_workflow: !!data.workflow,
+                    has_agent_response: !!data.agent_response,
+                    agent_response_length: data.agent_response ? data.agent_response.length : 0,
+                    full_data: data
+                });
+                
+                if (data.success) {
+                    // Check if this is a chat-only response (no workflow)
+                    if (data.agent_response && !data.workflow) {
+                        console.log('💬 Chat-only response detected in frontend');
+                        // Chat-only response - don't update workflow, just show message
+                        addMessageToChat(data.agent_response, 'assistant');
+                        return; // IMPORTANT: Exit early for chat-only responses
+                    } else if (data.workflow) {
+                        console.log('🔧 Normal workflow response detected');
+                        // Normal workflow response
+                        handleWorkflowUpdate(data.workflow);
+                        // Wait for handleWorkflowUpdate to complete before accessing currentWorkflow
+                        // Use agent_response if available, otherwise use workflow reasoning or default message
+                        console.log('🔍 Debug response data:', {
+                            agent_response: data.agent_response,
+                            workflow_reasoning: data.workflow?.reasoning,
+                            agent_response_length: data.agent_response?.length,
+                            workflow_reasoning_length: data.workflow?.reasoning?.length
+                        });
+                        
+                        const response = data.agent_response || 
+                            (data.workflow && data.workflow.reasoning) || 
+                            `✨ I've ${data.workflow && data.workflow.rev > 1 ? 'refined' : 'created'} your workflow "${data.workflow ? data.workflow.title : 'unnamed'}". It has ${data.workflow ? data.workflow.nodes.length : 0} nodes and ${data.workflow ? data.workflow.edges.length : 0} edges.`;
+                        addMessageToChat(response, 'assistant');
+                    } else {
+                        console.log('⚠️ Success but no workflow or agent_response');
+                        addMessageToChat('✨ Request processed successfully', 'assistant');
+                    }
+                } else {
+                    addMessageToChat('❌ Error: ' + data.error, 'assistant');
+                }
+            } catch (error) {
+                console.error('❌ Full error object:', error);
+                console.error('❌ Error stack:', error.stack);
+                addMessageToChat('❌ Failed to generate workflow: ' + error.message, 'assistant');
+            } finally {
+                setLoading(false);
+            }
+        }
+        
+        function addMessageToChat(message, sender) {
+            const chatMessages = document.getElementById('chatMessages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${sender}`;
+            
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            
+            // Simple markdown to HTML converter
+            let formattedMessage = message;
+            
+            // Headers
+            formattedMessage = formattedMessage.replace(/^### (.*?)$/gm, '<h4>$1</h4>');
+            formattedMessage = formattedMessage.replace(/^## (.*?)$/gm, '<h3>$1</h3>');
+            formattedMessage = formattedMessage.replace(/^# (.*?)$/gm, '<h2>$1</h2>');
+            
+            // Bold and italic
+            formattedMessage = formattedMessage.replace(/\*\*\*(.*?)\*\*\*/g, '<strong><em>$1</em></strong>');
+            formattedMessage = formattedMessage.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+            formattedMessage = formattedMessage.replace(/\*(.*?)\*/g, '<em>$1</em>');
+            
+            // Code blocks and inline code
+            formattedMessage = formattedMessage.replace(/```(.*?)```/gs, '<pre><code>$1</code></pre>');
+            formattedMessage = formattedMessage.replace(/`(.*?)`/g, '<code>$1</code>');
+            
+            // Lists
+            formattedMessage = formattedMessage.replace(/^\* (.*?)$/gm, '<li>$1</li>');
+            formattedMessage = formattedMessage.replace(/^- (.*?)$/gm, '<li>$1</li>');
+            formattedMessage = formattedMessage.replace(/^• (.*?)$/gm, '<li>$1</li>');
+            formattedMessage = formattedMessage.replace(/(<li>.*<\/li>\n?)+/gs, function(match) {
+                return '<ul>' + match + '</ul>';
+            });
+            
+            // Numbered lists
+            formattedMessage = formattedMessage.replace(/^\d+\. (.*?)$/gm, '<li class="numbered">$1</li>');
+            formattedMessage = formattedMessage.replace(/(<li class="numbered">.*<\/li>\n?)+/gs, function(match) {
+                return '<ol>' + match.replace(/class="numbered"/g, '') + '</ol>';
+            });
+            
+            // Line breaks
+            formattedMessage = formattedMessage.replace(/\n\n/g, '</p><p>');
+            formattedMessage = formattedMessage.replace(/\n/g, '<br>');
+            formattedMessage = '<p>' + formattedMessage + '</p>';
+            
+            // Clean up empty paragraphs
+            formattedMessage = formattedMessage.replace(/<p><\/p>/g, '');
+            formattedMessage = formattedMessage.replace(/<p>(<h[1-6]>)/g, '$1');
+            formattedMessage = formattedMessage.replace(/(<\/h[1-6]>)<\/p>/g, '$1');
+            formattedMessage = formattedMessage.replace(/<p>(<ul>|<ol>)/g, '$1');
+            formattedMessage = formattedMessage.replace(/(<\/ul>|<\/ol>)<\/p>/g, '$1');
+            
+            messageDiv.innerHTML = `
+                <div class="message-bubble">${formattedMessage}</div>
+                <div class="message-time">${timeStr}</div>
+            `;
+            
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+        
+        // Tool Search Functions
+        function initializeToolSearch() {
+            const workflowToolSearch = document.getElementById('workflowToolSearch');
+            const workflowToolResults = document.getElementById('workflowToolResults');
+            
+            if (!workflowToolSearch || !workflowToolResults) {
+                console.error('Tool search elements not found');
+                return;
+            }
+            
+            workflowToolSearch.addEventListener('input', (e) => {
+                const query = e.target.value.toLowerCase().trim();
+                
+                if (query.length < 2) {
+                    workflowToolResults.style.display = 'none';
+                    return;
+                }
+                
+                const matches = Object.entries(availableTools).filter(([name, tool]) => {
+                    return name.toLowerCase().includes(query) || 
+                           tool.description.toLowerCase().includes(query);
+                }).slice(0, 10);
+                
+                if (matches.length > 0) {
+                    workflowToolResults.innerHTML = matches.map(([name, tool]) => `
+                        <div class="tool-result-item" onclick="selectTool('${name}')" style="padding: 0.5rem; cursor: pointer; border-bottom: 1px solid rgba(125, 249, 255, 0.2);">
+                            <div class="tool-result-name" style="font-weight: bold; color: #7DF9FF;">${name}</div>
+                            <div class="tool-result-desc" style="font-size: 0.8rem; color: #a0a0a0;">${tool.description}</div>
+                        </div>
+                    `).join('');
+                    workflowToolResults.style.display = 'block';
+                } else {
+                    workflowToolResults.style.display = 'none';
+                }
+            });
+            
+            // Hide results when clicking outside
+            document.addEventListener('click', (e) => {
+                if (!e.target.closest('.tool-search-container')) {
+                    workflowToolResults.style.display = 'none';
+                }
+            });
+        }
+        
+        function selectTool(toolName) {
+            const workflowToolSearch = document.getElementById('workflowToolSearch');
+            const workflowToolResults = document.getElementById('workflowToolResults');
+            
+            if (workflowToolSearch && workflowToolResults) {
+                workflowToolSearch.value = toolName;
+                workflowToolResults.style.display = 'none';
+                
+                // Add to chat as context
+                addMessageToChat(`ℹ️ Selected tool: ${toolName} - ${availableTools[toolName].description}`, 'assistant');
+            }
+        }
+        
+        // User Input Form Functions
+        let currentUserInputs = {};
+        let pendingFormExecution = false;
+        let nodeUserInputData = {}; // Store user input data for each node
+        let cachedUserInputs = {}; // Cache user input values as they're entered
+        
+        function cacheUserInput(formId, value) {
+            cachedUserInputs[formId] = value;
+            console.log('💾 Cached user input:', formId, '=', value);
+            console.log('💾 All cached inputs:', cachedUserInputs);
+            
+            // DEBUGGING: Log the exact keys being used
+            console.log('🔍 DEBUG: Cache keys available:', Object.keys(cachedUserInputs));
+            console.log('🔍 DEBUG: Cache key types:', Object.keys(cachedUserInputs).map(k => typeof k));
+        }
+        
+        function cacheUserInputDual(primaryKey, secondaryKey, value) {
+            // Cache with both keys to ensure backend can find it
+            cachedUserInputs[primaryKey] = value;
+            if (secondaryKey && secondaryKey !== primaryKey) {
+                cachedUserInputs[secondaryKey] = value;
+            }
+            console.log('💾 Cached user input with dual keys:', primaryKey, '&', secondaryKey, '=', value);
+            console.log('💾 All cached inputs:', cachedUserInputs);
+            
+            // DEBUGGING: Log the exact keys being used
+            console.log('🔍 DEBUG: Primary key:', primaryKey, 'type:', typeof primaryKey);
+            console.log('🔍 DEBUG: Secondary key:', secondaryKey, 'type:', typeof secondaryKey);
+            console.log('🔍 DEBUG: Cache keys available:', Object.keys(cachedUserInputs));
+        }
+        
+        function clearCachedInputs() {
+            // Don't clear cache during active execution
+            if (executionStatus === 'running') {
+                console.log('⏸️ Not clearing cached inputs during active execution');
+                return;
+            }
+            
+            cachedUserInputs = {};
+            console.log('🧹 Cleared all cached user inputs');
+        }
+        
+        function submitAndRunWorkflow(formId) {
+            console.log('📝 Submitting and running workflow for form:', formId);
+            
+            // Try to find the input field - could be enhanced textarea or regular input
+            let inputField = document.getElementById(`enhanced-textarea-${formId}`);
+            if (!inputField) {
+                inputField = document.getElementById('user-input-field');
+            }
+            
+            if (inputField) {
+                // Cache the current value with the form ID as well for backup
+                const formElement = inputField.closest('.user-input-form');
+                const actualFormId = formElement ? formElement.id.replace('form-', '') : null;
+                
+                if (actualFormId && actualFormId !== formId) {
+                    cacheUserInputDual(formId, actualFormId, inputField.value);
+                } else {
+                    cacheUserInput(formId, inputField.value);
+                }
+                
+                // Don't hide the input form - let user see their input during execution
+                // const userInputSection = document.getElementById('userInputSection');
+                // if (userInputSection) {
+                //     userInputSection.style.display = 'none';
+                // }
+                
+                // Execute the workflow with cached inputs
+                executeWorkflow();
+            } else {
+                alert('Please enter a value before submitting');
+            }
+        }
+
+        function checkNodeForUserInput(node) {
+            console.log('🔍 checkNodeForUserInput called for node:', node.id, node.type);
+            console.log('🔍 Node data:', node.data);
+            console.log('🔍 Node.data.tool_name:', node.data.tool_name);
+            console.log('🔍 Node.data.tools:', node.data.tools);
+            console.log('🔍 Node.data.config:', node.data.config);
+            
+            // Check if this node has a text input tool (user_input or prompt_tool)
+            const hasTextInputTool = (
+                (node.type === 'tool' && (node.data.tool_name === 'user_input' || node.data.tool_name === 'prompt_tool')) ||
+                (node.type === 'agent' && node.data.tools && node.data.tools.some(tool => tool.includes('user_input'))) ||
+                (node.type === 'tool' && node.data.config && node.data.config.prompt) // Also check if tool has prompt config
+            );
+            
+            if (hasTextInputTool) {
+                console.log('✅ Node has text input tool! Creating input form from node config...');
+                
+                // For user_input tools, create the form immediately from the node config
+                // Don't wait for execution results
+                const nodeId = node.id;
+                
+                // Check if we have execution results first
+                if (currentExecution && currentExecution.results && 
+                    currentExecution.results.results) {
+                    
+                    console.log('🔍 Available result keys:', Object.keys(currentExecution.results.results));
+                    
+                    // Try to find the result by matching node type and tool
+                    let nodeResult = null;
+                    let foundKey = null;
+                    
+                    // First try exact node ID match
+                    if (currentExecution.results.results[nodeId]) {
+                        nodeResult = currentExecution.results.results[nodeId];
+                        foundKey = nodeId;
+                    } else {
+                        // Look for user_input results in any node result
+                        for (const [key, result] of Object.entries(currentExecution.results.results)) {
+                            if (result && typeof result === 'object' && result.tool_type === 'user_input') {
+                                nodeResult = result;
+                                foundKey = key;
+                                console.log('🔍 Found user_input result under key:', key);
+                                break;
+                            }
+                        }
+                    }
+                    
+                    if (nodeResult) {
+                        console.log('✅ Using execution result for input form:', foundKey, nodeResult);
+                        nodeUserInputData[nodeId] = nodeResult;
+                        
+                        return {
+                            prompt: nodeResult.prompt || 'Enter your input:',
+                            placeholder: nodeResult.placeholder || 'Type here...',
+                            form_id: nodeResult.form_id || nodeId
+                        };
+                    }
+                }
+                
+                // No execution results yet, create form from node config
+                console.log('✅ Creating input form from node config:', node.data.config);
+                const config = node.data.config || {};
+                
+                // Create form data from the node configuration
+                const formData = {
+                    prompt: config.prompt || 'Enter your input:',
+                    placeholder: config.placeholder || 'Type here...',
+                    form_id: nodeId,
+                    input_type: config.input_type || 'textarea', // Default to textarea for better UX
+                    tool_name: node.data.tool_name || 'user_input' // Add tool_name for enhanced UI
+                };
+                
+                // Store this for later execution
+                nodeUserInputData[nodeId] = formData;
+                
+                return formData;
+                
+            } else {
+                console.log('🔍 Node does not have text input tool');
+            }
+            return false;
+        }
+
+        async function runWorkflowWithNodeInput(nodeId) {
+            console.log('🚀 Running workflow with input from node:', nodeId);
+            
+            const inputElement = document.getElementById(`input-${nodeId}`);
+            if (!inputElement) {
+                alert('Input field not found');
+                return;
+            }
+            
+            const userValue = inputElement.value;
+            if (!userValue || userValue.trim() === '') {
+                alert('Please enter a value before running the workflow');
+                return;
+            }
+            
+            if (!currentWorkflow) {
+                alert('No workflow available to execute');
+                return;
+            }
+            
+            console.log('✅ User input collected from node:', userValue);
+            
+            try {
+                setExecutionLoading(true);
+                
+                // Execute workflow with user inputs - use nodeId as key instead of generic 'user_input'
+                const data = await apiCall('/execute', {
+                    method: 'POST',
+                    body: JSON.stringify({ 
+                        execute_current: true,
+                        user_inputs: { [nodeId]: userValue },
+                        form_id: nodeId
+                    })
+                });
+                
+                if (data.execution_id) {
+                    currentExecution = {
+                        id: data.execution_id,
+                        status: 'running',
+                        results: null
+                    };
+                    executionTasks = {};
+                    updateExecutionInfo();
+                    
+                    console.log('✅ Workflow execution started with user input:', userValue);
+                } else {
+                    throw new Error('No execution ID received');
+                }
+            } catch (error) {
+                console.error('❌ Error executing workflow with input:', error);
+                alert('Failed to execute workflow: ' + error.message);
+            } finally {
+                setExecutionLoading(false);
+            }
+        }
+
+        function renderSimpleUserInputForm(inputData, taskKey = null) {
+            console.log('📝 Rendering simple user input form:', inputData);
+            console.log('📝 Task context:', taskKey);
+            
+            const userInputSection = document.getElementById('userInputSection');
+            const userInputForm = document.getElementById('userInputForm');
+            
+            if (!userInputSection || !userInputForm) {
+                console.error('❌ User input elements not found');
+                return;
+            }
+            
+            let formHTML = `
+                <div class="user-input-form" id="form-${inputData.form_id}">
+                    <h3>${inputData.prompt}</h3>
+                    <div class="form-field">
+            `;
+            
+            // Determine the cache key - prefer taskKey (node_id) if available, fallback to form_id
+            const cacheKey = taskKey || inputData.form_id;
+            console.log('📝 Using cache key:', cacheKey, '(taskKey:', taskKey, ', form_id:', inputData.form_id, ')');
+            
+            // Create the appropriate input based on type
+            switch (inputData.input_type) {
+                case 'textarea':
+                    // Check if this is an enhanced text input tool
+                    const toolName = inputData.tool_name || 'user_input'; // Default to user_input for backward compatibility
+                    if (isTextInputTool(toolName)) {
+                        // Use enhanced text input component with suggestions and collection data
+                        formHTML += createEnhancedTextInput(
+                            inputData.form_id, 
+                            toolName, 
+                            inputData, 
+                            inputData.default_value || '',
+                            inputData.suggestions || [],
+                            inputData.collection_data || null
+                        );
+                        // Initialize character counts after DOM update
+                        setTimeout(() => initializeCharacterCounts(), 50);
+                    } else {
+                        // Use regular textarea
+                        formHTML += `<textarea 
+                            id="user-input-field" 
+                            name="${inputData.form_id}"
+                            placeholder="${inputData.placeholder}"
+                            style="width: 100%; min-height: 100px;"
+                            oninput="cacheUserInputDual('${cacheKey}', '${inputData.form_id}', this.value)"
+                            onchange="cacheUserInputDual('${cacheKey}', '${inputData.form_id}', this.value)"
+                        >${inputData.default_value || ''}</textarea>`;
+                    }
+                    break;
+                    
+                case 'select':
+                    formHTML += `<select id="user-input-field" name="${inputData.form_id}" style="width: 100%;" onchange="cacheUserInputDual('${cacheKey}', '${inputData.form_id}', this.value)">`;
+                    if (inputData.options) {
+                        inputData.options.forEach(option => {
+                            const selected = option === inputData.default_value ? 'selected' : '';
+                            formHTML += `<option value="${option}" ${selected}>${option}</option>`;
+                        });
+                    }
+                    formHTML += '</select>';
+                    break;
+                    
+                default: // text, number, etc.
+                    formHTML += `<input 
+                        type="${inputData.input_type}" 
+                        id="user-input-field" 
+                        name="${inputData.form_id}"
+                        placeholder="${inputData.placeholder}"
+                        value="${inputData.default_value || ''}"
+                        style="width: 100%;"
+                        oninput="cacheUserInputDual('${cacheKey}', '${inputData.form_id}', this.value)"
+                        onchange="cacheUserInputDual('${cacheKey}', '${inputData.form_id}', this.value)"
+                    />`;
+                    break;
+            }
+            
+            // Add submit button
+            formHTML += `
+                    </div>
+                    <div class="form-submit-container">
+                        <button type="button" class="form-submit-btn" onclick="submitAndRunWorkflow('${cacheKey}')">
+                            Submit & Run Workflow
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            userInputForm.innerHTML = formHTML;
+            userInputSection.style.display = 'block';
+            
+            // Focus on the input field
+            setTimeout(() => {
+                const inputField = document.getElementById('user-input-field');
+                if (inputField) {
+                    inputField.focus();
+                }
+            }, 100);
+            
+            // Scroll to show the form
+            userInputSection.scrollIntoView({ behavior: 'smooth' });
+            
+            console.log('✅ Simple user input form rendered');
+        }
+
+        function collectFormInputs(formId) {
+            const formElement = document.getElementById(`form-${formId}`);
+            if (!formElement) {
+                console.error('❌ Form not found:', formId);
+                return null;
+            }
+            
+            const inputs = {};
+            const errors = {};
+            let hasErrors = false;
+            
+            // Collect all form inputs
+            const formFields = formElement.querySelectorAll('input, textarea, select');
+            formFields.forEach(field => {
+                const fieldName = field.name;
+                if (!fieldName) return;
+                
+                let value = field.value;
+                
+                // Handle different input types
+                if (field.type === 'checkbox') {
+                    value = field.checked;
+                } else if (field.type === 'number') {
+                    value = field.value ? parseFloat(field.value) : '';
+                }
+                
+                inputs[fieldName] = value;
+                
+                // Basic validation
+                if (field.required && (!value || value === '')) {
+                    errors[fieldName] = 'This field is required';
+                    hasErrors = true;
+                }
+            });
+            
+            // Display validation errors
+            Object.keys(errors).forEach(fieldName => {
+                const errorElement = document.getElementById(`error-${fieldName}`);
+                if (errorElement) {
+                    errorElement.textContent = errors[fieldName];
+                    errorElement.style.display = 'block';
+                }
+            });
+            
+            // Clear previous errors for valid fields
+            Object.keys(inputs).forEach(fieldName => {
+                if (!errors[fieldName]) {
+                    const errorElement = document.getElementById(`error-${fieldName}`);
+                    if (errorElement) {
+                        errorElement.style.display = 'none';
+                    }
+                }
+            });
+            
+            if (hasErrors) {
+                console.log('❌ Form validation failed:', errors);
+                return null;
+            }
+            
+            console.log('✅ Form inputs collected:', inputs);
+            return inputs;
+        }
+
+        async function executeWorkflowWithInputs(formId, inputs = null) {
+            console.log('🚀 Executing workflow with user inputs for form:', formId);
+            
+            // If inputs weren't provided, try to collect them from the form
+            if (!inputs) {
+                inputs = collectFormInputs(formId);
+                if (!inputs) {
+                    return; // Validation failed
+                }
+            }
+            
+            if (!currentWorkflow) {
+                alert('No workflow available to execute');
+                return;
+            }
+            
+            try {
+                setLoading(true);
+                pendingFormExecution = true;
+                currentUserInputs = inputs;
+                
+                // Hide the input form and show execution status
+                const userInputSection = document.getElementById('userInputSection');
+                if (userInputSection) {
+                    userInputSection.style.display = 'none';
+                }
+                
+                addMessageToChat(`🚀 Running workflow "${currentWorkflow.title}" with your inputs...`, 'assistant');
+                
+                // Execute the workflow with user inputs
+                const response = await fetch('/api/execute', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        user_inputs: inputs,
+                        form_id: formId 
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                console.log('📦 Workflow execution response:', data);
+                
+                if (data.execution_id) {
+                    console.log('✅ Workflow execution started with ID:', data.execution_id);
+                    currentExecution = {
+                        id: data.execution_id,
+                        status: 'running',
+                        results: null
+                    };
+                    executionTasks = {};
+                    updateExecutionInfo();
+                } else {
+                    throw new Error('No execution ID received');
+                }
+                
+            } catch (error) {
+                console.error('❌ Error executing workflow with inputs:', error);
+                alert('Failed to execute workflow: ' + error.message);
+                pendingFormExecution = false;
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        function submitUserInput(formId) {
+            console.log('📝 Submitting user input for form:', formId);
+            
+            const inputField = document.getElementById('user-input-field');
+            if (!inputField) {
+                alert('Input field not found');
+                return;
+            }
+            
+            const userValue = inputField.value;
+            if (!userValue || userValue.trim() === '') {
+                alert('Please enter a value before submitting');
+                return;
+            }
+            
+            console.log('✅ User input collected:', userValue);
+            
+            // Hide the input form
+            const userInputSection = document.getElementById('userInputSection');
+            if (userInputSection) {
+                userInputSection.style.display = 'none';
+            }
+            
+            // Execute workflow with the collected input
+            executeWorkflowWithInputs(formId, { user_input: userValue });
+        }
+
+        function detectUserInputFormsInWorkflow(workflow) {
+            if (!workflow || !workflow.nodes) return false;
+            
+            // Check if any agent nodes have user input tools
+            const hasUserInputTools = workflow.nodes.some(node => {
+                if (node.type === 'agent' && node.data && node.data.tools) {
+                    return node.data.tools.some(tool => 
+                        tool.includes('user_input')
+                    );
+                }
+                return false;
+            });
+            
+            return hasUserInputTools;
+        }
+
+        async function triggerWorkflowForInputs() {
+            if (!currentWorkflow) {
+                alert('No workflow available to execute');
+                return;
+            }
+            
+            console.log('🔄 Triggering workflow to generate input forms...');
+            
+            try {
+                setExecutionLoading(true);
+                
+                addMessageToChat(`🔄 Preparing workflow "${currentWorkflow.title}" to collect user inputs...`, 'assistant');
+                
+                // Execute the workflow to generate user input forms
+                const response = await fetch('/api/execute', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        execute_current: true
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                console.log('📦 Workflow execution response:', data);
+                
+                if (data.execution_id) {
+                    console.log('✅ Workflow execution started with ID:', data.execution_id);
+                    currentExecution = {
+                        id: data.execution_id,
+                        status: 'running',
+                        results: null
+                    };
+                    executionTasks = {};
+                    updateExecutionInfo();
+                    
+                    addMessageToChat(`✅ Workflow started! Watch for input forms to appear below.`, 'assistant');
+                } else {
+                    throw new Error('No execution ID received');
+                }
+                
+            } catch (error) {
+                console.error('❌ Error triggering workflow for inputs:', error);
+                alert('Failed to trigger workflow: ' + error.message);
+            } finally {
+                setExecutionLoading(false);
+            }
+        }
+
+        // Enhanced Text Input Components
+        // ==============================
+
+        // UI configurations for text input tools
+        const TEXT_INPUT_UI_CONFIGS = {
+            "prompt_tool": {
+                tool_name: "prompt_tool",
+                input_type: "textarea",
+                height: "120px",
+                min_height: "80px",
+                has_run_button: false,
+                is_readonly: false,
+                placeholder: "Enter your prompt or message...",
+                prompt_label: "Prompt Message",
+                show_character_count: true,
+                supports_collections: true,
+                show_suggestions: true,
+                show_collection_actions: true,
+                max_suggestions: 5
+            },
+            "user_input": {
+                tool_name: "user_input",
+                input_type: "textarea", 
+                height: "120px",
+                min_height: "80px",
+                has_run_button: true,
+                is_readonly: false,
+                placeholder: "Enter your input...",
+                prompt_label: "User Input",
+                show_character_count: true,
+                supports_collections: true,
+                show_suggestions: true,
+                show_collection_actions: true,
+                max_suggestions: 5
+            }
+        };
+
+        function getTextInputUIConfig(toolName, nodeConfig = {}) {
+            if (!TEXT_INPUT_UI_CONFIGS[toolName]) {
+                return null;
+            }
+            
+            const config = { ...TEXT_INPUT_UI_CONFIGS[toolName] };
+            
+            // Override with node-specific config
+            if (nodeConfig.placeholder) config.placeholder = nodeConfig.placeholder;
+            if (nodeConfig.prompt) config.prompt_label = nodeConfig.prompt;
+            if (nodeConfig.height) config.height = nodeConfig.height;
+            
+            return config;
+        }
+
+        function createEnhancedTextInput(nodeId, toolName, nodeConfig, defaultValue = '', suggestions = [], collectionData = null) {
+            const uiConfig = getTextInputUIConfig(toolName, nodeConfig);
+            if (!uiConfig) {
+                // Fallback to regular input for non-enhanced tools
+                return createRegularTextInput(nodeId, nodeConfig, defaultValue);
+            }
+
+            const textareaId = `enhanced-textarea-${nodeId}`;
+            const charCountId = `char-count-${nodeId}`;
+            const suggestionsId = `suggestions-${nodeId}`;
+            
+            // Build suggestions HTML
+            let suggestionsHTML = '';
+            if (uiConfig.show_suggestions && suggestions && suggestions.length > 0) {
+                const limitedSuggestions = suggestions.slice(0, uiConfig.max_suggestions || 5);
+                suggestionsHTML = `
+                    <div class="suggestions-container" id="${suggestionsId}">
+                        <div class="suggestions-header">
+                            <span class="suggestions-title">💡 Suggestions</span>
+                            ${collectionData ? `<span class="suggestions-source">from ${collectionData.name}</span>` : ''}
+                        </div>
+                        <div class="suggestions-list">
+                            ${limitedSuggestions.map((suggestion, index) => `
+                                <div class="suggestion-item" onclick="applySuggestion('${textareaId}', '${charCountId}', '${suggestion.replace(/'/g, "\\'")}', '${nodeId}')">
+                                    <span class="suggestion-text">${suggestion}</span>
+                                    <span class="suggestion-apply">Apply</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+            
+            return `
+                <div class="enhanced-text-input-container">
+                    <label class="enhanced-input-label">${uiConfig.prompt_label}</label>
+                    
+                    ${suggestionsHTML}
+                    
+                    <div class="enhanced-textarea-wrapper">
+                        <textarea 
+                            id="${textareaId}"
+                            name="${nodeId}"
+                            class="enhanced-textarea"
+                            placeholder="${uiConfig.placeholder}"
+                            style="height: ${uiConfig.height}; min-height: ${uiConfig.min_height};"
+                            ${uiConfig.is_readonly ? 'readonly' : ''}
+                            oninput="updateCharacterCount('${textareaId}', '${charCountId}'); cacheUserInputDual('${nodeId}', '${nodeId}', this.value)"
+                            onchange="cacheUserInputDual('${nodeId}', '${nodeId}', this.value)"
+                        >${defaultValue}</textarea>
+                        ${uiConfig.show_character_count ? `
+                            <div class="textarea-footer">
+                                <span class="char-count" id="${charCountId}">0 characters</span>
+                                ${uiConfig.show_collection_actions ? `
+                                    <div class="collection-actions">
+                                        <button class="collection-action-btn" onclick="saveToCollection('${nodeId}', '${textareaId}')" title="Save to collection">
+                                            💾
+                                        </button>
+                                        <button class="collection-action-btn" onclick="searchCollections('${nodeId}', '${textareaId}')" title="Search collections">
+                                            🔍
+                                        </button>
+                                    </div>
+                                ` : ''}
+                            </div>
+                        ` : ''}
+                    </div>
+                    ${uiConfig.has_run_button ? `
+                        <button class="enhanced-run-button" onclick="submitAndRunWorkflow('${nodeId}')">
+                            <span class="icon">▶</span>
+                            Run Workflow
+                        </button>
+                    ` : ''}
+                </div>
+            `;
+        }
+
+        function createRegularTextInput(nodeId, nodeConfig, defaultValue = '') {
+            // Fallback for non-enhanced tools
+            return `
+                <div class="form-field">
+                    <label>${nodeConfig.prompt || 'Enter your input:'}</label>
+                    <textarea 
+                        id="user-input-field"
+                        name="${nodeId}"
+                        placeholder="${nodeConfig.placeholder || 'Type here...'}"
+                        style="min-height: 80px;"
+                        oninput="cacheUserInputDual('${nodeId}', '${nodeId}', this.value)"
+                        onchange="cacheUserInputDual('${nodeId}', '${nodeId}', this.value)"
+                    >${defaultValue}</textarea>
+                </div>
+            `;
+        }
+
+        function updateCharacterCount(textareaId, charCountId) {
+            const textarea = document.getElementById(textareaId);
+            const charCount = document.getElementById(charCountId);
+            
+            if (textarea && charCount) {
+                const length = textarea.value.length;
+                charCount.textContent = `${length} character${length !== 1 ? 's' : ''}`;
+            }
+        }
+
+        function isTextInputTool(toolName) {
+            return TEXT_INPUT_UI_CONFIGS.hasOwnProperty(toolName);
+        }
+
+        // Initialize character counts after DOM updates
+        function initializeCharacterCounts() {
+            document.querySelectorAll('.enhanced-textarea').forEach(textarea => {
+                const textareaId = textarea.id;
+                const charCountId = textareaId.replace('enhanced-textarea-', 'char-count-');
+                updateCharacterCount(textareaId, charCountId);
+            });
+        }
+
+        // Collection-related functions
+        function applySuggestion(textareaId, charCountId, suggestion, nodeId) {
+            const textarea = document.getElementById(textareaId);
+            if (textarea) {
+                textarea.value = suggestion;
+                updateCharacterCount(textareaId, charCountId);
+                cacheUserInputDual(nodeId, nodeId, suggestion);
+                
+                // Hide suggestions after applying
+                const suggestionsContainer = document.getElementById(`suggestions-${nodeId}`);
+                if (suggestionsContainer) {
+                    suggestionsContainer.style.display = 'none';
+                }
+                
+                console.log('✅ Applied suggestion:', suggestion);
+            }
+        }
+
+        async function saveToCollection(nodeId, textareaId) {
+            const textarea = document.getElementById(textareaId);
+            if (!textarea) {
+                alert('Cannot find text input field');
+                return;
+            }
+            
+            const collectionName = prompt('Enter collection name (will create if doesn\'t exist):');
+            if (!collectionName) return;
+            
+            const text = textarea.value;
+            
+            // Show loading state
+            const saveBtn = document.querySelector(`[onclick="saveToCollection('${nodeId}', '${textareaId}')"]`);
+            let originalText = '💾';
+            if (saveBtn) {
+                originalText = saveBtn.textContent;
+                saveBtn.textContent = '⏳';
+                saveBtn.style.color = '#FFA500';
+            }
+            
+            try {
+                // Make API call to save to collection
+                const response = await fetch('/api/save_to_collection', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        collection_name: collectionName,
+                        record: text,
+                        tool_type: 'prompt_tool'
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Save request failed');
+                }
+                
+                const data = await response.json();
+                console.log('💾 Save result:', data);
+                
+                if (data.success) {
+                    // Show success feedback
+                    if (saveBtn) {
+                        saveBtn.textContent = '✅';
+                        saveBtn.style.color = '#4CAF50';
+                    }
+                    console.log('✅ Successfully saved to collection:', data.message);
+                    
+                    // Optional: Show a brief success message
+                    const successMsg = document.createElement('div');
+                    successMsg.style.cssText = `
+                        position: fixed;
+                        top: 50%;
+                        left: 50%;
+                        transform: translate(-50%, -50%);
+                        background: #4CAF50;
+                        color: white;
+                        padding: 12px 24px;
+                        border-radius: 8px;
+                        z-index: 1000;
+                        font-size: 14px;
+                    `;
+                    successMsg.textContent = data.message;
+                    document.body.appendChild(successMsg);
+                    
+                    setTimeout(() => {
+                        document.body.removeChild(successMsg);
+                    }, 3000);
+                    
+                } else {
+                    throw new Error(data.error || 'Save failed');
+                }
+                
+            } catch (error) {
+                console.error('Save error:', error);
+                alert(`Failed to save to collection: ${error.message}`);
+                
+                // Show error state
+                if (saveBtn) {
+                    saveBtn.textContent = '❌';
+                    saveBtn.style.color = '#FF6B6B';
+                }
+            }
+            
+            // Reset button after delay
+            setTimeout(() => {
+                if (saveBtn) {
+                    saveBtn.textContent = originalText;
+                    saveBtn.style.color = '#7DF9FF';
+                }
+            }, 2000);
+        }
+
+        async function searchCollections(nodeId, textareaId) {
+            const query = prompt('Enter search query:');
+            if (!query) return;
+            
+            console.log('🔍 Searching collections for:', query);
+            
+            try {
+                // Make API call to search collections
+                const response = await fetch('/api/search_collections', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        query: query,
+                        tool_filter: 'prompt_tool' // Filter by current tool type
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Search request failed');
+                }
+                
+                const data = await response.json();
+                console.log('🔍 Search results:', data);
+                
+                if (data.success && data.results && data.results.length > 0) {
+                    // Show results in a nice format
+                    let resultsText = `Found ${data.results.length} collection(s) with matches for "${query}":\n\n`;
+                    
+                    data.results.forEach((result, index) => {
+                        resultsText += `📁 ${result.collection_name} (${result.matching_records.length} matches):\n`;
+                        result.matching_records.forEach((record, recordIndex) => {
+                            resultsText += `  ${recordIndex + 1}. "${record}"\n`;
+                        });
+                        resultsText += '\n';
+                    });
+                    
+                    const selectedRecord = prompt(resultsText + '\nEnter the number of the record you want to use (or cancel):');
+                    
+                    if (selectedRecord) {
+                        const recordNum = parseInt(selectedRecord);
+                        if (!isNaN(recordNum) && recordNum > 0) {
+                            // Find the selected record
+                            let foundRecord = null;
+                            let currentIndex = 0;
+                            
+                            for (const result of data.results) {
+                                for (const record of result.matching_records) {
+                                    currentIndex++;
+                                    if (currentIndex === recordNum) {
+                                        foundRecord = record;
+                                        break;
+                                    }
+                                }
+                                if (foundRecord) break;
+                            }
+                            
+                            if (foundRecord) {
+                                // Apply the selected record to the textarea
+                                const textarea = document.getElementById(textareaId);
+                                if (textarea) {
+                                    textarea.value = foundRecord;
+                                    const charCountId = textareaId.replace('enhanced-textarea-', 'char-count-');
+                                    updateCharacterCount(textareaId, charCountId);
+                                    cacheUserInputDual(nodeId, nodeId, foundRecord);
+                                    console.log('✅ Applied search result:', foundRecord);
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    alert(`No results found for "${query}"\n\nTry different search terms or create some collections first.`);
+                }
+                
+            } catch (error) {
+                console.error('Search error:', error);
+                alert(`Search failed: ${error.message}\n\nMake sure the backend collection API is running.`);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🚀 DOM loaded, initializing...');
+            debugLibraries();
+            initWebSocket();
+            loadTools();
+            loadExamples();
+            updateButtons();
+            initializeChatInterface();
+            initializeToolSearch();
+            initializeEventListeners();
+            console.log('✅ Initialization complete');
+        });
+    </script>
+</body>
+</html>
