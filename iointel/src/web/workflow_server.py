@@ -250,14 +250,14 @@ class WorkflowRequest(BaseModel):
 
 class WorkflowResponse(BaseModel):
     success: bool
-    workflow: Optional[Dict] = None
+    workflow: Optional[WorkflowSpec] = None
     agent_response: Optional[str] = None
     error: Optional[str] = None
 
 
 class ExecutionRequest(BaseModel):
     execute_current: bool = True
-    workflow_data: Optional[Dict] = None
+    workflow_data: Optional[WorkflowSpec] = None
     user_inputs: Optional[Dict] = None
     form_id: Optional[str] = None
 
@@ -618,7 +618,7 @@ async def get_workflow_history():
 
 
 @app.post("/api/generate", response_model=WorkflowResponse)
-async def generate_workflow(request: WorkflowRequest):
+async def generate_workflow(request: WorkflowRequest) -> WorkflowResponse:
     """Generate or refine a workflow."""
     global current_workflow
     
@@ -631,38 +631,55 @@ async def generate_workflow(request: WorkflowRequest):
     try:
         print(f"✨ Generating workflow with {len(tool_catalog)} tools available")
         
-        # Always use generate_workflow, but provide current workflow as context for continual improvement
+        # Set current workflow context so planner can reference it
         if current_workflow:
-            print(f"🔧 Building upon existing workflow (rev {current_workflow.rev}): '{current_workflow.title}'")
-            # Set current workflow context so planner can reference it
-            planner.set_current_workflow(current_workflow)
+            from iointel.src.agent_methods.data_models.workflow_spec import WorkflowSpec
+            if isinstance(current_workflow, WorkflowSpec):
+                print(f"🔧 Building upon existing workflow (rev {current_workflow.rev}): '{current_workflow.title}'")
+                planner.set_current_workflow(current_workflow)
+            else:
+                print(f"🔧 Building upon existing chat context: '{getattr(current_workflow, 'title', 'Chat')}'")
+                # Don't set current workflow for chat-only responses
             
-            # Store current workflow in history before generating new one
-            workflow_history.append(current_workflow)
+        # Generate workflow (could be new workflow or chat-only response)
+        result = await planner.generate_workflow(
+            query=request.query,
+            tool_catalog=tool_catalog,
+            context={
+                "timestamp": datetime.now().isoformat(),
+                "is_refinement": request.refine,
+                "previous_workflow_title": getattr(current_workflow, 'title', None) if current_workflow else None
+            }
+        )
+        
+        # Check if this is a chat-only response or normal workflow
+        from iointel.src.agent_methods.data_models.workflow_spec import WorkflowSpecLLM
+        if isinstance(result, WorkflowSpecLLM):
+            if result.nodes is None or result.edges is None:
+                print(f"💬 Chat-only response: {result.reasoning}")
+                
+                # Return chat response without updating current workflow
+                return WorkflowResponse(
+                    success=True,
+                    workflow=None,  # No workflow update
+                    agent_response=result.reasoning  # Use reasoning field for chat
+                )
+        
+        # Handle normal workflow generation (WorkflowSpec)
+        workflow_spec = result
+        
+        # Only update current_workflow if we have a valid WorkflowSpec (not a chat-only response)
+        from iointel.src.agent_methods.data_models.workflow_spec import WorkflowSpec
+        if isinstance(workflow_spec, WorkflowSpec):
+            if current_workflow:
+                # Store current workflow in history before generating new one
+                workflow_history.append(current_workflow)
+                
+            current_workflow = workflow_spec
             
-            # Generate new workflow that can build upon, modify, or completely replace the previous one
-            current_workflow, agent_response = await planner.generate_workflow(
-                query=request.query,
-                tool_catalog=tool_catalog,
-                context={
-                    "timestamp": datetime.now().isoformat(),
-                    "is_refinement": request.refine,
-                    "previous_workflow_title": current_workflow.title
-                }
-            )
             # Increment revision for continual improvement tracking
             current_workflow.rev = len(workflow_history) + 1
             print(f"✅ Workflow evolved to rev {current_workflow.rev}: '{current_workflow.title}'")
-            
-        else:
-            print(f"✨ Generating new workflow from scratch")
-            # Generate new workflow
-            current_workflow, agent_response = await planner.generate_workflow(
-                query=request.query,
-                tool_catalog=tool_catalog,
-                context={"timestamp": datetime.now().isoformat()}
-            )
-            print(f"✅ New workflow generated: '{current_workflow.title}' with {len(current_workflow.nodes)} nodes")
             
             # Debug: Print the actual workflow structure
             print("🔍 Generated workflow details:")
@@ -681,21 +698,40 @@ async def generate_workflow(request: WorkflowRequest):
                 print(f"     {i+1}. {edge.source} -> {edge.target}")
                 print(f"        Condition: {edge.data.condition}")
                 print(f"        Handles: {edge.sourceHandle} -> {edge.targetHandle}")
-        
-        # Broadcast update to connected clients
-        print(f"📡 Broadcasting workflow update to {len(connections)} connections")
-        await broadcast_workflow_update(current_workflow)
-        
-        workflow_data = current_workflow.model_dump()
-        # Convert UUID to string for JSON serialization
-        if 'id' in workflow_data:
-            workflow_data['id'] = str(workflow_data['id'])
-        print(f"📦 Returning workflow data: {len(str(workflow_data))} characters")
-        
-        return WorkflowResponse(
-            success=True,
-            workflow=workflow_data
-        )
+            
+            # Broadcast update to connected clients
+            print(f"📡 Broadcasting workflow update to {len(connections)} connections")
+            await broadcast_workflow_update(current_workflow)
+            
+            workflow_data = current_workflow.model_dump()
+            # Convert UUID to string for JSON serialization
+            if 'id' in workflow_data:
+                workflow_data['id'] = str(workflow_data['id'])
+            print(f"📦 Returning workflow data: {len(str(workflow_data))} characters")
+            
+            return WorkflowResponse(
+                success=True,
+                workflow=workflow_data,
+                agent_response=result.reasoning  # Use original LLM response, not converted workflow
+            )
+            
+        else:
+            # Check if this was a WorkflowSpecLLM that we already handled above
+            if isinstance(result, WorkflowSpecLLM) and (result.nodes is None or result.edges is None):
+                # This case should have been handled above, but just in case
+                print("⚠️ Chat-only response reached else block")
+                return WorkflowResponse(
+                    success=True,
+                    workflow=None,
+                    agent_response=result.reasoning
+                )
+            else:
+                # This shouldn't happen with current implementation, but handle gracefully
+                print("❌ Unexpected result format from planner.generate_workflow")
+                return WorkflowResponse(
+                    success=False,
+                    error="Unexpected result format from workflow planner"
+                )
         
     except Exception as e:
         print(f"❌ Error generating workflow: {type(e).__name__}: {e}")
