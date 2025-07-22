@@ -7,8 +7,6 @@ preventing wasteful compute when conditions aren't met.
 
 import random
 import pytest
-import asyncio
-from typing import Dict, Any
 from uuid import uuid4
 
 from iointel.src.utilities.dag_executor import DAGExecutor

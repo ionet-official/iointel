@@ -1,7 +1,6 @@
 import os
 import pytest
 from iointel.src.utilities.decorators import _unregister_custom_task
-from iointel.src.utilities.constants import get_api_url, get_base_model, get_api_key
 from pydantic_ai.models.openai import OpenAIModel
 from pydantic_ai.providers.openai import OpenAIProvider
 from iointel import Agent, Workflow, register_custom_task, run_agents
@@ -9,7 +8,8 @@ from iointel.src.agent_methods.data_models.datamodels import (
     ModerationException,
     PersonaConfig,
 )
-import re, json
+import re
+import json
 
 
 def get_main_result(result):

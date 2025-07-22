@@ -80,22 +80,22 @@ async def test_temperature_workflow_generation():
         # Validate the generated workflow
         issues = workflow.validate_structure(tool_catalog)
         if issues:
-            print(f"\n❌ Validation issues found:")
+            print("\n❌ Validation issues found:")
             for issue in issues:
                 print(f"  - {issue}")
         else:
-            print(f"\n✅ Workflow validation passed!")
+            print("\n✅ Workflow validation passed!")
         
         # Check specifically for 'add' tool configuration
         add_nodes = [node for node in workflow.nodes if node.data.tool_name == "add"]
         if add_nodes:
             add_node = add_nodes[0]
-            print(f"\n🔍 Add node configuration:")
+            print("\n🔍 Add node configuration:")
             print(f"  Config: {add_node.data.config}")
             
             # Check if it has both 'a' and 'b' parameters
             if 'a' in add_node.data.config and 'b' in add_node.data.config:
-                print(f"  ✅ Add node has both 'a' and 'b' parameters")
+                print("  ✅ Add node has both 'a' and 'b' parameters")
                 
                 # Check if they are data flow references
                 a_val = add_node.data.config['a']
@@ -104,15 +104,15 @@ async def test_temperature_workflow_generation():
                 print(f"  🔍 b = {b_val}")
                 
                 if isinstance(a_val, str) and '{' in a_val and isinstance(b_val, str) and '{' in b_val:
-                    print(f"  ✅ Both parameters use data flow references")
+                    print("  ✅ Both parameters use data flow references")
                 else:
-                    print(f"  ⚠️ Parameters don't use data flow references")
+                    print("  ⚠️ Parameters don't use data flow references")
             else:
-                print(f"  ❌ Add node missing required parameters")
+                print("  ❌ Add node missing required parameters")
         else:
-            print(f"\n❌ No 'add' tool node found in generated workflow")
+            print("\n❌ No 'add' tool node found in generated workflow")
         
-        print(f"\n🎯 Workflow reasoning:")
+        print("\n🎯 Workflow reasoning:")
         print(f"  {workflow.reasoning}")
         
     except Exception as e:

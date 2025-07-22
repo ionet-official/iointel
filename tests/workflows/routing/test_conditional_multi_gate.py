@@ -6,7 +6,6 @@ This test validates that the multi-gate routing works correctly,
 evaluating ALL conditions and returning ALL matched routes.
 """
 
-import pytest
 from iointel.src.agent_methods.tools.conditional_gate import (
     conditional_multi_gate,
     RouterConfig,

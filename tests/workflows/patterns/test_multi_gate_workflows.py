@@ -6,9 +6,7 @@ thresholds, and sophisticated decision trees from development files.
 """
 
 import pytest
-import asyncio
 from uuid import uuid4
-from typing import Dict, List, Any, Optional, Union
 
 from iointel.src.agent_methods.data_models.workflow_spec import (
     WorkflowSpec, NodeSpec, EdgeSpec, NodeData, EdgeData
@@ -451,7 +449,7 @@ class TestMultiGateWorkflows:
         workflow = complex_multi_condition_workflow
         
         # Find the main routing gate
-        gate_node = next(n for n in workflow.nodes if "routing_gate" in n.id)
+        next(n for n in workflow.nodes if "routing_gate" in n.id)
         action_nodes = [n for n in workflow.nodes if "action" in n.id]
         
         # Validate that each action node is only reachable through conditional routing

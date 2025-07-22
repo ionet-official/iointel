@@ -24,7 +24,7 @@ def test_agno_new_pattern():
     print(f"✅ Created Arxiv instance: {arxiv}")
     
     # Check registry
-    print(f"\n📊 Registry status:")
+    print("\n📊 Registry status:")
     print(f"   Total tools: {len(TOOLS_REGISTRY)}")
     
     # Check our fixed agno tools
@@ -47,9 +47,9 @@ def test_agno_new_pattern():
                     print(f"      Has 'self': {has_self}")
                     
                     if has_self:
-                        print(f"      ❌ Still has 'self' - fix failed!")
+                        print("      ❌ Still has 'self' - fix failed!")
                     else:
-                        print(f"      ✅ No 'self' - fix working!")
+                        print("      ✅ No 'self' - fix working!")
                         
                 except Exception as e:
                     print(f"      ❌ Error getting wrapped fn: {e}")
@@ -57,7 +57,7 @@ def test_agno_new_pattern():
             print(f"   ❌ {tool_name}: Not found")
     
     # Test agent creation (this was failing before)
-    print(f"\n🤖 Testing Agent creation:")
+    print("\n🤖 Testing Agent creation:")
     try:
         agent = Agent(
             name="test_agent",

@@ -27,8 +27,6 @@ class SmartToolRegistry(dict):
     """
     
     def __setitem__(self, name: str, tool: "Tool"):
-        from ..agent_methods.data_models.datamodels import Tool
-        import inspect
         
         if name in self:
             existing_tool = self[name]

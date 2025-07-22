@@ -17,7 +17,7 @@ async def test_final_fix():
     print(f"✅ Loaded {len(tools)} tools")
     
     # Create the exact same agent as the web workflow
-    print(f"\n🤖 Creating agent with run_shell_command...")
+    print("\n🤖 Creating agent with run_shell_command...")
     agent = Agent(
         name="agent_1",
         instructions="Execute the given shell command using the run_shell_command tool and return the exact output of the command without any additional interpretation or Zen-like response.",
@@ -25,10 +25,10 @@ async def test_final_fix():
         model="gpt-4o"
     )
     
-    print(f"✅ Agent created successfully")
+    print("✅ Agent created successfully")
     
     # Check the agent's tools
-    print(f"\n📋 Agent tools:")
+    print("\n📋 Agent tools:")
     for i, tool in enumerate(agent.tools):
         print(f"   {i+1}. Name: {tool.name}")
         print(f"      Function: {tool.fn.__name__}")
@@ -36,13 +36,13 @@ async def test_final_fix():
         
         # Check if name matches function
         if tool.name == tool.fn.__name__:
-            print(f"      ✅ Name and function match!")
+            print("      ✅ Name and function match!")
         else:
             print(f"      ❌ Name '{tool.name}' doesn't match function '{tool.fn.__name__}'")
             return False
     
     # Test the workflow
-    print(f"\n🚀 Testing shell command execution...")
+    print("\n🚀 Testing shell command execution...")
     result = await agent.run("Execute the shell command 'ls' to list directory contents")
     
     if result and 'tool_usage_results' in result:
@@ -52,14 +52,14 @@ async def test_final_fix():
             print(f"   Tool used: {used_tool}")
             
             if used_tool == "run_shell_command":
-                print(f"   ✅ CORRECT: Used run_shell_command!")
+                print("   ✅ CORRECT: Used run_shell_command!")
                 print(f"   Result: {result.get('result', 'No result')[:100]}...")
                 return True
             else:
                 print(f"   ❌ WRONG: Used {used_tool} instead of run_shell_command")
                 return False
     
-    print(f"   ⚠️  No tool usage detected")
+    print("   ⚠️  No tool usage detected")
     return False
 
 async def main():

@@ -84,8 +84,8 @@ def save_mock_execution_data():
         json.dump(mock_workflow, f, indent=2)
     
     print("📁 Mock data saved:")
-    print(f"   - Execution results: output/mock_execution_results.json")
-    print(f"   - Workflow spec: output/mock_workflow_spec.json")
+    print("   - Execution results: output/mock_execution_results.json")
+    print("   - Workflow spec: output/mock_workflow_spec.json")
     
     print("\n🎨 This demonstrates the UI enhancements:")
     print("   - Agent node shows tool pills: 🔧add 🔧multiply 🔧square_root")
@@ -104,8 +104,8 @@ if __name__ == "__main__":
     
     results, workflow = save_mock_execution_data()
     
-    print(f"\n✅ Demo complete! The enhanced UI will show:")
-    print(f"   - Rich panel-inspired tool usage display")
-    print(f"   - Cyan-bordered tool panels with arguments and results")
-    print(f"   - Tool pills showing available tools on agent nodes")
+    print("\n✅ Demo complete! The enhanced UI will show:")
+    print("   - Rich panel-inspired tool usage display")
+    print("   - Cyan-bordered tool panels with arguments and results")
+    print("   - Tool pills showing available tools on agent nodes")
     print(f"   - Structured display of all {len(results['results']['math_solver']['tool_usage_results'])} tool executions")

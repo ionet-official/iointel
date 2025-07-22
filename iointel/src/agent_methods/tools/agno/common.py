@@ -1,5 +1,4 @@
 from pydantic import BaseModel
-from functools import wraps
 from agno.tools import Toolkit
 
 from ..utils import register_tool
@@ -8,7 +7,6 @@ from ..utils import register_tool
 def _create_bound_wrapper(bound_method, original_method, tool_name):
     """Create a wrapper function for bound methods with clean qualified names."""
     import inspect
-    import types
     
     # Get the original method signature and remove 'self' if present
     try:
@@ -88,9 +86,20 @@ def make_base(agno_tool_cls: type[Toolkit]):
         
         def _register_bound_methods(self):
             """Register bound methods for tools marked with @wrap_tool."""
-            import inspect
+            import os
             
-            print(f"🔍 Starting bound method registration for {self.__class__.__name__}")
+            # Import io_logger for better logging
+            try:
+                from ....utilities.io_logger import IOLogger, LogLevel
+                logger = IOLogger()
+            except ImportError:
+                logger = None
+            
+            verbose_mode = os.getenv("IOINTEL_VERBOSE_TOOL_REGISTRATION", "false").lower() in ("true", "1", "yes")
+            registered_tools = []
+            
+            if verbose_mode and logger:
+                logger.log(LogLevel.INFO, f"Starting bound method registration for {self.__class__.__name__}", component="TOOLKIT")
             
             # Look for methods that were marked by @wrap_tool
             # Use the class's dict to avoid accessing class-only attributes
@@ -103,7 +112,8 @@ def make_base(agno_tool_cls: type[Toolkit]):
                         tool_name = attr._tool_name
                         agno_method = attr._agno_method
                         
-                        print(f"🔧 Registering bound tool '{tool_name}'...")
+                        if verbose_mode and logger:
+                            logger.log(LogLevel.DEBUG, f"Registering bound tool '{tool_name}'...", component="TOOLKIT")
                         
                         # Create the bound wrapper and register it
                         bound_wrapper = _create_bound_wrapper(attr, agno_method, tool_name)
@@ -113,15 +123,35 @@ def make_base(agno_tool_cls: type[Toolkit]):
                         bound_wrapper.__doc__ = f"{bound_wrapper.__doc__ or ''}\n[AgnoTool:{self.__class__.__name__}.{tool_name}]"
                         
                         register_tool(name=tool_name)(bound_wrapper)
+                        registered_tools.append(tool_name)
                         
-                        print(f"✅ Registered bound tool '{tool_name}' from {self.__class__.__name__}")
+                        if verbose_mode and logger:
+                            logger.log(LogLevel.SUCCESS, f"Registered bound tool '{tool_name}' from {self.__class__.__name__}", component="TOOLKIT")
+                        
                 except AttributeError:
                     # Skip attributes that can't be accessed (like __signature__)
                     continue
                 except Exception as e:
-                    print(f"❌ Failed to register {attr_name}: {e}")
+                    if logger:
+                        logger.log(LogLevel.ERROR, f"Failed to register {attr_name}: {e}", component="TOOLKIT")
+                    else:
+                        print(f"❌ Failed to register {attr_name}: {e}")
                     import traceback
                     traceback.print_exc()
+            
+            # Log summary if not in verbose mode and tools were registered
+            if not verbose_mode and registered_tools and logger:
+                tool_count = len(registered_tools)
+                tool_preview = ", ".join(registered_tools[:3])
+                if tool_count > 3:
+                    tool_preview += f", +{tool_count - 3} more"
+                
+                logger.log(
+                    LogLevel.INFO, 
+                    f"Registered {tool_count} tools from {self.__class__.__name__}: {tool_preview}",
+                    component="TOOLKIT",
+                    data={"tool_count": tool_count, "active_agno_tools": registered_tools, "class": self.__class__.__name__}
+                )
 
     return BaseAgnoTool
 

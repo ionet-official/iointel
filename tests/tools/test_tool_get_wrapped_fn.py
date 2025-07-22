@@ -51,9 +51,9 @@ def test_tool_get_wrapped_fn():
             print(f"   Wrapped has 'self': {has_self_in_wrapped}")
             
             if has_self_in_wrapped:
-                print(f"   ❌ PROBLEM: get_wrapped_fn() still has 'self' parameter!")
+                print("   ❌ PROBLEM: get_wrapped_fn() still has 'self' parameter!")
             else:
-                print(f"   ✅ get_wrapped_fn() correctly removed 'self' parameter")
+                print("   ✅ get_wrapped_fn() correctly removed 'self' parameter")
                 
         except Exception as e:
             print(f"   ❌ Error calling get_wrapped_fn(): {e}")

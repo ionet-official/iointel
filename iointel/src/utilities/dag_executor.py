@@ -11,7 +11,7 @@ Replaces the linear chain execution in workflow.py with true graph topology.
 
 import asyncio
 from typing import Dict, List, Set, Optional, Any
-from collections import defaultdict, deque
+from collections import deque
 from dataclasses import dataclass
 
 from ..agent_methods.data_models.workflow_spec import WorkflowSpec, NodeSpec, EdgeSpec
@@ -407,7 +407,7 @@ class DAGExecutor:
                         state.results[node_id] = result
                         logger.info(f"  ✅ {node_id} → {result}")
                 else:
-                    logger.info(f"  ⏭️  All nodes in batch skipped")
+                    logger.info("  ⏭️  All nodes in batch skipped")
         
         # Log execution summary
         executed_nodes = set(state.results.keys()) - self.skipped_nodes

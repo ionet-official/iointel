@@ -756,10 +756,6 @@ class WorkflowPlanner:
             WorkflowSpec: Validated workflow specification ready for execution
         """
         # Prepare context with tool catalog
-        full_context = {
-            "tool_catalog": tool_catalog or {},
-            "additional_context": context or {}
-        }
         
         # Get the JSON schema for WorkflowSpecLLM
         workflow_schema = WorkflowSpecLLM.model_json_schema()
@@ -955,7 +951,7 @@ Generate a WorkflowSpecLLM that fulfills the user's requirements using ONLY the 
             # Add special notes for user_input tool
             usage_note = f'{{"tool_name": "{tool_name}", "config": {{ ... }} }}'
             if tool_name == 'user_input':
-                usage_note += f'\n   🔗 Data Flow: Use `{{node_id}}` to reference user input (stores value directly)'
+                usage_note += '\n   🔗 Data Flow: Use `{node_id}` to reference user input (stores value directly)'
             
             formatted_tools.append(f"""
 📦 {tool_name}
@@ -1027,7 +1023,6 @@ Reference the topology and SLA requirements above when making changes.
                 return refined_spec_llm
         
         # Convert WorkflowSpecLLM to WorkflowSpec if needed
-        from ..data_models.workflow_spec import WorkflowSpecLLM, WorkflowSpec
         if isinstance(refined_spec_llm, WorkflowSpecLLM):
             refined_spec = WorkflowSpec.from_llm_spec(refined_spec_llm)
         else:

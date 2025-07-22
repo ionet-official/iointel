@@ -4,6 +4,7 @@ from typing import List, Optional, Dict
 from .utilities.runners import run_agents
 from .utilities.decorators import register_custom_task
 from .utilities.registries import CHAINABLE_METHODS, CUSTOM_WORKFLOW_REGISTRY
+# Tool usage enforcement now handled at DAG level via node_execution_wrapper
 from .agents import Agent
 from .agent_methods.agents.agents_factory import create_agent
 from .agent_methods.data_models.datamodels import AgentParams, AgentResultFormat
@@ -294,7 +295,7 @@ async def execute_agent_task(
     5. Executes using the standard run_agents function
     6. Follows the same pattern as other chainable tasks
     """
-    client_mode = execution_metadata.get("client_mode", False)
+    execution_metadata.get("client_mode", False)
     agent_instructions = task_metadata.get("agent_instructions", "")
     
     # Determine result format for workflow/agent chaining
@@ -367,14 +368,33 @@ async def execute_agent_task(
     else:
         task_objective = objective or "Process the available data"
     
-    # Always use local execution for now (client mode not implemented for agent tasks)
-    response = await run_agents(
-        objective=task_objective,
-        agents=agents_to_use,
-        context=context,
-        output_type=str,
-        result_format=result_format,
-    ).execute()
+    # Agent execution - SLA enforcement handled at DAG level
+    agent_name = agents_to_use[0].name if agents_to_use else "unknown"
+    
+    # Extract conversation_id from task_metadata for proper conversation continuity
+    conversation_id = task_metadata.get("conversation_id")
+    print(f"🔧 execute_agent_task: Using conversation_id = {conversation_id}")
+    
+    # Fallback to execution_metadata if not found in task_metadata
+    if not conversation_id:
+        conversation_id = execution_metadata.get("conversation_id")
+        if conversation_id:
+            print(f"🔧 execute_agent_task: Using conversation_id from execution_metadata = {conversation_id}")
+    
+    # Define the agent execution function for enforcement wrapping
+    async def execute_agent():
+        return await run_agents(
+            objective=task_objective,
+            agents=agents_to_use,
+            context=context,
+            conversation_id=conversation_id,
+            output_type=str,
+            result_format=result_format,
+        ).execute()
+    
+    # Execute the agent normally - SLA enforcement now handled at DAG level
+    print(f"ℹ️ Executing agent '{agent_name}' (SLA enforcement handled at DAG level)")
+    response = await execute_agent()
     
     # AgentResultFormat should have already filtered the response appropriately
     print(f"🔧 execute_agent_task: final response type = {type(response)}")

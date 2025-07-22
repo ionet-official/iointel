@@ -10,7 +10,6 @@ Test the DAG execution engine to verify it properly handles:
 4. Performance with timing verification
 """
 
-import os
 import uuid
 import asyncio
 import time
@@ -30,7 +29,6 @@ from iointel.src.utilities.registries import TOOLS_REGISTRY
 from iointel.src.utilities.decorators import register_custom_task
 
 # Import the example tools to register them globally
-import iointel.src.RL.example_tools
 
 
 # Register tool executor with timing

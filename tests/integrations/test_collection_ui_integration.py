@@ -10,7 +10,7 @@ sys.path.insert(0, os.path.abspath('.'))
 
 from iointel.src.agent_methods.tools.user_input import user_input, prompt_tool
 from iointel.src.agent_methods.tools.collection_manager import create_collection
-from iointel.src.web.ui_components.text_input_ui import get_text_input_ui_config, is_text_input_tool
+from iointel.src.web.ui_components.text_input_ui import get_text_input_ui_config
 
 
 async def test_collection_ui_integration():
@@ -86,7 +86,7 @@ async def test_collection_ui_integration():
         load_suggestions=False
     )
     
-    print(f"✅ Fallback user input created")
+    print("✅ Fallback user input created")
     print(f"   Suggestions: {len(fallback_result.get('suggestions', []))}")
     print(f"   Tool type: {fallback_result.get('tool_type')}")
     print(f"   Status: {fallback_result.get('status')}")

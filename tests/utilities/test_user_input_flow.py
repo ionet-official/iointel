@@ -4,7 +4,6 @@ Test script to simulate the user input flow and debug the issue.
 """
 
 import asyncio
-import json
 import aiohttp
 from pprint import pprint
 
@@ -12,28 +11,6 @@ async def test_user_input_flow():
     """Test the user input flow to debug the issue."""
     
     # Test workflow with user input
-    workflow_data = {
-        "title": "Test User Input Flow",
-        "description": "Test workflow to debug user input data flow",
-        "nodes": [
-            {
-                "id": "user_input_node",
-                "type": "tool",
-                "label": "Get User Input",
-                "data": {
-                    "tool_name": "user_input",
-                    "config": {
-                        "prompt": "What's your favorite number?",
-                        "input_type": "text",
-                        "placeholder": "Enter a number..."
-                    },
-                    "ins": [],
-                    "outs": ["user_input"]
-                }
-            }
-        ],
-        "edges": []
-    }
     
     # User input data - use the deterministic node ID
     user_inputs = {

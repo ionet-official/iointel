@@ -420,7 +420,7 @@ class TestWorkflowPlannerIntegration:
         assert isinstance(result, WorkflowSpec)
         
         # Should have conditional logic
-        has_conditions = any(
+        any(
             edge.data and edge.data.condition 
             for edge in result.edges
         )
@@ -596,7 +596,7 @@ class TestWorkflowPlannerIntegration:
         if not os.getenv("OPENAI_API_KEY"):
             pytest.skip("No OPENAI_API_KEY available")
             
-        print(f"\n=== Testing Capri Travel Decision Workflow ===")
+        print("\n=== Testing Capri Travel Decision Workflow ===")
         
         # Create tool catalog with travel-specific tools
         travel_tool_catalog = {
@@ -651,7 +651,7 @@ class TestWorkflowPlannerIntegration:
         """
         
         print(f"\nCapri Query: {capri_query}")
-        print(f"\nGenerating Capri travel workflow...")
+        print("\nGenerating Capri travel workflow...")
         
         # Generate workflow
         workflow = await planner.generate_workflow(
@@ -659,7 +659,7 @@ class TestWorkflowPlannerIntegration:
             tool_catalog=travel_tool_catalog
         )
         
-        print(f"\n=== GENERATED CAPRI TRAVEL WORKFLOW ===")
+        print("\n=== GENERATED CAPRI TRAVEL WORKFLOW ===")
         print(f"Title: {workflow.title}")
         print(f"Description: {workflow.description}")
         
@@ -681,16 +681,16 @@ class TestWorkflowPlannerIntegration:
             # Categorize nodes
             if node.data.tool_name == "weather_api":
                 weather_nodes.append(node)
-                print(f"   ✓ WEATHER NODE")
+                print("   ✓ WEATHER NODE")
             elif node.type == "decision" or (node.data.tool_name and node.data.tool_name in ["number_compare", "boolean_mux"]):
                 decision_nodes.append(node)
-                print(f"   ✓ DECISION NODE")
+                print("   ✓ DECISION NODE")
             elif node.data.tool_name == "send_email":
                 email_nodes.append(node)
-                print(f"   ✓ EMAIL NODE")
+                print("   ✓ EMAIL NODE")
             elif node.data.tool_name == "book_tickets":
                 booking_nodes.append(node)
-                print(f"   ✓ BOOKING NODE")
+                print("   ✓ BOOKING NODE")
         
         print(f"\nEdges ({len(workflow.edges)}):")
         conditional_edges = []
@@ -702,7 +702,7 @@ class TestWorkflowPlannerIntegration:
                 conditional_edges.append(edge)
         
         # Comprehensive validation for Capri travel scenario
-        print(f"\n=== CAPRI TRAVEL VALIDATION ===")
+        print("\n=== CAPRI TRAVEL VALIDATION ===")
         
         # 1. Should have weather check
         assert len(weather_nodes) > 0, "Workflow should check weather"
@@ -738,14 +738,14 @@ class TestWorkflowPlannerIntegration:
         
         # 6. CRITICAL: Should NOT have string conditions in edges
         assert len(conditional_edges) == 0, f"Should have NO conditional edges, found: {[e.data.condition for e in conditional_edges]}"
-        print(f"✓ NO string conditions in edges")
+        print("✓ NO string conditions in edges")
         
         # 7. Validate workflow structure
         issues = workflow.validate_structure()
         assert len(issues) == 0, f"Generated workflow has structural issues: {issues}"
-        print(f"✓ Workflow structure is valid")
+        print("✓ Workflow structure is valid")
         
-        print(f"\n✅ CAPRI TRAVEL WORKFLOW SUCCESSFULLY GENERATED WITH PROPER DECISION LOGIC")
+        print("\n✅ CAPRI TRAVEL WORKFLOW SUCCESSFULLY GENERATED WITH PROPER DECISION LOGIC")
         print(f"   - Weather check: {len(weather_nodes)} nodes")
         print(f"   - Decision logic: {len(decision_nodes)} nodes") 
         print(f"   - Email action: {len(email_nodes)} nodes")

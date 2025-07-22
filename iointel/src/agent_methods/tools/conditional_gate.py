@@ -12,7 +12,7 @@ and logged for audit trails.
 
 import json
 import operator
-from typing import Any, Dict, List, Optional, Union, Callable, Literal
+from typing import Any, Dict, List, Optional, Union, Literal
 from enum import Enum
 from pydantic import BaseModel, Field, field_validator
 import logging
@@ -76,9 +76,9 @@ class SimpleCondition(BaseModel):
                 raise ValueError(f"Operator '{op}' requires a list value")
             elif op == 'between':
                 if not isinstance(v, list) or len(v) != 2:
-                    raise ValueError(f"Operator 'between' requires a list of exactly 2 values")
+                    raise ValueError("Operator 'between' requires a list of exactly 2 values")
                 if not all(isinstance(x, (int, float)) for x in v):
-                    raise ValueError(f"Operator 'between' requires numeric values")
+                    raise ValueError("Operator 'between' requires numeric values")
         return v
 
 
@@ -293,14 +293,14 @@ class ConditionalGateBase:
                         reason = f"{field_value} in {condition.value} = {result}"
                 else:
                     result = False
-                    reason = f"'in' operator requires list value"
+                    reason = "'in' operator requires list value"
             elif condition.operator == "between":
                 if isinstance(condition.value, list) and len(condition.value) == 2:
                     result = float(condition.value[0]) <= float(field_value) <= float(condition.value[1])
                     reason = f"{condition.value[0]} <= {field_value} <= {condition.value[1]} = {result}"
                 else:
                     result = False
-                    reason = f"'between' operator requires list of 2 values"
+                    reason = "'between' operator requires list of 2 values"
             else:
                 result = False
                 reason = f"Unknown operator: {condition.operator}"

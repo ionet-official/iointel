@@ -6,8 +6,6 @@ These issues represent critical risks for production deployment.
 """
 
 import pytest
-import asyncio
-from typing import Dict, Any
 from uuid import uuid4
 
 from iointel.src.workflow import Workflow
@@ -180,7 +178,7 @@ class TestCriticalExecutionIssues:
             # Workflow should have loaded many more tools
             assert workflow_tools_after > dag_tools_after, f"Workflow should load more tools: {workflow_tools_after} vs {dag_tools_after}"
             
-        except Exception as e:
+        except Exception:
             # Even if it fails, it should have loaded tools
             workflow_tools_after = len(TASK_EXECUTOR_REGISTRY)
             assert workflow_tools_after > dag_tools_after, f"Workflow should load more tools even if it fails: {workflow_tools_after} vs {dag_tools_after}"

@@ -68,7 +68,7 @@ def test_tool_registration():
     from iointel.src.agent_methods.tools.agno.shell import Shell
     
     # Create instance to trigger bound method registration
-    shell = Shell()
+    Shell()
     
     # Count tools after
     final_count = len(TOOLS_REGISTRY)
@@ -86,7 +86,7 @@ def test_tool_registration():
         except Exception as e:
             print(f"  ❌ Registered tool function failed: {e}")
     else:
-        print(f"  ❌ Shell tool not found in registry")
+        print("  ❌ Shell tool not found in registry")
         print(f"  Available tools: {list(TOOLS_REGISTRY.keys())[-10:]}")  # Show last 10
 
 async def test_agent_with_working_tools():

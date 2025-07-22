@@ -23,6 +23,7 @@ dependencies = [
     "gradio>=5.32.1",
     "matplotlib>=3.10.3",
     "aiosqlite>=0.21.0",
+    "itsdangerous>=2.2.0",
 ]
 keywords = ["Agents", "LLM", "framework", "AI", "tools"]
 classifiers = [

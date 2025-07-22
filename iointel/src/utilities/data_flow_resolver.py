@@ -6,7 +6,7 @@ references in task configurations using results from previous task executions.
 """
 
 import re
-from typing import Any, Dict, Union
+from typing import Any, Dict
 from ..utilities.helpers import make_logger
 
 logger = make_logger(__name__)

@@ -6,7 +6,7 @@ for testing different patterns and scenarios.
 """
 
 from uuid import uuid4
-from typing import Dict, List, Any, Optional, Union
+from typing import Dict, List, Any, Optional
 from datetime import datetime
 
 from iointel.src.agent_methods.data_models.workflow_spec import (

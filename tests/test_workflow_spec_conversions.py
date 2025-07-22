@@ -7,7 +7,6 @@ import pytest
 import uuid
 import yaml
 import json
-from pathlib import Path
 
 from iointel.src.agent_methods.data_models.workflow_spec import (
     WorkflowSpec,
@@ -320,7 +319,7 @@ class TestWorkflowSpecConversions:
         """Test that metadata is preserved through conversions."""
         # Convert to YAML and back
         yaml_output = complex_workflow_spec.to_yaml()
-        parsed = yaml.safe_load(yaml_output)
+        yaml.safe_load(yaml_output)
         
         # The metadata should be preserved in some form
         # (Note: exact preservation depends on WorkflowDefinition structure)
@@ -540,7 +539,7 @@ class TestWorkflowSpecConversionIntegration:
     def test_full_pipeline_with_file_output(self, tmp_path, complex_workflow_spec):
         """Test complete pipeline from spec to file outputs."""
         # Convert to WorkflowDefinition
-        workflow_def = complex_workflow_spec.to_workflow_definition()
+        complex_workflow_spec.to_workflow_definition()
         
         # Save as YAML
         yaml_file = tmp_path / "workflow.yaml"
@@ -638,7 +637,7 @@ class TestWorkflowSpecConversionIntegration:
         second_task = workflow_def.tasks[1]
         assert "{joke_agent}" in second_task.task_metadata["agent_instructions"]
         
-        print(f"✅ Conversion successful!")
+        print("✅ Conversion successful!")
         print(f"📊 Tasks: {len(workflow_def.tasks)}")
         
         # Show task details
@@ -666,7 +665,7 @@ class TestWorkflowSpecConversionIntegration:
         print(f"📋 Resolved: {resolved_instructions}")
         
         assert resolved_instructions == expected_instructions
-        print(f"✅ Template resolution test passed!")
+        print("✅ Template resolution test passed!")
         
         # Verify the workflow can be created from YAML
         print("\n🔄 Creating workflow from YAML...")
@@ -694,8 +693,8 @@ class TestWorkflowSpecConversionIntegration:
         if len(yaml_content.split('\n')) > 20:
             print("  ... (truncated)")
         
-        print(f"\n🎉 All template resolution tests passed!")
-        print(f"🎭 The joke workflow is ready for execution with proper data flow!")
+        print("\n🎉 All template resolution tests passed!")
+        print("🎭 The joke workflow is ready for execution with proper data flow!")
 
     def test_agent_workflow_execution_with_mocks(self):
         """Test actual workflow execution with mocked agents to see data flow resolution in action."""
@@ -728,11 +727,11 @@ class TestWorkflowSpecConversionIntegration:
             if agents and hasattr(agents[0], 'instructions'):
                 instructions = agents[0].instructions
                 if "Create a humorous joke" in instructions:
-                    print(f"🤖 MOCK JOKE AGENT: Creating joke...")
+                    print("🤖 MOCK JOKE AGENT: Creating joke...")
                     return {"result": mock_joke}
                 elif "Evaluate this joke:" in instructions:
                     print(f"🤖 MOCK EVAL AGENT: Received instructions: {instructions}")
-                    print(f"🤖 MOCK EVAL AGENT: Evaluating joke...")
+                    print("🤖 MOCK EVAL AGENT: Evaluating joke...")
                     return {"result": mock_evaluation}
             
             return {"result": "Mock response"}
@@ -745,7 +744,7 @@ class TestWorkflowSpecConversionIntegration:
                 mock_executor.execute.side_effect = mock_agent_run
                 mock_run_agents.return_value = mock_executor
                 
-                print(f"\n🚀 Executing mock workflow...")
+                print("\n🚀 Executing mock workflow...")
                 conversation_id = f"mock_test_{uuid.uuid4().hex[:8]}"
                 
                 # Execute the workflow
@@ -756,7 +755,7 @@ class TestWorkflowSpecConversionIntegration:
         # Run the test
         results = asyncio.run(run_mock_workflow())
         
-        print(f"\n📊 Execution Results:")
+        print("\n📊 Execution Results:")
         print(f"Status: {'✅ Success' if 'results' in results else '❌ Failed'}")
         
         if 'results' in results:
@@ -769,13 +768,13 @@ class TestWorkflowSpecConversionIntegration:
                 # Verify the results structure (mocking is working)
                 if task_id == "joke_creator":
                     assert "result" in str(result)
-                    print(f"    ✅ Joke creation task executed")
+                    print("    ✅ Joke creation task executed")
                 elif task_id == "joke_evaluator":
                     assert "result" in str(result)
-                    print(f"    ✅ Joke evaluation task executed")
+                    print("    ✅ Joke evaluation task executed")
         
-        print(f"\n🎉 Mock workflow execution test passed!")
-        print(f"📝 This demonstrates that agent instruction resolution works correctly")
+        print("\n🎉 Mock workflow execution test passed!")
+        print("📝 This demonstrates that agent instruction resolution works correctly")
 
 
 class TestCentralizedWorkflowExamples:
@@ -807,7 +806,7 @@ class TestCentralizedWorkflowExamples:
             if issues:
                 print(f"   ⚠️  Validation issues: {issues}")
             else:
-                print(f"   ✅ Validation: PASSED")
+                print("   ✅ Validation: PASSED")
             
             # Test conversion to WorkflowDefinition
             try:
@@ -832,13 +831,13 @@ class TestCentralizedWorkflowExamples:
                 assert meta["description"] == workflow_spec.description
                 assert meta["node_count"] == len(workflow_spec.nodes)
                 assert meta["edge_count"] == len(workflow_spec.edges)
-                print(f"   ✅ Metadata consistency: PASSED")
+                print("   ✅ Metadata consistency: PASSED")
             else:
                 print(f"   ❌ Metadata missing for {example_id}")
                 raise AssertionError(f"Metadata missing for {example_id}")
         
         print(f"\n🎉 All {len(examples)} centralized examples are valid!")
-        print(f"✅ These examples can be used consistently across UI and tests")
+        print("✅ These examples can be used consistently across UI and tests")
     
     def test_examples_categorization(self):
         """Test that examples can be categorized properly."""
@@ -881,7 +880,7 @@ class TestCentralizedWorkflowExamples:
         assert len(agent_examples) > 0, "Should have at least one agent example"
         assert len(simple_examples) > 0, "Should have at least one simple example"
         
-        print(f"✅ Example categorization works correctly")
+        print("✅ Example categorization works correctly")
     
     def test_web_ui_compatibility(self):
         """Test that examples work with the web UI format."""
@@ -908,7 +907,7 @@ class TestCentralizedWorkflowExamples:
             if "complexity" in meta:
                 print(f"   🎯 Complexity: {meta['complexity']}")
         
-        print(f"\n✅ All examples are compatible with web UI format")
+        print("\n✅ All examples are compatible with web UI format")
 
 
 if __name__ == "__main__":

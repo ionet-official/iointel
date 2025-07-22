@@ -102,15 +102,15 @@ def _init_duckduckgo():
 
 def _init_firecrawl():
     """Initialize Firecrawl crawler."""
-    api_key = os.getenv("FIRECRAWL_API_KEY")
+    os.getenv("FIRECRAWL_API_KEY")
     
     # Create instance - auto-registers its @register_tool methods
 
 
 def _init_retrieval_engine():
     """Initialize Retrieval Engine."""
-    base_url = os.getenv("RETRIEVAL_ENGINE_URL")
-    api_key = os.getenv("RETRIEVAL_ENGINE_API_KEY")
+    os.getenv("RETRIEVAL_ENGINE_URL")
+    os.getenv("RETRIEVAL_ENGINE_API_KEY")
     
     # RetrievalEngine has tools already registered via @register_tool on its methods
     # We just need to instantiate it to make those tools available
@@ -123,7 +123,7 @@ def _init_searxng():
         base_url = os.getenv("SEARXNG_URL", "http://localhost:8888")
         
         # Create instance and use its registered tools
-        client = SearxngClient(base_url=base_url)
+        SearxngClient(base_url=base_url)
         
         # Return the actual registered tool names
         return ["searxng.search", "searxng.get_urls"]
@@ -142,7 +142,7 @@ def _init_wolfram():
     """Initialize Wolfram Alpha."""
     from .wolfram import Wolfram
     api_key = os.getenv("WOLFRAM_API_KEY")
-    wolfram = Wolfram(api_key=api_key)
+    Wolfram(api_key=api_key)
     # Auto-registers its @register_tool methods
 
 
@@ -152,7 +152,7 @@ def _init_agentql():
         from .agno.agentql import AgentQL
         api_key = os.getenv("AGENTQL_API_KEY")
         
-        agentql = AgentQL(api_key=api_key)
+        AgentQL(api_key=api_key)
         # AgentQL should register its own tools
         return []  # Return empty, tools are auto-registered
     except ImportError as e:
@@ -165,7 +165,7 @@ def _init_calculator():
     try:
         from .agno.calculator import Calculator
         
-        calc = Calculator()
+        Calculator()
         # Return the actual registered tool names
         return ["calculator_add", "calculator_subtract", "calculator_multiply", "calculator_divide", 
                 "calculator_exponentiate", "calculator_square_root", "calculator_factorial", 
@@ -204,7 +204,7 @@ def _init_yfinance():
     try:
         from .agno.yfinance import YFinance
         
-        yf = YFinance()
+        YFinance()
         # YFinance should register its own tools
         return []  # Return empty, tools are auto-registered
     except ImportError as e:
@@ -217,7 +217,7 @@ def _init_file_toolkit():
     try:
         from .agno.file import File
         
-        toolkit = File()
+        File()
         # File should register its own tools
         return []  # Return empty, tools are auto-registered
     except ImportError as e:
@@ -230,7 +230,7 @@ def _init_shell_tool():
     try:
         from .agno.shell import Shell
         
-        shell = Shell()
+        Shell()
         # Shell should register its own tools
         return []  # Return empty, tools are auto-registered
     except ImportError as e:
@@ -243,7 +243,7 @@ def _init_csv_toolkit():
     try:
         from .agno.csv import Csv
         
-        toolkit = Csv()
+        Csv()
         # Csv should register its own tools
         return []  # Return empty, tools are auto-registered
     except ImportError as e:
@@ -256,7 +256,7 @@ def _init_arxiv_toolkit():
     try:
         from .agno.arxiv import Arxiv
         
-        toolkit = Arxiv()
+        Arxiv()
         # Arxiv should register its own tools
         return []  # Return empty, tools are auto-registered
     except ImportError as e:
@@ -269,7 +269,7 @@ def _init_crawl4ai_toolkit():
     try:
         from .agno.crawl4ai import Crawl4ai
         
-        toolkit = Crawl4ai()
+        Crawl4ai()
         # Crawl4ai should register its own tools
         return []  # Return empty, tools are auto-registered
     except ImportError as e:

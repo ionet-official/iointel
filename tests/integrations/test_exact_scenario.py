@@ -8,8 +8,6 @@ Test the exact scenario described by the user:
 2. story_generation_agent should receive this input and NOT ask "Please provide the topic"
 """
 
-import os
-import uuid
 import asyncio
 from pathlib import Path
 from dotenv import load_dotenv
@@ -18,9 +16,7 @@ from dotenv import load_dotenv
 env_path = Path(__file__).parent / "creds.env" 
 load_dotenv(env_path)
 
-from iointel.src.utilities.registries import TASK_EXECUTOR_REGISTRY
 from iointel.src.chainables import execute_agent_task
-from iointel.src.agent_methods.data_models.datamodels import AgentParams
 from iointel.src.agents import Agent
 
 

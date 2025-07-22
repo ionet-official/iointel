@@ -15,14 +15,10 @@ project_root = Path(__file__).parent
 sys.path.insert(0, str(project_root))
 
 from iointel.src.web.workflow_storage import WorkflowStorage
-from iointel.src.utilities.dag_executor import DAGExecutor
-from iointel.src.utilities.graph_nodes import WorkflowState
 from iointel.src.utilities.registries import TASK_EXECUTOR_REGISTRY
 from iointel.src.web.workflow_server import web_tool_executor, web_agent_executor
 
 # Import tools to register them
-import iointel.src.agent_methods.tools.conditional_gate
-import iointel.src.agent_methods.tools.user_input
 
 
 async def test_actual_saved_workflow():
@@ -53,7 +49,7 @@ async def test_actual_saved_workflow():
     # Load the actual workflow spec
     workflow_spec = storage.load_workflow(target_workflow['id'])
     
-    print(f"📋 Workflow loaded:")
+    print("📋 Workflow loaded:")
     print(f"   Nodes: {len(workflow_spec.nodes)}")
     print(f"   Edges: {len(workflow_spec.edges)}")
     
@@ -65,7 +61,7 @@ async def test_actual_saved_workflow():
             break
     
     if decision_agent:
-        print(f"🤖 Decision Agent found:")
+        print("🤖 Decision Agent found:")
         print(f"   Tools: {decision_agent.data.tools}")
         print(f"   Instructions (first 200 chars): {decision_agent.data.agent_instructions[:200]}...")
     
@@ -74,10 +70,10 @@ async def test_actual_saved_workflow():
     TASK_EXECUTOR_REGISTRY["agent"] = web_agent_executor
     
     # Execute workflow exactly like the web app does
-    print(f"\n🚀 Executing workflow using proper conversion...")
+    print("\n🚀 Executing workflow using proper conversion...")
     
     # Convert WorkflowSpec to executable Workflow (this creates the agents!)
-    workflow_def = workflow_spec.to_workflow_definition()
+    workflow_spec.to_workflow_definition()
     yaml_content = workflow_spec.to_yaml()
     
     # Import Workflow class
@@ -95,7 +91,7 @@ async def test_actual_saved_workflow():
     try:
         results = await workflow.run_tasks(conversation_id=conversation_id)
         
-        print(f"\n✅ Workflow execution completed!")
+        print("\n✅ Workflow execution completed!")
         
         # Results format from workflow.run_tasks()
         task_results = results.get("results", {})
@@ -107,13 +103,13 @@ async def test_actual_saved_workflow():
             
             if isinstance(result, dict):
                 if result.get("status") == "skipped":
-                    print(f"   ❌ Status: SKIPPED (this is good for conditional routing)")
+                    print("   ❌ Status: SKIPPED (this is good for conditional routing)")
                 else:
-                    print(f"   ✅ Status: EXECUTED")
+                    print("   ✅ Status: EXECUTED")
                     
                     # Check if this is the decision agent
                     if task_id == "decision_agent":
-                        print(f"   🔍 Checking if agent used conditional_gate tool...")
+                        print("   🔍 Checking if agent used conditional_gate tool...")
                         
                         # Check for tool usage
                         if "tool_usage_results" in result:
@@ -124,7 +120,7 @@ async def test_actual_saved_workflow():
                                     print(f"     - {usage.tool_name}: {usage.tool_result}")
                                     
                                     if usage.tool_name == "conditional_gate":
-                                        print(f"     🎯 SUCCESS: Agent called conditional_gate tool!")
+                                        print("     🎯 SUCCESS: Agent called conditional_gate tool!")
                                         gate_result = usage.tool_result
                                         print(f"     📊 Gate result: {gate_result}")
                                         
@@ -133,23 +129,23 @@ async def test_actual_saved_workflow():
                                         else:
                                             print(f"     ❓ Gate result format: {type(gate_result)}")
                             else:
-                                print(f"   ❌ Agent did not use any tools!")
+                                print("   ❌ Agent did not use any tools!")
                         else:
-                            print(f"   ❌ No tool_usage_results found in agent result")
+                            print("   ❌ No tool_usage_results found in agent result")
                             
                     # Show result preview
                     if "result" in result:
                         result_text = str(result["result"])
                         print(f"   📝 Result preview: {result_text[:150]}...")
             else:
-                print(f"   ✅ Status: EXECUTED")
+                print("   ✅ Status: EXECUTED")
                 print(f"   📝 Result: {str(result)[:150]}...")
         
         # Show execution summary
         executed_count = len([r for r in task_results.values() if isinstance(r, dict) and r.get("status") != "skipped"])
         skipped_count = len([r for r in task_results.values() if isinstance(r, dict) and r.get("status") == "skipped"])
         
-        print(f"\n📊 Execution Summary:")
+        print("\n📊 Execution Summary:")
         print(f"   Total tasks: {len(task_results)}")
         print(f"   Executed: {executed_count}")
         print(f"   Skipped: {skipped_count}")
@@ -157,7 +153,7 @@ async def test_actual_saved_workflow():
         if skipped_count > 0:
             print(f"   🎯 Conditional routing worked! {skipped_count} tasks were skipped")
         else:
-            print(f"   ❌ Conditional routing failed - all tasks executed")
+            print("   ❌ Conditional routing failed - all tasks executed")
             
     except Exception as e:
         print(f"❌ Workflow execution failed: {str(e)}")

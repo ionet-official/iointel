@@ -4,8 +4,6 @@ import json
 from .memory import AsyncMemory
 from .agent_methods.data_models.datamodels import PersonaConfig, Tool, ToolUsageResult, AgentResultFormat
 from .utilities.rich import pretty_output
-from .utilities.constants import get_api_url, get_base_model, get_api_key
-from .utilities.registries import TOOLS_REGISTRY
 from .utilities.helpers import supports_tool_choice_required, flatten_union_types
 from .ui.rich_panels import render_agent_result_panel
 from .ui.io_gradio_ui import IOGradioUI

@@ -2,7 +2,6 @@
 FastAPI server for serving WorkflowSpecs to the web interface.
 """
 
-import os
 import sys
 from typing import Dict, Any, List, Optional
 from datetime import datetime
@@ -21,21 +20,16 @@ sys.path.insert(0, str(project_root))
 from iointel.src.agent_methods.agents.workflow_planner import WorkflowPlanner
 from iointel.src.agent_methods.data_models.workflow_spec import WorkflowSpec
 from iointel.src.agent_methods.tools.tool_loader import load_tools_from_env
-from iointel.src.utilities.registries import TOOLS_REGISTRY
 from iointel.src.utilities.tool_registry_utils import create_tool_catalog
 from iointel.src.memory import AsyncMemory
 from iointel.src.workflow import Workflow
 from iointel.src.utilities.decorators import register_custom_task
-from iointel.src import chainables  # Import chainables to ensure agent executor is available
 import uuid
 import asyncio
-import json
 
 # Import example tools to register them globally
-import iointel.src.RL.example_tools
 
 # Import conditional gate tools to register them globally
-import iointel.src.agent_methods.tools.conditional_gate
 
 # Import workflow storage
 from .workflow_storage import WorkflowStorage
@@ -45,6 +39,7 @@ from .execution_feedback import (
     ExecutionStatus,
     WorkflowExecutionSummary
 )
+from ..utilities.io_logger import workflow_logger, execution_logger, system_logger
 from iointel.src.chainables import execute_tool_task, execute_agent_task
 from iointel.src.agent_methods.tools.collection_manager import search_collections, create_collection
 
@@ -231,7 +226,7 @@ async def web_decision_executor(task_metadata, objective, agents, execution_meta
     
     # If no tool_name specified, treat as agent-based decision
     if not tool_name:
-        print(f"   📝 No tool_name specified, treating as agent-based decision")
+        print("   📝 No tool_name specified, treating as agent-based decision")
         
         # Create a simple agent-based decision that returns a boolean result
         # This is a fallback for workflows with null tool_name in decision nodes
@@ -491,7 +486,11 @@ async def broadcast_execution_update(execution_id: str, status: str, results: Op
     """Broadcast execution status updates to all connected clients."""
     # Only log significant status changes
     if status in ['started', 'completed', 'failed']:
-        print(f"📢 Execution {execution_id[:8]}: {status}")
+        execution_logger.info(
+            f"Execution status update: {status}", 
+            data={"execution_id": execution_id[:8], "status": status},
+            execution_id=execution_id
+        )
     
     # Serialize results to handle AgentRunResult objects
     serialized_results = serialize_execution_results(results)
@@ -545,9 +544,9 @@ async def startup_event(conversation_id: str = "web_interface_session_01"):
     try:
         memory = AsyncMemory("sqlite+aiosqlite:///conversations.db")
         await memory.init_models()
-        print("✅ Memory initialized")
+        system_logger.success("Memory system initialized successfully")
     except Exception as e:
-        print(f"❌ Memory initialization failed: {e}")
+        system_logger.error("Memory initialization failed", data={"error": str(e), "error_type": type(e).__name__})
         raise
     
     # Load tools
@@ -556,10 +555,16 @@ async def startup_event(conversation_id: str = "web_interface_session_01"):
         load_dotenv("creds.env")
         available_tools = load_tools_from_env("creds.env")
         tool_catalog = create_tool_catalog()
-        print(f"✅ Loaded {len(available_tools)} tools from environment")
-        print(f"✅ Tool catalog contains {len(tool_catalog)} tools")
+        system_logger.success(
+            "Tools and catalog loaded successfully",
+            data={
+                "available_tools": len(available_tools),
+                "catalog_tools": len(tool_catalog),
+                "tools_loaded": available_tools[:5] + (["..."] if len(available_tools) > 5 else [])
+            }
+        )
     except Exception as e:
-        print(f"⚠️  Warning: Could not load tools: {e}")
+        system_logger.warning("Could not load tools from environment", data={"error": str(e), "fallback": "using empty catalog"})
         tool_catalog = {}
     
     # Initialize WorkflowPlanner
@@ -569,9 +574,9 @@ async def startup_event(conversation_id: str = "web_interface_session_01"):
             conversation_id=conversation_id,
             debug=False
         )
-        print("✅ WorkflowPlanner initialized")
+        system_logger.success("WorkflowPlanner initialized", data={"memory_enabled": True, "conversation_id": conversation_id})
     except Exception as e:
-        print(f"❌ WorkflowPlanner initialization failed: {e}")
+        system_logger.error("WorkflowPlanner initialization failed", data={"error": str(e), "error_type": type(e).__name__})
         raise
     
     # Initialize WorkflowStorage
@@ -590,7 +595,7 @@ async def websocket_endpoint(websocket: WebSocket):
     """WebSocket endpoint for real-time updates."""
     await websocket.accept()
     connections.append(websocket)
-    print(f"🔌 New WebSocket connection. Total: {len(connections)}")
+    system_logger.info("New WebSocket connection established", data={"total_connections": len(connections)})
     
     # Send current workflow on connection
     if current_workflow:
@@ -622,7 +627,7 @@ async def websocket_endpoint(websocket: WebSocket):
     except WebSocketDisconnect:
         if websocket in connections:
             connections.remove(websocket)
-        print(f"🔌 WebSocket disconnected. Total: {len(connections)}")
+        system_logger.info("WebSocket disconnected", data={"remaining_connections": len(connections)})
 
 
 @app.get("/api/workflow")
@@ -792,7 +797,15 @@ async def generate_workflow(workflow_request: WorkflowRequest, request: Request)
             
             # Increment revision for continual improvement tracking
             current_workflow.rev = len(workflow_history) + 1
-            print(f"✅ Workflow evolved to rev {current_workflow.rev}: '{current_workflow.title}'")
+            workflow_logger.success(
+                "Workflow evolved to new revision", 
+                data={
+                    "revision": current_workflow.rev,
+                    "title": current_workflow.title,
+                    "nodes_count": len(current_workflow.nodes),
+                    "edges_count": len(current_workflow.edges)
+                }
+            )
             
             # Register workflow revision with faux user for stable conversation tracking
             if faux_user:
@@ -981,7 +994,7 @@ async def execute_workflow_background(
         await broadcast_execution_update(execution_id, "running")
         
         # Convert WorkflowSpec to executable Workflow
-        workflow_def = workflow_spec.to_workflow_definition()
+        workflow_spec.to_workflow_definition()
         yaml_content = workflow_spec.to_yaml()
         
         # Create workflow from YAML with custom conversation ID
@@ -1045,8 +1058,22 @@ async def execute_workflow_background(
             "execution_summary": execution_summary
         })
         
-        print(f"✅ Workflow execution completed: {execution_id}")
-        print(f"📈 Results: {len(results.get('results', {}))} task results")
+        # Import logger
+        from ..utilities.io_logger import execution_logger
+        
+        execution_logger.success(
+            "Workflow execution completed",
+            data={
+                "execution_id": execution_id,
+                "workflow_title": workflow_spec.title,
+                "total_results": len(results.get('results', {})),
+                "execution_time": execution_summary.total_duration_seconds,
+                "nodes_executed": len(execution_summary.nodes_executed),
+                "nodes_skipped": len(execution_summary.nodes_skipped),
+                "status": execution_summary.status.value if hasattr(execution_summary.status, 'value') else str(execution_summary.status)
+            },
+            execution_id=execution_id
+        )
         
         # Generate and send feedback to WorkflowPlanner using interface conversation ID
         interface_conversation_id = None
@@ -1065,7 +1092,15 @@ async def execute_workflow_background(
         
     except Exception as e:
         error_msg = str(e)
-        print(f"❌ Workflow execution failed: {execution_id} - {error_msg}")
+        execution_logger.error(
+            "Workflow execution failed",
+            data={
+                "execution_id": execution_id,
+                "error_message": error_msg,
+                "workflow_title": getattr(workflow_spec, 'title', 'Unknown')
+            },
+            execution_id=execution_id
+        )
         import traceback
         print(f"🔍 Traceback: {traceback.format_exc()}")
         
@@ -1094,13 +1129,27 @@ async def execute_workflow_background(
 async def send_execution_feedback_to_planner(execution_summary: WorkflowExecutionSummary, interface_conversation_id: Optional[str] = None, workflow_spec: Optional[WorkflowSpec] = None):
     """Send execution results back to WorkflowPlanner for analysis and suggestions."""
     try:
+        # Import logger
+        from ..utilities.io_logger import execution_logger
+        
         # Generate feedback prompt
         feedback_prompt = create_execution_feedback_prompt(execution_summary, workflow_spec)
         
-        print(f"📤 Sending execution feedback to WorkflowPlanner")
-        print(f"   Execution: {execution_summary.execution_id}")
-        print(f"   Status: {execution_summary.status}")
-        print(f"   Duration: {execution_summary.total_duration_seconds:.2f}s")
+        # Log execution report with all relevant data
+        execution_logger.execution_report(
+            title=f"WorkflowPlanner Analysis for {execution_summary.workflow_title}",
+            report_data={
+                "execution_id": execution_summary.execution_id,
+                "status": execution_summary.status.value if hasattr(execution_summary.status, 'value') else str(execution_summary.status),
+                "duration": f"{execution_summary.total_duration_seconds:.2f}s",
+                "nodes_executed": len(execution_summary.nodes_executed),
+                "nodes_skipped": len(execution_summary.nodes_skipped),
+                "workflow_spec": workflow_spec,
+                "execution_summary": execution_summary,
+                "feedback_prompt": feedback_prompt
+            },
+            execution_id=execution_summary.execution_id
+        )
         
         # Initialize WorkflowPlanner for feedback analysis
         from ..agent_methods.agents.workflow_planner import WorkflowPlanner
@@ -1115,10 +1164,17 @@ async def send_execution_feedback_to_planner(execution_summary: WorkflowExecutio
             conversation_id=feedback_conversation_id
         )
         
-        # Send feedback as system input to planner
+        # Get the current tool catalog for analysis context
+        try:
+            feedback_tool_catalog = create_tool_catalog()
+        except Exception as e:
+            print(f"⚠️ Warning: Could not load tool catalog for feedback analysis: {e}")
+            feedback_tool_catalog = {}
+        
+        # Send feedback as system input to planner with proper tool catalog
         response = await planner.generate_workflow(
             query=feedback_prompt,
-            tool_catalog={},  # No tools needed for analysis
+            tool_catalog=feedback_tool_catalog,  # Use actual tool catalog for analysis context
             context={
                 "timestamp": datetime.now().isoformat(),
                 "execution_feedback": True,
@@ -1129,17 +1185,29 @@ async def send_execution_feedback_to_planner(execution_summary: WorkflowExecutio
         
         # Log the analysis response
         if hasattr(response, 'reasoning') and response.reasoning:
-            print(f"🤖 WorkflowPlanner Analysis:")
-            print(f"   {response.reasoning[:200]}...")
+            execution_logger.success(
+                "WorkflowPlanner analysis completed",
+                data={
+                    "analysis_length": len(response.reasoning),
+                    "analysis_preview": response.reasoning[:300] + "..." if len(response.reasoning) > 300 else response.reasoning,
+                    "has_workflow_spec": workflow_spec is not None,
+                    "feedback_conversation_id": feedback_conversation_id
+                },
+                execution_id=execution_summary.execution_id
+            )
             
             # Store feedback for potential display to user
             if execution_summary.execution_id in active_executions:
                 active_executions[execution_summary.execution_id]["planner_feedback"] = response.reasoning
         
-        print(f"✅ Execution feedback processed successfully")
+        execution_logger.success("Execution feedback processing completed", execution_id=execution_summary.execution_id)
         
     except Exception as e:
-        print(f"⚠️ Failed to send execution feedback: {e}")
+        execution_logger.error(
+            "Failed to send execution feedback", 
+            data={"error": str(e), "error_type": type(e).__name__},
+            execution_id=execution_summary.execution_id if execution_summary else None
+        )
         # Don't fail the entire execution if feedback fails
 
 
@@ -1189,7 +1257,7 @@ async def load_example_workflow(example_id: str):
     # Update planner context with loaded workflow
     if planner:
         planner.set_current_workflow(current_workflow)
-        print(f"🧠 Set planner context to loaded example workflow")
+        print("🧠 Set planner context to loaded example workflow")
     
     # Broadcast update
     print(f"📡 Broadcasting example workflow to {len(connections)} connections")
@@ -1304,7 +1372,7 @@ async def load_saved_workflow(workflow_id: str):
         # Update planner context with loaded workflow
         if planner:
             planner.set_current_workflow(current_workflow)
-            print(f"🧠 Set planner context to loaded saved workflow")
+            print("🧠 Set planner context to loaded saved workflow")
         
         # Broadcast update
         await broadcast_workflow_update(current_workflow)

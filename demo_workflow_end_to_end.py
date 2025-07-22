@@ -29,7 +29,6 @@ from iointel.src.utilities.decorators import register_custom_task
 from iointel.src.workflow import Workflow
 
 # Import the example tools to register them globally
-import iointel.src.RL.example_tools
 
 
 # Register tool executor for "tool" type tasks
@@ -65,7 +64,7 @@ async def execute_tool_task(task_metadata, objective, agents, execution_metadata
 @register_custom_task("agent")
 async def execute_agent_task(task_metadata, objective, agents, execution_metadata):
     """Execute an agent task using the provided agents."""
-    print(f"   🤖 Executing agent task")
+    print("   🤖 Executing agent task")
     
     # Get agent instructions
     instructions = task_metadata.get("agent_instructions", objective)
@@ -83,7 +82,7 @@ async def execute_agent_task(task_metadata, objective, agents, execution_metadat
             agents=agents,
             output_type=str
         )
-        print(f"   ✅ Agent task executed successfully")
+        print("   ✅ Agent task executed successfully")
         return result
     except Exception as e:
         print(f"   ❌ Agent task failed: {e}")
@@ -143,7 +142,7 @@ def load_available_tools():
 
 async def generate_workflow_with_ai(query: str, tool_catalog: dict):
     """Use WorkflowPlanner to generate a workflow from natural language."""
-    print(f"\n🤖 Generating workflow with AI...")
+    print("\n🤖 Generating workflow with AI...")
     print(f"   Query: {query}")
     
     # Check if API key is available
@@ -190,12 +189,12 @@ async def generate_workflow_with_ai(query: str, tool_catalog: dict):
 
 def convert_to_executable(workflow_spec):
     """Convert WorkflowSpec to executable format."""
-    print(f"\n🔄 Converting to executable format...")
+    print("\n🔄 Converting to executable format...")
     
     try:
         # Convert to WorkflowDefinition
         workflow_def = workflow_spec.to_workflow_definition()
-        print(f"   ✅ Converted to WorkflowDefinition")
+        print("   ✅ Converted to WorkflowDefinition")
         print(f"   - Name: {workflow_def.name}")
         print(f"   - Tasks: {len(workflow_def.tasks)}")
         
@@ -212,12 +211,12 @@ def convert_to_executable(workflow_spec):
 
 async def execute_workflow(yaml_content: str):
     """Execute the workflow using the Workflow engine."""
-    print(f"\n🚀 Executing workflow...")
+    print("\n🚀 Executing workflow...")
     
     try:
         # Create workflow from YAML
         workflow = Workflow.from_yaml(yaml_str=yaml_content)
-        print(f"   ✅ Created executable workflow")
+        print("   ✅ Created executable workflow")
         print(f"   - Objective: {workflow.objective}")
         print(f"   - Tasks: {len(workflow.tasks)}")
         print(f"   - Client mode: {workflow.client_mode}")
@@ -226,7 +225,7 @@ async def execute_workflow(yaml_content: str):
         print("   🔄 Running workflow tasks...")
         results = await workflow.run_tasks()
         
-        print(f"   ✅ Workflow execution completed!")
+        print("   ✅ Workflow execution completed!")
         print(f"   - Conversation ID: {results['conversation_id']}")
         print(f"   - Results: {len(results['results'])} task results")
         
@@ -330,18 +329,9 @@ async def main():
     print("=" * 60)
     
     # Step 1: Load available tools
-    tool_catalog = load_available_tools()
+    load_available_tools()
     
     # Step 2: Generate workflow with AI (or use fallback)
-    query = """
-    Create a workflow that:
-    1. Gets the current time using get_current_datetime
-    2. Performs mathematical calculations: add 10 and 5, then multiply the result by 3
-    3. Calculates the square root of the final result
-    4. Shows the current time and all calculation results
-    
-    Use only the simple math tools available in the catalog: get_current_datetime, add, multiply, square_root.
-    """
     
     # For testing data flow resolution, use fallback workflow
     print("\n   🔄 Using fallback workflow to test data flow resolution...")
@@ -365,9 +355,9 @@ async def main():
     
     # Step 5: Display results
     if results:
-        print(f"\n📊 Execution Results:")
+        print("\n📊 Execution Results:")
         print(f"   Conversation ID: {results['conversation_id']}")
-        print(f"\n   Task Results:")
+        print("\n   Task Results:")
         for task_name, result in results['results'].items():
             print(f"   - {task_name}: {result}")
     
@@ -384,7 +374,7 @@ async def main():
         import json
         results_file = output_dir / f"{workflow_spec.title.replace(' ', '_')}_results.json"
         results_file.write_text(json.dumps(results, indent=2, default=str))
-        print(f"\n💾 Saved artifacts:")
+        print("\n💾 Saved artifacts:")
         print(f"   - YAML: {yaml_file}")
         print(f"   - Results: {results_file}")
     

@@ -5,8 +5,6 @@ Tests Shell, YFinance, File, CSV, Arxiv, and Crawl4ai tools
 """
 
 import asyncio
-import os
-import tempfile
 from pathlib import Path
 from iointel.src.agents import Agent
 from iointel.src.agent_methods.tools.tool_loader import load_tools_from_env

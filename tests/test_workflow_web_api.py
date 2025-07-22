@@ -222,7 +222,7 @@ class TestWorkflowWebSocket:
 
     def test_websocket_connection(self, client):
         """Test basic WebSocket connection."""
-        with client.websocket_connect("/ws") as websocket:
+        with client.websocket_connect("/ws"):
             # Connection should be established without errors
             pass
 
@@ -247,7 +247,7 @@ class TestWorkflowWebSocket:
         import iointel.src.web.workflow_server as server_module
         server_module.current_workflow = None
         
-        with client.websocket_connect("/ws") as websocket:
+        with client.websocket_connect("/ws"):
             # Should connect without sending workflow data
             pass
 

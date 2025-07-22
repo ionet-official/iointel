@@ -7,7 +7,6 @@ Test that the integrated DAG executor works with parallel branches
 in the main workflow system.
 """
 
-import os
 import uuid
 import asyncio
 import time
@@ -26,7 +25,6 @@ from iointel.src.utilities.registries import TOOLS_REGISTRY
 from iointel.src.utilities.decorators import register_custom_task
 
 # Import the example tools to register them globally
-import iointel.src.RL.example_tools
 
 
 # Register tool executor with timing
@@ -117,7 +115,7 @@ async def test_integrated_parallel_execution():
     )
     
     # Convert to executable workflow
-    workflow_def = workflow_spec.to_workflow_definition()
+    workflow_spec.to_workflow_definition()
     yaml_content = workflow_spec.to_yaml()
     
     # Create workflow from YAML

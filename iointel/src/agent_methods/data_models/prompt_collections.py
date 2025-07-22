@@ -11,7 +11,6 @@ from pydantic import BaseModel, Field
 from datetime import datetime
 import uuid
 import json
-import os
 from pathlib import Path
 
 

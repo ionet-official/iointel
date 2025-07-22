@@ -8,7 +8,7 @@ WorkflowPlanner understands and can use to create agents with explicit enforceme
 This makes tool usage enforcement first-order - decided at planning time, not inferred at runtime.
 """
 
-from typing import List, Set, Optional, Dict, Any
+from typing import List, Optional, Dict, Any
 from pydantic import BaseModel, Field
 from enum import Enum
 

@@ -23,7 +23,7 @@ def test_complete_agno_fix():
     print(f"✅ Loaded {len(tools)} tools")
     
     # Test 1: Registry validation
-    print(f"\n1️⃣ Testing registry validation:")
+    print("\n1️⃣ Testing registry validation:")
     validation = validate_tool_registry()
     print(f"   Total tools: {validation['total_tools']}")
     print(f"   Registry health: {'✅ Healthy' if validation['is_healthy'] else '❌ Issues found'}")
@@ -32,7 +32,7 @@ def test_complete_agno_fix():
             print(f"   - {issue}")
     
     # Test 2: Agno tools registration
-    print(f"\n2️⃣ Testing agno tools registration:")
+    print("\n2️⃣ Testing agno tools registration:")
     agno_tools = ["run_shell_command", "arxiv_search", "get_analyst_recommendations", "file_read"]
     
     for tool_name in agno_tools:
@@ -43,7 +43,7 @@ def test_complete_agno_fix():
             print(f"   ❌ {tool_name}: Not found")
     
     # Test 3: Centralized tool resolution
-    print(f"\n3️⃣ Testing centralized tool resolution:")
+    print("\n3️⃣ Testing centralized tool resolution:")
     for tool_name in agno_tools[:2]:  # Test first 2 to avoid spam
         if tool_name in TOOLS_REGISTRY:
             try:
@@ -53,7 +53,7 @@ def test_complete_agno_fix():
                 print(f"   ❌ {tool_name}: {e}")
     
     # Test 4: Web workflow tool resolution
-    print(f"\n4️⃣ Testing web workflow tool resolution:")
+    print("\n4️⃣ Testing web workflow tool resolution:")
     for tool_name in agno_tools[:2]:  # Test first 2
         if tool_name in TOOLS_REGISTRY:
             try:
@@ -75,7 +75,7 @@ def test_complete_agno_fix():
                 print(f"   ❌ {tool_name}: {e}")
     
     # Test 5: Agent creation with agno tools
-    print(f"\n5️⃣ Testing agent creation with agno tools:")
+    print("\n5️⃣ Testing agent creation with agno tools:")
     try:
         agent = Agent(
             name="test_agent",
@@ -90,7 +90,7 @@ def test_complete_agno_fix():
         traceback.print_exc()
     
     # Test 6: Debug tool resolution
-    print(f"\n6️⃣ Testing debug tool resolution:")
+    print("\n6️⃣ Testing debug tool resolution:")
     for tool_name in agno_tools[:1]:  # Test just one
         if tool_name in TOOLS_REGISTRY:
             debug_info = debug_tool_resolution(tool_name)
@@ -100,7 +100,7 @@ def test_complete_agno_fix():
                 result = debug_info['final_result']
                 print(f"   Final: {result['name']} -> {result['function']}")
     
-    print(f"\n🏆 Comprehensive agno tools fix test completed!")
+    print("\n🏆 Comprehensive agno tools fix test completed!")
     print("   All components working together correctly!")
 
 if __name__ == "__main__":

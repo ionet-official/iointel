@@ -57,23 +57,23 @@ def test_web_workflow_fix():
                     print(f"   Wrapped has 'self': {has_self_in_wrapped}")
                     
                     if has_self_in_wrapped:
-                        print(f"   ❌ PROBLEM: get_wrapped_fn() still has 'self' parameter!")
+                        print("   ❌ PROBLEM: get_wrapped_fn() still has 'self' parameter!")
                     else:
-                        print(f"   ✅ get_wrapped_fn() correctly removed 'self' parameter")
+                        print("   ✅ get_wrapped_fn() correctly removed 'self' parameter")
                         
                 except Exception as e:
                     print(f"   ❌ Error calling get_wrapped_fn(): {e}")
                     import traceback
                     traceback.print_exc()
             else:
-                print(f"   ❌ No tools resolved")
+                print("   ❌ No tools resolved")
                 
         except Exception as e:
             print(f"   ❌ Error in resolve_tools: {e}")
             import traceback
             traceback.print_exc()
     
-    print(f"\n🏆 Web workflow fix test completed!")
+    print("\n🏆 Web workflow fix test completed!")
 
 if __name__ == "__main__":
     test_web_workflow_fix()

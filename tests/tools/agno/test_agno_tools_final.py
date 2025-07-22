@@ -5,8 +5,6 @@ Tests Shell, YFinance, File, CSV, Arxiv, and Crawl4ai tools individually and wit
 """
 
 import asyncio
-import tempfile
-import os
 from pathlib import Path
 from iointel.src.agents import Agent
 from iointel.src.agent_methods.tools.tool_loader import load_tools_from_env
@@ -74,18 +72,18 @@ async def test_file_tools(test_dir, text_file):
         
         # Test file listing
         result = await agent.run(f'List files in directory: {test_dir}')
-        print(f"  ✅ File listing: Success")
+        print("  ✅ File listing: Success")
         print(f"     Result: {str(result.get('result', 'No result'))[:60]}...")
         
         # Test file reading
         result = await agent.run(f'Read the file: {text_file}')
-        print(f"  ✅ File reading: Success")
+        print("  ✅ File reading: Success")
         print(f"     Result: {str(result.get('result', 'No result'))[:60]}...")
         
         # Test file saving
         new_file = test_dir / "created_by_agent.txt"
         result = await agent.run(f'Save "Agent created this file!" to {new_file}')
-        print(f"  ✅ File saving: Success")
+        print("  ✅ File saving: Success")
         print(f"     Result: {str(result.get('result', 'No result'))[:60]}...")
         
     except Exception as e:
@@ -104,17 +102,17 @@ async def test_csv_tools(csv_file):
         
         # Test CSV listing
         result = await agent.run(f'List CSV files in directory: {csv_file.parent}')
-        print(f"  ✅ CSV listing: Success")
+        print("  ✅ CSV listing: Success")
         print(f"     Result: {str(result.get('result', 'No result'))[:60]}...")
         
         # Test CSV reading
         result = await agent.run(f'Read the CSV file: {csv_file}')
-        print(f"  ✅ CSV reading: Success")
+        print("  ✅ CSV reading: Success")
         print(f"     Result: {str(result.get('result', 'No result'))[:100]}...")
         
         # Test get columns
         result = await agent.run(f'Get columns from CSV file: {csv_file}')
-        print(f"  ✅ CSV columns: Success")
+        print("  ✅ CSV columns: Success")
         print(f"     Result: {str(result.get('result', 'No result'))[:60]}...")
         
     except Exception as e:
@@ -133,12 +131,12 @@ async def test_yfinance_tools():
         
         # Test stock price
         result = await agent.run('Get the current stock price for AAPL')
-        print(f"  ✅ Stock price (AAPL): Success")
+        print("  ✅ Stock price (AAPL): Success")
         print(f"     Result: {str(result.get('result', 'No result'))[:60]}...")
         
         # Test company info
         result = await agent.run('Get company information for TSLA')
-        print(f"  ✅ Company info (TSLA): Success")
+        print("  ✅ Company info (TSLA): Success")
         print(f"     Result: {str(result.get('result', 'No result'))[:60]}...")
         
     except Exception as e:
@@ -157,7 +155,7 @@ async def test_arxiv_tools():
         
         # Test arxiv search
         result = await agent.run('Search for papers about "quantum computing" using arxiv')
-        print(f"  ✅ Arxiv search: Success")
+        print("  ✅ Arxiv search: Success")
         print(f"     Result: {str(result.get('result', 'No result'))[:60]}...")
         
     except Exception as e:
@@ -176,7 +174,7 @@ async def test_crawl4ai_tools():
         
         # Test web crawling
         result = await agent.run('Crawl this URL: https://httpbin.org/json')
-        print(f"  ✅ Web crawling: Success")
+        print("  ✅ Web crawling: Success")
         print(f"     Result: {str(result.get('result', 'No result'))[:60]}...")
         
     except Exception as e:
@@ -232,7 +230,7 @@ async def test_working_agno_agent():
             used_tools = [t.tool_name for t in tool_usage]
             print(f"     ✅ Tools actually used: {used_tools}")
         else:
-            print(f"     ⚠️  No tool usage detected in final result")
+            print("     ⚠️  No tool usage detected in final result")
         
         print("  🎉 All working agno tools tested successfully!")
         
@@ -255,7 +253,7 @@ async def test_individual_tool_functions():
             result = shell_tool.fn(['echo', 'Direct function call test'])
             print(f"     ✅ Direct shell function: {result}")
         else:
-            print(f"     ❌ Shell tool not found in registry")
+            print("     ❌ Shell tool not found in registry")
         
         # Test Arxiv tool directly  
         print("  📚 Testing Arxiv tool function directly...")
@@ -264,7 +262,7 @@ async def test_individual_tool_functions():
             result = arxiv_tool.fn('quantum computing', max_results=2)
             print(f"     ✅ Direct arxiv function: {str(result)[:60]}...")
         else:
-            print(f"     ❌ Arxiv tool not found in registry")
+            print("     ❌ Arxiv tool not found in registry")
             
     except Exception as e:
         print(f"  ❌ Individual tool function test failed: {e}")
@@ -300,7 +298,7 @@ async def test_combined_agent():
         3. Provide a summary combining both system info and research findings
         ''')
         
-        print(f"     ✅ Complex workflow completed")
+        print("     ✅ Complex workflow completed")
         print(f"     Result preview: {str(result.get('result', 'No result'))[:120]}...")
         
         # Verify comprehensive tool usage
@@ -311,7 +309,7 @@ async def test_combined_agent():
         if 'run_shell_command' in used_tools and 'arxiv_search' in used_tools:
             print("     🎯 SUCCESS: Both agno tools used in complex workflow!")
         else:
-            print(f"     ⚠️  Limited tool usage detected")
+            print("     ⚠️  Limited tool usage detected")
         
     except Exception as e:
         print(f"  ❌ Complex agent test failed: {e}")

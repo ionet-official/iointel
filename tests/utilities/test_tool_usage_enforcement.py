@@ -9,13 +9,10 @@ Decision Agent not using conditional_gate tools.
 
 import pytest
 import asyncio
-from unittest.mock import AsyncMock, MagicMock, patch
-from typing import List, Dict, Any
 
 from iointel.src.utilities.tool_usage_enforcement import (
     ToolUsageEnforcer,
     AgentToolUsagePattern,
-    ToolUsagePolicy,
     tool_usage_enforcer
 )
 from iointel.src.agent_methods.data_models.datamodels import ToolUsageResult

@@ -85,6 +85,9 @@ class Task:
         if context:
             active_agent.set_context(context)
 
+        # Prevent duplicate conversation_id parameter 
+        filtered_kwargs = {k: v for k, v in kwargs.items() if k != 'conversation_id'}
+        
         return LazyCaller(
             lambda: active_agent.run(
                 query=definition.objective,
@@ -92,7 +95,7 @@ class Task:
                 if definition.task_metadata
                 else None,
                 output_type=output_type,
-                **kwargs,
+                **filtered_kwargs,
             )
         )
 

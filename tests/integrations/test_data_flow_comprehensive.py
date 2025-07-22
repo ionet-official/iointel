@@ -7,7 +7,6 @@ Test the data flow resolution system with increasingly complex scenarios
 to ensure we haven't missed any edge cases or architectural gaps.
 """
 
-import os
 import uuid
 import asyncio
 from pathlib import Path
@@ -26,7 +25,6 @@ from iointel.src.utilities.decorators import register_custom_task
 from iointel.src.workflow import Workflow
 
 # Import the example tools to register them globally
-import iointel.src.RL.example_tools
 
 
 # Register tool executor for testing
@@ -315,7 +313,7 @@ async def test_complex_field_access():
 async def execute_workflow_spec(workflow_spec: WorkflowSpec) -> dict:
     """Execute a WorkflowSpec and return results."""
     # Convert to executable format
-    workflow_def = workflow_spec.to_workflow_definition()
+    workflow_spec.to_workflow_definition()
     yaml_content = workflow_spec.to_yaml()
     
     # Create workflow from YAML and execute

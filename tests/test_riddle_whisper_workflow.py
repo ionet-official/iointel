@@ -174,7 +174,7 @@ async def test_riddle_whisper_workflow_execution():
     workflow_spec = create_riddle_whisper_workflow()
     
     # Convert to executable format
-    workflow_def = workflow_spec.to_workflow_definition()
+    workflow_spec.to_workflow_definition()
     yaml_content = workflow_spec.to_yaml()
     
     # Create workflow instance

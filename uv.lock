@@ -1876,6 +1876,7 @@ dependencies = [
     { name = "firecrawl-py" },
     { name = "gradio" },
     { name = "httpx" },
+    { name = "itsdangerous" },
     { name = "matplotlib" },
     { name = "pgvector" },
     { name = "pydantic" },
@@ -1912,6 +1913,7 @@ requires-dist = [
     { name = "firecrawl-py", specifier = ">=2.2.0" },
     { name = "gradio", specifier = ">=5.32.1" },
     { name = "httpx" },
+    { name = "itsdangerous", specifier = ">=2.2.0" },
     { name = "matplotlib", specifier = ">=3.10.3" },
     { name = "pgvector", specifier = ">=0.4.0" },
     { name = "pre-commit", marker = "extra == 'dev'", specifier = ">=4.1.0" },
@@ -1941,6 +1943,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/02/c4/135b5bdb9f14f728fe1274361b336f77c5f1606af9a5622a765fe75f5fa0/iterators-0.2.0.tar.gz", hash = "sha256:e9927a1ea1ef081830fd1512f3916857c36bd4b37272819a6cd29d0f44431b97", size = 4284 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/bd/a1/9c29772ac9f3bdf9837c92ba5c1fc93f75da14c2e0c3fc41e10485f68feb/iterators-0.2.0-py3-none-any.whl", hash = "sha256:1d7ff03f576c9de0e01bac66209556c066d6b1fc45583a99cfc9f4645be7900e", size = 5022 },
+]
+
+[[package]]
+name = "itsdangerous"
+version = "2.2.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/9c/cb/8ac0172223afbccb63986cc25049b154ecfb5e85932587206f42317be31d/itsdangerous-2.2.0.tar.gz", hash = "sha256:e0050c0b7da1eea53ffaf149c0cfbb5c6e2e2b69c4bef22c81fa6eb73e5f6173", size = 54410 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/04/96/92447566d16df59b2a776c0fb82dbc4d9e07cd95062562af01e408583fc4/itsdangerous-2.2.0-py3-none-any.whl", hash = "sha256:c6242fc49e35958c8b15141343aa660db5fc54d4f13a1db01a3f5891b98700ef", size = 16234 },
 ]
 
 [[package]]

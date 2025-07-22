@@ -14,8 +14,6 @@ from iointel.src.agent_methods.tools.tool_loader import load_tools_from_env
 from iointel.src.utilities.registries import TOOLS_REGISTRY
 
 # Import tools to ensure registration
-import iointel.src.agent_methods.tools.conditional_gate
-import iointel.src.agent_methods.tools.user_input
 
 async def test_workflow_updates():
     """Test two-turn sequence: create workflow, then update prompt to user_input."""

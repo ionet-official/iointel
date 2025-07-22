@@ -45,7 +45,7 @@ async def test_agent_tool_integration():
     # Load tools from creds.env and create catalog
     from iointel.src.agent_methods.tools.tool_loader import load_tools_from_env
     from iointel.src.agent_methods.workflow_converter import WorkflowConverter
-    from iointel.src.web.workflow_server import create_tool_catalog
+    from iointel.src.utilities.tool_registry_utils import create_tool_catalog
     
     load_tools_from_env("creds.env")  # Load from creds.env
     tool_catalog = create_tool_catalog()
@@ -77,13 +77,13 @@ async def test_agent_tool_integration():
                     print(f"   Tools: {node.data.tools}")
                     agent_with_tools = True
                 else:
-                    print(f"   Tools: None")
+                    print("   Tools: None")
                 print(f"   Config: {node.data.config}")
         
         # Convert to executable workflow
         converter = WorkflowConverter()
         workflow_def = converter.convert(workflow_spec)
-        print(f"🔄 Converted to WorkflowDefinition")
+        print("🔄 Converted to WorkflowDefinition")
         
         # Check if agents got tools loaded
         for task in workflow_def.tasks:
@@ -166,7 +166,7 @@ async def test_agent_with_tools_execution():
     # Load tools and create catalog
     from iointel.src.agent_methods.tools.tool_loader import load_tools_from_env
     from iointel.src.agent_methods.workflow_converter import WorkflowConverter
-    from iointel.src.web.workflow_server import create_tool_catalog
+    from iointel.src.utilities.tool_registry_utils import create_tool_catalog
     from iointel.src.workflow import Workflow
     
     load_tools_from_env("creds.env")
@@ -210,7 +210,7 @@ async def test_agent_with_tools_execution():
         # Convert to executable workflow
         converter = WorkflowConverter()
         workflow_def = converter.convert(workflow_spec)
-        print(f"🔄 Converted to WorkflowDefinition")
+        print("🔄 Converted to WorkflowDefinition")
         
         # Check if agents got tools loaded
         for task in workflow_def.tasks:
@@ -222,11 +222,11 @@ async def test_agent_with_tools_execution():
         workflow = Workflow.from_yaml(yaml_str=yaml_content)
         workflow.objective = workflow_spec.description
         
-        print(f"🚀 Executing workflow...")
+        print("🚀 Executing workflow...")
         conversation_id = "test_agent_tools_execution"
         results = await workflow.run_tasks(conversation_id=conversation_id)
         
-        print(f"📊 Execution Results:")
+        print("📊 Execution Results:")
         for task_id, result in results.get('results', {}).items():
             print(f"   Task: {task_id}")
             

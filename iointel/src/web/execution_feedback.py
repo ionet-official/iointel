@@ -5,14 +5,12 @@ This module captures workflow execution results and feeds them back to the
 WorkflowPlanner as system context for analysis and improvement suggestions.
 """
 
-import json
-import traceback
 from datetime import datetime
-from typing import Dict, List, Any, Optional, Union
-from dataclasses import dataclass, asdict
+from typing import Dict, List, Any, Optional
+from dataclasses import dataclass
 from enum import Enum
 
-from ..agent_methods.data_models.workflow_spec import WorkflowSpec
+from iointel.src.agent_methods.data_models.workflow_spec import WorkflowSpec
 
 
 class ExecutionStatus(Enum):
@@ -57,6 +55,7 @@ class WorkflowExecutionSummary:
     nodes_skipped: List[str]
     user_inputs: Dict[str, Any]
     final_outputs: Dict[str, Any]
+    workflow_spec: Optional[WorkflowSpec] = None  # Single source of truth for workflow representation
     error_summary: Optional[str] = None
     performance_metrics: Dict[str, Any] = None
     
@@ -119,13 +118,13 @@ Success Rate: {(len([n for n in summary.nodes_executed if n.status == ExecutionS
         # Skipped nodes
         skipped_details = ""
         if summary.nodes_skipped:
-            skipped_details = f"\n\n⏭️ SKIPPED NODES\n" + "-" * 15 + "\n"
+            skipped_details = "\n\n⏭️ SKIPPED NODES\n" + "-" * 15 + "\n"
             skipped_details += "\n".join(f"• {node_id}" for node_id in summary.nodes_skipped)
         
         # User inputs
         inputs_details = ""
         if summary.user_inputs:
-            inputs_details = f"\n\n📝 USER INPUTS\n" + "-" * 13 + "\n"
+            inputs_details = "\n\n📝 USER INPUTS\n" + "-" * 13 + "\n"
             for key, value in summary.user_inputs.items():
                 value_str = str(value)[:100] + "..." if len(str(value)) > 100 else str(value)
                 inputs_details += f"• {key}: {value_str}\n"
@@ -133,7 +132,7 @@ Success Rate: {(len([n for n in summary.nodes_executed if n.status == ExecutionS
         # Error analysis
         error_analysis = ""
         if summary.status != ExecutionStatus.SUCCESS:
-            error_analysis = f"\n\n🚨 ERROR ANALYSIS\n" + "-" * 16
+            error_analysis = "\n\n🚨 ERROR ANALYSIS\n" + "-" * 16
             if summary.error_summary:
                 error_analysis += f"\n{summary.error_summary}"
             
@@ -148,7 +147,7 @@ Success Rate: {(len([n for n in summary.nodes_executed if n.status == ExecutionS
         # Performance insights
         perf_insights = ""
         if summary.performance_metrics:
-            perf_insights = f"\n\n⚡ PERFORMANCE INSIGHTS\n" + "-" * 22
+            perf_insights = "\n\n⚡ PERFORMANCE INSIGHTS\n" + "-" * 22
             for metric, value in summary.performance_metrics.items():
                 perf_insights += f"\n• {metric}: {value}"
         
@@ -182,12 +181,13 @@ Success Rate: {(len([n for n in summary.nodes_executed if n.status == ExecutionS
         # Add explicit summary for agent/planner
         exec_summary = f"\nEXECUTION SUMMARY:\nExecuted nodes: {', '.join(executed_nodes) if executed_nodes else 'None'}\nSkipped nodes: {', '.join(skipped_nodes) if skipped_nodes else 'None'}\n\nNOTE: Nodes skipped with reason 'decision_gated' indicate correct conditional routing. Only one branch should execute; all others should be skipped. If multiple branches are executed, conditional routing failed unless using a conditional_multi_gate node which allows multiple branches to execute."
         
-        # Include full workflow specification if available
+        # Use workflow spec from summary (single source of truth) or fallback to parameter
+        active_workflow_spec = summary.workflow_spec or workflow_spec
         workflow_context = ""
-        if workflow_spec:
+        if active_workflow_spec:
             workflow_context = f"""
 
-{workflow_spec.to_llm_prompt()}
+{active_workflow_spec.to_llm_prompt()}
 
 """
         
@@ -327,7 +327,7 @@ class ExecutionFeedbackCollector:
         efficiency = (executed_nodes / effective_total_nodes) if effective_total_nodes > 0 else 1.0
 
         # Build ordered execution path (executed + skipped, in workflow order)
-        node_lookup = {n.id: n for n in workflow_spec.nodes}
+        {n.id: n for n in workflow_spec.nodes}
         execution_path = []
         for n in workflow_spec.nodes:
             node_id = n.id
@@ -364,6 +364,7 @@ class ExecutionFeedbackCollector:
             nodes_skipped=nodes_skipped,
             user_inputs=execution_data["user_inputs"],
             final_outputs=final_outputs or {},
+            workflow_spec=workflow_spec,  # Single source of truth
             error_summary=error_summary,
             performance_metrics={
                 "nodes_total": total_nodes,
@@ -393,13 +394,14 @@ feedback_collector = ExecutionFeedbackCollector()
 
 def create_execution_feedback_prompt(summary: WorkflowExecutionSummary, workflow_spec=None) -> str:
     """Helper function to create feedback prompt for WorkflowPlanner."""
+    # Note: workflow_spec parameter kept for backwards compatibility, but summary.workflow_spec is preferred
     return ExecutionResultCurator.generate_improvement_prompt(summary, workflow_spec)
 
 
 if __name__ == "__main__":
     # Example usage
     from uuid import uuid4
-    from ..agent_methods.data_models.workflow_spec import WorkflowSpec, NodeSpec, EdgeSpec, NodeData, EdgeData
+    from iointel.src.agent_methods.data_models.workflow_spec import WorkflowSpec, NodeSpec, EdgeSpec, NodeData, EdgeData
     
     # Create example workflow spec
     example_workflow = WorkflowSpec(
@@ -445,5 +447,10 @@ if __name__ == "__main__":
     )
     
     # Generate feedback prompt
-    feedback_prompt = create_execution_feedback_prompt(summary)
+    # feedback_prompt = create_execution_feedback_prompt(summary)
+    # print(feedback_prompt)
+
+    print("--------------START OF EXECUTION SUMMARY------------------")
+    # add ExecutionResultCurator.curate_execution_summary(summary) to the feedback_prompt
+    feedback_prompt = ExecutionResultCurator.generate_improvement_prompt(summary, example_workflow)
     print(feedback_prompt)

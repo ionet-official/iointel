@@ -1,7 +1,7 @@
 """Test that functions with **kwargs are handled correctly in function metadata."""
 import pytest
 from iointel.src.utilities.func_metadata import func_metadata
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 
 
 def sample_function_with_kwargs(

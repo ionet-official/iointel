@@ -2,10 +2,10 @@
 User Input Tool - Simple interface for collecting user inputs in workflows.
 """
 
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional
 from iointel.src.utilities.decorators import register_tool
 from iointel.src.agent_methods.data_models.prompt_collections import (
-    prompt_collection_manager, ListRecords
+    prompt_collection_manager
 )
 
 
@@ -118,7 +118,7 @@ def user_input(
                         print(f"💾 Added '{user_value}' to existing collection '{save_to_collection}'")
                     else:
                         # Create new collection
-                        new_collection = prompt_collection_manager.create_collection_from_records(
+                        prompt_collection_manager.create_collection_from_records(
                             name=save_to_collection,
                             records=[user_value],
                             description=f"Collection for {prompt}",
@@ -136,7 +136,7 @@ def user_input(
                 "message": f"User provided: {user_value}"
             }
     
-    print(f"⚠️ No user input value found in execution metadata")
+    print("⚠️ No user input value found in execution metadata")
     
     # Form ID already generated above
     
@@ -266,10 +266,10 @@ def prompt_tool(
                 print(f"💾 Added prompt to existing collection '{save_to_collection}'")
             else:
                 # Create new collection
-                new_collection = prompt_collection_manager.create_collection_from_records(
+                prompt_collection_manager.create_collection_from_records(
                     name=save_to_collection,
                     records=[message],
-                    description=f"Collection for prompts",
+                    description="Collection for prompts",
                     tags=["prompt_tool", "auto_generated"]
                 )
                 print(f"💾 Created new collection '{save_to_collection}' with prompt")

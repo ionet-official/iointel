@@ -14,7 +14,6 @@ providing structured feedback to agents for correction.
 
 import pytest
 from uuid import uuid4
-from typing import List
 
 from iointel.src.agent_methods.data_models.workflow_spec import (
     WorkflowSpec, NodeSpec, EdgeSpec, NodeData, EdgeData

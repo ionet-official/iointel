@@ -95,7 +95,7 @@ async def test_workflow_execution_fixes():
     )
     
     print(f"✅ Prompt tool (priority test): {prompt_priority_result['message']}")
-    print(f"   Expected: 'User input wins!' (user input should override collection)")
+    print("   Expected: 'User input wins!' (user input should override collection)")
     print(f"   Status: {prompt_priority_result['status']}")
     
     # Test 6: Test prompt_tool with collection but no user override
@@ -110,7 +110,7 @@ async def test_workflow_execution_fixes():
     )
     
     print(f"✅ Prompt tool (collection): {prompt_collection_result['message']}")
-    print(f"   Expected: 'Collection message should be overridden' (from collection)")
+    print("   Expected: 'Collection message should be overridden' (from collection)")
     print(f"   Status: {prompt_collection_result['status']}")
     
     # Test 7: Simulate full workflow execution scenario

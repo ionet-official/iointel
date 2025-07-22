@@ -8,7 +8,6 @@ from iointel.src.agent_methods.tools.tool_loader import load_tools_from_env
 from iointel.src.agent_methods.agents.tool_factory import resolve_tools
 from iointel.src.agent_methods.data_models.datamodels import AgentParams, Tool
 from iointel.src.utilities.registries import TOOLS_REGISTRY
-import yaml
 
 def test_dict_tool_resolution():
     """Test tool resolution when tools come from dicts (like YAML deserialization)"""
@@ -37,7 +36,7 @@ def test_dict_tool_resolution():
         # Note: fn and fn_metadata are excluded from serialization
     }
     
-    print(f"\n📄 Simulated YAML tool dict:")
+    print("\n📄 Simulated YAML tool dict:")
     print(f"   name: {tool_dict['name']}")
     print(f"   has body: {tool_dict.get('body') is not None}")
     print(f"   has fn: {'fn' in tool_dict}")  # Should be False
@@ -49,7 +48,7 @@ def test_dict_tool_resolution():
         tools=[tool_dict]  # Dict tool, not string!
     )
     
-    print(f"\n🔍 Testing resolve_tools with dict tool:")
+    print("\n🔍 Testing resolve_tools with dict tool:")
     try:
         resolved_tools = resolve_tools(agent_params)
         print(f"   ✅ resolve_tools succeeded: {len(resolved_tools)} tools")
@@ -62,9 +61,9 @@ def test_dict_tool_resolution():
             
             # This is where the error would happen
             if tool.fn:
-                print(f"   ✅ Tool function properly resolved")
+                print("   ✅ Tool function properly resolved")
             else:
-                print(f"   ❌ Tool function is None - this would cause NoneType error!")
+                print("   ❌ Tool function is None - this would cause NoneType error!")
                 
     except Exception as e:
         print(f"   ❌ Error in resolve_tools: {e}")
@@ -72,7 +71,7 @@ def test_dict_tool_resolution():
         traceback.print_exc()
     
     # Also test with Tool instance (another path)
-    print(f"\n🔍 Testing with Tool instance (no fn):")
+    print("\n🔍 Testing with Tool instance (no fn):")
     tool_instance = Tool.model_validate(tool_dict)
     print(f"   Tool instance fn: {tool_instance.fn}")
     print(f"   Tool instance body: {len(tool_instance.body) if tool_instance.body else 0} chars")
@@ -87,9 +86,9 @@ def test_dict_tool_resolution():
         resolved_tools2 = resolve_tools(agent_params2)
         print(f"   ✅ resolve_tools succeeded: {len(resolved_tools2)} tools")
         if resolved_tools2 and resolved_tools2[0].fn:
-            print(f"   ✅ Tool function properly resolved")
+            print("   ✅ Tool function properly resolved")
         else:
-            print(f"   ❌ Tool function is None")
+            print("   ❌ Tool function is None")
     except Exception as e:
         print(f"   ❌ Error: {e}")
 

@@ -18,8 +18,6 @@ from iointel.src.utilities.registries import TASK_EXECUTOR_REGISTRY
 from iointel.src.web.workflow_server import web_tool_executor, web_agent_executor
 
 # Import tools to ensure they're registered
-from iointel.src.agent_methods.tools.conditional_gate import conditional_gate
-from iointel.src.agent_methods.tools.coinmarketcap import get_coin_quotes
 
 
 async def test_bitcoin_workflow():
@@ -60,7 +58,7 @@ async def test_bitcoin_workflow():
     )
     
     # Execute workflow
-    print(f"\n🚀 Executing workflow...")
+    print("\n🚀 Executing workflow...")
     initial_state = WorkflowState(
         conversation_id="test_bitcoin_workflow",
         initial_text="Test Bitcoin conditional routing workflow",
@@ -70,7 +68,7 @@ async def test_bitcoin_workflow():
     try:
         final_state = await executor.execute_dag(initial_state)
         
-        print(f"\n✅ Workflow execution completed!")
+        print("\n✅ Workflow execution completed!")
         print(f"   Results: {len(final_state.results)} nodes executed")
         
         # Show execution results
@@ -78,24 +76,24 @@ async def test_bitcoin_workflow():
             print(f"\n📋 Node: {node_id}")
             if isinstance(result, dict):
                 if result.get("status") == "skipped":
-                    print(f"   Status: SKIPPED (conditional routing worked!)")
+                    print("   Status: SKIPPED (conditional routing worked!)")
                 else:
-                    print(f"   Status: EXECUTED")
+                    print("   Status: EXECUTED")
                     print(f"   Result: {str(result)[:100]}...")
             else:
-                print(f"   Status: EXECUTED")
+                print("   Status: EXECUTED")
                 print(f"   Result: {str(result)[:100]}...")
         
         # Show execution statistics
         stats = executor.get_execution_statistics()
-        print(f"\n📊 Execution Statistics:")
+        print("\n📊 Execution Statistics:")
         print(f"   Total nodes: {stats['total_nodes']}")
         print(f"   Executed: {stats['executed_nodes']}")
         print(f"   Skipped: {stats['skipped_nodes']}")
         print(f"   Efficiency: {stats['execution_efficiency']}")
         
         if stats['skipped_nodes'] > 0:
-            print(f"   🎯 SUCCESS: Conditional routing prevented unnecessary execution!")
+            print("   🎯 SUCCESS: Conditional routing prevented unnecessary execution!")
             print(f"   Skipped nodes: {stats['skipped_node_ids']}")
         
     except Exception as e:

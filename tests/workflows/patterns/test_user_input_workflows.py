@@ -6,9 +6,7 @@ files into organized tests covering user interaction and data collection scenari
 """
 
 import pytest
-import asyncio
 from uuid import uuid4
-from typing import Dict, List, Any, Optional
 
 from iointel.src.agent_methods.data_models.workflow_spec import (
     WorkflowSpec, NodeSpec, EdgeSpec, NodeData, EdgeData
@@ -372,28 +370,6 @@ class TestUserInputWorkflows:
         workflow = user_input_conditional_workflow
         
         # Test scenarios that should be handled
-        test_scenarios = [
-            {
-                "input": "sentiment:bullish,confidence:0.8",
-                "expected_route": "positive",
-                "description": "High confidence bullish sentiment"
-            },
-            {
-                "input": "sentiment:bearish,confidence:0.9",
-                "expected_route": "negative", 
-                "description": "High confidence bearish sentiment"
-            },
-            {
-                "input": "sentiment:neutral,confidence:0.5",
-                "expected_route": "none",
-                "description": "Neutral sentiment with low confidence"
-            },
-            {
-                "input": "sentiment:bullish,confidence:0.6",
-                "expected_route": "none",
-                "description": "Bullish but low confidence"
-            }
-        ]
         
         # Validate workflow structure supports these scenarios
         decision_agent = next(n for n in workflow.nodes if "decision" in n.label.lower())

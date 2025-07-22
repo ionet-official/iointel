@@ -6,10 +6,7 @@ organized, parametrized tests that cover all workflow routing scenarios.
 """
 
 import pytest
-import asyncio
 from uuid import uuid4
-from datetime import datetime
-from typing import Dict, List, Any, Optional
 
 from iointel.src.agent_methods.data_models.workflow_spec import (
     WorkflowSpec, NodeSpec, EdgeSpec, NodeData, EdgeData
@@ -281,7 +278,7 @@ class TestConditionalRouting:
         workflow = agent_conditional_gate_workflow
         
         # Validate that the workflow has the expected routing structure
-        decision_agent = next(n for n in workflow.nodes if n.id == "decision_agent")
+        next(n for n in workflow.nodes if n.id == "decision_agent")
         target_agent = next(n for n in workflow.nodes if n.label.lower().startswith(expected_route))
         
         # Find the edge that should be activated for this scenario

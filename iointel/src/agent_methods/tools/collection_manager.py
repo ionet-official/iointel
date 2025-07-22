@@ -5,7 +5,7 @@ Collection Manager Tool - API for managing prompt collections
 from typing import Dict, Any, Optional, List
 from iointel.src.utilities.decorators import register_tool
 from iointel.src.agent_methods.data_models.prompt_collections import (
-    prompt_collection_manager, ListRecords
+    prompt_collection_manager
 )
 
 

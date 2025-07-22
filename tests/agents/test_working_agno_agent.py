@@ -5,7 +5,6 @@ This test creates fresh instances and tests the core functionality
 """
 
 import asyncio
-import tempfile
 from pathlib import Path
 
 def test_shell_tool_direct():
@@ -72,9 +71,9 @@ def test_file_tool_direct():
             
             # Verify file was created
             if new_file.exists():
-                print(f"  ✅ File verification: Created file exists")
+                print("  ✅ File verification: Created file exists")
             else:
-                print(f"  ⚠️  File verification: Created file not found")
+                print("  ⚠️  File verification: Created file not found")
             
         except Exception as e:
             print(f"  ❌ File operations failed: {e}")
@@ -116,7 +115,6 @@ async def test_minimal_agent():
     
     try:
         # Clear any existing registrations to avoid conflicts
-        from iointel.src.utilities.registries import TOOLS_REGISTRY
         
         # Create a fresh shell tool instance and register it with a unique name
         from iointel.src.agent_methods.tools.agno.shell import Shell
@@ -199,7 +197,7 @@ async def test_comprehensive_workflow():
         Summarize the findings in a brief report.
         ''')
         
-        print(f"  ✅ Comprehensive workflow completed")
+        print("  ✅ Comprehensive workflow completed")
         print(f"     System analysis: {str(result.get('result', 'No result'))[:100]}...")
         
         # Verify tool usage

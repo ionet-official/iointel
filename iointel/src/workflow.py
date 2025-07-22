@@ -35,7 +35,7 @@ from .utilities.stages import (
 from .utilities.rich import pretty_output
 
 from .utilities.graph_nodes import WorkflowState, TaskNode, make_task_node
-from .utilities.dag_executor import DAGExecutor, create_dag_executor_from_spec
+from .utilities.dag_executor import DAGExecutor
 from pydantic_graph import Graph, End, GraphRunContext
 
 from rich.progress import (
@@ -218,7 +218,7 @@ class Workflow:
             execution_metadata["node_id"] = task_id  # Alias for compatibility
             print(f"🔍 DEBUG: Added task_id/node_id: {task_id}")
         else:
-            print(f"🔍 DEBUG: No task_id found in task")
+            print("🔍 DEBUG: No task_id found in task")
         
         print(f"🔍 DEBUG: Final execution_metadata: {execution_metadata}")
         
@@ -536,7 +536,7 @@ class Workflow:
             raise ValueError("DAG structure not found in task metadata")
         
         # Reconstruct WorkflowSpec from metadata
-        from .agent_methods.data_models.workflow_spec import WorkflowSpec, NodeSpec, EdgeSpec
+        from .agent_methods.data_models.workflow_spec import NodeSpec, EdgeSpec
         
         nodes = [NodeSpec.model_validate(node_data) for node_data in dag_structure["nodes"]]
         edges = [EdgeSpec.model_validate(edge_data) for edge_data in dag_structure["edges"]]
@@ -584,7 +584,7 @@ class Workflow:
     
     async def _run_tasks_sequential_as_dag(self, initial_state: WorkflowState, conversation_id: str, agent_result_format: str = "full") -> WorkflowState:
         """Convert sequential tasks to DAG format and run using DAG executor."""
-        from .agent_methods.data_models.workflow_spec import WorkflowSpec, NodeSpec, EdgeSpec, NodeData, EdgeData
+        from .agent_methods.data_models.workflow_spec import NodeSpec, EdgeSpec, NodeData, EdgeData
         
         # Convert tasks to DAG nodes
         nodes = []

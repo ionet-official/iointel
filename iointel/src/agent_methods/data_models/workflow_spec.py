@@ -443,7 +443,7 @@ class WorkflowSpec(BaseModel):
                     # Validate tool parameters
                     tool_info = tool_catalog[node.data.tool_name]
                     required_params = tool_info.get("required_parameters", [])
-                    all_params = tool_info.get("parameters", {})
+                    tool_info.get("parameters", {})
                     config_params = set(node.data.config.keys())
                     
                     # Check for missing required parameters (only check actually required ones)
@@ -513,7 +513,7 @@ class WorkflowSpec(BaseModel):
                 
                 # Check for conditional vs unconditional edges
                 conditional_edges = [e for e in node_edges if e.data and e.data.condition]
-                unconditional_edges = [e for e in node_edges if not (e.data and e.data.condition)]
+                [e for e in node_edges if not (e.data and e.data.condition)]
                 
                 if not conditional_edges:
                     issues.append(f"🚨 MISSING CONDITIONS: Routing node '{node.id}' ({node.label}) has outgoing edges but none have conditions")
@@ -570,11 +570,11 @@ class WorkflowSpec(BaseModel):
                     condition = edge.data.condition or ""
                     
                     # CRITICAL: Check for decision== patterns when routing tools are used
-                    if "decision ==" in condition and not "routed_to ==" in condition:
+                    if "decision ==" in condition and "routed_to ==" not in condition:
                         issues.append(f"🚨 ROUTING MISMATCH: Node '{node.id}' uses routing tools ({routing_tools}) but edge conditions use 'decision ==' pattern. DAG executor expects 'routed_to ==' pattern. Edge condition: '{condition}'")
                     
                     # Check for other incompatible patterns
-                    if "action ==" in condition and not "routed_to ==" in condition:
+                    if "action ==" in condition and "routed_to ==" not in condition:
                         issues.append(f"🚨 ROUTING MISMATCH: Node '{node.id}' uses routing tools but edge conditions use 'action ==' pattern. DAG executor expects 'routed_to ==' pattern. Edge condition: '{condition}'")
                     
                     # Check conditional_gate custom route extraction from instructions

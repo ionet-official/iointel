@@ -8,7 +8,6 @@ This tests the specific scenario where user_input_node should pass
 data to story_generation_agent.
 """
 
-import os
 import uuid
 import asyncio
 from pathlib import Path
@@ -65,7 +64,7 @@ async def test_user_input_to_agent_workflow():
     )
     
     # Convert to executable format
-    workflow_def = workflow_spec.to_workflow_definition()
+    workflow_spec.to_workflow_definition()
     yaml_content = workflow_spec.to_yaml()
     
     print(f"Workflow YAML:\n{yaml_content}")
@@ -102,7 +101,7 @@ async def main():
     print("=" * 50)
     
     try:
-        result = await test_user_input_to_agent_workflow()
+        await test_user_input_to_agent_workflow()
         print("\n🎉 TEST PASSED!")
         print("Agent data flow issue has been fixed!")
         return True

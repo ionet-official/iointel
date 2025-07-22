@@ -21,7 +21,7 @@ def test_centralized_utils():
     print(f"✅ Loaded {len(tools)} tools")
     
     # Test 1: Tool resolution
-    print(f"\n1️⃣ Testing tool resolution:")
+    print("\n1️⃣ Testing tool resolution:")
     test_tools = ["run_shell_command", "get_analyst_recommendations", "arxiv_search"]
     
     for tool_name in test_tools:
@@ -32,7 +32,7 @@ def test_centralized_utils():
             print(f"   ❌ {tool_name}: {e}")
     
     # Test 2: Tool info
-    print(f"\n2️⃣ Testing tool info:")
+    print("\n2️⃣ Testing tool info:")
     info = get_tool_info("run_shell_command")
     print(f"   Tool: {info['name']}")
     print(f"   Function: {info['function_name']}")
@@ -40,7 +40,7 @@ def test_centralized_utils():
     print(f"   Registry key matches: {info['registry_key_matches_name']}")
     
     # Test 3: Registry validation
-    print(f"\n3️⃣ Testing registry validation:")
+    print("\n3️⃣ Testing registry validation:")
     validation = validate_tool_registry()
     print(f"   Total tools: {validation['total_tools']}")
     print(f"   Registry health: {'✅ Healthy' if validation['is_healthy'] else '❌ Issues found'}")
@@ -49,7 +49,7 @@ def test_centralized_utils():
             print(f"   - {issue}")
     
     # Test 4: Debug tool resolution
-    print(f"\n4️⃣ Testing debug tool resolution:")
+    print("\n4️⃣ Testing debug tool resolution:")
     debug_info = debug_tool_resolution("run_shell_command")
     print(f"   Tool: {debug_info['tool_name']}")
     print(f"   Success: {'✅' if debug_info['success'] else '❌'}")
@@ -57,7 +57,7 @@ def test_centralized_utils():
         result = debug_info['final_result']
         print(f"   Final: {result['name']} -> {result['function']}")
     
-    print(f"\n🏆 Centralized tool registry utils are working correctly!")
+    print("\n🏆 Centralized tool registry utils are working correctly!")
 
 if __name__ == "__main__":
     test_centralized_utils()

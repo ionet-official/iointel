@@ -64,6 +64,10 @@ class TaskNode(BaseNode[WorkflowState]):
             self.conversation_id = state.conversation_id
 
         self.task["conversation_id"] = state.conversation_id
+        
+        # Also add conversation_id to task_metadata if it exists
+        if "task_metadata" in self.task and isinstance(self.task["task_metadata"], dict):
+            self.task["task_metadata"]["conversation_id"] = state.conversation_id
 
         task_key = _get_task_key(self.task)
 

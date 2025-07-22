@@ -25,7 +25,7 @@ async def test_workflow_bash_agent():
     print(f"✅ Loaded {len(tools)} tools")
     
     # Create agent params exactly like a workflow would
-    print(f"\n🤖 Creating Bash agent with run_shell_command tool...")
+    print("\n🤖 Creating Bash agent with run_shell_command tool...")
     agent_params = AgentParams(
         name="bash_agent",
         instructions="Execute the given shell command using the run_shell_command tool and return the exact output of the command without any additional interpretation or Zen-like response.",
@@ -36,21 +36,21 @@ async def test_workflow_bash_agent():
     
     # Create agent
     agent = create_agent(agent_params)
-    print(f"✅ Agent created successfully")
+    print("✅ Agent created successfully")
     
     # Check which tools the agent actually has
     if agent.tools:
-        print(f"\n📋 Agent tools:")
+        print("\n📋 Agent tools:")
         for tool in agent.tools:
             print(f"   - {tool.name} (fn: {tool.fn.__name__})")
         
         # Verify we got the right tool
         tool = agent.tools[0]
         if tool.name == "run_shell_command" and tool.fn.__name__ == "run_shell_command":
-            print(f"\n✅ SUCCESS: Agent has the correct run_shell_command tool!")
+            print("\n✅ SUCCESS: Agent has the correct run_shell_command tool!")
             
             # Test execution
-            print(f"\n🔧 Testing tool execution...")
+            print("\n🔧 Testing tool execution...")
             result = await agent.run("list directory")
             
             if result and 'tool_usage_results' in result:
@@ -60,22 +60,22 @@ async def test_workflow_bash_agent():
                     print(f"   Tool used: {used_tool}")
                     
                     if used_tool == "run_shell_command":
-                        print(f"   ✅ CORRECT: Used run_shell_command as expected")
+                        print("   ✅ CORRECT: Used run_shell_command as expected")
                         print(f"   Result: {result.get('result', 'No result')[:200]}...")
                         return True
                     else:
                         print(f"   ❌ WRONG: Used {used_tool} instead of run_shell_command")
                         return False
             
-            print(f"   ℹ️  Tool may have executed correctly (check agent response)")
+            print("   ℹ️  Tool may have executed correctly (check agent response)")
             return True
         else:
-            print(f"\n❌ FAILURE: Agent has wrong tool!")
-            print(f"   Expected: run_shell_command")  
+            print("\n❌ FAILURE: Agent has wrong tool!")
+            print("   Expected: run_shell_command")  
             print(f"   Got: {tool.name} (fn: {tool.fn.__name__})")
             return False
     else:
-        print(f"❌ No tools found on agent")
+        print("❌ No tools found on agent")
         return False
 
 async def main():

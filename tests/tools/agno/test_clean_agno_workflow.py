@@ -5,7 +5,6 @@ Demonstrates the fixed KeyError: 'self' and clean qualified names
 """
 
 import asyncio
-import tempfile
 from pathlib import Path
 from iointel.src.agents import Agent
 from iointel.src.agent_methods.tools.tool_loader import load_tools_from_env
@@ -34,7 +33,7 @@ async def test_research_workflow():
         tools=['run_shell_command', 'arxiv_search', 'file_save', 'file_read', 'file_list']
     )
     
-    print(f"🤖 Research agent created with agno tools")
+    print("🤖 Research agent created with agno tools")
     print(f"   Tools: {[tool.name for tool in agent.tools]}")
     
     # Task 1: System analysis with shell commands
@@ -49,7 +48,7 @@ async def test_research_workflow():
     Summarize the system information in a clear report.
     ''')
     
-    print(f"✅ System analysis completed")
+    print("✅ System analysis completed")
     print(f"   Result: {str(result.get('result', 'No result'))[:120]}...")
     
     # Task 2: Academic research
@@ -60,7 +59,7 @@ async def test_research_workflow():
     Provide a summary of the most relevant findings.
     ''')
     
-    print(f"✅ Academic research completed")
+    print("✅ Academic research completed")
     print(f"   Result: {str(result.get('result', 'No result'))[:120]}...")
     
     # Task 3: File operations workflow
@@ -79,7 +78,7 @@ async def test_research_workflow():
     Include both system analysis and academic research findings in your report.
     ''')
     
-    print(f"✅ File operations completed")
+    print("✅ File operations completed")
     print(f"   Result: {str(result.get('result', 'No result'))[:120]}...")
     
     # Task 4: Complex multi-tool workflow
@@ -99,7 +98,7 @@ async def test_research_workflow():
     This is a complex task that requires coordinating multiple tools effectively.
     ''')
     
-    print(f"✅ Integrated workflow completed")
+    print("✅ Integrated workflow completed")
     print(f"   Result: {str(result.get('result', 'No result'))[:120]}...")
     
     # Verify tool usage
@@ -123,7 +122,7 @@ async def test_research_workflow():
     try:
         import shutil
         shutil.rmtree(temp_dir)
-        print(f"🧹 Cleaned up test directory")
+        print("🧹 Cleaned up test directory")
     except:
         pass
     
@@ -149,13 +148,13 @@ async def test_tool_quality():
             
             # Check if qualified name is clean (not deeply nested)
             if tool.fn.__qualname__.count('.') <= 1:
-                print(f"   🎯 Clean qualified name!")
+                print("   🎯 Clean qualified name!")
             else:
                 print(f"   ⚠️  Still nested: {tool.fn.__qualname__}")
         else:
             print(f"❌ {tool_name}: Not found in registry")
     
-    print(f"\n📊 Registry Summary:")
+    print("\n📊 Registry Summary:")
     print(f"   Total tools: {len(TOOLS_REGISTRY)}")
     agno_count = sum(1 for name in agno_tools if name in TOOLS_REGISTRY)
     print(f"   Agno tools available: {agno_count}/{len(agno_tools)}")

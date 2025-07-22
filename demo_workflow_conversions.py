@@ -157,7 +157,7 @@ def main():
         default_timeout=90,
         default_retries=2
     )
-    print(f"   ✅ Converted with custom agents")
+    print("   ✅ Converted with custom agents")
     print(f"   - Agent: {workflow_def_custom.agents[0].name}")
     print(f"   - Default timeout: {workflow_def_custom.tasks[0].execution_metadata['timeout']}s")
     

@@ -101,16 +101,26 @@ class Crawler(BaseModel):
 
 
     @register_tool
-    def crawl_url(self, url: str, timeout: int | None = None, with_operational: bool=True) -> FirecrawlResponse:
+    def crawl_url(self, url: str, max_depth: int | None = None, limit: int | None = None, with_operational: bool=True) -> FirecrawlResponse:
         """
         Crawl a single URL.
         Args:
             url (str): The URL to crawl.
-            timeout (int): How many seconds to wait while crawling.
+            max_depth (int): Maximum depth to crawl (default: None for unlimited).
+            limit (int): Maximum number of pages to crawl (default: None for unlimited).
             with_operational (bool): Whether to include operational information in the result (e.g. status code, credits used, etc.)
         Returns:
             Dict[str, Any]: The crawling result.
         """
-        response = self._app.crawl_url(url, timeout=(timeout or self.timeout) * 1000)
-        result =  FirecrawlResponse(markdown=response.markdown, metadata=response.metadata)
+        # Pass timeout through scrape_options instead of as direct parameter
+        from firecrawl.firecrawl import ScrapeOptions
+        scrape_options = ScrapeOptions(timeout=self.timeout * 1000)  # Convert to ms
+        
+        response = self._app.crawl_url(
+            url, 
+            max_depth=max_depth, 
+            limit=limit,
+            scrape_options=scrape_options
+        )
+        result = FirecrawlResponse(markdown=response.markdown, metadata=response.metadata)
         return self._result_to_llm_input(result, with_operational)

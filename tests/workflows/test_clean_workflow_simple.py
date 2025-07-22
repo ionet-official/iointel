@@ -31,9 +31,9 @@ async def test_clean_workflow():
             
             if qualname.count('.') <= 0:  # Clean name
                 clean_tools.append(tool_name)
-                print(f"   🎯 CLEAN qualified name!")
+                print("   🎯 CLEAN qualified name!")
             else:
-                print(f"   ⚠️  Still nested")
+                print("   ⚠️  Still nested")
         else:
             print(f"❌ {tool_name}: Not found")
     
@@ -67,7 +67,7 @@ async def test_clean_workflow():
             tools=['clean_shell', 'clean_arxiv']
         )
         
-        print(f"✅ Agent created with clean tools")
+        print("✅ Agent created with clean tools")
         
     except Exception as e:
         print(f"❌ Agent creation failed: {e}")

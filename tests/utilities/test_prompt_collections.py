@@ -11,10 +11,10 @@ sys.path.insert(0, os.path.abspath('.'))
 from iointel.src.agent_methods.tools.user_input import user_input, prompt_tool
 from iointel.src.agent_methods.tools.collection_manager import (
     create_collection, list_collections, get_collection, search_collections,
-    add_to_collection, delete_collection, get_popular_records
+    delete_collection, get_popular_records
 )
 from iointel.src.agent_methods.data_models.prompt_collections import (
-    prompt_collection_manager, ListRecords
+    prompt_collection_manager
 )
 
 
@@ -95,7 +95,7 @@ async def test_prompt_collections():
         load_suggestions=True
     )
     
-    print(f"✅ User input form created with suggestions")
+    print("✅ User input form created with suggestions")
     print(f"   Suggestions: {len(user_input_result.get('suggestions', []))}")
     print(f"   Collection data: {user_input_result.get('collection_data', {}).get('name', 'None')}")
     
@@ -161,7 +161,7 @@ async def test_prompt_collections():
     
     for collection_info in list_collections()['collections']:
         if 'test' in collection_info['name'].lower() or 'code' in collection_info['name'].lower():
-            delete_result = delete_collection(collection_info['id'])
+            delete_collection(collection_info['id'])
             print(f"   - Deleted: {collection_info['name']}")
     
     print("\n✅ All prompt collection tests completed successfully!")
