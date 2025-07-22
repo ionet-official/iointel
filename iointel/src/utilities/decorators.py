@@ -1,3 +1,4 @@
+import os
 from typing import Callable, Optional
 
 
@@ -103,7 +104,11 @@ def register_tool(_fn=None, name: Optional[str] = None):
             return executor_fn
 
         TOOLS_REGISTRY[tool_name] = Tool.from_function(executor_fn, name=tool_name)
-        print(f"✅ Registered tool '{tool_name}' successfully")
+        
+        # Only print registration message if verbose mode is enabled
+        if os.getenv("IOINTEL_VERBOSE_TOOL_REGISTRATION", "true").lower() in ("true", "1", "yes"):
+            print(f"✅ Registered tool '{tool_name}' successfully")
+        
         logger.debug(f"Registered tool '{tool_name}' safely.")
         return executor_fn
 
