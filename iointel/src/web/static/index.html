@@ -4,6 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>WorkflowPlanner - Visual Interface</title>
+    <!-- Cache busting for updates -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
     
     <!-- React Flow CSS -->
     <link rel="stylesheet" href="https://unpkg.com/reactflow@11.10.4/dist/style.css">
@@ -27,7 +31,7 @@
         .container {
             display: grid;
             grid-template-columns: 400px 1fr;
-            grid-template-rows: 1fr 350px;
+            grid-template-rows: 1fr;
             gap: 1rem;
             height: 100vh;
             width: 100vw;
@@ -58,6 +62,65 @@
             font-weight: bold;
             text-align: center;
             font-size: 1.2rem;
+        }
+
+        /* Session Controls */
+        .session-controls {
+            padding: 0.75rem 1rem;
+            background: rgba(30, 30, 45, 0.6);
+            border-bottom: 1px solid rgba(125, 249, 255, 0.2);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.85rem;
+        }
+
+        .session-info {
+            color: #b8b8b8;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .session-buttons {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .session-btn {
+            background: rgba(125, 249, 255, 0.1);
+            border: 1px solid rgba(125, 249, 255, 0.3);
+            color: #7DF9FF;
+            padding: 0.35rem 0.7rem;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            white-space: nowrap;
+        }
+
+        .session-btn:hover {
+            background: rgba(125, 249, 255, 0.2);
+            border-color: #7DF9FF;
+            box-shadow: 0 2px 8px rgba(125, 249, 255, 0.3);
+        }
+
+        .session-btn.active {
+            background: #7DF9FF;
+            color: #0f0f1a;
+            font-weight: bold;
+        }
+
+        .session-btn.secondary {
+            background: rgba(255, 255, 255, 0.05);
+            border-color: rgba(255, 255, 255, 0.2);
+            color: #c0c0c0;
+        }
+
+        .session-btn.secondary:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.4);
         }
 
         .chat-messages {
@@ -99,42 +162,148 @@
             grid-row: 1;
             display: flex;
             flex-direction: column;
-            gap: 1rem;
+            gap: 0;
+            position: relative;
+            height: 100%;
+            overflow: hidden;
         }
         
         .flow-area {
-            flex: 1;
+            flex: 1 1 auto;
             background: rgba(20, 20, 35, 0.95);
-            border-radius: 20px;
+            border-radius: 20px 20px 0 0;
             border: 1px solid rgba(100, 255, 100, 0.3);
+            border-bottom: none;
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
             overflow: hidden;
             position: relative;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            min-height: 200px;
         }
         
-        /* Bottom Panel - Only for main content area */
+        /* Panel Resizer */
+        .panel-resizer {
+            height: 12px;
+            background: transparent;
+            cursor: ns-resize;
+            position: relative;
+            z-index: 10;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            user-select: none;
+            flex-shrink: 0;
+        }
+        
+        .panel-resizer::before {
+            content: '';
+            width: 80px;
+            height: 3px;
+            background: linear-gradient(90deg, 
+                transparent 0%, 
+                rgba(100, 255, 100, 0.3) 20%, 
+                rgba(100, 255, 100, 0.6) 50%, 
+                rgba(100, 255, 100, 0.3) 80%, 
+                transparent 100%);
+            border-radius: 2px;
+            transition: all 0.2s ease;
+        }
+        
+        .panel-resizer:hover::before {
+            height: 4px;
+            width: 120px;
+            background: linear-gradient(90deg, 
+                transparent 0%, 
+                rgba(125, 249, 255, 0.5) 20%, 
+                #7DF9FF 50%, 
+                rgba(125, 249, 255, 0.5) 80%, 
+                transparent 100%);
+            box-shadow: 0 0 20px rgba(125, 249, 255, 0.8);
+        }
+        
+        .panel-resizer.dragging::before {
+            height: 5px;
+            width: 150px;
+            background: linear-gradient(90deg, 
+                transparent 0%, 
+                #64FF64 20%, 
+                #64FF64 50%, 
+                #64FF64 80%, 
+                transparent 100%);
+            box-shadow: 0 0 30px #64FF64;
+        }
+        
+        /* Bottom Panel - Enhanced Theme */
         .bottom-panel {
-            grid-column: 2;
-            grid-row: 2;
-            background: rgba(10, 10, 10, 0.95);
-            border-top: 1px solid rgba(100, 255, 100, 0.2);
+            background: linear-gradient(135deg, 
+                rgba(20, 20, 35, 0.95) 0%, 
+                rgba(10, 10, 20, 0.98) 50%, 
+                rgba(20, 20, 35, 0.95) 100%);
+            border: 1px solid rgba(100, 255, 100, 0.3);
+            border-top: 2px solid rgba(125, 249, 255, 0.5);
+            border-radius: 0 0 20px 20px;
             backdrop-filter: blur(20px);
             -webkit-backdrop-filter: blur(20px);
-            display: grid;
-            grid-template-columns: 1fr;
-            gap: 1rem;
+            box-shadow: 
+                0 -4px 20px rgba(125, 249, 255, 0.2),
+                0 8px 32px rgba(0, 0, 0, 0.4),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            display: flex;
+            flex-direction: column;
             overflow: hidden;
-            width: 100%;
-            box-sizing: border-box;
-            padding: 1rem;
-            border-radius: 0 0 20px 20px;
+            position: relative;
+            height: 350px;
+            flex-shrink: 0;
+            transition: height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .bottom-panel::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, 
+                transparent 0%, 
+                #7DF9FF 50%, 
+                transparent 100%);
+            opacity: 0.6;
+            animation: glow-pulse 3s ease-in-out infinite;
+        }
+        
+        @keyframes glow-pulse {
+            0%, 100% { opacity: 0.3; }
+            50% { opacity: 0.8; }
         }
         
         .bottom-section {
-            background: rgba(30, 30, 45, 0.8);
+            background: rgba(30, 30, 45, 0.4);
             padding: 1.5rem;
             overflow-y: auto;
             position: relative;
+            flex: 1;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(100, 255, 100, 0.5) transparent;
+        }
+        
+        .bottom-section::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        .bottom-section::-webkit-scrollbar-track {
+            background: rgba(100, 255, 100, 0.1);
+            border-radius: 4px;
+        }
+        
+        .bottom-section::-webkit-scrollbar-thumb {
+            background: rgba(100, 255, 100, 0.5);
+            border-radius: 4px;
+        }
+        
+        .bottom-section::-webkit-scrollbar-thumb:hover {
+            background: rgba(100, 255, 100, 0.7);
         }
         
         .bottom-section:not(:last-child)::after {
@@ -263,6 +432,21 @@
         
         .message-bubble p:last-child {
             margin-bottom: 0;
+        }
+        
+        /* System message styling for execution reports */
+        .message.system .message-bubble {
+            background: linear-gradient(135deg, rgba(40, 40, 60, 0.95), rgba(30, 30, 50, 0.95));
+            border: 1px solid rgba(125, 249, 255, 0.3);
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            white-space: pre-wrap;
+        }
+        
+        .message.system .message-bubble h2,
+        .message.system .message-bubble h3 {
+            color: #FFD700;
+            margin: 8px 0;
         }
 
         .message-time {
@@ -795,27 +979,32 @@
         }
         
         .execution-task {
-            padding: 0.25rem 0.5rem;
-            margin: 0.25rem 0;
-            border-radius: 4px;
-            font-size: 0.8rem;
-            background: #f8f9fa;
-            border-left: 3px solid #28a745;
+            padding: 0.5rem 0.75rem;
+            margin: 0.5rem 0;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            background: rgba(30, 30, 45, 0.9);
+            border-left: 4px solid #28a745;
+            color: #e0e0e0;
+            font-weight: 500;
         }
         
         .execution-task.running {
             border-left-color: #007bff;
-            background: #e3f2fd;
+            background: rgba(0, 123, 255, 0.15);
+            color: #a0d8ff;
         }
         
         .execution-task.completed {
             border-left-color: #28a745;
-            background: #e8f5e8;
+            background: rgba(40, 167, 69, 0.15);
+            color: #90ff90;
         }
         
         .execution-task.failed {
             border-left-color: #dc3545;
-            background: #ffeaea;
+            background: rgba(220, 53, 69, 0.15);
+            color: #ff9999;
         }
 
         /* Loading and thinking animations */
@@ -838,6 +1027,46 @@
             100% { box-shadow: 0 0 5px rgba(0, 123, 255, 0.3); }
         }
 
+        @keyframes running-spinner {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @keyframes running-bounce {
+            0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+            40% { transform: translateY(-3px); }
+            60% { transform: translateY(-1px); }
+        }
+
+        .running-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+        }
+
+        .running-spinner {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border: 2px solid rgba(255, 193, 7, 0.3);
+            border-top: 2px solid #ffc107;
+            border-radius: 50%;
+            animation: running-spinner 1s linear infinite;
+        }
+
+        .running-dots::after {
+            content: "⚡";
+            animation: running-bounce 1.4s ease-in-out infinite;
+            color: #ffc107;
+            margin-left: 0.2rem;
+        }
+
+        .runtime-display {
+            font-family: 'Courier New', monospace;
+            color: #6c757d;
+            font-size: 0.85em;
+        }
+
         .execution-task.running {
             animation: running-glow 2s ease-in-out infinite;
         }
@@ -847,6 +1076,31 @@
             animation: pulse 1.5s ease-in-out infinite;
             color: #007bff;
             font-weight: 600;
+        }
+        
+        /* Simple timer display for running executions */
+        .execution-runtime {
+            font-family: 'Courier New', monospace;
+            color: #ffc107;
+            font-weight: bold;
+        }
+        
+        /* Tab Content Layout Adjustments */
+        .tab-content {
+            flex: 1;
+            display: none;
+            flex-direction: column;
+            height: 100%;
+            overflow: hidden;
+        }
+        
+        .tab-content.active {
+            display: flex;
+        }
+        
+        .bottom-panel {
+            display: flex;
+            flex-direction: column;
         }
 
         .button.loading {
@@ -1633,6 +1887,149 @@
             gap: 4px;
             margin-left: 8px;
         }
+        
+        /* Execution Mode Indicators */
+        .execution-mode-indicator {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: bold;
+            backdrop-filter: blur(8px);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            z-index: 10;
+            cursor: help;
+            transition: all 0.3s ease;
+        }
+        
+        .execution-mode-indicator.for-each {
+            background: linear-gradient(135deg, rgba(255, 193, 7, 0.9), rgba(255, 152, 0, 0.8));
+            color: #fff;
+            box-shadow: 0 2px 8px rgba(255, 193, 7, 0.4);
+        }
+        
+        .execution-mode-indicator.consolidate {
+            background: linear-gradient(135deg, rgba(76, 175, 80, 0.9), rgba(56, 142, 60, 0.8));
+            color: #fff;
+            box-shadow: 0 2px 8px rgba(76, 175, 80, 0.4);
+        }
+        
+        .execution-mode-indicator:hover {
+            transform: scale(1.2);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+        }
+        
+        /* Enhanced Node Shapes CSS */
+        .react-flow__node[data-type="tool"] {
+            background: linear-gradient(135deg, #1a1a2e 0%, #0f1419 100%) !important;
+            border-color: rgba(100, 255, 100, 0.4) !important;
+            clip-path: polygon(20% 0%, 80% 0%, 100% 50%, 80% 100%, 20% 100%, 0% 50%);
+        }
+        
+        .react-flow__node[data-type="agent"] {
+            background: linear-gradient(135deg, #16213e 0%, #0a1628 100%) !important;
+            border-color: rgba(125, 249, 255, 0.4) !important;
+            border-radius: 50% !important;
+        }
+        
+        .react-flow__node[data-type="decision"],
+        .react-flow__node[data-type="agent"][data-has-routing-tools="true"] {
+            background: linear-gradient(135deg, rgba(255, 140, 0, 0.3), rgba(255, 165, 0, 0.2)) !important;
+            border-color: rgba(255, 165, 0, 0.8) !important;
+            clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+            min-width: 280px !important;
+            min-height: 120px !important;
+        }
+        
+        .react-flow__node[data-type="workflow_call"] {
+            background: linear-gradient(135deg, rgba(148, 0, 211, 0.15), rgba(138, 43, 226, 0.12)) !important;
+            border-color: rgba(148, 0, 211, 0.4) !important;
+        }
+        
+        /* Override React Flow default node styling to apply our custom shapes */
+        .react-flow__node-default {
+            background: transparent !important;
+            border: none !important;
+            padding: 0 !important;
+        }
+        
+        /* Node content container should handle all styling */
+        .react-flow__node-default .node-content {
+            position: relative;
+            width: 100%;
+            height: 100%;
+        }
+        
+        /* Conditional Gate Visualization */
+        .conditional-gate-indicator {
+            position: absolute;
+            bottom: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 30px;
+            height: 15px;
+            background: linear-gradient(135deg, rgba(255, 193, 7, 0.8), rgba(255, 152, 0, 0.6));
+            border-radius: 15px 15px 0 0;
+            border: 2px solid rgba(255, 193, 7, 0.9);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            color: #fff;
+            z-index: 20;
+        }
+        
+        .conditional-gate-indicator::after {
+            content: "⚡";
+            animation: pulse 2s ease-in-out infinite;
+        }
+        
+        /* Simple Running Timer Animation */
+        .running-timer {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+        }
+        
+        .running-timer::before {
+            content: "⏱️";
+            animation: pulse 1s ease-in-out infinite;
+        }
+        
+        .timer-seconds {
+            color: #ffc107;
+            min-width: 4ch;
+            text-align: right;
+        }
+        
+        /* Edge routing path indicators */
+        .react-flow__edge[data-routing="true"] {
+            stroke: #ffc107 !important;
+            stroke-width: 3px !important;
+            stroke-dasharray: 8,4;
+            animation: routing-flow 2s linear infinite;
+        }
+        
+        @keyframes routing-flow {
+            0% { stroke-dashoffset: 0; }
+            100% { stroke-dashoffset: 24; }
+        }
+        
+        /* Skipped path visualization */
+        .react-flow__edge[data-skipped="true"] {
+            stroke: rgba(100, 100, 100, 0.3) !important;
+            stroke-width: 2px !important;
+            stroke-dasharray: 4,8;
+            opacity: 0.5;
+        }
 
         .collection-action-btn {
             background: rgba(125, 249, 255, 0.1);
@@ -1712,6 +2109,810 @@
             font-size: 0.8rem;
             margin-top: 0.25rem;
         }
+        
+        /* System Message Styling */
+        .message.system .message-bubble {
+            background: linear-gradient(135deg, rgba(100, 255, 100, 0.1), rgba(100, 255, 100, 0.05));
+            border: 1px solid rgba(100, 255, 100, 0.3);
+            color: rgba(100, 255, 100, 0.9);
+            font-family: 'Fira Code', 'Monaco', 'Consolas', monospace;
+            font-size: 0.85em;
+            white-space: pre-wrap;
+        }
+        
+        .message.system .message-bubble strong {
+            color: rgba(100, 255, 100, 1);
+        }
+        
+        /* Collapsible Message Styling */
+        .collapsible-message {
+            position: relative;
+        }
+        
+        .message-preview,
+        .message-full {
+            transition: all 0.3s ease;
+        }
+        
+        .message-preview {
+            cursor: pointer;
+            position: relative;
+        }
+        
+        .message-preview:hover {
+            background: rgba(100, 255, 100, 0.05);
+            border-radius: 8px;
+            padding: 4px;
+            margin: -4px;
+        }
+        
+        .collapsible-message hr {
+            margin: 0.5rem 0;
+        }
+        
+        /* Enhanced UI Elements for Results */
+        #workflowInfo {
+            background: linear-gradient(135deg, rgba(100, 255, 100, 0.05), rgba(125, 249, 255, 0.08));
+            border: 1px solid rgba(100, 255, 100, 0.3);
+            border-radius: 12px;
+            padding: 1rem;
+            margin-bottom: 1.5rem;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        #workflowInfo::after {
+            content: '';
+            position: absolute;
+            top: -2px;
+            left: -2px;
+            right: -2px;
+            bottom: -2px;
+            background: linear-gradient(45deg, 
+                transparent 30%, 
+                rgba(125, 249, 255, 0.3) 50%, 
+                transparent 70%);
+            opacity: 0;
+            z-index: -1;
+            transition: opacity 0.3s ease;
+        }
+        
+        #workflowInfo:hover::after {
+            opacity: 1;
+            animation: shimmer 2s linear infinite;
+        }
+        
+        @keyframes shimmer {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+        
+        #workflowTitle {
+            color: #64FF64 !important;
+            text-shadow: 0 0 10px rgba(100, 255, 100, 0.5);
+            font-weight: 700;
+        }
+        
+        #executionStatusSection {
+            background: linear-gradient(135deg, 
+                rgba(0, 123, 255, 0.05) 0%, 
+                rgba(0, 123, 255, 0.08) 100%);
+            border: 1px solid rgba(0, 123, 255, 0.3);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin: 1rem 0;
+            position: relative;
+            backdrop-filter: blur(10px);
+        }
+        
+        #executionResults {
+            background: linear-gradient(135deg, 
+                rgba(40, 167, 69, 0.05) 0%, 
+                rgba(40, 167, 69, 0.08) 100%);
+            border: 1px solid rgba(40, 167, 69, 0.3);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin: 1rem 0;
+            position: relative;
+            backdrop-filter: blur(10px);
+        }
+        
+        #executionStatusSection h4 {
+            color: #007bff !important;
+            text-shadow: 0 0 8px rgba(0, 123, 255, 0.6);
+        }
+        
+        #executionResults h4 {
+            color: #28a745 !important;
+            text-shadow: 0 0 8px rgba(40, 167, 69, 0.6);
+        }
+        
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid rgba(100, 255, 100, 0.1);
+            color: rgba(224, 224, 224, 0.9);
+        }
+        
+        .detail-row:last-child {
+            border-bottom: none;
+        }
+        
+        .detail-row span:first-child {
+            color: rgba(125, 249, 255, 0.9);
+            font-weight: 600;
+        }
+        
+        /* Glowing accents */
+        .status.status-running {
+            background: linear-gradient(135deg, #007bff, #00bcd4);
+            color: white;
+            text-shadow: 0 0 10px rgba(0, 123, 255, 0.8);
+            animation: pulse-glow 2s ease-in-out infinite;
+        }
+        
+        @keyframes pulse-glow {
+            0%, 100% { box-shadow: 0 0 5px rgba(0, 123, 255, 0.5); }
+            50% { box-shadow: 0 0 20px rgba(0, 123, 255, 0.8), 0 0 30px rgba(125, 249, 255, 0.6); }
+        }
+        
+        .execution-task {
+            background: linear-gradient(135deg, 
+                rgba(30, 30, 45, 0.5) 0%, 
+                rgba(20, 20, 35, 0.5) 100%);
+            border-left: 3px solid #64FF64;
+            margin: 0.5rem 0;
+            padding: 0.75rem;
+            border-radius: 8px;
+            position: relative;
+            transition: all 0.3s ease;
+            word-wrap: break-word;
+            word-break: break-word;
+            overflow-wrap: break-word;
+            white-space: normal;
+        }
+        
+        .execution-task:hover {
+            transform: translateX(5px);
+            box-shadow: -5px 0 20px rgba(100, 255, 100, 0.3);
+        }
+        
+        /* Form styling updates */
+        .form-submit-btn {
+            background: linear-gradient(135deg, #64FF64, #4CAF50);
+            color: #000;
+            text-shadow: 0 0 5px rgba(255, 255, 255, 0.3);
+            box-shadow: 0 4px 15px rgba(100, 255, 100, 0.4);
+        }
+        
+        .form-submit-btn:hover {
+            background: linear-gradient(135deg, #4CAF50, #64FF64);
+            box-shadow: 0 6px 25px rgba(100, 255, 100, 0.6);
+        }
+        
+        /* Tab Panel Styling */
+        .tab-container {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+        
+        .tab-header {
+            display: flex;
+            gap: 0;
+            border-bottom: 2px solid rgba(100, 255, 100, 0.2);
+            margin-bottom: 1rem;
+            background: rgba(20, 20, 35, 0.5);
+            border-radius: 8px 8px 0 0;
+            overflow: hidden;
+        }
+        
+        .tab-button {
+            padding: 0.75rem 1.5rem;
+            background: transparent;
+            border: none;
+            color: rgba(125, 249, 255, 0.7);
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            position: relative;
+            border-radius: 8px 8px 0 0;
+        }
+        
+        .tab-button:hover {
+            background: rgba(100, 255, 100, 0.1);
+            color: rgba(100, 255, 100, 0.9);
+        }
+        
+        .tab-button.active {
+            background: rgba(100, 255, 100, 0.15);
+            color: #64FF64;
+            text-shadow: 0 0 10px rgba(100, 255, 100, 0.5);
+        }
+        
+        .tab-button.active::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, #64FF64, transparent);
+            animation: shimmer 2s linear infinite;
+        }
+        
+        .tab-content {
+            display: none;
+            flex: 1;
+            overflow-y: auto;
+            animation: fadeIn 0.3s ease;
+        }
+        
+        .tab-content.active {
+            display: flex;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        /* Execution Logs Styling - Compact Nerd Mode */
+        .execution-logs {
+            font-family: 'Fira Code', 'Monaco', 'Consolas', monospace;
+            font-size: 0.75rem;
+            line-height: 1.2;
+            color: rgba(200, 200, 200, 0.9);
+            white-space: pre-wrap;
+            word-break: break-word;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 0.5rem;
+            border-radius: 4px;
+            border: 1px solid rgba(100, 255, 100, 0.1);
+            overflow-x: auto;
+            overflow-y: auto;
+            height: 100%;
+        }
+        
+        .log-line {
+            margin: 0;
+            padding: 2px 0;
+            font-family: 'Fira Code', 'Monaco', 'Consolas', monospace;
+        }
+        
+        .log-timestamp {
+            color: #666;
+        }
+        
+        .log-node-id {
+            color: #7DF9FF;
+            font-weight: bold;
+        }
+        
+        .log-success {
+            color: #90ff90;
+        }
+        
+        .log-error {
+            color: #ff6666;
+        }
+        
+        .log-warning {
+            color: #ffaa00;
+        }
+        
+        .log-tools {
+            color: #64FF64;
+            font-weight: bold;
+        }
+        
+        .log-tool {
+            color: #FFD700;
+            font-weight: bold;
+        }
+        
+        .log-result {
+            color: #87CEEB;
+            font-style: italic;
+        }
+        
+        .log-dim {
+            color: #666;
+        }
+        
+        .log-highlight {
+            color: #ffff00;
+            font-weight: bold;
+        }
+        
+        .log-metric {
+            color: #00ffff;
+        }
+        
+        /* Compact Cockpit Results Styling */
+        .node-result-modal {
+            background: linear-gradient(135deg, rgba(20, 20, 35, 0.6), rgba(10, 10, 25, 0.8));
+            border: 1px solid rgba(100, 255, 100, 0.3);
+            border-radius: 6px;
+            padding: 0.5rem;
+            margin: 0.25rem 0;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+        
+        .node-result-modal::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, transparent, #64FF64, transparent);
+            animation: shimmer 3s linear infinite;
+        }
+        
+        .node-result-header {
+            display: flex;
+            align-items: center;
+            gap: 0.3rem;
+            margin-bottom: 0.3rem;
+            padding-bottom: 0.3rem;
+            border-bottom: 1px solid rgba(100, 255, 100, 0.15);
+            font-size: 0.85rem;
+        }
+        
+        .node-result-icon {
+            font-size: 1.5rem;
+            filter: drop-shadow(0 0 10px currentColor);
+        }
+        
+        .node-result-title {
+            flex: 1;
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #7DF9FF;
+            text-shadow: 0 0 10px rgba(125, 249, 255, 0.5);
+        }
+        
+        .node-result-type {
+            font-size: 0.8rem;
+            color: rgba(100, 255, 100, 0.7);
+            padding: 0.2rem 0.6rem;
+            background: rgba(100, 255, 100, 0.1);
+            border-radius: 12px;
+            border: 1px solid rgba(100, 255, 100, 0.3);
+        }
+        
+        .node-result-metrics {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .metric-card {
+            background: rgba(30, 30, 45, 0.6);
+            border: 1px solid rgba(100, 255, 100, 0.2);
+            border-radius: 4px;
+            padding: 0.3rem 0.5rem;
+            text-align: center;
+            transition: all 0.3s ease;
+            flex: 1;
+        }
+        
+        .metric-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(100, 255, 100, 0.2);
+            border-color: rgba(100, 255, 100, 0.4);
+        }
+        
+        .metric-value {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: #00ffff;
+            font-family: 'Fira Code', monospace;
+            text-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+        }
+        
+        .metric-label {
+            font-size: 0.75rem;
+            color: rgba(200, 200, 200, 0.7);
+            margin-top: 0.2rem;
+        }
+        
+        .compact-metrics-pill {
+            display: inline-block;
+            background: rgba(30, 30, 45, 0.8);
+            border: 1px solid rgba(100, 255, 100, 0.3);
+            border-radius: 12px;
+            padding: 0.3rem 0.6rem;
+            font-size: 0.8rem;
+            color: #00ffff;
+            font-family: 'Fira Code', monospace;
+            margin-bottom: 0.5rem;
+            text-shadow: 0 0 8px rgba(0, 255, 255, 0.4);
+        }
+        
+        .node-result-content {
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(100, 255, 100, 0.1);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-top: 1rem;
+            font-family: 'Fira Code', monospace;
+            font-size: 0.85rem;
+            color: rgba(200, 200, 200, 0.9);
+            max-height: 300px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        
+        .tool-usage-pills {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-top: 0.75rem;
+        }
+        
+        .tool-pill {
+            background: linear-gradient(135deg, rgba(100, 255, 100, 0.2), rgba(125, 249, 255, 0.2));
+            border: 1px solid rgba(100, 255, 100, 0.4);
+            color: #90ff90;
+            padding: 2px 6px;
+            border-radius: 12px;
+            font-size: 9px;
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            gap: 2px;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 150px;
+        }
+        
+        .tool-pill:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(100, 255, 100, 0.3);
+            background: linear-gradient(135deg, rgba(100, 255, 100, 0.3), rgba(125, 249, 255, 0.3));
+        }
+        
+        /* Routing Tool Pills */
+        .tool-pill.routing-tool {
+            background: linear-gradient(135deg, rgba(255, 165, 0, 0.3), rgba(255, 140, 0, 0.2));
+            border: 1px solid rgba(255, 165, 0, 0.5);
+            color: #ffa500;
+            font-weight: bold;
+        }
+        
+        /* SLA Badge Display */
+        .sla-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 2px;
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-size: 10px;
+            font-weight: bold;
+            margin-left: 8px;
+        }
+        
+        .sla-badge.decision {
+            background: rgba(255, 165, 0, 0.2);
+            border: 1px solid rgba(255, 165, 0, 0.5);
+            color: #ffa500;
+        }
+        
+        .sla-badge.strict {
+            background: rgba(255, 69, 0, 0.2);
+            border: 1px solid rgba(255, 69, 0, 0.5);
+            color: #ff4500;
+        }
+        
+        .sla-badge.basic {
+            background: rgba(100, 255, 100, 0.2);
+            border: 1px solid rgba(100, 255, 100, 0.5);
+            color: #64ff64;
+        }
+
+        /* CYBERPUNK TOOL PILLS - IO.NET STYLE */
+        .tools-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin: 12px 0;
+        }
+        
+        .tool-pill-expanded {
+            background: linear-gradient(135deg, 
+                rgba(255, 165, 0, 0.08) 0%,
+                rgba(255, 140, 0, 0.05) 50%,
+                rgba(0, 0, 0, 0.4) 100%);
+            border: 1px solid rgba(255, 165, 0, 0.3);
+            border-radius: 12px;
+            overflow: hidden;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            backdrop-filter: blur(8px);
+            position: relative;
+            box-shadow: 0 0 8px rgba(255, 165, 0, 0.1);
+        }
+        
+        .tool-pill-expanded:hover {
+            border-color: rgba(255, 165, 0, 0.6);
+            box-shadow: 
+                0 0 20px rgba(255, 165, 0, 0.3),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            transform: translateY(-1px);
+        }
+        
+        .tool-pill-expanded.success {
+            border-color: rgba(0, 255, 100, 0.3);
+        }
+        
+        .tool-pill-expanded.success:hover {
+            border-color: rgba(0, 255, 100, 0.6);
+            box-shadow: 
+                0 0 20px rgba(0, 255, 100, 0.3),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+        }
+        
+        .tool-pill-expanded.error {
+            border-color: rgba(255, 50, 50, 0.3);
+        }
+        
+        .tool-pill-expanded.error:hover {
+            border-color: rgba(255, 50, 50, 0.6);
+            box-shadow: 
+                0 0 20px rgba(255, 50, 50, 0.3),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+        }
+        
+        .tool-pill-header {
+            display: flex;
+            align-items: center;
+            padding: 12px 16px;
+            background: rgba(0, 0, 0, 0.3);
+            border-bottom: 1px solid rgba(255, 165, 0, 0.15);
+        }
+        
+        .tool-status {
+            margin-right: 10px;
+            font-size: 16px;
+        }
+        
+        .tool-name {
+            flex: 1;
+            font-weight: 600;
+            color: #ffa500;
+            font-family: 'Monaco', 'Menlo', monospace;
+            text-shadow: 0 0 10px rgba(255, 165, 0, 0.5);
+        }
+        
+        .tool-expand {
+            color: rgba(255, 165, 0, 0.7);
+            font-size: 12px;
+            transition: transform 0.2s ease;
+        }
+        
+        .tool-pill-expanded.expanded .tool-expand {
+            transform: rotate(180deg);
+        }
+        
+        .tool-details {
+            display: none;
+            padding: 16px;
+            background: rgba(0, 0, 0, 0.4);
+        }
+        
+        .tool-section {
+            margin-bottom: 16px;
+        }
+        
+        .tool-section:last-child {
+            margin-bottom: 0;
+        }
+        
+        .tool-label {
+            color: rgba(0, 255, 255, 0.8);
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 6px;
+            opacity: 0.9;
+        }
+        
+        .tool-data {
+            background: rgba(0, 0, 0, 0.6);
+            border: 1px solid rgba(0, 255, 255, 0.1);
+            border-radius: 6px;
+            padding: 12px;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 11px;
+            color: #e0e0e0;
+            line-height: 1.4;
+            overflow-x: auto;
+            white-space: pre;
+            margin: 0;
+            word-wrap: break-word;
+        }
+        
+        .tool-data:hover {
+            border-color: rgba(0, 255, 255, 0.3);
+        }
+
+        /* FIXED LAYOUT - STICKY EXEC STATUS + SCROLLABLE RESULTS */
+        .execution-status-sticky {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: rgba(0, 20, 40, 0.95);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(0, 255, 255, 0.2);
+            padding: 12px 16px;
+            margin-bottom: 12px;
+        }
+
+        .results-scroll-area {
+            flex: 1;
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding: 0 8px;
+            max-height: 50vh;
+            height: 400px;
+            min-height: 200px;
+            background: rgba(20, 20, 35, 0.95);
+            border-radius: 12px;
+            border: 1px solid rgba(100, 255, 100, 0.1);
+        }
+
+        .results-content-flat {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            padding-bottom: 40px; /* Ensure bottom content is visible */
+        }
+
+        /* Remove the nested container bullshit */
+        .tab-content.active {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+
+        /* COMPACT DATA INSIGHTS PILL */
+        .data-insights-pill {
+            display: inline-flex;
+            align-items: center;
+            background: rgba(0, 255, 255, 0.08);
+            border: 1px solid rgba(0, 255, 255, 0.2);
+            border-radius: 12px;
+            padding: 2px 8px;
+            margin-left: 8px;
+            font-size: 10px;
+            color: rgba(0, 255, 255, 0.7);
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-weight: 500;
+        }
+
+        /* SLA Status Display */
+        .sla-status {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 10px;
+            border: 1px solid;
+        }
+        
+        .sla-status.decision {
+            background: rgba(255, 165, 0, 0.2);
+            color: #ffa500;
+            border-color: rgba(255, 165, 0, 0.4);
+        }
+        
+        .sla-status.enforced {
+            background: rgba(255, 200, 0, 0.2);
+            color: #ffc800;
+            border-color: rgba(255, 200, 0, 0.4);
+        }
+        
+        .sla-status.strict {
+            background: rgba(255, 50, 50, 0.3);
+            color: #ff3232;
+            border-color: rgba(255, 50, 50, 0.5);
+        }
+        
+        .sla-icon {
+            font-size: 10px;
+        }
+        
+        .sla-label {
+            font-weight: bold;
+            font-size: 9px;
+        }
+        
+        .sla-detail {
+            font-size: 8px;
+            opacity: 0.8;
+            margin-left: 2px;
+        }
+        
+        .data-visualization {
+            background: rgba(10, 10, 20, 0.8);
+            border: 1px solid rgba(100, 255, 100, 0.2);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-top: 1rem;
+            min-height: 150px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: rgba(125, 249, 255, 0.5);
+            font-style: italic;
+        }
+        
+        /* Cockpit-style Unified Interface */
+        .cockpit-header {
+            background: rgba(0, 0, 0, 0.8);
+            border: 1px solid rgba(100, 255, 100, 0.2);
+            border-radius: 8px 8px 0 0;
+            padding: 0.5rem 1rem;
+            margin-bottom: 0;
+            font-family: 'Fira Code', 'Monaco', 'Consolas', monospace;
+            font-size: 0.75rem;
+            color: rgba(200, 200, 200, 0.9);
+        }
+        
+        .execution-header-compact {
+            line-height: 1.2;
+            white-space: pre-wrap;
+        }
+        
+        .execution-details {
+            background: rgba(20, 20, 35, 0.8);
+            border: 1px solid rgba(100, 255, 100, 0.2);
+            border-top: none;
+            border-radius: 0 0 8px 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        
+        .cockpit-status-bar {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid rgba(100, 255, 100, 0.1);
+            margin-bottom: 0.5rem;
+        }
+        
+        .status-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+            font-size: 0.8rem;
+        }
+        
+        .status-indicator.completed {
+            color: #90ff90;
+        }
+        
+        .status-indicator.running {
+            color: #a0d8ff;
+        }
+        
+        .status-indicator.failed {
+            color: #ff6666;
+        }
     </style>
 </head>
 <body>
@@ -1723,11 +2924,26 @@
                 <div id="connectionStatus" class="status status-disconnected" style="float: right; font-size: 0.8rem;">Disconnected</div>
             </div>
             
+            <!-- Session Controls -->
+            <div class="session-controls">
+                <div class="session-info">
+                    <span id="sessionStatus">🔄 Single-serve mode</span>
+                </div>
+                <div class="session-buttons">
+                    <button id="chatModeToggle" class="session-btn" title="Toggle between chat mode (persistent conversation) and single-serve mode">
+                        💬 Enable Chat Mode
+                    </button>
+                    <button id="resetSession" class="session-btn secondary" title="Start a new conversation session">
+                        🔄 New Session
+                    </button>
+                </div>
+            </div>
+            
             <div class="chat-messages" id="chatMessages">
                 <!-- Messages will be added here -->
                 <div class="message assistant">
                     <div class="message-bubble">
-                        👋 Hello! I'm your intelligence workflow design assistant. Tell me what kind of workflow you'd like to create and I'll help you build it!
+                        👋 Hello! I'm your IO.net AI workflow design assistant. Tell me what kind of workflow you'd like to create and I'll help you build it!
                     </div>
                     <div class="message-time">Just now</div>
                 </div>
@@ -1748,33 +2964,33 @@
 
         <!-- Main Content -->
         <div class="main-content">
-            <!-- Workflow Controls -->
-            <div class="workflow-controls" style="display: flex; gap: 1rem; padding: 1rem; background: rgba(10, 10, 10, 0.95); border-bottom: 1px solid rgba(100, 255, 100, 0.2); align-items: center;">
-                <select id="exampleSelect" class="example-select" style="width: 180px;">
-                    <option value="">📋 Examples</option>
-                </select>
-                <select id="savedWorkflowSelect" class="orchestration-select" style="width: 180px;">
-                    <option value="">💾 Saved</option>
-                </select>
-                
-                <div style="width: 1px; height: 24px; background: rgba(100, 255, 100, 0.3);"></div>
-                
-                <div class="tool-search-container" style="position: relative; width: 300px;">
-                    <input type="text" class="tool-search" id="workflowToolSearch" placeholder="🔍 Search tools..." style="width: 100%;">
-                    <div class="tool-results" id="workflowToolResults" style="display: none;"></div>
+            <div class="flow-area" id="flowArea">
+                <!-- Workflow Controls -->
+                <div class="workflow-controls" style="display: flex; gap: 1rem; padding: 1rem; background: rgba(10, 10, 10, 0.95); border-bottom: 1px solid rgba(100, 255, 100, 0.2); align-items: center;">
+                    <select id="exampleSelect" class="example-select" style="width: 180px;">
+                        <option value="">📋 Examples</option>
+                    </select>
+                    <select id="savedWorkflowSelect" class="orchestration-select" style="width: 180px;">
+                        <option value="">💾 Saved</option>
+                    </select>
+                    
+                    <div style="width: 1px; height: 24px; background: rgba(100, 255, 100, 0.3);"></div>
+                    
+                    <div class="tool-search-container" style="position: relative; width: 300px;">
+                        <input type="text" class="tool-search" id="workflowToolSearch" placeholder="🔍 Search tools..." style="width: 100%;">
+                        <div class="tool-results" id="workflowToolResults" style="display: none;"></div>
+                    </div>
+                    
+                    <div style="flex: 1;"></div>
+                    
+                    <button class="button" id="executeBtn" disabled>Run</button>
+                    <button class="button" id="runWithInputsBtn" disabled style="display: none;">📝 Run with Inputs</button>
+                    <button class="button" id="stopBtn" disabled style="display: none;">⏹️</button>
+                    <button class="button" id="saveBtn" disabled>💾</button>
+                    <button class="button" id="exportBtn" disabled>📤</button>
+                    <button class="button button-danger" id="clearBtn" disabled>🗑️</button>
                 </div>
                 
-                <div style="flex: 1;"></div>
-                
-                <button class="button" id="executeBtn" disabled>Run</button>
-                <button class="button" id="runWithInputsBtn" disabled style="display: none;">📝 Run with Inputs</button>
-                <button class="button" id="stopBtn" disabled style="display: none;">⏹️</button>
-                <button class="button" id="saveBtn" disabled>💾</button>
-                <button class="button" id="exportBtn" disabled>📤</button>
-                <button class="button button-danger" id="clearBtn" disabled>🗑️</button>
-            </div>
-            
-            <div class="flow-area">
                 <div id="emptyState" class="empty-state">
                     <div class="icon">🌊</div>
                     <h2>Start a conversation</h2>
@@ -1783,40 +2999,52 @@
                 
                 <div id="flowContainer" class="flow-container" style="display: none;"></div>
             </div>
-        </div>
-        
-        <!-- Enhanced Bottom Panel - Results and Status -->
-        <div id="bottomPanel" class="bottom-panel" style="display: none; grid-template-columns: 1fr; overflow-y: auto;">
-            <!-- Compact Results Section -->
-            <div class="bottom-section" id="resultsSection">
-                <div id="workflowInfo" style="margin-bottom: 1rem;">
-                    <h4 id="workflowTitle" style="margin: 0; font-size: 1.1rem; color: rgba(100, 255, 100, 1); display: inline;">Workflow Title</h4>
-                    <span style="margin-left: 1rem; font-size: 0.85rem; color: #a0a0a0;">
-                        <strong id="nodeCount" style="color: rgba(100, 255, 100, 1);">0</strong> nodes, 
-                        <strong id="edgeCount" style="color: rgba(100, 255, 100, 1);">0</strong> edges, 
-                        rev <strong id="revNumber" style="color: rgba(100, 255, 100, 1);">1</strong>
-                    </span>
-                </div>
-                
-                <!-- User Input Form Section -->
-                <div id="userInputSection" style="display: none;">
-                    <h4 style="margin: 0.5rem 0 0.5rem 0; color: #64FF64;">📝 Workflow Inputs</h4>
-                    <div id="userInputForm"></div>
-                </div>
-                
-                <!-- Enhanced Execution Status Section -->
-                <div id="executionStatusSection" style="display: none; background: rgba(255, 152, 0, 0.1); border: 1px solid rgba(255, 152, 0, 0.3); border-radius: 8px; padding: 1rem; margin: 1rem 0;">
-                    <h4 style="margin: 0 0 1rem 0; color: #ff9800; font-size: 1.2rem; display: flex; align-items: center; gap: 0.5rem;">
-                        ⚡ Execution Status
-                        <span id="executionSpinner" style="display: none; font-size: 0.8rem; animation: spin 1s linear infinite;">🔄</span>
-                    </h4>
-                    <div id="executionInfo" style="font-size: 1rem; line-height: 1.5;"></div>
-                </div>
-                
-                <!-- Enhanced Execution Results -->
-                <div id="executionResults" style="display: none; background: rgba(76, 175, 80, 0.1); border: 1px solid rgba(76, 175, 80, 0.3); border-radius: 8px; padding: 1rem; margin: 1rem 0;">
-                    <h4 style="margin: 0 0 1rem 0; color: #4caf50; font-size: 1.2rem;">✅ Results</h4>
-                    <div id="resultsContent" style="font-size: 1rem; line-height: 1.5; max-height: 200px; overflow-y: auto;"></div>
+            
+            <!-- Panel Resizer -->
+            <div class="panel-resizer" id="panelResizer" style="display: none;"></div>
+            
+            <!-- Enhanced Bottom Panel - Results and Status -->
+            <div id="bottomPanel" class="bottom-panel" style="display: none;">
+                <!-- Tab Container -->
+                <div class="tab-container">
+                    <!-- Tab Header -->
+                    <div class="tab-header">
+                        <button class="tab-button active" onclick="switchTab('results')">
+                            🎯 Results
+                        </button>
+                        <button class="tab-button" onclick="switchTab('logs')">
+                            📋 Execution Logs
+                        </button>
+                    </div>
+                    
+                    <!-- Results Tab Content - FIXED LAYOUT -->
+                    <div id="resultsTab" class="tab-content active">
+                        <!-- Sticky Execution Status at Top -->
+                        <div id="executionStatusSticky" class="execution-status-sticky">
+                            <div id="executionHeaderInfo" class="execution-header-compact"></div>
+                        </div>
+                        
+                        <!-- User Input Form Section -->
+                        <div id="userInputSection" style="display: none;">
+                            <div id="userInputForm"></div>
+                        </div>
+                        
+                        <!-- Single Scrollable Results Area -->
+                        <div id="resultsScrollArea" class="results-scroll-area">
+                            <div id="resultsContent" class="results-content-flat"></div>
+                        </div>
+                    </div>
+                    
+                    <!-- Logs Tab Content -->
+                    <div id="logsTab" class="tab-content">
+                        <div class="bottom-section">
+                            <div class="execution-logs" id="executionLogs">
+                                <div style="text-align: center; color: rgba(125, 249, 255, 0.5); padding: 2rem;">
+                                    No execution logs available yet. Run a workflow to see detailed logs.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1835,6 +3063,8 @@
         let currentExecution = null;
         let executionTasks = {};
         let availableTools = {};
+        let executionLogs = null; // Store full execution report
+        let runtimeUpdateInterval = null; // Timer for runtime updates
 
         // Initialize WebSocket connection
         function initWebSocket() {
@@ -1989,10 +3219,10 @@
                 handleWorkflowUpdate(null);
                 clearExecutionStatus();
                 // Clear execution results
-                const executionResults = document.getElementById('executionResults');
+                const resultsScrollArea = document.getElementById('resultsScrollArea');
                 const resultsContent = document.getElementById('resultsContent');
-                if (executionResults) {
-                    executionResults.style.display = 'none';
+                if (resultsScrollArea) {
+                    resultsScrollArea.style.display = 'none';
                 }
                 if (resultsContent) {
                     resultsContent.innerHTML = '';
@@ -2031,10 +3261,16 @@
                     currentExecution = {
                         id: data.execution_id,
                         status: data.status,
-                        workflow_title: currentWorkflow.title
+                        workflow_title: currentWorkflow.title,
+                        start_time: new Date().toISOString()
                     };
                     showExecutionStatus();
                     updateExecutionInfo();
+                    
+                    // Start runtime updates for running executions
+                    if (data.status === 'running') {
+                        startRuntimeUpdates();
+                    }
                 } else {
                     alert('Failed to start execution: ' + data.error);
                 }
@@ -2115,18 +3351,22 @@
         }
 
         function updateWorkflowInfo(workflow) {
-            document.getElementById('workflowTitle').textContent = workflow.title;
-            document.getElementById('nodeCount').textContent = workflow.nodes.length;
-            document.getElementById('edgeCount').textContent = workflow.edges.length;
-            document.getElementById('revNumber').textContent = workflow.rev;
-            document.getElementById('bottomPanel').style.display = 'grid';
+            // Update workflow info elements if they exist (some removed in layout restructure)
+            const workflowTitle = document.getElementById('workflowTitle');
+            const nodeCount = document.getElementById('nodeCount');  
+            const edgeCount = document.getElementById('edgeCount');
+            const revNumber = document.getElementById('revNumber');
+            
+            if (workflowTitle) workflowTitle.textContent = workflow.title;
+            if (nodeCount) nodeCount.textContent = workflow.nodes.length;
+            if (edgeCount) edgeCount.textContent = workflow.edges.length;
+            if (revNumber) revNumber.textContent = workflow.rev;
+            
+            showBottomPanel();
         }
         
         function hideWorkflowInfo() {
-            const bottomPanel = document.getElementById('bottomPanel');
-            if (bottomPanel) {
-                bottomPanel.style.display = 'none';
-            }
+            hideBottomPanel();
         }
         
         
@@ -2184,15 +3424,15 @@
                 console.log('✅ Bottom panel made visible');
             }
             
-            // Show execution status section
-            const executionStatusSection = document.getElementById('executionStatusSection');
+            // Show sticky execution status section
+            const executionStatusSticky = document.getElementById('executionStatusSticky');
             const executionSpinner = document.getElementById('executionSpinner');
             
-            if (executionStatusSection) {
-                executionStatusSection.style.display = 'block';
-                console.log('✅ Execution status section made visible');
+            if (executionStatusSticky) {
+                executionStatusSticky.style.display = 'block';
+                console.log('✅ Sticky execution status section made visible');
             } else {
-                console.error('❌ Execution status section not found');
+                console.error('❌ Sticky execution status section not found');
             }
             
             if (executionSpinner && currentExecution && currentExecution.status === 'running') {
@@ -2202,11 +3442,11 @@
         }
 
         function hideExecutionStatus() {
-            const executionStatusSection = document.getElementById('executionStatusSection');
+            const executionStatusSticky = document.getElementById('executionStatusSticky');
             const executionSpinner = document.getElementById('executionSpinner');
             
-            if (executionStatusSection) {
-                executionStatusSection.style.display = 'none';
+            if (executionStatusSticky) {
+                executionStatusSticky.style.display = 'none';
             }
             
             if (executionSpinner) {
@@ -2214,15 +3454,40 @@
             }
         }
 
+        function startRuntimeUpdates() {
+            // Clear any existing interval
+            if (runtimeUpdateInterval) {
+                clearInterval(runtimeUpdateInterval);
+            }
+            
+            // Update runtime every second while execution is running
+            runtimeUpdateInterval = setInterval(() => {
+                if (currentExecution && currentExecution.status === 'running') {
+                    updateExecutionInfo(); // This will recalculate and display the runtime
+                } else {
+                    // Stop updates if execution is no longer running
+                    clearInterval(runtimeUpdateInterval);
+                    runtimeUpdateInterval = null;
+                }
+            }, 1000);
+        }
+
         function clearExecutionStatus() {
             currentExecution = null;
             executionTasks = {};
+            
+            // Stop runtime updates
+            if (runtimeUpdateInterval) {
+                clearInterval(runtimeUpdateInterval);
+                runtimeUpdateInterval = null;
+            }
+            
             hideExecutionStatus();
             
             // Hide results section too
-            const executionResults = document.getElementById('executionResults');
-            if (executionResults) {
-                executionResults.style.display = 'none';
+            const resultsScrollArea = document.getElementById('resultsScrollArea');
+            if (resultsScrollArea) {
+                resultsScrollArea.style.display = 'none';
             }
             
             setExecutionLoading(false);
@@ -2237,6 +3502,19 @@
             }
             
             currentExecution.status = data.status;
+            console.log('🔄 Status updated to:', data.status);
+            
+            // Add end time when execution completes
+            if (data.status === 'completed' || data.status === 'failed') {
+                currentExecution.end_time = new Date().toISOString();
+                console.log('⏰ Set end_time for completed execution');
+                
+                // Stop runtime updates when execution finishes
+                if (runtimeUpdateInterval) {
+                    clearInterval(runtimeUpdateInterval);
+                    runtimeUpdateInterval = null;
+                }
+            }
             
             // Control spinner based on execution status
             const executionSpinner = document.getElementById('executionSpinner');
@@ -2274,6 +3552,7 @@
                 currentExecution.error = data.error;
             }
             
+            console.log('📊 Calling updateExecutionInfo with currentExecution:', currentExecution);
             updateExecutionInfo();
             
             // Show results if completed
@@ -2298,13 +3577,67 @@
                 if (stopBtn) {
                     stopBtn.disabled = true;
                 }
+                
+                // Update all remaining running tasks to completed/failed when workflow finishes
+                for (const [taskName, task] of Object.entries(executionTasks)) {
+                    if (task.status === 'started' || task.status === 'running') {
+                        // Mark task as completed if workflow succeeded, or failed if workflow failed
+                        executionTasks[taskName].status = data.status === 'completed' ? 'completed' : 'failed';
+                        console.log(`🔄 Updated task ${taskName} status to ${executionTasks[taskName].status} due to workflow completion`);
+                    }
+                }
+                
+                // Refresh display to show updated task statuses
+                updateExecutionInfo();
+                
+                // Fetch and display execution feedback
+                if (currentExecution && currentExecution.id) {
+                    console.log('📊 Fetching execution feedback...');
+                    fetchAndDisplayExecutionFeedback(currentExecution.id);
+                }
             }
         }
         
-        function showExecutionStatus() {
-            const executionStatusSection = document.getElementById('executionStatusSection');
-            if (executionStatusSection) {
-                executionStatusSection.style.display = 'block';
+        async function fetchAndDisplayExecutionFeedback(executionId) {
+            try {
+                // Wait a moment for backend to process feedback
+                setTimeout(async () => {
+                    const response = await fetch(`/api/executions/${executionId}/feedback`);
+                    
+                    if (!response.ok) {
+                        console.log('📊 No feedback available yet');
+                        return;
+                    }
+                    
+                    const feedbackData = await response.json();
+                    console.log('📊 Execution feedback received:', feedbackData);
+                    
+                    // Store execution logs for the logs tab
+                    if (feedbackData.execution_summary) {
+                        executionLogs = feedbackData.execution_summary;
+                        updateExecutionLogs(feedbackData.execution_summary);
+                    }
+                    
+                    // Only display AI analysis/feedback if available (skip raw report to avoid duplication)
+                    if (feedbackData.planner_feedback) {
+                        // Add the AI analysis with execution context
+                        addMessageToChat(feedbackData.planner_feedback, 'assistant', { isExecutionReport: true });
+                        
+                        // Add a prompt for user to ask for improvements if there were issues
+                        if (feedbackData.execution_metrics && feedbackData.execution_metrics.success_rate < 100) {
+                            addMessageToChat(
+                                '💡 Would you like me to create an improved version of this workflow based on the issues identified?', 
+                                'assistant'
+                            );
+                        }
+                    } else if (feedbackData.curated_summary) {
+                        // Fallback to raw report only if no AI analysis available
+                        addMessageToChat(feedbackData.curated_summary, 'system', { isExecutionReport: true });
+                    }
+                }, 2000); // Wait 2 seconds for backend processing
+                
+            } catch (error) {
+                console.error('❌ Error fetching execution feedback:', error);
             }
         }
         
@@ -2312,15 +3645,15 @@
             currentExecution = null;
             executionTasks = {};
             
-            const executionStatusSection = document.getElementById('executionStatusSection');
-            const executionResults = document.getElementById('executionResults');
+            const executionStatusSticky = document.getElementById('executionStatusSticky');
+            const resultsScrollArea = document.getElementById('resultsScrollArea');
             const stopBtn = document.getElementById('stopBtn');
             
-            if (executionStatusSection) {
-                executionStatusSection.style.display = 'none';
+            if (executionStatusSticky) {
+                executionStatusSticky.style.display = 'none';
             }
-            if (executionResults) {
-                executionResults.style.display = 'none';
+            if (resultsScrollArea) {
+                resultsScrollArea.style.display = 'none';
             }
             if (stopBtn) {
                 stopBtn.disabled = true;
@@ -2328,13 +3661,18 @@
         }
         
         function updateExecutionInfo() {
-            console.log('📊 updateExecutionInfo called', currentExecution);
-            if (!currentExecution) return;
+            console.log('🚨🚨🚨 updateExecutionInfo called', currentExecution);
+            if (!currentExecution) {
+                console.log('❌❌❌ No currentExecution - cannot update execution info');
+                return;
+            }
+            console.log('🔍🔍🔍 Current execution status:', currentExecution.status);
+            console.log('🔍🔍🔍 Has start_time:', !!currentExecution.start_time);
             
-            // Ensure the status section is visible
-            const executionStatusSection = document.getElementById('executionStatusSection');
-            if (executionStatusSection) {
-                executionStatusSection.style.display = 'block';
+            // Ensure the sticky status section is visible
+            const executionStatusSticky = document.getElementById('executionStatusSticky');
+            if (executionStatusSticky) {
+                executionStatusSticky.style.display = 'block';
             }
             
             const statusClass = `status-${currentExecution.status}`;
@@ -2346,20 +3684,113 @@
                 enhancedStatusText = `${statusText} <span class="thinking-indicator"></span>`;
             }
 
-            let infoHTML = `
-                <div class="detail-row">
-                    <span>Status:</span>
-                    <span class="status ${statusClass}">${enhancedStatusText}</span>
-                </div>
-                <div class="detail-row">
-                    <span>Execution ID:</span>
-                    <span style="font-family: monospace; font-size: 0.8em;">${currentExecution.id}</span>
-                </div>
-                <div class="detail-row">
-                    <span>Workflow:</span>
-                    <span>${currentExecution.workflow_title}</span>
-                </div>
-            `;
+            // Create cockpit-style compact header
+            const headerInfo = document.getElementById('executionHeaderInfo');
+            const detailsInfo = document.getElementById('executionInfo');
+            
+            // Also show the results section when execution info is updated
+            const resultsSection = document.getElementById('executionResults');
+            if (resultsSection) {
+                resultsSection.style.display = 'flex';
+            }
+            
+            if (headerInfo) {
+                // Compact terminal-style header
+                const successCount = Object.values(executionTasks).filter(t => t.status === 'completed').length;
+                const totalTasks = Object.keys(executionTasks).length;
+                const failedCount = Object.values(executionTasks).filter(t => t.status === 'failed').length;
+                const execId = currentExecution.id.substring(0, 8);
+                const status = currentExecution.status;
+                
+                const statusColor = status === 'completed' ? 'log-success' : 
+                                   status === 'running' ? 'log-warning' : 
+                                   status === 'failed' ? 'log-error' : 'log-dim';
+                
+                const workflowTitleText = (currentExecution.workflow_title || '').substring(0, 40);
+                
+                // Calculate runtime
+                let runtimeDisplay = '';
+                if (currentExecution.start_time) {
+                    const startTime = new Date(currentExecution.start_time);
+                    const currentTime = status === 'completed' && currentExecution.end_time ? 
+                                       new Date(currentExecution.end_time) : new Date();
+                    const runtimeSeconds = (currentTime - startTime) / 1000;
+                    runtimeDisplay = ` <span class="log-dim">|</span> <span class="runtime-display">${runtimeSeconds.toFixed(1)}s</span>`;
+                }
+                
+                // Add animated indicators for running status and completion messages
+                let statusDisplay = status.toUpperCase();
+                if (status === 'running') {
+                    console.log('🚨🚨🚨 STATUS IS RUNNING - GENERATING ANIMATION HTML');
+                    statusDisplay = `<span class="running-indicator"><span class="running-spinner"></span>RUNNING<span class="running-dots"></span></span>`;
+                    console.log('🚨🚨🚨 Running statusDisplay HTML:', statusDisplay);
+                } else if (status === 'completed' && currentExecution.start_time && currentExecution.end_time) {
+                    // Show completion message with total runtime
+                    const startTime = new Date(currentExecution.start_time);
+                    const endTime = new Date(currentExecution.end_time);
+                    const totalSeconds = (endTime - startTime) / 1000;
+                    const minutes = Math.floor(totalSeconds / 60);
+                    const seconds = (totalSeconds % 60).toFixed(1);
+                    const timeDisplay = minutes > 0 ? `${minutes}m${seconds}s` : `${seconds}s`;
+                    statusDisplay = `✅ COMPLETED in ${timeDisplay}`;
+                    console.log('✅ Generated completion message:', statusDisplay);
+                } else {
+                    console.log('📊 Status display for:', status);
+                }
+                
+                let headerHTML = '<span class="log-dim">─────────────────────────────────────────────────────────────────────</span>\n';
+                headerHTML += `<span class="log-highlight">exec:</span> ${execId} <span class="log-dim">|</span> <span class="${statusColor}">${statusDisplay}</span>${runtimeDisplay} <span class="log-dim">|</span> <span class="log-node-id">${workflowTitleText}</span>\n`;
+                headerHTML += `<span class="log-dim">tasks:</span> <span class="log-success">${successCount}/${totalTasks}</span> ok <span class="log-dim">|</span> <span class="log-error">${failedCount}</span> fail <span class="log-dim">|</span> <span class="log-warning">${totalTasks - successCount - failedCount}</span> pending\n`;
+                
+                // Add user inputs in the header if any
+                if (Object.keys(cachedUserInputs).length > 0) {
+                    const userInputText = Object.entries(cachedUserInputs)
+                        .map(([k, v]) => {
+                            const cleanValue = String(v).substring(0, 40);
+                            return `${k}:"${cleanValue}${v.length > 40 ? '...' : ''}"`;
+                        })
+                        .join(' ');
+                    headerHTML += `<span class="log-highlight">input:</span> <span class="log-dim">${userInputText}</span>\n`;
+                }
+                
+                headerHTML += '<span class="log-dim">─────────────────────────────────────────────────────────────────────</span>';
+                
+                console.log('🚨🚨🚨 SETTING headerHTML:', headerHTML);
+                headerInfo.innerHTML = headerHTML;
+                console.log('🚨🚨🚨 AFTER SETTING - headerInfo.innerHTML:', headerInfo.innerHTML);
+                
+                // Also update workflow info in header
+                const workflowTitle = document.getElementById('workflowTitle');
+                const nodeCount = document.getElementById('nodeCount');
+                const edgeCount = document.getElementById('edgeCount');
+                const revNumber = document.getElementById('revNumber');
+                
+                if (currentWorkflow && workflowTitle && nodeCount && edgeCount && revNumber) {
+                    // Update title elements but keep them hidden - info is in compact header
+                    workflowTitle.textContent = currentWorkflow.title;
+                    nodeCount.textContent = currentWorkflow.nodes.length;
+                    edgeCount.textContent = currentWorkflow.edges.length;
+                    revNumber.textContent = currentWorkflow.rev;
+                }
+                console.log('🚨🚨🚨 headerInfo element:', headerInfo);
+                console.log('🚨🚨🚨 headerInfo visible?', headerInfo.offsetWidth > 0 && headerInfo.offsetHeight > 0);
+                
+                // Force a reflow and check if animation elements exist
+                setTimeout(() => {
+                    const spinnerElements = document.querySelectorAll('.running-spinner');
+                    const indicatorElements = document.querySelectorAll('.running-indicator'); 
+                    console.log('🚨🚨🚨 After timeout - spinner elements found:', spinnerElements.length);
+                    console.log('🚨🚨🚨 After timeout - indicator elements found:', indicatorElements.length);
+                    if (spinnerElements.length > 0) {
+                        console.log('🚨🚨🚨 First spinner element:', spinnerElements[0]);
+                        console.log('🚨🚨🚨 First spinner computed style display:', window.getComputedStyle(spinnerElements[0]).display);
+                        console.log('🚨🚨🚨 First spinner computed style visibility:', window.getComputedStyle(spinnerElements[0]).visibility);
+                    }
+                }, 100);
+            }
+            
+            // Detailed task progress in the details section
+            let infoHTML = '';
             
             if (currentExecution.error) {
                 infoHTML += `
@@ -2372,57 +3803,11 @@
                 `;
             }
             
-            // Add task progress with enhanced tool usage display
-            if (Object.keys(executionTasks).length > 0) {
-                infoHTML += '<div style="margin-top: 1rem;"><h4 style="margin: 0 0 0.5rem 0; font-size: 0.9rem;">📋 Task Progress:</h4>';
-                for (const [taskName, task] of Object.entries(executionTasks)) {
-                    const taskClass = task.status === 'completed' ? 'completed' : 
-                                     task.status === 'started' ? 'running' : 
-                                     task.status === 'failed' ? 'failed' : '';
-                    
-                    // Get task node info for enhanced display
-                    const taskNode = currentWorkflow?.nodes?.find(n => n.id === taskName);
-                    const isAgentTask = taskNode?.type === 'agent';
-                    const agentTools = taskNode?.data?.tools || [];
-                    const taskIcon = isAgentTask ? '🤖' : '🔧';
-                    
-                    infoHTML += `<div class="execution-task ${taskClass}">`;
-                    
-                    // Enhanced task status with thinking indicators
-                    let taskStatusDisplay = task.status;
-                    if (task.status === 'started' || task.status === 'running') {
-                        const taskTypeText = isAgentTask ? 'thinking' : 'processing';
-                        taskStatusDisplay = `${taskStatusDisplay} - ${taskTypeText}<span class="thinking-indicator"></span>`;
-                    }
-                    
-                    infoHTML += `<strong>${taskIcon} ${taskName}</strong>: ${taskStatusDisplay}`;
-                    
-                    // Show available tools for agent tasks
-                    if (isAgentTask && agentTools.length > 0) {
-                        const toolPills = agentTools.map(tool => `<span class="tool-pill" style="font-size: 0.6rem; padding: 0.1rem 0.3rem;">🔧 ${tool}</span>`).join('');
-                        infoHTML += `<div style="margin-top: 0.25rem;">${toolPills}</div>`;
-                    }
-                    
-                    // Show result if available
-                    if (task.result !== undefined) {
-                        if (typeof task.result === 'object' && task.result !== null && task.result.tool_usage_results) {
-                            // Show summary of tool usage results
-                            const toolCount = task.result.tool_usage_results.length;
-                            infoHTML += `<br><small style="color: #00bcd4;">🛠️ Used ${toolCount} tool${toolCount !== 1 ? 's' : ''}</small>`;
-                        } else if (typeof task.result === 'string') {
-                            const truncatedResult = task.result.length > 100 ? task.result.substring(0, 100) + '...' : task.result;
-                            infoHTML += `<br><small>→ ${truncatedResult}</small>`;
-                        } else {
-                            infoHTML += `<br><small>→ ${JSON.stringify(task.result)}</small>`;
-                        }
-                    }
-                    
-                    infoHTML += '</div>';
-                }
-                infoHTML += '</div>';
-            }
+            // Task progress display removed - redundant with header display
             
-            document.getElementById('executionInfo').innerHTML = infoHTML;
+            if (detailsInfo) {
+                detailsInfo.innerHTML = infoHTML;
+            }
         }
         
         function updateTaskDisplay(taskName, status, result) {
@@ -2432,158 +3817,250 @@
         }
         
         function showExecutionResults(results) {
-            const resultsDiv = document.getElementById('executionResults');
             const resultsContent = document.getElementById('resultsContent');
             
             let resultsHTML = '';
             
-            // Enhanced results display with tool usage highlighting
+            // Enhanced results display with data science styling
             if (results.results && typeof results.results === 'object') {
                 resultsHTML = '<div class="enhanced-results">';
                 
-                // Show workflow summary
-                resultsHTML += '<div class="results-section"><h4>🎯 Workflow Results</h4>';
-                
-                // Process each task result
+                // Process each task result with modal cards
                 for (const [taskKey, taskResult] of Object.entries(results.results)) {
                     const taskNode = currentWorkflow?.nodes?.find(n => n.id === taskKey);
-                    const isAgentTask = taskNode?.type === 'agent';
+                    const nodeType = taskNode?.type || 'unknown';
+                    const nodeLabel = taskNode?.label || taskKey;
+                    const isAgentTask = nodeType === 'agent';
                     const agentTools = taskNode?.data?.tools || [];
                     
-                    resultsHTML += '<div class="task-result-card">';
+                    // Create data science modal for each node
+                    resultsHTML += '<div class="node-result-modal">';
                     
-                    // Task header with icon and tools if available
-                    const taskIcon = isAgentTask ? '🤖' : '🔧';
-                    let taskHeader = `${taskIcon} <strong>${taskKey}</strong>`;
+                    // Node header with metrics
+                    const nodeIcon = isAgentTask ? '🤖' : nodeType === 'tool' ? '🔧' : '📊';
                     
-                    if (isAgentTask && agentTools.length > 0) {
-                        const toolPills = agentTools.map(tool => `<span class="tool-pill">🔧 ${tool}</span>`).join('');
-                        taskHeader += `<div class="agent-tools-used">Tools Available: ${toolPills}</div>`;
-                    }
-                    
-                    resultsHTML += `<div class="task-header">${taskHeader}</div>`;
-                    
-                    // Task result content
-                    resultsHTML += '<div class="task-content">';
-                    
-                    // Check if this is an agent result with tool usage results
-                    if (typeof taskResult === 'object' && taskResult !== null) {
-                        console.log(`🔍 Processing task result for ${taskKey}:`, taskResult);
-                        // Handle structured agent result with potential tool usage
-                        const agentOutput = taskResult.result || taskResult.output || taskResult;
-                        const toolUsageResults = taskResult.tool_usage_results;
-                        console.log(`🔍 Agent output:`, agentOutput);
-                        console.log(`🔍 Tool usage results:`, toolUsageResults);
-                        
-                        // Display main agent output
-                        if (typeof agentOutput === 'string') {
-                            let displayResult = agentOutput;
-                            
-                            if (isAgentTask && agentTools.length > 0) {
-                                // Highlight potential tool usage in agent responses (only once per term)
-                                const highlightedTerms = new Set();
-                                agentTools.forEach(tool => {
-                                    if (!highlightedTerms.has(tool.toLowerCase())) {
-                                        const toolPattern = new RegExp(`\\b(${tool})\\b`, 'gi');
-                                        displayResult = displayResult.replace(toolPattern, '<mark class="tool-usage-highlight">$1</mark>');
-                                        highlightedTerms.add(tool.toLowerCase());
-                                    }
-                                });
+                    // Check for SLA information for decision agents
+                    let slaBadge = '';
+                    if (isAgentTask && currentWorkflow && currentWorkflow.nodes) {
+                        const workflowNode = currentWorkflow.nodes.find(n => n.id === taskKey);
+                        if (workflowNode && workflowNode.data && workflowNode.data.sla && workflowNode.data.sla.enforce_usage) {
+                            const sla = workflowNode.data.sla;
+                            if (sla.final_tool_must_be && sla.required_tools && sla.required_tools.length > 0) {
+                                slaBadge = ` <span class="sla-badge decision">🎯 DECISION</span>`;
+                            } else if (sla.required_tools && sla.required_tools.length > 0) {
+                                slaBadge = ` <span class="sla-badge strict">🎯 STRICT</span>`;
+                            } else {
+                                slaBadge = ` <span class="sla-badge basic">🎯 SLA</span>`;
                             }
-                            
-                            resultsHTML += `<div class="result-text">${displayResult}</div>`;
-                        } else {
-                            resultsHTML += `<pre class="result-json">${JSON.stringify(agentOutput, null, 2)}</pre>`;
                         }
-                        
-                        // Display tool usage results in Rich panel style
-                        console.log('🔍 Checking for tool usage results:', toolUsageResults);
-                        if (toolUsageResults && Array.isArray(toolUsageResults) && toolUsageResults.length > 0) {
-                            console.log('✅ Found tool usage results, displaying panels');
-                            resultsHTML += '<div class="tool-usage-panels">';
-                            resultsHTML += '<h5 style="margin: 1rem 0 0.5rem 0; color: #333;">🛠️ Tool Usage Results</h5>';
-                            
-                            toolUsageResults.forEach((toolUsage, index) => {
-                                // Check if this is a user input tool
-                                if (toolUsage.tool_result && typeof toolUsage.tool_result === 'object' && 
-                                    toolUsage.tool_result.tool_type === 'user_input') {
-                                    
-                                    // Render the simple user input form with task context
-                                    setTimeout(() => {
-                                        renderSimpleUserInputForm(toolUsage.tool_result, taskKey);
-                                    }, 100);
-                                    
-                                    resultsHTML += '<div class="tool-usage-panel">';
-                                    resultsHTML += `<div class="tool-usage-header">📝 ${toolUsage.tool_name} - User Input Required</div>`;
-                                    resultsHTML += '<div class="tool-usage-content">';
-                                    resultsHTML += `<div class="tool-result">✅ Input form "${toolUsage.tool_result.prompt}" is now available below.</div>`;
-                                    resultsHTML += '</div>';
-                                    resultsHTML += '</div>';
-                                } else {
-                                    // Regular tool usage result
-                                    resultsHTML += '<div class="tool-usage-panel">';
-                                    resultsHTML += `<div class="tool-usage-header">🛠️ ${toolUsage.tool_name}</div>`;
-                                    resultsHTML += '<div class="tool-usage-content">';
-                                    
-                                    // Show tool arguments
-                                    if (toolUsage.tool_args && Object.keys(toolUsage.tool_args).length > 0) {
-                                        resultsHTML += '<div><strong>Arguments:</strong></div>';
-                                        resultsHTML += `<div class="tool-args">${JSON.stringify(toolUsage.tool_args, null, 2)}</div>`;
-                                    }
-                                    
-                                    // Show tool result
-                                    if (toolUsage.tool_result !== undefined && toolUsage.tool_result !== null) {
-                                        resultsHTML += '<div><strong>Result:</strong></div>';
-                                        if (typeof toolUsage.tool_result === 'string') {
-                                            resultsHTML += `<div class="tool-result">${toolUsage.tool_result}</div>`;
-                                        } else {
-                                            resultsHTML += `<div class="tool-result"><pre>${JSON.stringify(toolUsage.tool_result, null, 2)}</pre></div>`;
-                                        }
-                                    }
-                                    
-                                    resultsHTML += '</div>'; // tool-usage-content
-                                    resultsHTML += '</div>'; // tool-usage-panel
-                                }
-                            });
-                            
-                            resultsHTML += '</div>'; // tool-usage-panels
-                        }
-                    } else if (typeof taskResult === 'string') {
-                        // Simple string result
-                        let displayResult = taskResult;
-                        
-                        if (isAgentTask && agentTools.length > 0) {
-                            // Highlight potential tool usage in agent responses (only once per term)
-                            const highlightedTerms = new Set();
-                            agentTools.forEach(tool => {
-                                if (!highlightedTerms.has(tool.toLowerCase())) {
-                                    const toolPattern = new RegExp(`\\b(${tool})\\b`, 'gi');
-                                    displayResult = displayResult.replace(toolPattern, '<mark class="tool-usage-highlight">$1</mark>');
-                                    highlightedTerms.add(tool.toLowerCase());
-                                }
-                            });
-                        }
-                        
-                        resultsHTML += `<div class="result-text">${displayResult}</div>`;
-                    } else {
-                        // Fallback to JSON display
-                        resultsHTML += `<pre class="result-json">${JSON.stringify(taskResult, null, 2)}</pre>`;
                     }
                     
-                    resultsHTML += '</div>'; // task-content
-                    resultsHTML += '</div>'; // task-result-card
+                    resultsHTML += `
+                        <div class="node-result-header">
+                            <span class="node-result-icon">${nodeIcon}</span>
+                            <span class="node-result-title">${nodeLabel}${slaBadge}</span>
+                            <span class="node-result-type">${nodeType}</span>
+                        </div>
+                    `;
+                    
+                    // Calculate metrics
+                    const executionTime = executionTasks[taskKey]?.duration || 'N/A';
+                    const toolsUsed = agentTools.length;
+                    const resultSize = JSON.stringify(taskResult).length;
+                    
+                    // Store metrics info for later consolidation with data insights
+                    const executionMetrics = {
+                        executionTime: executionTime !== 'N/A' ? executionTime : null,
+                        toolsUsed: isAgentTask && toolsUsed > 0 ? toolsUsed : null,
+                        resultSize: resultSize
+                    };
+                    
+                    // Check for actual tool usage from execution results - multiple sources
+                    const nodeTaskResult = executionTasks[taskKey];
+                    let actualToolUsage = [];
+                    
+                    // Try multiple sources for tool usage data
+                    if (results.tool_usage && results.tool_usage[taskKey]) {
+                        actualToolUsage = results.tool_usage[taskKey];
+                        console.log('🛠️ Found tool usage in results.tool_usage[taskKey]:', actualToolUsage);
+                    } else if (taskResult && taskResult.tool_usage_results) {
+                        actualToolUsage = taskResult.tool_usage_results;
+                        console.log('🛠️ Found tool usage in taskResult.tool_usage_results:', actualToolUsage);
+                    } else if (taskResult && taskResult.tool_usage) {
+                        actualToolUsage = taskResult.tool_usage;
+                        console.log('🛠️ Found tool usage in taskResult.tool_usage:', actualToolUsage);
+                    } else if (nodeTaskResult && nodeTaskResult.tool_usage_results) {
+                        actualToolUsage = nodeTaskResult.tool_usage_results;
+                        console.log('🛠️ Found tool usage in nodeTaskResult.tool_usage_results:', actualToolUsage);
+                    } else if (nodeTaskResult && nodeTaskResult.tool_usage) {
+                        actualToolUsage = nodeTaskResult.tool_usage;
+                        console.log('🛠️ Found tool usage in nodeTaskResult.tool_usage:', actualToolUsage);
+                    } else {
+                        // Check the entire results object for tool usage patterns
+                        const resultString = JSON.stringify(taskResult);
+                        if (resultString && (resultString.includes('tool_name') || resultString.includes('tool_usage'))) {
+                            console.log('🛠️ Detected tool usage patterns in result string, parsing manually...');
+                            try {
+                                // Try to extract tool usage from nested result structure
+                                if (taskResult && typeof taskResult === 'object') {
+                                    const findToolUsage = (obj, path = '') => {
+                                        if (Array.isArray(obj) && obj.length > 0 && obj[0].tool_name) {
+                                            return obj;
+                                        }
+                                        if (typeof obj === 'object' && obj !== null) {
+                                            for (const [key, value] of Object.entries(obj)) {
+                                                if (key === 'tool_usage' && Array.isArray(value)) {
+                                                    return value;
+                                                }
+                                                const result = findToolUsage(value, path + '.' + key);
+                                                if (result) return result;
+                                            }
+                                        }
+                                        return null;
+                                    };
+                                    const foundUsage = findToolUsage(taskResult);
+                                    if (foundUsage) {
+                                        actualToolUsage = foundUsage;
+                                        console.log('🛠️ Found tool usage via deep search:', actualToolUsage);
+                                    }
+                                }
+                            } catch (e) {
+                                console.log('🛠️ Error parsing tool usage:', e);
+                            }
+                        }
+                    }
+                    
+                    console.log('🛠️ Final actualToolUsage for', taskKey, ':', actualToolUsage);
+                    
+                    // Show actual tool usage if available - CYBERPUNK PILL STYLE
+                    if (actualToolUsage.length > 0) {
+                        resultsHTML += '<div class="tools-grid">';
+                        console.log('✅ Adding cyberpunk tool pills for', actualToolUsage.length, 'tools');
+                        
+                        actualToolUsage.forEach(toolUsage => {
+                            // Check for success in different possible properties
+                            const isSuccess = toolUsage.success !== false && !toolUsage.error && toolUsage.tool_result !== undefined;
+                            const status = isSuccess ? '🔧' : '⚠️';
+                            const statusClass = isSuccess ? 'success' : 'error';
+                            const toolArgs = toolUsage.args || toolUsage.tool_args;
+                            const toolResult = toolUsage.result || toolUsage.tool_result;
+                            
+                            // Format JSON as clean readable text
+                            const formatData = (data) => {
+                                if (!data) return 'none';
+                                try {
+                                    if (typeof data === 'object') {
+                                        return JSON.stringify(data, null, 2);
+                                    }
+                                    return String(data);
+                                } catch (e) {
+                                    return String(data);
+                                }
+                            };
+                            
+                            resultsHTML += `
+                                <div class="tool-pill-expanded ${statusClass}" onclick="toggleToolDetails(this)">
+                                    <div class="tool-pill-header">
+                                        <span class="tool-status">${status}</span>
+                                        <span class="tool-name">${toolUsage.tool_name}</span>
+                                        <span class="tool-expand">▼</span>
+                                    </div>
+                                    <div class="tool-details">
+                                        ${toolArgs ? `<div class="tool-section">
+                                            <div class="tool-label">Args</div>
+                                            <pre class="tool-data">${formatData(toolArgs)}</pre>
+                                        </div>` : ''}
+                                        ${toolResult ? `<div class="tool-section">
+                                            <div class="tool-label">Result</div>
+                                            <pre class="tool-data">${formatData(toolResult)}</pre>
+                                        </div>` : ''}
+                                    </div>
+                                </div>
+                            `;
+                        });
+                        resultsHTML += '</div>';
+                    } else if (isAgentTask && agentTools.length > 0) {
+                        // Show available tools if no actual usage recorded
+                        resultsHTML += '<div class="tool-usage-pills">';
+                        resultsHTML += '<h4>🔧 Available Tools:</h4>';
+                        agentTools.forEach(tool => {
+                            resultsHTML += `<span class="tool-pill available">${tool}</span>`;
+                        });
+                        resultsHTML += '</div>';
+                    }
+                    
+                    // Result content
+                    resultsHTML += '<div class="node-result-content">';
+                    
+                    // Format result content with data science styling
+                    let resultText = '';
+                    if (typeof taskResult === 'object' && taskResult !== null) {
+                        // Handle structured result
+                        const mainResult = taskResult.result || taskResult.output || taskResult;
+                        if (typeof mainResult === 'string') {
+                            resultText = mainResult;
+                        } else {
+                            resultText = JSON.stringify(mainResult, null, 2);
+                        }
+                    } else {
+                        resultText = String(taskResult);
+                    }
+                    
+                    resultsHTML += resultText;
+                    resultsHTML += '</div>'; // Close node-result-content
+                    
+                    // Add consolidated data insights pill with ALL metrics
+                    const charCount = resultText.length;
+                    const lineCount = (resultText.match(/\n/g) || []).length + 1;
+                    const wordCount = (resultText.match(/\w+/g) || []).length;
+                    
+                    // Build consolidated metrics array
+                    let allMetrics = [];
+                    if (executionMetrics.executionTime) {
+                        allMetrics.push(`${executionMetrics.executionTime}s`);
+                    }
+                    if (executionMetrics.toolsUsed) {
+                        allMetrics.push(`${executionMetrics.toolsUsed}t`);
+                    }
+                    // Add size in better format
+                    let sizeDisplay = executionMetrics.resultSize > 1024 ? `${Math.round(executionMetrics.resultSize/1024)}k` : `${executionMetrics.resultSize}b`;
+                    allMetrics.push(sizeDisplay);
+                    allMetrics.push(`${charCount}c`);
+                    allMetrics.push(`${lineCount}l`);
+                    allMetrics.push(`${wordCount}w`);
+                    
+                    resultsHTML += `<span class="data-insights-pill">📊 ${allMetrics.join(' | ')}</span>`;
+                    
+                    resultsHTML += '</div>'; // Close node-result-modal
                 }
                 
-                resultsHTML += '</div>'; // results-section
-                resultsHTML += '</div>'; // enhanced-results
+                resultsHTML += '</div>'; // Close enhanced-results
             } else {
                 // Fallback to original JSON display
                 const jsonString = results.results ? JSON.stringify(results.results, null, 2) : JSON.stringify(results, null, 2);
-                resultsHTML = `<pre class="result-json">${jsonString}</pre>`;
+                resultsHTML = `<div class="node-result-modal">
+                    <div class="node-result-header">
+                        <span class="node-result-icon">📊</span>
+                        <span class="node-result-title">Workflow Results</span>
+                        <span class="node-result-type">raw</span>
+                    </div>
+                    <div class="node-result-content">${jsonString}</div>
+                </div>`;
             }
             
-            resultsContent.innerHTML = resultsHTML;
-            resultsDiv.style.display = 'block';
+            if (resultsContent) {
+                console.log('🎆 Setting results content HTML length:', resultsHTML.length);
+                resultsContent.innerHTML = resultsHTML;
+                console.log('✅ Results content updated');
+                
+                // Show the scroll area
+                const scrollArea = document.getElementById('resultsScrollArea');
+                if (scrollArea) {
+                    scrollArea.style.display = 'flex';
+                }
+            } else {
+                console.error('❌ Results content div not found');
+            }
         }
 
         function showEmptyState() {
@@ -2629,7 +4106,7 @@
             }
             currentNodes = workflow.nodes.map((node, index) => {
                 // Create rich HTML content for the node with new styling
-                const nodeIcon = getNodeIcon(node.type);
+                const nodeIcon = getNodeIcon(node.type, node.data);
                 let nodeContent = `
                     <div class="node-content" style="padding: 12px; min-width: 200px;">
                         <div class="node-title">
@@ -2660,6 +4137,7 @@
                             </div>
                             ` : ''}
                         </div>
+                        ${getExecutionModeIndicator(node.data)}
                     `;
                     
                     // Add model information for agent nodes
@@ -2673,14 +4151,34 @@
                     
                     // Add tool pills for agent nodes
                     if (node.data.tools && node.data.tools.length > 0) {
-                        const toolPills = node.data.tools.map(tool => 
-                            `<span class="tool-pill">🔧${tool}</span>`
-                        ).join(' ');
+                        const toolPills = node.data.tools.map(tool => {
+                            // Highlight routing tools with special styling
+                            const isRoutingTool = ['conditional_gate', 'threshold_gate', 'conditional_multi_gate'].includes(tool);
+                            return `<span class="tool-pill ${isRoutingTool ? 'routing-tool' : ''}">🔧${tool}</span>`;
+                        }).join(' ');
                         nodeContent += `
                             <div style="margin-top: 6px;">
                                 ${toolPills}
                             </div>
                         `;
+                    }
+                    
+                    // Add SLA status display for nodes with SLA requirements
+                    console.log(`🔍 Node ${node.id} SLA check:`, node.data.sla);
+                    if (node.data.sla && node.data.sla.enforce_usage) {
+                        const sla = node.data.sla;
+                        const slaType = getSLAType(sla, node.data.tools);
+                        console.log(`✅ Node ${node.id} has SLA enforcement:`, slaType, sla);
+                        nodeContent += `
+                            <div class="sla-status ${slaType}" style="margin-top: 6px;">
+                                <span class="sla-icon">🎯</span>
+                                <span class="sla-label">${getSLALabel(slaType)}</span>
+                                ${sla.required_tools && sla.required_tools.length > 0 ? 
+                                    `<span class="sla-detail">${sla.required_tools.join(', ')}</span>` : ''}
+                            </div>
+                        `;
+                    } else {
+                        console.log(`❌ Node ${node.id} has no SLA enforcement`);
                     }
                 } else if (node.type === 'tool' && node.data.tool_name) {
                     nodeContent += `
@@ -2751,31 +4249,32 @@
                 
                 nodeContent += `</div>`;
                 
+                const isDecisionAgent = (node.type === 'agent' && node.data?.tools?.some(t => ['conditional_gate', 'threshold_gate', 'conditional_multi_gate'].includes(t)));
+                
                 const reactFlowNode = {
                     id: node.id,
                     type: 'default',
                     position: node.position || { x: index * 280, y: index * 120 },
                     data: {
                         label: React.createElement('div', {
-                            dangerouslySetInnerHTML: { __html: nodeContent }
-                        })
+                            dangerouslySetInnerHTML: { __html: nodeContent },
+                            'data-type': node.type,
+                            'data-has-routing-tools': isDecisionAgent ? 'true' : 'false'
+                        }),
+                        nodeType: node.type,
+                        hasRoutingTools: isDecisionAgent
                     },
                     draggable: true,
                     selectable: true,
                     style: {
-                        background: `linear-gradient(135deg, ${getNodeColor(node.type)}88, ${getNodeColor(node.type)}44)`,
+                        background: 'rgba(30, 60, 90, 0.95)',
                         color: 'white',
-                        border: '1px solid rgba(100, 255, 100, 0.3)',
-                        borderRadius: '16px',
-                        padding: '0px',
-                        fontSize: '11px',
-                        cursor: 'grab',
-                        minWidth: '240px',
-                        minHeight: '90px',
-                        boxShadow: '0 4px 20px rgba(0, 0, 0, 0.15)',
-                        overflow: 'hidden',
-                        backdropFilter: 'blur(8px)',
-                        WebkitBackdropFilter: 'blur(8px)'
+                        border: '2px solid rgba(100, 255, 100, 0.4)',
+                        borderRadius: '8px',
+                        padding: '8px',
+                        fontSize: '12px',
+                        width: '200px',
+                        minHeight: '60px'
                     }
                 };
                 console.log(`   Node ${index}: ${node.id} -> ReactFlow node:`, reactFlowNode);
@@ -2951,24 +4450,184 @@
             }
         }
 
-        function getNodeIcon(type) {
+        function getNodeIcon(type, nodeData) {
+            // Check if agent has routing tools - make it a decision node
+            if (type === 'agent' && nodeData?.tools) {
+                const routingTools = ['conditional_gate', 'threshold_gate', 'conditional_multi_gate'];
+                const hasRoutingTools = nodeData.tools.some(tool => routingTools.includes(tool));
+                if (hasRoutingTools) {
+                    return '🎯'; // Decision agent icon
+                }
+            }
+            
             const icons = {
                 'tool': '🔧',
                 'agent': '🤖',
                 'workflow_call': '📞',
-                'decision': '🤔'
+                'decision': '🎯'
             };
             return icons[type] || '⚙️';
         }
+        
+        function getCustomBorderRadius(nodeType, nodeData) {
+            // Different border radius for different node types
+            if (nodeType === 'decision' || (nodeType === 'agent' && nodeData?.tools?.some(t => ['conditional_gate', 'threshold_gate', 'conditional_multi_gate'].includes(t)))) {
+                return '8px'; // Rounded corners for decision nodes
+            } else if (nodeType === 'tool') {
+                return '4px'; // Slightly rounded for tool nodes
+            } else {
+                return '12px'; // More rounded for regular agent nodes
+            }
+        }
+        
+        function getNodeMinWidth(nodeType, nodeData) {
+            // Different minimum widths for different node types
+            if (nodeType === 'decision' || (nodeType === 'agent' && nodeData?.tools?.some(t => ['conditional_gate', 'threshold_gate', 'conditional_multi_gate'].includes(t)))) {
+                return '180px'; // Wider for decision nodes with more content
+            } else if (nodeType === 'tool') {
+                return '120px'; // Narrower for tool nodes
+            } else {
+                return '150px'; // Standard width for regular agents
+            }
+        }
+        
+        function getNodeMinHeight(nodeType, nodeData) {
+            // Different minimum heights for different node types
+            if (nodeType === 'decision' || (nodeType === 'agent' && nodeData?.tools?.some(t => ['conditional_gate', 'threshold_gate', 'conditional_multi_gate'].includes(t)))) {
+                return '80px'; // Taller for decision nodes with SLA info
+            } else if (nodeType === 'tool') {
+                return '60px'; // Shorter for tool nodes
+            } else {
+                return '70px'; // Standard height for regular agents
+            }
+        }
+        
+        function getNodeShadow(nodeType, nodeData) {
+            // Different shadows for different node types
+            if (nodeType === 'decision' || (nodeType === 'agent' && nodeData?.tools?.some(t => ['conditional_gate', 'threshold_gate', 'conditional_multi_gate'].includes(t)))) {
+                return '0 4px 12px rgba(255, 165, 0, 0.3), 0 2px 6px rgba(0, 0, 0, 0.2)'; // Orange glow for decision nodes
+            } else if (nodeType === 'tool') {
+                return '0 2px 8px rgba(100, 255, 100, 0.2), 0 1px 3px rgba(0, 0, 0, 0.1)'; // Subtle green glow for tools
+            } else {
+                return '0 3px 10px rgba(100, 255, 100, 0.25), 0 1px 4px rgba(0, 0, 0, 0.15)'; // Standard green glow for agents
+            }
+        }
+        
+        function getNodeTransform(nodeType, nodeData) {
+            // Different transforms for different node types
+            if (nodeType === 'decision' || (nodeType === 'agent' && nodeData?.tools?.some(t => ['conditional_gate', 'threshold_gate', 'conditional_multi_gate'].includes(t)))) {
+                return 'scale(1.0)'; // No scaling for decision nodes to maintain readability
+            } else if (nodeType === 'tool') {
+                return 'scale(0.95)'; // Slightly smaller for tool nodes
+            } else {
+                return 'scale(1.0)'; // Standard scale for regular agents
+            }
+        }
+        
+        function getNodeClipPath(nodeType, nodeData) {
+            // Different clip paths for different node types
+            if (nodeType === 'decision' || (nodeType === 'agent' && nodeData?.tools?.some(t => ['conditional_gate', 'threshold_gate', 'conditional_multi_gate'].includes(t)))) {
+                return 'polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px))'; // Slightly angled corners for decision nodes
+            } else if (nodeType === 'tool') {
+                return 'none'; // No clip path for tool nodes
+            } else {
+                return 'none'; // No clip path for regular agents
+            }
+        }
+        
+        function getNodeBackgroundPattern(nodeType, nodeData) {
+            // Different background patterns for different node types
+            if (nodeType === 'decision' || (nodeType === 'agent' && nodeData?.tools?.some(t => ['conditional_gate', 'threshold_gate', 'conditional_multi_gate'].includes(t)))) {
+                // Subtle diagonal lines pattern for decision nodes
+                return 'linear-gradient(45deg, rgba(255, 165, 0, 0.05) 25%, transparent 25%, transparent 75%, rgba(255, 165, 0, 0.05) 75%), linear-gradient(-45deg, rgba(255, 165, 0, 0.05) 25%, transparent 25%, transparent 75%, rgba(255, 165, 0, 0.05) 75%)';
+            } else if (nodeType === 'tool') {
+                // Subtle dot pattern for tool nodes  
+                return 'radial-gradient(circle at 2px 2px, rgba(100, 255, 100, 0.1) 1px, transparent 1px)';
+            } else {
+                return 'none'; // No background pattern for regular agents
+            }
+        }
+        
+        function getSLAType(sla, tools) {
+            // Classify SLA enforcement level based on requirements
+            if (!sla || !sla.enforce_usage) return 'none';
+            
+            const routingTools = ['conditional_gate', 'threshold_gate', 'conditional_multi_gate'];
+            const hasRoutingTools = tools && tools.some(tool => routingTools.includes(tool));
+            
+            if (hasRoutingTools && sla.final_tool_must_be) {
+                return 'decision';  // Decision agent with routing requirements
+            } else if (sla.min_tool_calls > 2 || (sla.required_tools && sla.required_tools.length > 2)) {
+                return 'strict';    // High tool usage requirements  
+            } else if (sla.tool_usage_required || (sla.required_tools && sla.required_tools.length > 0)) {
+                return 'enforced'; // Basic tool enforcement
+            }
+            
+            return 'none';
+        }
+        
+        function getSLALabel(slaType) {
+            switch (slaType) {
+                case 'decision':
+                    return 'DECISION';
+                case 'strict':
+                    return 'STRICT';
+                case 'enforced':
+                    return 'ENFORCED';
+                default:
+                    return '';
+            }
+        }
 
-        function getNodeColor(type) {
+        function getNodeColor(type, nodeData) {
+            // Check if it's a decision-type agent based on tools
+            if (type === 'agent' && nodeData?.tools) {
+                const routingTools = ['conditional_gate', 'threshold_gate', 'conditional_multi_gate'];
+                const hasRoutingTools = nodeData.tools.some(tool => routingTools.includes(tool));
+                if (hasRoutingTools) {
+                    // Decision agent - orange/amber gradient
+                    return 'linear-gradient(135deg, rgba(255, 140, 0, 0.3), rgba(255, 165, 0, 0.2))';
+                }
+            }
+            
             const colors = {
-                'tool': 'rgba(50, 50, 50, 0.9)',
-                'agent': 'rgba(30, 30, 30, 0.9)',
-                'workflow_call': 'rgba(40, 40, 40, 0.9)',
-                'decision': 'rgba(45, 45, 45, 0.9)'
+                'tool': 'linear-gradient(135deg, rgba(100, 255, 100, 0.15), rgba(76, 175, 80, 0.12))',
+                'agent': 'linear-gradient(135deg, rgba(125, 249, 255, 0.15), rgba(30, 144, 255, 0.12))',
+                'workflow_call': 'linear-gradient(135deg, rgba(148, 0, 211, 0.15), rgba(138, 43, 226, 0.12))',
+                'decision': 'linear-gradient(135deg, rgba(255, 140, 0, 0.3), rgba(255, 165, 0, 0.2))'
             };
-            return colors[type] || 'rgba(35, 35, 35, 0.9)';
+            return colors[type] || 'linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(200, 200, 200, 0.08))';
+        }
+        
+        function getNodeShape(type, nodeData) {
+            // Check if it's a decision-type agent
+            if (type === 'agent' && nodeData?.tools) {
+                const routingTools = ['conditional_gate', 'threshold_gate', 'conditional_multi_gate'];
+                const hasRoutingTools = nodeData.tools.some(tool => routingTools.includes(tool));
+                if (hasRoutingTools) {
+                    return 'diamond'; // Diamond shape for decision agents
+                }
+            }
+            
+            const shapes = {
+                'tool': 'hexagon',      // Hexagonal for tools
+                'agent': 'circle',      // Circular for regular agents
+                'workflow_call': 'rectangle', // Rectangle for workflow calls
+                'decision': 'diamond'   // Diamond for decision nodes
+            };
+            return shapes[type] || 'rectangle';
+        }
+        
+        function getExecutionModeIndicator(nodeData) {
+            if (!nodeData?.execution_mode) return '';
+            
+            const mode = nodeData.execution_mode;
+            if (mode === 'for_each') {
+                return '<div class="execution-mode-indicator for-each" title="For Each: Runs separately for each dependency">🔄</div>';
+            } else if (mode === 'consolidate') {
+                return '<div class="execution-mode-indicator consolidate" title="Consolidate: Waits for ALL dependencies">⚡</div>';
+            }
+            return '';
         }
 
         // Utility functions
@@ -3409,7 +5068,7 @@
             }
         }
         
-        function addMessageToChat(message, sender) {
+        function addMessageToChat(message, sender, options = {}) {
             const chatMessages = document.getElementById('chatMessages');
             const messageDiv = document.createElement('div');
             messageDiv.className = `message ${sender}`;
@@ -3419,6 +5078,14 @@
             
             // Simple markdown to HTML converter
             let formattedMessage = message;
+            
+            // Preserve special formatting for execution reports
+            if (options.isExecutionReport || message.includes('SYSTEM EXECUTION REPORT')) {
+                // Keep line breaks and spacing for execution reports
+                formattedMessage = formattedMessage
+                    .replace(/═+/g, '<hr style="border: 1px solid rgba(100, 255, 100, 0.3); margin: 0.5rem 0;">')
+                    .replace(/─+/g, '<hr style="border: 1px dashed rgba(100, 255, 100, 0.2); margin: 0.3rem 0;">');
+            }
             
             // Headers
             formattedMessage = formattedMessage.replace(/^### (.*?)$/gm, '<h4>$1</h4>');
@@ -3448,25 +5115,97 @@
                 return '<ol>' + match.replace(/class="numbered"/g, '') + '</ol>';
             });
             
-            // Line breaks
-            formattedMessage = formattedMessage.replace(/\n\n/g, '</p><p>');
-            formattedMessage = formattedMessage.replace(/\n/g, '<br>');
-            formattedMessage = '<p>' + formattedMessage + '</p>';
+            // Line breaks - preserve formatting for execution reports
+            if (options.isExecutionReport || sender === 'system') {
+                formattedMessage = formattedMessage.replace(/\n/g, '<br>');
+            } else {
+                formattedMessage = formattedMessage.replace(/\n\n/g, '</p><p>');
+                formattedMessage = formattedMessage.replace(/\n/g, '<br>');
+                formattedMessage = '<p>' + formattedMessage + '</p>';
+                
+                // Clean up empty paragraphs
+                formattedMessage = formattedMessage.replace(/<p><\/p>/g, '');
+                formattedMessage = formattedMessage.replace(/<p>(<h[1-6]>)/g, '$1');
+                formattedMessage = formattedMessage.replace(/(<\/h[1-6]>)<\/p>/g, '$1');
+                formattedMessage = formattedMessage.replace(/<p>(<ul>|<ol>)/g, '$1');
+                formattedMessage = formattedMessage.replace(/(<\/ul>|<\/ol>)<\/p>/g, '$1');
+            }
             
-            // Clean up empty paragraphs
-            formattedMessage = formattedMessage.replace(/<p><\/p>/g, '');
-            formattedMessage = formattedMessage.replace(/<p>(<h[1-6]>)/g, '$1');
-            formattedMessage = formattedMessage.replace(/(<\/h[1-6]>)<\/p>/g, '$1');
-            formattedMessage = formattedMessage.replace(/<p>(<ul>|<ol>)/g, '$1');
-            formattedMessage = formattedMessage.replace(/(<\/ul>|<\/ol>)<\/p>/g, '$1');
+            // Check if message is long and should be collapsible
+            const messageLength = message.length;
+            const isLongMessage = messageLength > 500 || message.split('\n').length > 15;
             
-            messageDiv.innerHTML = `
-                <div class="message-bubble">${formattedMessage}</div>
-                <div class="message-time">${timeStr}</div>
-            `;
+            if (isLongMessage && (options.isExecutionReport || sender === 'system')) {
+                // Create collapsible execution report
+                const messageId = `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+                const previewLines = message.split('\n').slice(0, 10).join('\n');
+                
+                // Apply markdown formatting to preview as well
+                let previewFormatted = previewLines;
+                
+                // Preserve special formatting for execution reports
+                if (options.isExecutionReport || previewLines.includes('SYSTEM EXECUTION REPORT')) {
+                    previewFormatted = previewFormatted
+                        .replace(/═+/g, '<hr style="border: 1px solid rgba(100, 255, 100, 0.3); margin: 0.5rem 0;">')
+                        .replace(/─+/g, '<hr style="border: 1px dashed rgba(100, 255, 100, 0.2); margin: 0.3rem 0;">');
+                }
+                
+                // Apply same markdown processing as full message
+                previewFormatted = previewFormatted.replace(/^### (.*?)$/gm, '<h4>$1</h4>');
+                previewFormatted = previewFormatted.replace(/^## (.*?)$/gm, '<h3>$1</h3>');
+                previewFormatted = previewFormatted.replace(/^# (.*?)$/gm, '<h2>$1</h2>');
+                previewFormatted = previewFormatted.replace(/\*\*\*(.*?)\*\*\*/g, '<strong><em>$1</em></strong>');
+                previewFormatted = previewFormatted.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+                previewFormatted = previewFormatted.replace(/\*(.*?)\*/g, '<em>$1</em>');
+                previewFormatted = previewFormatted.replace(/`(.*?)`/g, '<code>$1</code>');
+                previewFormatted = previewFormatted.replace(/\n/g, '<br>');
+                
+                messageDiv.innerHTML = `
+                    <div class="message-bubble collapsible-message" id="${messageId}">
+                        <div class="message-preview" onclick="toggleMessage('${messageId}')">
+                            ${previewFormatted}<br>
+                            <span style="color: rgba(100, 255, 100, 0.7); cursor: pointer; font-size: 0.9em;">
+                                ▼ Click to expand full report (${message.split('\n').length} lines)
+                            </span>
+                        </div>
+                        <div class="message-full" style="display: none;">
+                            ${formattedMessage}
+                            <br>
+                            <span style="color: rgba(100, 255, 100, 0.7); cursor: pointer; font-size: 0.9em;" 
+                                  onclick="toggleMessage('${messageId}')">
+                                ▲ Click to collapse
+                            </span>
+                        </div>
+                    </div>
+                    <div class="message-time">${timeStr}</div>
+                `;
+            } else {
+                messageDiv.innerHTML = `
+                    <div class="message-bubble">${formattedMessage}</div>
+                    <div class="message-time">${timeStr}</div>
+                `;
+            }
             
             chatMessages.appendChild(messageDiv);
             chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+        
+        function toggleMessage(messageId) {
+            const messageEl = document.getElementById(messageId);
+            if (!messageEl) return;
+            
+            const preview = messageEl.querySelector('.message-preview');
+            const full = messageEl.querySelector('.message-full');
+            
+            if (preview && full) {
+                if (preview.style.display === 'none') {
+                    preview.style.display = 'block';
+                    full.style.display = 'none';
+                } else {
+                    preview.style.display = 'none';
+                    full.style.display = 'block';
+                }
+            }
         }
         
         // Tool Search Functions
@@ -3723,10 +5462,12 @@
                     currentExecution = {
                         id: data.execution_id,
                         status: 'running',
-                        results: null
+                        results: null,
+                        start_time: new Date().toISOString()
                     };
                     executionTasks = {};
                     updateExecutionInfo();
+                    startRuntimeUpdates();
                     
                     console.log('✅ Workflow execution started with user input:', userValue);
                 } else {
@@ -3959,10 +5700,12 @@
                     currentExecution = {
                         id: data.execution_id,
                         status: 'running',
-                        results: null
+                        results: null,
+                        start_time: new Date().toISOString()
                     };
                     executionTasks = {};
                     updateExecutionInfo();
+                    startRuntimeUpdates();
                 } else {
                     throw new Error('No execution ID received');
                 }
@@ -4053,10 +5796,12 @@
                     currentExecution = {
                         id: data.execution_id,
                         status: 'running',
-                        results: null
+                        results: null,
+                        start_time: new Date().toISOString()
                     };
                     executionTasks = {};
                     updateExecutionInfo();
+                    startRuntimeUpdates();
                     
                     addMessageToChat(`✅ Workflow started! Watch for input forms to appear below.`, 'assistant');
                 } else {
@@ -4068,6 +5813,23 @@
                 alert('Failed to trigger workflow: ' + error.message);
             } finally {
                 setExecutionLoading(false);
+            }
+        }
+
+        // Cyberpunk Tool Interaction
+        // ===========================
+        function toggleToolDetails(element) {
+            const details = element.querySelector('.tool-details');
+            const expand = element.querySelector('.tool-expand');
+            
+            if (details.style.display === 'none' || !details.style.display) {
+                details.style.display = 'block';
+                expand.textContent = '▲';
+                element.classList.add('expanded');
+            } else {
+                details.style.display = 'none';
+                expand.textContent = '▼';
+                element.classList.remove('expanded');
             }
         }
 
@@ -4433,6 +6195,377 @@
             }
         }
 
+        // Tab Switching
+        function switchTab(tabName) {
+            // Update tab buttons
+            document.querySelectorAll('.tab-button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            // Update tab content
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            
+            // Activate selected tab
+            if (tabName === 'results') {
+                document.querySelector('.tab-button:nth-child(1)').classList.add('active');
+                document.getElementById('resultsTab').classList.add('active');
+            } else if (tabName === 'logs') {
+                document.querySelector('.tab-button:nth-child(2)').classList.add('active');
+                document.getElementById('logsTab').classList.add('active');
+            }
+        }
+        
+        // Update execution logs display - Compact Nerd Mode
+        function updateExecutionLogs(summary) {
+            const logsContainer = document.getElementById('executionLogs');
+            if (!logsContainer || !summary) {
+                console.log('❌ No logs container or summary:', { logsContainer: !!logsContainer, summary: !!summary });
+                return;
+            }
+            
+            console.log('📊 Updating execution logs with summary:', summary);
+            
+            const lines = [];
+            const nodesExecuted = summary.nodes_executed || [];
+            const nodesSkipped = summary.nodes_skipped || [];
+            const successCount = nodesExecuted.filter(n => n.status === 'success').length;
+            const totalNodes = nodesExecuted.length;
+            const skipCount = nodesSkipped.length;
+            
+            // Compact header with safe field access
+            const execId = (summary.execution_id || 'unknown').substring(0, 8);
+            const status = summary.status || 'unknown';
+            const duration = summary.total_duration_seconds || 0;
+            
+            lines.push(`<span class="log-dim">─────────────────────────────────────────────────────────────────────</span>`);
+            lines.push(`<span class="log-highlight">exec:</span> ${execId} <span class="log-dim">|</span> <span class="${status === 'success' ? 'log-success' : 'log-error'}">${status.toUpperCase()}</span> <span class="log-dim">|</span> <span class="log-metric">${duration.toFixed(2)}s</span> <span class="log-dim">|</span> <span class="log-success">${successCount}/${totalNodes}</span> ok <span class="log-dim">|</span> <span class="log-warning">${skipCount}</span> skip`);
+            lines.push(`<span class="log-dim">─────────────────────────────────────────────────────────────────────</span>`);
+            lines.push('');
+            
+            // Node execution trace with safe field access and tool usage tracking
+            nodesExecuted.forEach((node, idx) => {
+                const statusChar = node.status === 'success' ? '✓' : '✗';
+                const statusClass = node.status === 'success' ? 'log-success' : 'log-error';
+                const duration = node.duration_seconds ? `${node.duration_seconds.toFixed(1)}s` : '---';
+                const nodeId = node.node_id || node.node_label || `node_${idx + 1}`;
+                const nodeType = node.node_type || 'unknown';
+                
+                // Check for SLA info
+                const nodeData = currentWorkflow?.nodes?.find(n => n.id === nodeId);
+                const hasSLA = nodeData?.data?.sla?.enforce_usage;
+                const slaInfo = hasSLA ? ' <span class="log-highlight">🎯SLA</span>' : '';
+                
+                // Enhanced tool usage display
+                let toolsDisplay = '';
+                if (node.tool_usage && node.tool_usage.length > 0) {
+                    toolsDisplay = `<span class="log-tools">[${node.tool_usage.join(',')}]</span>`;
+                }
+                
+                let traceLine = `[${String(idx + 1).padStart(2, '0')}] <span class="${statusClass}">${statusChar}</span> <span class="log-node-id">${nodeId}</span><span class="log-dim">(${nodeType})</span> <span class="log-metric">${duration.padStart(5)}</span> ${toolsDisplay}${slaInfo}`;
+                
+                lines.push(traceLine);
+                
+                // Add detailed tool usage results - check multiple sources
+                let toolUsageDetails = [];
+                
+                // Try to get tool usage from various sources
+                if (node.tool_usage_details && node.tool_usage_details.length > 0) {
+                    toolUsageDetails = node.tool_usage_details;
+                } else if (executionTasks[nodeId] && executionTasks[nodeId].tool_usage_results) {
+                    toolUsageDetails = executionTasks[nodeId].tool_usage_results;
+                } else if (node.tool_usage_results) {
+                    toolUsageDetails = node.tool_usage_results;
+                }
+                
+                if (toolUsageDetails.length > 0) {
+                    toolUsageDetails.forEach(tool => {
+                        const toolName = tool.tool_name || 'unknown_tool';
+                        const toolArgs = tool.args || tool.tool_args;
+                        const toolResult = tool.result || tool.tool_result;
+                        const isSuccess = tool.success !== false && !tool.error && toolResult !== undefined;
+                        const toolStatus = isSuccess ? '✅' : '❌';
+                        
+                        // Format result preview
+                        let resultPreview = 'no result';
+                        if (toolResult) {
+                            try {
+                                if (typeof toolResult === 'object') {
+                                    resultPreview = JSON.stringify(toolResult).substring(0, 80).replace(/\n/g, ' ');
+                                } else {
+                                    resultPreview = String(toolResult).substring(0, 80).replace(/\n/g, ' ');
+                                }
+                            } catch (e) {
+                                resultPreview = String(toolResult).substring(0, 80).replace(/\n/g, ' ');
+                            }
+                        }
+                        
+                        lines.push(`    <span class="log-dim">├─</span> ${toolStatus} <span class="log-tool">${toolName}</span> <span class="log-dim">→</span> <span class="log-result">${resultPreview}</span>`);
+                    });
+                } else if (node.tool_usage && node.tool_usage.length > 0) {
+                    // Fallback: just show tool names if detailed usage not available
+                    node.tool_usage.forEach(toolName => {
+                        lines.push(`    <span class="log-dim">├─</span> <span class="log-warning">?</span> <span class="log-tool">${toolName}</span> <span class="log-dim">→</span> <span class="log-result">tool executed</span>`);
+                    });
+                }
+                
+                // Add compact result/error info  
+                if (node.error_message) {
+                    lines.push(`    <span class="log-dim">└─</span> <span class="log-error">err: ${node.error_message.substring(0, 80).replace(/\n/g, ' ')}</span>`);
+                } else if (node.result_preview) {
+                    const preview = node.result_preview.substring(0, 80).replace(/\n/g, ' ');
+                    lines.push(`    <span class="log-dim">└─</span> <span class="log-result">${preview}</span>`);
+                }
+                
+                // Add detailed tool usage for agents
+                if (nodeType === 'agent' && node.tool_usage_details && node.tool_usage_details.length > 0) {
+                    node.tool_usage_details.forEach((toolUsage, toolIdx) => {
+                        const toolName = toolUsage.tool_name || 'unknown_tool';
+                        const toolStatus = toolUsage.success ? '✓' : '✗';
+                        const toolStatusClass = toolUsage.success ? 'log-success' : 'log-error';
+                        const toolResult = toolUsage.result ? String(toolUsage.result).substring(0, 60).replace(/\n/g, ' ') : '';
+                        
+                        let toolLine = `    ├─ <span class="${toolStatusClass}">${toolStatus}</span> <span class="log-warning">${toolName}</span>`;
+                        if (toolResult) {
+                            toolLine += ` <span class="log-dim">→ ${toolResult}</span>`;
+                        }
+                        lines.push(toolLine);
+                    });
+                }
+            });
+            
+            // Skipped nodes on one line
+            if (nodesSkipped.length > 0) {
+                lines.push('');
+                lines.push(`<span class="log-warning">skip:</span> <span class="log-dim">${nodesSkipped.join(', ')}</span>`);
+            }
+            
+            // User inputs compact - show clean text instead of JSON
+            if (summary.user_inputs && Object.keys(summary.user_inputs).length > 0) {
+                lines.push('');
+                const inputs = Object.entries(summary.user_inputs)
+                    .map(([k, v]) => {
+                        // Extract clean text from user input
+                        let cleanValue = '';
+                        if (typeof v === 'string') {
+                            cleanValue = v.substring(0, 50);
+                        } else if (typeof v === 'object' && v !== null && v.user_input) {
+                            cleanValue = String(v.user_input).substring(0, 50);
+                        } else {
+                            cleanValue = JSON.stringify(v).substring(0, 30);
+                        }
+                        return `${k}:"${cleanValue}${cleanValue.length >= 30 ? '...' : ''}"`;
+                    })
+                    .join(' ');
+                lines.push(`<span class="log-highlight">input:</span> <span class="log-dim">${inputs}</span>`);
+            }
+            
+            // Error summary if present
+            if (summary.error_summary) {
+                lines.push('');
+                lines.push(`<span class="log-error">ERROR:</span> ${summary.error_summary.substring(0, 100).replace(/\n/g, ' ')}`);
+            }
+            
+            // Performance metrics on one line
+            if (summary.performance_metrics) {
+                lines.push('');
+                const metrics = Object.entries(summary.performance_metrics)
+                    .map(([k, v]) => `${k}:${v}`)
+                    .join(' ');
+                lines.push(`<span class="log-metric">perf:</span> <span class="log-dim">${metrics}</span>`);
+            }
+            
+            lines.push(`<span class="log-dim">─────────────────────────────────────────────────────────────────────</span>`);
+            
+            // Build the HTML
+            const logsHTML = '<div class="execution-logs">' + 
+                           lines.map(line => `<div class="log-line">${line}</div>`).join('') +
+                           '</div>';
+            
+            logsContainer.innerHTML = logsHTML;
+        }
+        
+        // Panel Resizer Functionality
+        let isResizing = false;
+        let startY = 0;
+        let startHeight = 350; // Default height
+        let minHeight = 150;
+        let maxHeight = window.innerHeight - 200;
+        
+        function initializePanelResizer() {
+            const resizer = document.getElementById('panelResizer');
+            const bottomPanel = document.getElementById('bottomPanel');
+            const flowArea = document.getElementById('flowArea');
+            
+            if (!resizer || !bottomPanel || !flowArea) return;
+            
+            resizer.addEventListener('mousedown', function(e) {
+                isResizing = true;
+                startY = e.clientY;
+                startHeight = bottomPanel.offsetHeight;
+                
+                resizer.classList.add('dragging');
+                document.body.style.cursor = 'ns-resize';
+                document.body.style.userSelect = 'none';
+                
+                e.preventDefault();
+            });
+            
+            document.addEventListener('mousemove', function(e) {
+                if (!isResizing) return;
+                
+                const deltaY = startY - e.clientY;
+                let newHeight = startHeight + deltaY;
+                
+                // Constrain to min/max heights
+                newHeight = Math.max(minHeight, Math.min(maxHeight, newHeight));
+                
+                // Update panel height
+                bottomPanel.style.height = newHeight + 'px';
+                
+                // Update flex basis to maintain smooth animation
+                const totalHeight = window.innerHeight - 120; // Account for padding/margins
+                const flowHeight = totalHeight - newHeight - 12; // 12px for resizer
+                flowArea.style.flex = `0 0 ${flowHeight}px`;
+                
+                e.preventDefault();
+            });
+            
+            document.addEventListener('mouseup', function() {
+                if (isResizing) {
+                    isResizing = false;
+                    resizer.classList.remove('dragging');
+                    document.body.style.cursor = '';
+                    document.body.style.userSelect = '';
+                }
+            });
+            
+            // Handle window resize
+            window.addEventListener('resize', function() {
+                maxHeight = window.innerHeight - 200;
+                const currentHeight = bottomPanel.offsetHeight;
+                if (currentHeight > maxHeight) {
+                    bottomPanel.style.height = maxHeight + 'px';
+                }
+            });
+        }
+        
+        function showBottomPanel() {
+            const bottomPanel = document.getElementById('bottomPanel');
+            const panelResizer = document.getElementById('panelResizer');
+            
+            if (bottomPanel && panelResizer) {
+                bottomPanel.style.display = 'flex';
+                panelResizer.style.display = 'flex';
+                
+                // Trigger a small animation
+                setTimeout(() => {
+                    bottomPanel.style.height = startHeight + 'px';
+                }, 10);
+            }
+        }
+        
+        function hideBottomPanel() {
+            const bottomPanel = document.getElementById('bottomPanel');
+            const panelResizer = document.getElementById('panelResizer');
+            const flowArea = document.getElementById('flowArea');
+            
+            if (bottomPanel && panelResizer && flowArea) {
+                bottomPanel.style.display = 'none';
+                panelResizer.style.display = 'none';
+                flowArea.style.flex = '1'; // Reset to full height
+            }
+        }
+
+        // Session Management
+        let currentSession = {
+            session_id: null,
+            chat_mode: false,
+            conversation_id: null
+        };
+
+        async function initializeSession() {
+            try {
+                // Check current session status
+                const response = await fetch('/api/session/status');
+                const sessionData = await response.json();
+                
+                currentSession = sessionData;
+                updateSessionUI();
+                
+                console.log('📋 Session initialized:', currentSession);
+            } catch (error) {
+                console.error('❌ Failed to initialize session:', error);
+            }
+        }
+
+        async function toggleChatMode() {
+            try {
+                const newChatMode = !currentSession.chat_mode;
+                
+                const response = await fetch('/api/session/chat-mode', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ enabled: newChatMode })
+                });
+                
+                const sessionData = await response.json();
+                currentSession = sessionData;
+                updateSessionUI();
+                
+                console.log(`🔄 Chat mode ${newChatMode ? 'enabled' : 'disabled'}:`, currentSession);
+            } catch (error) {
+                console.error('❌ Failed to toggle chat mode:', error);
+            }
+        }
+
+        async function resetSession() {
+            try {
+                const response = await fetch('/api/session/reset', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                const sessionData = await response.json();
+                currentSession = sessionData;
+                updateSessionUI();
+                
+                console.log('🔄 Session reset:', currentSession);
+                
+                // Clear chat messages
+                const chatMessages = document.getElementById('chatMessages');
+                chatMessages.innerHTML = `
+                    <div class="message assistant">
+                        <div class="message-bubble">
+                            👋 New session started! I'm ready to help you create workflows.
+                        </div>
+                        <div class="message-time">Just now</div>
+                    </div>
+                `;
+            } catch (error) {
+                console.error('❌ Failed to reset session:', error);
+            }
+        }
+
+        function updateSessionUI() {
+            const sessionStatus = document.getElementById('sessionStatus');
+            const chatModeToggle = document.getElementById('chatModeToggle');
+            const resetSession = document.getElementById('resetSession');
+            
+            if (currentSession.chat_mode) {
+                sessionStatus.textContent = '💬 Chat mode (conversation memory active)';
+                chatModeToggle.textContent = '🔄 Disable Chat Mode';
+                chatModeToggle.classList.add('active');
+            } else {
+                sessionStatus.textContent = '🔄 Single-serve mode (no conversation memory)';
+                chatModeToggle.textContent = '💬 Enable Chat Mode';
+                chatModeToggle.classList.remove('active');
+            }
+            
+            resetSession.disabled = !currentSession.session_id;
+        }
+
         document.addEventListener('DOMContentLoaded', function() {
             console.log('🚀 DOM loaded, initializing...');
             debugLibraries();
@@ -4443,6 +6576,13 @@
             initializeChatInterface();
             initializeToolSearch();
             initializeEventListeners();
+            initializePanelResizer();
+            initializeSession();
+            
+            // Add session control event listeners
+            document.getElementById('chatModeToggle').addEventListener('click', toggleChatMode);
+            document.getElementById('resetSession').addEventListener('click', resetSession);
+            
             console.log('✅ Initialization complete');
         });
     </script>
