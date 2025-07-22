@@ -181,7 +181,7 @@ def _init_conditional_gate():
         # Import the module to register the tools
         from . import conditional_gate
         # Tools are auto-registered via @register_tool decorators
-        return ["conditional_gate", "threshold_gate", "percentage_change_gate"]
+        return ["conditional_gate", "threshold_gate"]
     except ImportError as e:
         logger.warning(f"Conditional Gate not available: {e}")
         return []
@@ -307,23 +307,141 @@ def load_tools_from_env(env_file: str = "creds.env") -> List[str]:
         else:
             logger.info(f"Skipping {tool_name} due to missing requirements")
     
-    # Get function-based tools from registry (no self parameter)
+    # Instance Factory: Create instances and register bound methods
     from ...utilities.registries import TOOLS_REGISTRY
+    from ..data_models.datamodels import Tool
     import inspect
     
-    available_tools = []
+    logger.info("🏭 Starting instance factory for bound method tools...")
     
-    # Add function-based tools that work correctly
+    # Create instances for classes that need them
+    tool_instances = {}
+    
+    # Context Tree instance
+    try:
+        from ..tools.context_tree import ContextTree
+        context_tree_instance = ContextTree()
+        tool_instances['context_tree'] = context_tree_instance
+        logger.info("✅ Created ContextTree instance")
+    except Exception as e:
+        logger.warning(f"Failed to create ContextTree instance: {e}")
+    
+    # Firecrawl instance
+    try:
+        from ..tools.firecrawl import Crawler
+        firecrawl_api_key = os.getenv("FIRECRAWL_API_KEY")
+        if firecrawl_api_key:
+            crawler_instance = Crawler(api_key=firecrawl_api_key)
+            tool_instances['crawler'] = crawler_instance
+            logger.info("✅ Created Crawler instance")
+    except Exception as e:
+        logger.warning(f"Failed to create Crawler instance: {e}")
+    
+    # Wolfram instance
+    try:
+        from ..tools.wolfram import Wolfram
+        wolfram_api_key = os.getenv("WOLFRAM_API_KEY")
+        if wolfram_api_key:
+            wolfram_instance = Wolfram(api_key=wolfram_api_key)
+            tool_instances['wolfram'] = wolfram_instance
+            logger.info("✅ Created Wolfram instance")
+    except Exception as e:
+        logger.warning(f"Failed to create Wolfram instance: {e}")
+    
+    # SearxNG instance
+    try:
+        from ..tools.searxng import SearxngClient
+        searxng_url = os.getenv("SEARXNG_URL", "http://localhost:8888")
+        searxng_instance = SearxngClient(base_url=searxng_url)
+        tool_instances['searxng'] = searxng_instance
+        logger.info("✅ Created SearxngClient instance")
+    except Exception as e:
+        logger.warning(f"Failed to create SearxngClient instance: {e}")
+    
+    # Replace unbound method registrations with bound method registrations
+    unbound_tools_to_replace = []
+    
     for tool_name, tool in TOOLS_REGISTRY.items():
         try:
             if hasattr(tool, 'fn') and tool.fn:
                 sig = inspect.signature(tool.fn)
                 params = list(sig.parameters.keys())
-                # Only include tools without 'self' parameter (function-based tools)
-                if not (params and params[0] == 'self'):
-                    available_tools.append(tool_name)
+                
+                # Check if this is an unbound method (has 'self' parameter)
+                if params and params[0] == 'self':
+                    unbound_tools_to_replace.append((tool_name, tool))
+                    logger.debug(f"🔍 Found unbound method tool: {tool_name}")
+        except Exception as e:
+            logger.debug(f"Error inspecting tool {tool_name}: {e}")
+    
+    logger.info(f"🔧 Found {len(unbound_tools_to_replace)} unbound method tools to fix")
+    
+    # Map unbound tools to their bound instances
+    tool_class_mapping = {
+        # ContextTree methods
+        'read_context_tree': ('context_tree', 'read'),
+        'create_context_tree': ('context_tree', 'create'),
+        'append_context_tree': ('context_tree', 'append'),
+        'update_context_tree': ('context_tree', 'update'),
+        'delete_context_tree': ('context_tree', 'delete'),
+        'summary_context_tree': ('context_tree', 'summary'),
+        'load_context_tree': ('context_tree', 'load_tree'),
+        'save_context_tree': ('context_tree', 'save_tree'),
+        
+        # Crawler methods (Firecrawl)
+        'Crawler-scrape_url': ('crawler', 'scrape_url'),
+        'Crawler-async_scrape_url': ('crawler', 'async_scrape_url'),
+        'Crawler-crawl_url': ('crawler', 'crawl_url'),
+        
+        # Wolfram methods
+        'Wolfram-query': ('wolfram', 'query'),
+        
+        # SearxNG methods
+        'searxng.search': ('searxng', 'search'),
+        'searxng.get_urls': ('searxng', 'get_urls'),
+    }
+    
+    # Replace unbound registrations with bound ones
+    replaced_count = 0
+    for tool_name, unbound_tool in unbound_tools_to_replace:
+        if tool_name in tool_class_mapping:
+            instance_key, method_name = tool_class_mapping[tool_name]
+            
+            if instance_key in tool_instances:
+                instance = tool_instances[instance_key]
+                
+                # Get the bound method
+                if hasattr(instance, method_name):
+                    bound_method = getattr(instance, method_name)
+                    
+                    # Create new Tool from bound method
+                    try:
+                        bound_tool = Tool.from_function(bound_method, name=tool_name)
+                        
+                        # Replace in registry
+                        TOOLS_REGISTRY[tool_name] = bound_tool
+                        logger.info(f"✅ Replaced {tool_name} with bound method from {instance_key}.{method_name}")
+                        replaced_count += 1
+                        
+                    except Exception as e:
+                        logger.error(f"Failed to create bound tool for {tool_name}: {e}")
+                else:
+                    logger.warning(f"Method {method_name} not found on {instance_key} instance")
+            else:
+                logger.debug(f"Instance {instance_key} not available for {tool_name}")
+        else:
+            logger.debug(f"No mapping found for unbound tool: {tool_name}")
+    
+    logger.info(f"🎉 Instance factory complete: replaced {replaced_count} unbound tools with bound methods")
+    
+    # Now get all available tools (should include both function-based and bound method tools)
+    available_tools = []
+    
+    for tool_name, tool in TOOLS_REGISTRY.items():
+        try:
+            if hasattr(tool, 'fn') and tool.fn:
+                available_tools.append(tool_name)
         except Exception:
-            # If we can't inspect it, include it anyway
             available_tools.append(tool_name)
     
     logger.info(f"Total available tools: {len(available_tools)}")

@@ -281,8 +281,16 @@ class ConditionalGateBase:
                 reason = f"{field_value} != {condition.value} = {result}"
             elif condition.operator == "in":
                 if isinstance(condition.value, list):
-                    result = field_value in condition.value
-                    reason = f"{field_value} in {condition.value} = {result}"
+                    # Support both exact matching and substring/contains matching
+                    if isinstance(field_value, str):
+                        # For strings, check if any keyword is contained in the field value
+                        result = any(str(keyword).lower() in field_value.lower() for keyword in condition.value)
+                        matched_keywords = [str(k) for k in condition.value if str(k).lower() in field_value.lower()]
+                        reason = f"'{field_value}' contains {matched_keywords} from {condition.value} = {result}"
+                    else:
+                        # For non-strings, use exact matching
+                        result = field_value in condition.value
+                        reason = f"{field_value} in {condition.value} = {result}"
                 else:
                     result = False
                     reason = f"'in' operator requires list value"
@@ -643,67 +651,6 @@ def threshold_gate(
     )
 
 
-@register_tool  
-def percentage_change_gate(
-    current_value: Union[float, int],
-    reference_value: Union[float, int],
-    buy_threshold: float = -5.0,
-    sell_threshold: float = 5.0,
-    action_routes: Optional[Dict[str, str]] = None
-) -> GateResult:
-    """
-    Specialized gate for percentage-based routing (common in trading).
-    
-    Args:
-        current_value: Current value (e.g., price)
-        reference_value: Reference value to compare against
-        buy_threshold: Percentage below which to trigger buy (negative)
-        sell_threshold: Percentage above which to trigger sell (positive)
-        action_routes: Custom route names (default: buy_path, sell_path, hold_path)
-        
-    Returns:
-        GateResult with routing decision
-    """
-    if action_routes is None:
-        action_routes = {
-            "buy": "buy_path",
-            "sell": "sell_path", 
-            "hold": "terminate"  # No action = terminate data flow
-        }
-    
-    # Calculate percentage change
-    percent_change = ((current_value - reference_value) / reference_value) * 100
-    
-    # Determine action
-    if percent_change <= buy_threshold:
-        action = "buy"
-    elif percent_change >= sell_threshold:
-        action = "sell"
-    else:
-        action = "hold"
-    
-    route = action_routes.get(action, "terminate")
-    
-    return GateResult(
-        routed_to=route,
-        action="branch" if action != "hold" else "terminate",
-        matched_route=route if action != "hold" else None,
-        decision_reason=(
-            f"Price change {percent_change:.2f}% - Action: {action} "
-            f"(current: {current_value}, reference: {reference_value})"
-        ),
-        confidence=1.0,
-        audit_trail={
-            "current_value": current_value,
-            "reference_value": reference_value, 
-            "percent_change": percent_change,
-            "action": action,
-            "thresholds": {
-                "buy": buy_threshold,
-                "sell": sell_threshold
-            }
-        }
-    )
 
 
 # Export all tools
@@ -711,7 +658,6 @@ __all__ = [
     'conditional_gate',
     'conditional_multi_gate',
     'threshold_gate', 
-    'percentage_change_gate',
     'RouteAction',
     'ComparisonOperator',
     'ConditionRule',

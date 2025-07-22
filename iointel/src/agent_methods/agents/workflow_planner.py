@@ -54,6 +54,7 @@ For normal workflows:
      "data": {
        "tool_name": "weather_api",  // 🚨 REQUIRED for type="tool"
        "config": {"location": "London", "units": "celsius"},
+       "execution_mode": "consolidate",  // Default: wait for all dependencies
        "ins": [],
        "outs": ["weather_data", "status"]
      }
@@ -71,7 +72,9 @@ For normal workflows:
      "data": {
        "agent_instructions": "Analyze the weather data and provide insights",  // 🚨 REQUIRED for type="agent"
        "tools": ["calculator", "data_processor", "chart_generator"],  // 🔧 Tools the agent can use
-       "config": {"model": "gpt-4", "temperature": 0.7},
+       "execution_mode": "consolidate",  // Default: wait for all dependencies
+       "model": "gpt-4o",  // Model to use
+       "config": {"temperature": 0.7},
        "ins": ["weather_data"],
        "outs": ["analysis", "insights"]
      }
@@ -94,6 +97,7 @@ For normal workflows:
      "data": {
        "tool_name": "json_evaluator",  // 🚨 REQUIRED if using tool-based decision
        "config": {"expression": "data.weather.condition == 'rain'"},
+       "execution_mode": "consolidate",  // Default: wait for all dependencies
        "ins": ["weather_data"],
        "outs": ["result", "details"]
      }
@@ -109,12 +113,126 @@ For normal workflows:
      "label": "Process Subset",
      "data": {
        "workflow_id": "data_processing_v2",  // 🚨 REQUIRED for type="workflow_call"
+       "execution_mode": "consolidate",  // Default: wait for all dependencies
        "config": {"mode": "batch"},
        "ins": ["raw_data"],
        "outs": ["processed_data"]
      }
    }
    ```
+
+🔀 Execution Modes
+------------------
+All nodes have an execution_mode that determines how they handle multiple dependencies:
+
+1. **"consolidate"** (default) - Wait for ALL dependencies, run once with consolidated inputs
+   - Use when you need to combine or compare data from multiple sources
+   - ⚠️ **WARNING**: Cannot be used downstream of decision gates (will block forever)
+   - Examples: comparison agents, aggregation tools, data merging, summary agents
+   
+2. **"for_each"** - Run separately for each dependency that completes successfully
+   - Use downstream of decision gates where not all dependencies execute
+   - Node runs once per completed dependency input
+   - Examples: notification agents, logging tools, output processors
+   
+   ```json
+   {
+     "id": "email_agent",
+     "type": "agent", 
+     "label": "Send Email Notification",
+     "data": {
+       "execution_mode": "for_each",  // 🎯 Runs for each completed dependency
+       "agent_instructions": "Send email about analysis results",
+       "ins": ["analysis_result"],
+       "outs": ["email_sent"]
+     }
+   }
+   ```
+
+**Decision Gate Downstream Rule**: Always use "for_each" mode for nodes that depend on the outputs of decision nodes, as some branches may be skipped based on routing conditions.
+
+🔒 SLA Requirements (Service Level Agreements)
+--------------------------------------------
+Add SLA requirements to ensure reliable tool usage and execution behavior:
+
+```json
+{
+  "id": "research_agent",
+  "type": "agent",
+  "label": "Market Research Agent", 
+  "data": {
+    "agent_instructions": "Research market sentiment using search tools then route with conditional_gate",
+    "tools": ["searxng.search", "conditional_gate"],
+    "sla": {
+      "enforce_usage": true,                    // Enable SLA enforcement
+      "tool_usage_required": true,              // Agent MUST use at least one tool
+      "required_tools": ["conditional_gate"],   // MUST use conditional_gate tool
+      "final_tool_must_be": "conditional_gate", // conditional_gate must be the final tool called
+      "min_tool_calls": 2,                      // Minimum 2 tool calls (search + gate)
+      "max_retries": 3,                         // Retry up to 3 times if SLA not met
+      "timeout_seconds": 180                    // 3 minute timeout for execution
+    }
+  }
+}
+```
+
+**Example: Stock Decision Agent with Multiple Routing Tools:**
+```json
+{
+  "id": "stock_decision",
+  "type": "agent",
+  "label": "Stock Decision Agent",
+  "data": {
+    "agent_instructions": "Fetch stock prices, calculate percentage change, then route trading decision",
+    "tools": ["get_current_stock_price", "add", "subtract", "multiply", "divide", "conditional_gate"],
+    "sla": {
+      "enforce_usage": true,                        // REQUIRED: Enable SLA enforcement  
+      "tool_usage_required": true,                  // REQUIRED: Must use tools
+      "required_tools": ["get_current_stock_price", "conditional_gate"], // REQUIRED: Must use both tools
+      "final_tool_must_be": "conditional_gate",     // REQUIRED: Final routing decision
+      "min_tool_calls": 3                          // Price fetch + percentage + final routing
+    }
+  }
+}
+```
+
+**SLA Field Descriptions:**
+- `enforce_usage`: Enable/disable SLA validation (default: false)
+- `tool_usage_required`: Agent must use at least one tool (default: false)  
+- `required_tools`: List of tools that MUST be called at least once (default: [])
+- `final_tool_must_be`: Specific tool that must be called last (default: null)
+- `min_tool_calls`: Minimum number of tool calls required (default: 0)
+- `max_retries`: Retry attempts if SLA requirements not met (max: 3, default: 2)
+- `timeout_seconds`: Execution timeout (max: 300s, default: 120s)
+
+**When to Use SLA Requirements:**
+- ✅ **ALWAYS** for decision agents that MUST use conditional_gate for routing
+- ✅ **ALWAYS** for research agents that MUST search before concluding
+- ✅ **ALWAYS** for critical workflow nodes where tool usage is mandatory
+- ✅ **REQUIRED** when agents have routing tools (conditional_gate)
+- ❌ Simple output/notification agents (unless tool usage required)
+
+**🚨 CRITICAL SLA RULE**: If an agent has routing tools in its tools array, it MUST have SLA enforcement with those tools as required_tools and the final routing tool as final_tool_must_be.
+
+📋 Complete NodeData Fields Reference
+------------------------------------
+Every node's `data` object can contain these fields:
+
+**Universal Fields (all node types):**
+- `execution_mode`: "consolidate" | "for_each" (default: "consolidate")
+- `config`: {} (tool/agent parameters)
+- `ins`: [] (input port names)
+- `outs`: [] (output port names)
+
+**Node Type Specific Fields:**
+- **tool nodes**: `tool_name` (REQUIRED)
+- **agent nodes**: `agent_instructions` (REQUIRED), `tools`, `model`, `sla`
+- **decision nodes**: `tool_name` (REQUIRED if tool-based)
+- **workflow_call nodes**: `workflow_id` (REQUIRED)
+
+**Optional Fields:**
+- `model`: "gpt-4o" | "meta-llama/Llama-3.3-70B-Instruct" | "meta-llama/Llama-3.1-8B-Instruct" (default: "gpt-4o")
+- `sla`: SLARequirements object (for agents requiring specific tool usage patterns)
 
 📊 Data Flow Rules
 ------------------
@@ -152,6 +270,8 @@ For normal workflows:
      "type": "agent",
      "data": {
        "agent_instructions": "Create a funny joke. Output in JSON format: {\"joke_text\": \"your joke here\", \"category\": \"puns/wordplay/etc\"}",
+       "execution_mode": "consolidate",
+       "model": "gpt-4o",
        "ins": [],                    // No inputs needed
        "outs": ["joke_output"]       // Will output structured joke data
      }
@@ -161,6 +281,8 @@ For normal workflows:
      "type": "agent",
      "data": {
        "agent_instructions": "Evaluate this joke: {joke_creator.joke_text}. Output in JSON: {\"rating\": 1-10, \"funny_reason\": \"explanation\"}",  // Reference specific field
+       "execution_mode": "consolidate",
+       "model": "gpt-4o",
        "ins": ["joke_input"],        // Expects joke input
        "outs": ["evaluation"]        // Will output structured evaluation
      }
@@ -218,21 +340,23 @@ tool_catalog = {
 ```json
 {
   "nodes": [
-    {"id": "calc_numbers", "type": "tool", "data": {"tool_name": "add", "config": {"a": 10, "b": 5}, "outs": ["result"]}},
+    {"id": "calc_numbers", "type": "tool", "data": {"tool_name": "add", "config": {"a": 10, "b": 5}, "execution_mode": "consolidate", "outs": ["result"]}},
     {"id": "check_result", "type": "decision", "data": {
       "tool_name": "number_compare",
       "config": {"operator": ">", "threshold": 10},
+      "execution_mode": "consolidate",
       "ins": ["result"], 
       "outs": ["is_greater", "details"]
     }},
     {"id": "route_action", "type": "decision", "data": {
       "tool_name": "conditional_router", 
       "config": {"routes": {"true": "multiply_action", "false": "divide_action"}},
+      "execution_mode": "consolidate",
       "ins": ["is_greater"],
       "outs": ["routed_to"]
     }},
-    {"id": "multiply_action", "type": "tool", "data": {"tool_name": "multiply", "config": {"a": "{calc_numbers.result}", "b": 2}}},
-    {"id": "divide_action", "type": "tool", "data": {"tool_name": "divide", "config": {"a": "{calc_numbers.result}", "b": 2}}}
+    {"id": "multiply_action", "type": "tool", "data": {"tool_name": "multiply", "config": {"a": "{calc_numbers.result}", "b": 2}, "execution_mode": "consolidate"}},
+    {"id": "divide_action", "type": "tool", "data": {"tool_name": "divide", "config": {"a": "{calc_numbers.result}", "b": 2}, "execution_mode": "consolidate"}}
   ],
   "edges": [
     {"source": "calc_numbers", "target": "check_result", "sourceHandle": "result", "targetHandle": "result"},
@@ -250,9 +374,36 @@ tool_catalog = {
 **🚨 TOOL USAGE PATTERNS**:
 - **prompt_tool**: Use for INPUT generation or message passing at the BEGINNING/MIDDLE of workflows
 - **user_input**: Use for collecting user input at any point in the workflow  
-- **conditional_gate**: Use as an agent tool for routing/decision making in the MIDDLE of workflows that you want to ensure route to a specific node properly. 
+- **conditional_gate**: Use as an agent tool for routing/decision making in the MIDDLE of workflows that you want to ensure route to a specific node properly.
 - **Agent nodes**: Can be FINAL output nodes - no tool needed after them for display
 - **NEVER use prompt_tool as final output** - agents should be the final nodes that produce results
+
+🚦 Routing Gates & Edge Conditions
+----------------------------------
+**CRITICAL**: Routing tools output SPECIFIC route names that MUST match your edge conditions EXACTLY!
+
+**Common Routing Tools & Their Outputs:**
+1. **conditional_gate**: You configure the route names in the tool
+   - Example config: routes to 'positive', 'negative', 'neutral'
+   - Edge conditions: `routed_to == 'positive'`, `routed_to == 'negative'`, etc.
+
+2. **threshold_gate**: Outputs FIXED route names
+   - Routes to: `'above_threshold'` or `'below_threshold'`
+   - Edge conditions: `routed_to == 'above_threshold'`, `routed_to == 'below_threshold'`
+
+**⚠️ ROUTING MISMATCH PREVENTION:**
+- If using conditional_gate with custom routes → Match EXACTLY what you configure
+- ALWAYS use `routed_to ==` pattern, NEVER use `decision ==` or `action ==` patterns
+
+**Example - Stock Trading with conditional_gate (custom routes):**
+```json
+{
+  "agent_instructions": "Analyze the stock and use conditional_gate with router_config that routes to 'buy_signal' when bearish and 'sell_signal' when bullish",
+  "tools": ["get_current_stock_price", "conditional_gate"]
+}
+// Edges MUST match your configured routes:
+{"condition": "routed_to == 'buy_signal'"}   // ✅ CORRECT 
+{"condition": "routed_to == 'buy'"}          // ❌ WRONG - doesn't match!
 
 **✅ GOOD Examples:**
 
@@ -260,9 +411,9 @@ tool_catalog = {
 ```json
 {
   "nodes": [
-    {"id": "riddle_generator", "type": "agent", "data": {"agent_instructions": "Create a challenging arithmetic riddle", "ins": [], "outs": ["riddle"]}},
-    {"id": "solver_agent", "type": "agent", "data": {"agent_instructions": "Solve the given arithmetic riddle using available math tools", "tools": ["add", "subtract", "multiply", "divide"], "ins": ["riddle"], "outs": ["solution"]}},
-    {"id": "oracle_agent", "type": "agent", "data": {"agent_instructions": "Verify if the solver's solution is correct for the given riddle", "tools": ["add", "subtract", "multiply", "divide"], "ins": ["riddle", "solution"], "outs": ["verdict"]}}
+    {"id": "riddle_generator", "type": "agent", "data": {"agent_instructions": "Create a challenging arithmetic riddle", "execution_mode": "consolidate", "model": "gpt-4o", "ins": [], "outs": ["riddle"]}},
+    {"id": "solver_agent", "type": "agent", "data": {"agent_instructions": "Solve the given arithmetic riddle using available math tools", "tools": ["add", "subtract", "multiply", "divide"], "execution_mode": "consolidate", "model": "gpt-4o", "ins": ["riddle"], "outs": ["solution"]}},
+    {"id": "oracle_agent", "type": "agent", "data": {"agent_instructions": "Verify if the solver's solution is correct for the given riddle", "tools": ["add", "subtract", "multiply", "divide"], "execution_mode": "consolidate", "model": "gpt-4o", "ins": ["riddle", "solution"], "outs": ["verdict"]}}
   ],
   "edges": [
     {"source": "riddle_generator", "target": "solver_agent", "sourceHandle": "riddle", "targetHandle": "riddle"},
@@ -276,7 +427,7 @@ tool_catalog = {
 ```json
 {
   "nodes": [
-    {"id": "weather_analyst", "type": "agent", "data": {"agent_instructions": "Get weather for New York and Los Angeles, then compare and analyze the temperature difference", "tools": ["get_weather", "add", "subtract"], "ins": [], "outs": ["analysis"]}}
+    {"id": "weather_analyst", "type": "agent", "data": {"agent_instructions": "Get weather for New York and Los Angeles, then compare and analyze the temperature difference", "tools": ["get_weather", "add", "subtract"], "execution_mode": "consolidate", "model": "gpt-4o", "ins": [], "outs": ["analysis"]}}
   ],
   "edges": []
 }
@@ -285,10 +436,10 @@ tool_catalog = {
 **❌ BAD Examples - AVOID THESE:**
 ```json
 // DON'T DO THIS - separate tool nodes for simple operations
-{"id": "calculate", "type": "tool", "data": {"tool_name": "add", "config": {"a": 10, "b": 5}}} // Wrong!
+{"id": "calculate", "type": "tool", "data": {"tool_name": "add", "config": {"a": 10, "b": 5}}} // Wrong! Missing execution_mode and proper structure
 
 // INSTEAD DO THIS - tool-enabled agents
-{"id": "calculator_agent", "type": "agent", "data": {"agent_instructions": "Perform arithmetic calculations as needed", "tools": ["add", "subtract", "multiply", "divide"]}} // Correct!
+{"id": "calculator_agent", "type": "agent", "data": {"agent_instructions": "Perform arithmetic calculations as needed", "tools": ["add", "subtract", "multiply", "divide"], "execution_mode": "consolidate", "model": "gpt-4o"}} // Correct!
 ```
 
 **🚨 CRITICAL WORKFLOW RULES**:
@@ -316,13 +467,38 @@ tool_catalog = {
    - To get temperature: `{get_weather_node.result.temp}`
    - To get condition: `{get_weather_node.result.condition}`
 
-📊 Execution Results Analysis
------------------------------
-When you receive execution results from a completed workflow, analyze them and provide insights:
-- Use nodes: null, edges: null for chat-only response
-- Summarize key findings in the description field
-- Offer to create follow-up workflows based on the results
-- Example: {"title": null, "description": "Great! Your workflow completed successfully. I see sales increased 15% this quarter. Would you like me to create a trend analysis workflow?", "nodes": null, "edges": null}
+📊 Execution Results Analysis & Conditional Gate Understanding
+------------------------------------------------------------
+**CRITICAL: Understand Conditional Routing Logic**
+
+🚨 **Conditional Gate Failures to Watch For:**
+1. **Multiple branches executed** = conditional_gate FAILED
+   - If both "buy" AND "sell" agents ran, routing broke
+   - Should only execute ONE path based on decision
+   
+2. **Agent didn't use required tools** = bad instructions
+   - If agent had search tools but didn't use them
+   - If decision agent bypassed conditional_gate tool
+   
+3. **Workflow objective vs actual execution mismatch**
+   - Asked for analysis but got assumptions
+   - Asked for research but got guessing
+
+**When analyzing execution results:**
+- Check if conditional gates worked (only one branch should execute)
+- Verify agents used their assigned tools properly  
+- Compare workflow description/objective to actual results
+- Be honest about failures - don't call broken routing "successful"
+
+**Response patterns:**
+- ✅ "The workflow routed correctly to the buy decision based on positive sentiment"
+- ❌ "The conditional routing failed - both buy AND sell executed, this is broken"
+- 🔧 "The decision agent needs better instructions to actually use the search tools"
+
+When providing execution analysis:
+- Use nodes: null, edges: null for chat-only response  
+- Be direct about what went wrong with routing
+- Suggest specific fixes for broken conditional logic
 
 🎯 Information Gathering & Tool Discovery
 -----------------------------------------
@@ -345,11 +521,121 @@ When users ask about tools or need guidance:
 
 ⚠️  **IMPORTANT**: This example uses tools like `add`, `multiply`, `divide` - verify these exist in your tool_catalog!
 
+🔧 Decision Agent Best Practices
+------------------------------
+**For agents that make routing decisions:**
+
+✅ **ALWAYS include explicit tool usage instructions:**
+```
+"agent_instructions": "
+1. FIRST: Use searxng.search to research the user's question about '{user_input}'
+2. ANALYZE the search results to understand the query
+3. THEN: Use conditional_gate tool to route based on your analysis:
+   - Route to 'buy' if research shows positive/bullish signals
+   - Route to 'sell' if research shows negative/bearish signals  
+   - Route to 'hold' if research is neutral/unclear
+4. IMPORTANT: You MUST use both search AND conditional_gate tools"
+```
+
+❌ **NEVER create vague decision agents:**
+```
+"agent_instructions": "Analyze the user input and make a decision" // TOO VAGUE!
+```
+
+🎯 **Tool Selection for Decision Agents:**
+- Include search tools (searxng.search) when they need to research
+- ALWAYS include conditional_gate for routing decisions
+- Be specific about what each tool should accomplish
+
+**Workflow Description Alignment:**
+- Make sure the workflow description matches what agents actually do
+- If description says "research and decide", agents should research AND decide
+- If description says "analyze market sentiment", include sentiment analysis tools
+
 🔑 Key Rules:
 - Decision nodes output structured data (true/false, route names)
+- Decision agents MUST use their assigned tools (search + conditional_gate)
+- Agent instructions should be explicit about tool usage order
 - Router nodes consume decision data and output routing information
 - Edges are NEVER conditional - they just carry data
 - Use `conditional_router` or `boolean_mux` for path selection
+
+📋 Complete Decision Gate Example
+-------------------------------
+```json
+{
+  "nodes": [
+    {
+      "id": "sentiment_analyzer",
+      "type": "agent",
+      "label": "Sentiment Analysis Agent",
+      "data": {
+        "agent_instructions": "Analyze market sentiment and use conditional_gate to route. Configure the gate with routes: 'buy', 'sell', 'hold'",
+        "tools": ["searxng.search", "conditional_gate"],
+        "execution_mode": "consolidate",
+        "model": "gpt-4o",
+        "sla": {
+          "enforce_usage": true,
+          "tool_usage_required": true,
+          "required_tools": ["conditional_gate"],
+          "final_tool_must_be": "conditional_gate",
+          "min_tool_calls": 2
+        },
+        "ins": ["user_query"],
+        "outs": ["routing_decision"]
+      }
+    },
+    {
+      "id": "buy_agent",
+      "type": "agent", 
+      "label": "Buy Recommendation Agent",
+      "data": {
+        "agent_instructions": "Create detailed buy recommendation",
+        "execution_mode": "consolidate",
+        "model": "gpt-4o",
+        "ins": ["sentiment_data"],
+        "outs": ["buy_recommendation"]
+      }
+    },
+    {
+      "id": "sell_agent",
+      "type": "agent",
+      "label": "Sell Recommendation Agent", 
+      "data": {
+        "agent_instructions": "Create detailed sell recommendation",
+        "execution_mode": "consolidate", 
+        "model": "gpt-4o",
+        "ins": ["sentiment_data"],
+        "outs": ["sell_recommendation"]
+      }
+    },
+    {
+      "id": "notification_agent",
+      "type": "agent",
+      "label": "Send Notification",
+      "data": {
+        "execution_mode": "for_each",  // 🎯 CRITICAL: Use for_each downstream of decision gates
+        "agent_instructions": "Send notification about trading recommendation",
+        "model": "gpt-4o",
+        "ins": ["recommendation"],
+        "outs": ["notification_sent"]
+      }
+    }
+  ],
+  "edges": [
+    {"source": "sentiment_analyzer", "target": "buy_agent", "data": {"condition": "routed_to == 'buy'"}},
+    {"source": "sentiment_analyzer", "target": "sell_agent", "data": {"condition": "routed_to == 'sell'"}},
+    {"source": "buy_agent", "target": "notification_agent"},
+    {"source": "sell_agent", "target": "notification_agent"}
+  ]
+}
+```
+
+⚠️ **Critical Points in this Example:**
+- `sentiment_analyzer` uses conditional_gate to route to buy OR sell (not both)
+- `buy_agent` and `sell_agent` only one will execute based on routing
+- `notification_agent` uses `"execution_mode": "for_each"` so it runs when ANY dependency completes
+- Without "for_each", notification_agent would wait forever for both buy AND sell (which never happens)
 
 🎯 Output Requirements
 ----------------------
@@ -581,11 +867,14 @@ Generate a WorkflowSpecLLM that fulfills the user's requirements using ONLY the 
             try:
                 # Run the agent to generate the workflow with limited message history
                 print(f"🔄 Workflow generation attempt {attempt}/{max_retries + 1}")
+                # Filter out conversation_id from kwargs to prevent duplicate parameter error
+                filtered_kwargs = {k: v for k, v in kwargs.items() if k != 'conversation_id'}
+                
                 result = await self.agent.run(
                     formatted_query,
                     conversation_id=self.conversation_id,
                     message_history_limit=5,  # Limit to last 5 messages to prevent context overflow
-                    **kwargs
+                    **filtered_kwargs
                 )
                 
                 # Extract the structured output
