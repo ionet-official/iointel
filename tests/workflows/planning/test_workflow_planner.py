@@ -277,10 +277,10 @@ def test_imports():
         from iointel.src.agent_methods.agents import WorkflowPlanner
         from iointel.src.agent_methods.data_models import WorkflowSpec, NodeSpec, EdgeSpec
         print("✅ All imports successful")
-        return True
+        assert True  # Test passes if imports succeed
     except ImportError as e:
         print(f"❌ Import failed: {e}")
-        return False
+        assert False, f"Import failed: {e}"
 
 
 async def main():

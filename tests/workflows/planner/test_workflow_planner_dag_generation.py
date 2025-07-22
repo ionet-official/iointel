@@ -80,26 +80,11 @@ async def test_workflow_generation():
         print(f"\n📋 Test Case: {test_case['name']}")
         print("-" * 40)
         
-        # Generate workflow
-        messages = [
-            {"role": "user", "content": test_case['prompt']}
-        ]
-        
-        response = await planner.run(
-            messages=messages,
-            message_history=[],
-            tools=[],
-            tool_choice=None,
-            parallel_tool_calls=False,
-            response_format=WorkflowSpecLLM,
-            extra_model_params={
-                "tool_catalog": tool_catalog,
-                "user_query": test_case['prompt']
-            }
+        # Generate workflow using the correct method
+        workflow_spec = await planner.generate_workflow(
+            query=test_case['prompt'],
+            tool_catalog=tool_catalog
         )
-        
-        # Parse the response
-        workflow_spec = response.output
         
         print(f"\n🔍 Generated Workflow: {workflow_spec.title}")
         print(f"📝 Description: {workflow_spec.description}")

@@ -7,6 +7,7 @@ from unittest.mock import Mock, patch
 from iointel.src.agent_methods.data_models.workflow_spec import WorkflowSpecLLM, WorkflowSpec
 from iointel.src.web.workflow_server import generate_workflow
 from iointel.src.web.workflow_server import WorkflowRequest
+from fastapi import Request
 
 
 async def test_chat_only_response():
@@ -45,12 +46,16 @@ async def test_chat_only_response():
     
     print("🧪 Testing chat-only response handling...")
     
+    # Create a mock FastAPI Request object with proper session
+    mock_fastapi_request = Mock(spec=Request)
+    mock_fastapi_request.session = {"workflow_session_id": "test_session_123", "chat_mode": False}
+    
     # Test with WorkflowSpecLLM as current_workflow (should not error)
     with patch('iointel.src.web.workflow_server.current_workflow', mock_current_workflow):
         with patch('iointel.src.web.workflow_server.planner', mock_planner):
             with patch('iointel.src.web.workflow_server.tool_catalog', {}):
                 try:
-                    response = await generate_workflow(request)
+                    response = await generate_workflow(request, mock_fastapi_request)
                     print("✅ No error accessing .rev on chat-only response")
                     print(f"   Response success: {response.success}")
                     print(f"   Response has workflow: {response.workflow is not None}")
@@ -76,7 +81,7 @@ async def test_chat_only_response():
         with patch('iointel.src.web.workflow_server.planner', mock_planner):
             with patch('iointel.src.web.workflow_server.tool_catalog', {}):
                 try:
-                    response = await generate_workflow(request)
+                    response = await generate_workflow(request, mock_fastapi_request)
                     print("✅ No error with normal WorkflowSpec as current_workflow")
                 except AttributeError as e:
                     if "rev" in str(e):
