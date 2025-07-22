@@ -59,7 +59,13 @@ class AgentPattern(BaseModel):
     
     # Tool usage requirements
     tool_requirements: ToolUsageRequirement = Field(
-        default_factory=ToolUsageRequirement,
+        default_factory=lambda: ToolUsageRequirement(
+            available_tools=[],
+            required_tools=[],
+            final_tool_must_be=None,
+            min_tool_calls=0,
+            enforce_usage=True
+        ),
         description="Explicit tool usage requirements"
     )
     
@@ -107,9 +113,11 @@ AGENT_PATTERNS = {
         description="Fetches data from external sources",
         tool_requirements=ToolUsageRequirement(
             min_tool_calls=1,
-            enforce_usage=True
+            enforce_usage=True,
+            final_tool_must_be=None
         ),
         prompt_prefix="You are a data agent that MUST fetch current data using your tools.",
+        prompt_suffix=None,
         typical_tools=["get_current_stock_price", "get_weather", "fetch_data"]
     ),
     
@@ -119,9 +127,11 @@ AGENT_PATTERNS = {
         description="Analyzes data and provides insights",
         tool_requirements=ToolUsageRequirement(
             min_tool_calls=0,  # Tools optional
-            enforce_usage=False
+            enforce_usage=False,
+            final_tool_must_be=None
         ),
         prompt_prefix="You are an analysis agent. Use tools if they help your analysis.",
+        prompt_suffix=None,
         typical_tools=["calculate", "compare", "statistical_analysis"]
     ),
     
@@ -131,9 +141,11 @@ AGENT_PATTERNS = {
         description="Executes actions with side effects",
         tool_requirements=ToolUsageRequirement(
             min_tool_calls=1,
-            enforce_usage=True
+            enforce_usage=True,
+            final_tool_must_be=None
         ),
         prompt_prefix="You are an action agent that MUST use tools to execute the requested actions.",
+        prompt_suffix=None,
         typical_tools=["send_email", "create_order", "update_database"]
     ),
     
@@ -143,37 +155,16 @@ AGENT_PATTERNS = {
         description="General conversation and help",
         tool_requirements=ToolUsageRequirement(
             min_tool_calls=0,
-            enforce_usage=False
+            enforce_usage=False,
+            final_tool_must_be=None
         ),
+        prompt_prefix=None,
+        prompt_suffix=None,
         typical_tools=[]
     )
 }
 
 
-class EnhancedNodeData(BaseModel):
-    """
-    Enhanced NodeData that includes explicit agent pattern and tool requirements.
-    This extends the basic NodeData with first-order tool usage semantics.
-    """
-    # Standard fields (from workflow_spec.NodeData)
-    config: Dict = Field(default_factory=dict)
-    ins: List[str] = Field(default_factory=list)
-    outs: List[str] = Field(default_factory=list)
-    tool_name: Optional[str] = None
-    agent_instructions: Optional[str] = None
-    tools: Optional[List[str]] = None
-    workflow_id: Optional[str] = None
-    model: Optional[str] = "gpt-4o"
-    
-    # Enhanced fields for first-order tool usage
-    agent_pattern: Optional[str] = Field(
-        None,
-        description="Explicit agent pattern (e.g., 'decision_router', 'data_fetcher')"
-    )
-    tool_requirements: Optional[ToolUsageRequirement] = Field(
-        None,
-        description="Explicit tool usage requirements"
-    )
 
 
 def create_workflow_planner_examples() -> List[Dict[str, Any]]:

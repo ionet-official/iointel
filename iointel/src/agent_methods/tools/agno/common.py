@@ -90,7 +90,7 @@ def make_base(agno_tool_cls: type[Toolkit]):
             
             # Import io_logger for better logging
             try:
-                from ....utilities.io_logger import IOLogger, LogLevel
+                from ....utilities.io_logger import IOLogger
                 logger = IOLogger()
             except ImportError:
                 logger = None
@@ -99,7 +99,7 @@ def make_base(agno_tool_cls: type[Toolkit]):
             registered_tools = []
             
             if verbose_mode and logger:
-                logger.log(LogLevel.INFO, f"Starting bound method registration for {self.__class__.__name__}", component="TOOLKIT")
+                logger.info(f"Starting bound method registration for {self.__class__.__name__}")
             
             # Look for methods that were marked by @wrap_tool
             # Use the class's dict to avoid accessing class-only attributes
@@ -113,7 +113,7 @@ def make_base(agno_tool_cls: type[Toolkit]):
                         agno_method = attr._agno_method
                         
                         if verbose_mode and logger:
-                            logger.log(LogLevel.DEBUG, f"Registering bound tool '{tool_name}'...", component="TOOLKIT")
+                            logger.debug(f"Registering bound tool '{tool_name}'...")
                         
                         # Create the bound wrapper and register it
                         bound_wrapper = _create_bound_wrapper(attr, agno_method, tool_name)
@@ -126,14 +126,14 @@ def make_base(agno_tool_cls: type[Toolkit]):
                         registered_tools.append(tool_name)
                         
                         if verbose_mode and logger:
-                            logger.log(LogLevel.SUCCESS, f"Registered bound tool '{tool_name}' from {self.__class__.__name__}", component="TOOLKIT")
+                            logger.success(f"Registered bound tool '{tool_name}' from {self.__class__.__name__}")
                         
                 except AttributeError:
                     # Skip attributes that can't be accessed (like __signature__)
                     continue
                 except Exception as e:
                     if logger:
-                        logger.log(LogLevel.ERROR, f"Failed to register {attr_name}: {e}", component="TOOLKIT")
+                        logger.error(f"Failed to register {attr_name}: {e}")
                     else:
                         print(f"❌ Failed to register {attr_name}: {e}")
                     import traceback
@@ -146,10 +146,8 @@ def make_base(agno_tool_cls: type[Toolkit]):
                 if tool_count > 3:
                     tool_preview += f", +{tool_count - 3} more"
                 
-                logger.log(
-                    LogLevel.INFO, 
+                logger.info(
                     f"Registered {tool_count} tools from {self.__class__.__name__}: {tool_preview}",
-                    component="TOOLKIT",
                     data={"tool_count": tool_count, "active_agno_tools": registered_tools, "class": self.__class__.__name__}
                 )
 

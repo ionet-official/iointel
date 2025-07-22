@@ -35,6 +35,10 @@ class NodeExecutionResult:
     result_preview: Optional[str] = None
     error_message: Optional[str] = None
     tool_usage: List[str] = None
+    sla_enforcement_active: bool = False
+    sla_validation_attempts: int = 0
+    sla_validation_passed: bool = True
+    sla_requirements: Optional[Dict[str, Any]] = None
     
     def __post_init__(self):
         if self.tool_usage is None:

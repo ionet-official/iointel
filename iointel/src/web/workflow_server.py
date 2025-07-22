@@ -72,8 +72,73 @@ async def web_tool_executor(task_metadata, objective, agents, execution_metadata
                 node_label=tool_name
             )
         
-        # Delegate to backend portable executor
-        result = await execute_tool_task(task_metadata, objective, agents, execution_metadata)
+        # CRITICAL FIX: Tool nodes need to be executed as agent tasks with SLA enforcement
+        # Convert any tool node into a SLA-enforced agent task using intelligent defaults
+        
+        def create_tool_agent_task(tool_name: str, tool_config: dict, execution_metadata: dict) -> dict:
+            """Convert tool node to SLA-enforced agent task with intelligent defaults."""
+            
+            # Default SLA behaviors for all tool nodes
+            default_sla = {
+                "tool_usage_required": True,
+                "required_tools": [tool_name],
+                "min_tool_calls": 1,
+                "enforce_usage": True,
+                "max_retries": 2,
+                "timeout_seconds": 120
+            }
+            
+            # Tool-specific SLA overrides based on tool characteristics
+            tool_specific_sla = {}
+            if "decision" in tool_name or "gate" in tool_name:
+                # Decision/routing tools must be the final tool
+                tool_specific_sla["final_tool_must_be"] = tool_name
+                tool_specific_sla["min_tool_calls"] = 1
+            elif "search" in tool_name or "fetch" in tool_name:
+                # Search/fetch tools might need multiple attempts
+                tool_specific_sla["max_retries"] = 3
+                tool_specific_sla["timeout_seconds"] = 180
+            elif "notification" in tool_name or "email" in tool_name:
+                # Action tools must use the tool (no retries for side effects)
+                tool_specific_sla["max_retries"] = 1
+                tool_specific_sla["timeout_seconds"] = 60
+            
+            # Merge default + tool-specific SLA
+            final_sla = {**default_sla, **tool_specific_sla}
+            
+            # Create intelligent agent instructions based on tool name and config
+            if tool_config:
+                config_summary = ", ".join([f"{k}={v}" for k, v in list(tool_config.items())[:3]])  # Show first 3 config items
+                instruction = f"Use the {tool_name} tool with the configuration ({config_summary}) to complete the objective. Follow the tool's output format and return the result clearly."
+            else:
+                instruction = f"Use the {tool_name} tool to complete the objective. Return the tool's result in a clear, structured format."
+            
+            # Determine execution mode based on node inputs
+            node_id = execution_metadata.get('node_id', '')
+            execution_mode = "consolidate"  # Default for most tools
+            
+            return {
+                "name": f"tool_agent_{tool_name}_{node_id}",
+                "model": "gpt-4o",  # Reliable model for tool usage
+                "agent_instructions": instruction,
+                "tools": [tool_name],  # Only the specific tool is available
+                "sla_requirements": final_sla,
+                "config": tool_config,  # Pass through original tool config
+                "execution_mode": execution_mode,
+                "node_type": "tool",  # Preserve original node type for debugging
+                "original_tool_name": tool_name  # Keep reference to original tool
+            }
+        
+        # Convert tool node to agent task
+        tool_config = task_metadata.get("config", {})
+        agent_task_metadata = create_tool_agent_task(tool_name, tool_config, execution_metadata)
+        
+        print(f"🔄 Converting tool node '{tool_name}' to SLA-enforced agent task")
+        print(f"   SLA: required_tools={agent_task_metadata['sla_requirements']['required_tools']}")
+        print(f"   Config: {tool_config}")
+        
+        # Execute as agent task with SLA enforcement
+        result = await web_agent_executor(agent_task_metadata, objective, agents, execution_metadata)
         print(f"✅ Tool '{tool_name}' completed: {result}")
         
         # Record node completion in feedback collector
@@ -560,7 +625,6 @@ async def startup_event(conversation_id: str = "web_interface_session_01"):
             data={
                 "available_tools": len(available_tools),
                 "catalog_tools": len(tool_catalog),
-                "tools_loaded": available_tools[:5] + (["..."] if len(available_tools) > 5 else [])
             }
         )
     except Exception as e:
@@ -585,6 +649,32 @@ async def startup_event(conversation_id: str = "web_interface_session_01"):
         print("✅ WorkflowStorage initialized")
     except Exception as e:
         print(f"❌ WorkflowStorage initialization failed: {e}")
+        raise
+    
+    # Register task executors for semantic node types
+    try:
+        from ..utilities.registries import TASK_EXECUTOR_REGISTRY
+        
+        # Map semantic node types to appropriate executors
+        TASK_EXECUTOR_REGISTRY["tool"] = web_tool_executor
+        TASK_EXECUTOR_REGISTRY["workflow_call"] = web_workflow_call_executor
+        TASK_EXECUTOR_REGISTRY["decision"] = web_agent_executor        # Decision nodes are agents with tools
+        TASK_EXECUTOR_REGISTRY["data_fetcher"] = web_agent_executor    # Data fetcher nodes are agents with tools
+        TASK_EXECUTOR_REGISTRY["analyzer"] = web_agent_executor        # Analyzer nodes are agents
+        TASK_EXECUTOR_REGISTRY["executor"] = web_agent_executor        # Executor nodes are agents with tools
+        TASK_EXECUTOR_REGISTRY["conversational"] = web_agent_executor  # Conversational nodes are agents
+        TASK_EXECUTOR_REGISTRY["agent"] = web_agent_executor           # Legacy agent type
+        
+        system_logger.success(
+            "Task executors registered for semantic node types",
+            data={
+                "registered_types": list(TASK_EXECUTOR_REGISTRY.keys()),
+                "semantic_types": ["decision", "data_fetcher", "analyzer", "executor", "conversational"]
+            }
+        )
+        
+    except Exception as e:
+        system_logger.error("Task executor registration failed", data={"error": str(e), "error_type": type(e).__name__})
         raise
     
     print("🎉 WorkflowPlanner web server initialized successfully!")
@@ -861,7 +951,7 @@ async def generate_workflow(workflow_request: WorkflowRequest, request: Request)
             return WorkflowResponse(
                 success=True,
                 workflow=workflow_data,
-                agent_response=f"{result.reasoning}\n\n{dag_pretty}"
+                agent_response=result.reasoning  # Only return the planner's reasoning, not the raw DAG
             )
             
         else:
@@ -1119,8 +1209,17 @@ async def execute_workflow_background(
         })
         
         # Generate and send feedback to WorkflowPlanner for error analysis
-        # TODO: Pass interface_conversation_id for error feedback too
-        await send_execution_feedback_to_planner(execution_summary, None, workflow_spec)
+        # Extract session info for feedback continuity
+        session_info = session_info or {}
+        session_id = session_info.get("workflow_session_id")
+        chat_mode = session_info.get("chat_mode", False)
+        
+        interface_conversation_id = None
+        if chat_mode and session_id:
+            faux_user = get_or_create_faux_user(session_id)
+            interface_conversation_id = faux_user.interface_conversation_id
+        
+        await send_execution_feedback_to_planner(execution_summary, interface_conversation_id, workflow_spec)
         
         # Broadcast failure
         await broadcast_execution_update(execution_id, "failed", error=error_msg)
@@ -1154,9 +1253,15 @@ async def send_execution_feedback_to_planner(execution_summary: WorkflowExecutio
         # Initialize WorkflowPlanner for feedback analysis
         from ..agent_methods.agents.workflow_planner import WorkflowPlanner
         
-        # Use interface conversation ID for feedback continuity, fallback to execution-specific
-        feedback_conversation_id = interface_conversation_id or f"feedback_{execution_summary.execution_id}"
-        print(f"🗣️ Using feedback conversation_id: {feedback_conversation_id}")
+        # CRITICAL: Use the SAME conversation ID as the main planner for continuity
+        # This ensures the planner sees its own workflow execution feedback
+        if interface_conversation_id:
+            feedback_conversation_id = interface_conversation_id
+            print(f"🗣️ Using main planner conversation_id for feedback: {feedback_conversation_id}")
+        else:
+            # For non-chat mode, use the web interface session conversation ID
+            feedback_conversation_id = "web_interface_session_01"
+            print(f"🗣️ Using fallback web interface conversation_id for feedback: {feedback_conversation_id}")
         
         planner = WorkflowPlanner(
             model="gpt-4o-mini",

@@ -274,10 +274,17 @@ def test_imports():
     
     # Test importing from the package
     try:
+        # Import and immediately test usage to avoid unused import warnings
         from iointel.src.agent_methods.agents import WorkflowPlanner
         from iointel.src.agent_methods.data_models import WorkflowSpec, NodeSpec, EdgeSpec
+        
+        # Quick validation that classes exist
+        assert WorkflowPlanner is not None
+        assert WorkflowSpec is not None  
+        assert NodeSpec is not None
+        assert EdgeSpec is not None
+        
         print("✅ All imports successful")
-        assert True  # Test passes if imports succeed
     except ImportError as e:
         print(f"❌ Import failed: {e}")
         assert False, f"Import failed: {e}"

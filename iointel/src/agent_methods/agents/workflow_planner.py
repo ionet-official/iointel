@@ -4,6 +4,7 @@ from typing import Dict, Any, Optional
 from ...agents import Agent
 from ...memory import AsyncMemory
 from ..data_models.workflow_spec import WorkflowSpec, WorkflowSpecLLM
+from datetime import datetime
 
 
 WORKFLOW_PLANNER_INSTRUCTIONS = """
@@ -42,73 +43,167 @@ For normal workflows:
 🏗️ Workflow Taxonomy
 --------------------
 
+🚨 **CRITICAL DECISION**: When to use `tool` nodes vs agent nodes (`decision`, `data_fetcher`, `analyzer`, etc.):
+- **Use `tool` nodes ONLY**: For `user_input`, simple standalone operations with predetermined config  
+- **Use agent nodes for EVERYTHING else**: API calls, data processing, intelligent decisions, multi-step operations
+- **If user asks for "agent using X tools"**: Create ONE agent node with those tools, NOT separate tool nodes!
+
 ### Node Types (exactly one of these):
 
-1. **tool** - Executes a specific tool from the catalog
+1. **tool** - Executes a specific tool from the catalog ⚠️ **RARELY USED** - See above!
    ⚠️ REQUIRED: data.tool_name MUST be specified and exist in tool_catalog
+   ⚠️ ONLY use for: `user_input`, simple math, standalone operations
    ```json
    {
-     "id": "fetch_weather",
+     "id": "user_input_1", 
      "type": "tool",
-     "label": "Get Weather Data",
+     "label": "Get User Input",
      "data": {
-       "tool_name": "weather_api",  // 🚨 REQUIRED for type="tool"
-       "config": {"location": "London", "units": "celsius"},
-       "execution_mode": "consolidate",  // Default: wait for all dependencies
+       "tool_name": "user_input",  // 🚨 REQUIRED for type="tool"
+       "config": {"prompt": "Enter stock symbol"},
+       "execution_mode": "consolidate",
        "ins": [],
-       "outs": ["weather_data", "status"]
+       "outs": ["symbol"]
      }
    }
+   // NOTE: For weather data, use data_fetcher agent with weather tools instead!
    ```
 
-2. **agent** - Runs an AI agent with instructions and tools
-   ⚠️ REQUIRED: data.agent_instructions MUST be specified
-   ⚠️ OPTIONAL: data.tools - list of tool names the agent can use
+2. **decision** - Routes workflow based on conditions (MUST end with conditional_gate)
+   ⚠️ REQUIRED: data.agent_instructions AND data.tools with "conditional_gate"
+   ⚠️ SLA: MUST use conditional_gate as final tool for routing
    ```json
    {
-     "id": "analyze_data",
-     "type": "agent", 
-     "label": "Data Analyst",
+     "id": "price_router",
+     "type": "decision", 
+     "label": "Route Based on Price",
      "data": {
-       "agent_instructions": "Analyze the weather data and provide insights",  // 🚨 REQUIRED for type="agent"
-       "tools": ["calculator", "data_processor", "chart_generator"],  // 🔧 Tools the agent can use
-       "execution_mode": "consolidate",  // Default: wait for all dependencies
-       "model": "gpt-4o",  // Model to use
-       "config": {"temperature": 0.7},
-       "ins": ["weather_data"],
-       "outs": ["analysis", "insights"]
+       "agent_instructions": "Check if Bitcoin price > $50000 and route to buy or sell path",
+       "tools": ["get_current_stock_price", "conditional_gate"],  // 🚨 MUST include conditional_gate
+       "execution_mode": "consolidate",
+       "model": "gpt-4o",
+       "ins": ["market_data"], 
+       "outs": ["routing_decision"],
+       "sla": {
+         "tool_usage_required": true,
+         "required_tools": ["conditional_gate"],
+         "final_tool_must_be": "conditional_gate",
+         "min_tool_calls": 1,
+         "enforce_usage": true
+       }
      }
    }
    ```
-   
-   🎯 **Agent-Tool Integration Principles**:
-   - Agents autonomously decide when to use their tools during execution
-   - Include all tools an agent might need for their task
-   - Agent instructions should describe the goal, not tool usage details. Few shot examples are fine (from learning from previous workflows)
-   - Tools execute within agent reasoning, not as separate workflow steps
 
-3. **decision** - Makes boolean or routing decisions (use decision tools or agents)
-   ⚠️ REQUIRED: data.tool_name MUST be specified for decision tools
+3. **data_fetcher** - Acquires data from external sources (MUST use at least 1 tool)
+   ⚠️ REQUIRED: data.agent_instructions AND data.tools (at least one tool)
+   ⚠️ SLA: MUST use tools to fetch data
    ```json
    {
-     "id": "check_rain",
-     "type": "decision",
-     "label": "Check Rain Condition", 
+     "id": "fetch_crypto_data",
+     "type": "data_fetcher",
+     "label": "Get Crypto Prices", 
      "data": {
-       "tool_name": "json_evaluator",  // 🚨 REQUIRED if using tool-based decision
-       "config": {"expression": "data.weather.condition == 'rain'"},
-       "execution_mode": "consolidate",  // Default: wait for all dependencies
-       "ins": ["weather_data"],
-       "outs": ["result", "details"]
+       "agent_instructions": "Fetch current Bitcoin and Ethereum prices with market cap data",
+       "tools": ["coinmarketcap_get_quote", "yfinance_get_price"],
+       "execution_mode": "consolidate",
+       "model": "gpt-4o",
+       "ins": [],
+       "outs": ["crypto_data"],
+       "sla": {
+         "tool_usage_required": true,
+         "min_tool_calls": 1,
+         "enforce_usage": true
+       }
      }
    }
    ```
 
-4. **workflow_call** - Executes another workflow
+4. **analyzer** - Analyzes data and provides insights (tools optional)
+   ⚠️ REQUIRED: data.agent_instructions
+   ⚠️ SLA: Tools optional - pure reasoning allowed
+   ```json
+   {
+     "id": "market_analyst",
+     "type": "analyzer",
+     "label": "Analyze Market Trends",
+     "data": {
+       "agent_instructions": "Analyze crypto price trends and provide investment insights",
+       "tools": ["calculator", "statistical_analysis"],  // Optional tools
+       "execution_mode": "consolidate", 
+       "model": "gpt-4o",
+       "ins": ["crypto_data"],
+       "outs": ["analysis"],
+       "sla": {
+         "tool_usage_required": false,
+         "min_tool_calls": 0,
+         "enforce_usage": false
+       }
+     }
+   }
+   ```
+
+5. **executor** - Executes actions with side effects (MUST use tools)
+   ⚠️ REQUIRED: data.agent_instructions AND data.tools
+   ⚠️ SLA: MUST use tools to perform actions
+   ```json
+   {
+     "id": "trade_executor",
+     "type": "executor",
+     "label": "Execute Trade Order",
+     "data": {
+       "agent_instructions": "Place buy/sell orders based on analysis recommendations",
+       "tools": ["trading_api", "portfolio_manager"],
+       "execution_mode": "consolidate",
+       "model": "gpt-4o", 
+       "ins": ["trade_signal"],
+       "outs": ["order_result"],
+       "sla": {
+         "tool_usage_required": true,
+         "min_tool_calls": 1,
+         "enforce_usage": true
+       }
+     }
+   }
+   ```
+
+6. **conversational** - Chat and help interactions (no tools needed)
+   ⚠️ REQUIRED: data.agent_instructions
+   ⚠️ SLA: No tool usage required
+   ```json
+   {
+     "id": "help_assistant", 
+     "type": "conversational",
+     "label": "User Support",
+     "data": {
+       "agent_instructions": "Provide helpful explanations and answer user questions",
+       "execution_mode": "consolidate",
+       "model": "gpt-4o",
+       "ins": ["user_question"],
+       "outs": ["helpful_response"],
+       "sla": {
+         "tool_usage_required": false,
+         "min_tool_calls": 0,
+         "enforce_usage": false
+       }
+     }
+   }
+   ```
+
+7. **agent** - (LEGACY - being phased out, use semantic types above)
+
+   🎯 **Semantic Agent Types - SLA Integration**:
+   - The LLM generates appropriate SLA requirements based on node type
+   - decision nodes MUST end with conditional_gate for routing  
+   - data_fetcher and executor nodes MUST use tools for their function
+   - analyzer and conversational nodes have flexible tool usage
+   - SLA requirements ensure workflow correctness at runtime
+
+8. **workflow_call** - Executes another workflow
    ⚠️ REQUIRED: data.workflow_id MUST be specified
    ```json
    {
-     "id": "run_sub_workflow",
+     "id": "run_sub_workflow", 
      "type": "workflow_call",
      "label": "Process Subset",
      "data": {
@@ -138,7 +233,7 @@ All nodes have an execution_mode that determines how they handle multiple depend
    ```json
    {
      "id": "email_agent",
-     "type": "agent", 
+     "type": "executor", 
      "label": "Send Email Notification",
      "data": {
        "execution_mode": "for_each",  // 🎯 Runs for each completed dependency
@@ -158,11 +253,12 @@ Add SLA requirements to ensure reliable tool usage and execution behavior:
 ```json
 {
   "id": "research_agent",
-  "type": "agent",
+  "type": "analyzer",
   "label": "Market Research Agent", 
   "data": {
     "agent_instructions": "Research market sentiment using search tools then route with conditional_gate",
     "tools": ["searxng.search", "conditional_gate"],
+    "execution_mode": "consolidate",
     "sla": {
       "enforce_usage": true,                    // Enable SLA enforcement
       "tool_usage_required": true,              // Agent MUST use at least one tool
@@ -180,7 +276,7 @@ Add SLA requirements to ensure reliable tool usage and execution behavior:
 ```json
 {
   "id": "stock_decision",
-  "type": "agent",
+  "type": "decision",
   "label": "Stock Decision Agent",
   "data": {
     "agent_instructions": "Fetch stock prices, calculate percentage change, then route trading decision",
@@ -267,7 +363,7 @@ Every node's `data` object can contain these fields:
    ```json
    {
      "id": "joke_creator",
-     "type": "agent",
+     "type": "conversational",
      "data": {
        "agent_instructions": "Create a funny joke. Output in JSON format: {\"joke_text\": \"your joke here\", \"category\": \"puns/wordplay/etc\"}",
        "execution_mode": "consolidate",
@@ -278,7 +374,7 @@ Every node's `data` object can contain these fields:
    },
    {
      "id": "joke_evaluator", 
-     "type": "agent",
+     "type": "conversational",
      "data": {
        "agent_instructions": "Evaluate this joke: {joke_creator.joke_text}. Output in JSON: {\"rating\": 1-10, \"funny_reason\": \"explanation\"}",  // Reference specific field
        "execution_mode": "consolidate",
@@ -407,42 +503,66 @@ tool_catalog = {
 
 **✅ GOOD Examples:**
 
-**Example 1: Riddle Solving with Tool-Enabled Agents**
+**Example 1: Riddle Solving with Tool-Enabled Analyzers**
 ```json
 {
   "nodes": [
-    {"id": "riddle_generator", "type": "agent", "data": {"agent_instructions": "Create a challenging arithmetic riddle", "execution_mode": "consolidate", "model": "gpt-4o", "ins": [], "outs": ["riddle"]}},
-    {"id": "solver_agent", "type": "agent", "data": {"agent_instructions": "Solve the given arithmetic riddle using available math tools", "tools": ["add", "subtract", "multiply", "divide"], "execution_mode": "consolidate", "model": "gpt-4o", "ins": ["riddle"], "outs": ["solution"]}},
-    {"id": "oracle_agent", "type": "agent", "data": {"agent_instructions": "Verify if the solver's solution is correct for the given riddle", "tools": ["add", "subtract", "multiply", "divide"], "execution_mode": "consolidate", "model": "gpt-4o", "ins": ["riddle", "solution"], "outs": ["verdict"]}}
+    {"id": "riddle_generator", "type": "analyzer", "data": {"agent_instructions": "Create a challenging arithmetic riddle", "execution_mode": "consolidate", "model": "gpt-4o", "ins": [], "outs": ["riddle"]}},
+    {"id": "solver_analyzer", "type": "analyzer", "data": {"agent_instructions": "Solve the given arithmetic riddle using available math tools", "tools": ["add", "subtract", "multiply", "divide"], "execution_mode": "consolidate", "model": "gpt-4o", "ins": ["riddle"], "outs": ["solution"]}},
+    {"id": "oracle_analyzer", "type": "analyzer", "data": {"agent_instructions": "Verify if the solver's solution is correct for the given riddle", "tools": ["add", "subtract", "multiply", "divide"], "execution_mode": "consolidate", "model": "gpt-4o", "ins": ["riddle", "solution"], "outs": ["verdict"]}}
   ],
   "edges": [
-    {"source": "riddle_generator", "target": "solver_agent", "sourceHandle": "riddle", "targetHandle": "riddle"},
-    {"source": "riddle_generator", "target": "oracle_agent", "sourceHandle": "riddle", "targetHandle": "riddle"},
-    {"source": "solver_agent", "target": "oracle_agent", "sourceHandle": "solution", "targetHandle": "solution"}
+    {"source": "riddle_generator", "target": "solver_analyzer", "sourceHandle": "riddle", "targetHandle": "riddle"},
+    {"source": "riddle_generator", "target": "oracle_analyzer", "sourceHandle": "riddle", "targetHandle": "riddle"},
+    {"source": "solver_analyzer", "target": "oracle_analyzer", "sourceHandle": "solution", "targetHandle": "solution"}
   ]
 }
 ```
 
-**Example 2: Weather Analysis with Tool-Enabled Agent** 
+**Example 2: Weather Analysis with Tool-Enabled Analyzer** 
 ```json
 {
   "nodes": [
-    {"id": "weather_analyst", "type": "agent", "data": {"agent_instructions": "Get weather for New York and Los Angeles, then compare and analyze the temperature difference", "tools": ["get_weather", "add", "subtract"], "execution_mode": "consolidate", "model": "gpt-4o", "ins": [], "outs": ["analysis"]}}
+    {"id": "weather_analyst", "type": "analyzer", "data": {"agent_instructions": "Get weather for New York and Los Angeles, then compare and analyze the temperature difference", "tools": ["get_weather", "add", "subtract"], "execution_mode": "consolidate", "model": "gpt-4o", "ins": [], "outs": ["analysis"]}}
   ],
   "edges": []
 }
 ```
 
 **❌ BAD Examples - AVOID THESE:**
-```json
-// DON'T DO THIS - separate tool nodes for simple operations
-{"id": "calculate", "type": "tool", "data": {"tool_name": "add", "config": {"a": 10, "b": 5}}} // Wrong! Missing execution_mode and proper structure
 
-// INSTEAD DO THIS - tool-enabled agents
-{"id": "calculator_agent", "type": "agent", "data": {"agent_instructions": "Perform arithmetic calculations as needed", "tools": ["add", "subtract", "multiply", "divide"], "execution_mode": "consolidate", "model": "gpt-4o"}} // Correct!
+**CRITICAL: When to use tool vs agent nodes:**
+- **Use `tool` nodes ONLY for**: `user_input`, simple math with hardcoded values
+- **Use agent nodes (`decision`, `data_fetcher`, `analyzer`) for**: external API calls, data processing, intelligent decisions
+
+```json
+// ❌ WRONG - Don't create tool nodes for external APIs or data fetching
+{"id": "get_stock", "type": "tool", "data": {"tool_name": "get_current_stock_price", "config": {"symbol": "AAPL"}}}
+
+// ✅ RIGHT - Use data_fetcher agent that can use tools intelligently  
+{"id": "get_stock", "type": "data_fetcher", "data": {"agent_instructions": "Get current stock price for the user's symbol", "tools": ["get_current_stock_price"], "execution_mode": "consolidate"}}
+
+// ❌ WRONG - Don't create multiple separate tool nodes when one agent can handle it
+{"id": "get_current_price", "type": "tool", "data": {"tool_name": "get_current_stock_price"}},
+{"id": "get_historical_prices", "type": "tool", "data": {"tool_name": "get_historical_stock_prices"}},
+{"id": "make_decision", "type": "decision", "data": {...}}
+
+// ✅ RIGHT - One decision agent with all needed tools
+{"id": "stock_decision", "type": "decision", "data": {"agent_instructions": "Get current and historical stock prices, then decide buy/sell", "tools": ["get_current_stock_price", "get_historical_stock_prices", "conditional_gate"], "execution_mode": "consolidate"}}
+
+// ❌ WRONG - Missing execution_mode and proper structure  
+{"id": "calculate", "type": "tool", "data": {"tool_name": "add", "config": {"a": 10, "b": 5}}}
+
+// ✅ RIGHT - Tool-enabled analyzer for calculations
+{"id": "calculator", "type": "analyzer", "data": {"agent_instructions": "Add these numbers and explain the result", "tools": ["add"], "execution_mode": "consolidate"}}
 ```
 
 **🚨 CRITICAL WORKFLOW RULES**:
+0. **TOOL VS AGENT NODE SELECTION**:
+   - **Use `tool` type ONLY for**: `user_input`, simple math with hardcoded values
+   - **Use agent types for EVERYTHING else**: API calls, data fetching, decisions, analysis
+   - **When user asks for "agent using tools"**: Create ONE agent node WITH those tools, not separate tool nodes
+   - **Example**: "Decision agent using stock price tools" → ONE `decision` node with `tools: ["get_stock_price", "get_historical_prices", "conditional_gate"]`
 1. **ALL REQUIRED PARAMETERS MUST BE PRESENT**: Every tool parameter from the catalog must be in the config
 2. **🔥 DATA FLOW FIRST**: Tools should get data from OTHER nodes, NOT hardcoded values
    - ✅ CORRECT: `{"a": "{solver_agent.number}", "b": "{riddle_generator.value}"}` (gets data from other nodes)
@@ -567,7 +687,7 @@ When users ask about tools or need guidance:
   "nodes": [
     {
       "id": "sentiment_analyzer",
-      "type": "agent",
+      "type": "decision",
       "label": "Sentiment Analysis Agent",
       "data": {
         "agent_instructions": "Analyze market sentiment and use conditional_gate to route. Configure the gate with routes: 'buy', 'sell', 'hold'",
@@ -587,7 +707,7 @@ When users ask about tools or need guidance:
     },
     {
       "id": "buy_agent",
-      "type": "agent", 
+      "type": "executor", 
       "label": "Buy Recommendation Agent",
       "data": {
         "agent_instructions": "Create detailed buy recommendation",
@@ -599,7 +719,7 @@ When users ask about tools or need guidance:
     },
     {
       "id": "sell_agent",
-      "type": "agent",
+      "type": "executor",
       "label": "Sell Recommendation Agent", 
       "data": {
         "agent_instructions": "Create detailed sell recommendation",
@@ -611,10 +731,10 @@ When users ask about tools or need guidance:
     },
     {
       "id": "notification_agent",
-      "type": "agent",
+      "type": "executor",
       "label": "Send Notification",
       "data": {
-        "execution_mode": "for_each",  // 🎯 CRITICAL: Use for_each downstream of decision gates
+        "execution_mode": "for_each",  // 🎯 CRITICAL: Use for_each downstream of decision gates when applicable
         "agent_instructions": "Send notification about trading recommendation",
         "model": "gpt-4o",
         "ins": ["recommendation"],
@@ -790,8 +910,9 @@ Please fix these specific issues in your next attempt:
                         node_desc += f" | tool: {node.data.tool_name}"
                     elif node.type == "agent":
                         # Show first 100 chars of instructions
-                        inst_preview = node.data.agent_instructions[:100] + "..." if len(node.data.agent_instructions) > 100 else node.data.agent_instructions
-                        node_desc += f" | instructions: {inst_preview}"
+                        if node.data.agent_instructions:
+                            inst_preview = node.data.agent_instructions[:100] + "..." if len(node.data.agent_instructions) > 100 else node.data.agent_instructions
+                            node_desc += f" | instructions: {inst_preview}"
                         if node.data.tools:
                             node_desc += f" | tools: {node.data.tools}"
                     node_descriptions.append(node_desc)
@@ -877,6 +998,26 @@ Generate a WorkflowSpecLLM that fulfills the user's requirements using ONLY the 
                 workflow_spec_llm = result.get("result")
                 if not isinstance(workflow_spec_llm, WorkflowSpecLLM):
                     raise ValueError(f"Expected WorkflowSpecLLM, got {type(workflow_spec_llm)}")
+                
+                # Use standardized workflow generation reporting for mission-critical debugging
+                if workflow_spec_llm.nodes:
+                    # Convert to WorkflowSpec for standardized reporting using single source of truth
+                    temp_workflow = WorkflowSpec.from_llm_spec(workflow_spec_llm, uuid.uuid4())
+                    
+                    # Generate standardized workflow generation report
+                    generation_report = self._create_workflow_generation_report(
+                        query=query, 
+                        attempt=attempt, 
+                        max_retries=max_retries,
+                        workflow_spec=temp_workflow
+                    )
+                    
+                    # Log using our standardized reporting system
+                    from ...utilities.io_logger import system_logger
+                    system_logger.info(
+                        "WorkflowPlanner generation analysis", 
+                        data={"generation_report": generation_report}
+                    )
                 
                 # Check if this is a chat-only response (nodes/edges are null)
                 if workflow_spec_llm.nodes is None or workflow_spec_llm.edges is None:
@@ -1055,6 +1196,62 @@ Reference the topology and SLA requirements above when making changes.
     def clear_workflow_context(self):
         """Clear the current workflow context."""
         self.last_workflow = None
+    
+    def _create_workflow_generation_report(self, query: str, attempt: int, max_retries: int, workflow_spec: WorkflowSpec) -> str:
+        """Generate standardized workflow generation analysis report using single source of truth."""
+        
+        # Header with generation context
+        header = f"""🤖 WORKFLOW GENERATION ANALYSIS
+================================
+User Query: "{query}"
+Generation Attempt: {attempt}/{max_retries + 1}
+Workflow Title: {workflow_spec.title}
+Workflow SLA: {workflow_spec.sla}
+Reasoning: {workflow_spec.reasoning}
+Generated Nodes: {len(workflow_spec.nodes)}
+Generated Edges: {len(workflow_spec.edges)}
+Generation Timestamp: {datetime.now().isoformat()}
+
+"""
+        
+        # Analyze node type distribution and flag potential issues
+        node_analysis = []
+        tool_nodes = []
+        agent_nodes = []
+        
+        for node in workflow_spec.nodes:
+            if node.type == 'tool':
+                tool_name = getattr(node.data, 'tool_name', 'unknown')
+                tool_nodes.append(f"  🔧 {node.label} (tool: {tool_name})")
+                
+                # Flag potentially problematic tool nodes
+                if tool_name not in ['user_input', 'add', 'subtract', 'multiply', 'divide']:
+                    tool_nodes.append(f"    ⚠️  REVIEW: Should '{tool_name}' be in an agent node instead?")
+            else:
+                agent_tools = getattr(node.data, 'tools', [])
+                agent_nodes.append(f"  🤖 {node.label} ({node.type}) with tools: {agent_tools}")
+        
+        if tool_nodes:
+            node_analysis.extend([
+                "🚨 TOOL NODES DETECTED:",
+                *tool_nodes,
+                ""
+            ])
+        
+        if agent_nodes:
+            node_analysis.extend([
+                "✅ AGENT NODES CREATED:",
+                *agent_nodes,
+                ""
+            ])
+        
+        # Use our single source of truth for complete workflow representation
+        workflow_representation = f"""
+📋 COMPLETE WORKFLOW SPECIFICATION (Single Source of Truth):
+{workflow_spec.to_llm_prompt()}
+"""
+        
+        return header + '\n'.join(node_analysis) + workflow_representation
     
     def create_example_workflow(self, title: str = "Example Workflow") -> WorkflowSpec:
         """

@@ -13,7 +13,7 @@ import sys
 sys.path.append('/Users/alexandermorisse/Documents/GitHub/iointel')
 
 from iointel.src.agent_methods.agents.workflow_planner import WorkflowPlanner
-from iointel.src.agent_methods.data_models.workflow_spec import WorkflowSpecLLM
+# WorkflowSpecLLM import removed as it's not used directly in current implementation
 from iointel.src.utilities.tool_registry_utils import create_tool_catalog
 
 async def test_workflow_generation():

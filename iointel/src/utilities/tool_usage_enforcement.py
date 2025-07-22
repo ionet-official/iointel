@@ -1,356 +1,228 @@
 """
-Tool Usage Enforcement System
-=============================
+Tool Usage Enforcement V2 - First-Order Enforcement
+==================================================
 
-This module provides agent tool usage enforcement to ensure agents actually use
-their available tools when they should. Addresses the critical issue where agents
-with tools (e.g., Stock Decision Agent with get_current_stock_price, conditional_gate)
-complete execution without using any tools.
+This module provides tool usage enforcement based on explicit requirements
+from the WorkflowPlanner, rather than inferring intent from agent names/tools.
 
-Key Features:
-- Taxonomy of agent tool usage patterns
-- Detection of missing tool usage 
-- Retry logic with enhanced prompts
-- Prompt injection resistance
-- SLA enforcement for tool usage
+Key improvements:
+- Tool requirements are explicit in the workflow spec
+- No pattern inference needed - the planner decides
+- Support for "final tool must be X" requirements
+- More flexible enforcement strategies
 """
 
-from typing import Dict, List, Optional, Any, Set, Literal
-from dataclasses import dataclass
-from enum import Enum
+from typing import Dict, List, Optional, Any, Callable
 
 from ..agent_methods.data_models.datamodels import ToolUsageResult
+from ..agent_methods.data_models.agent_ontology import ToolUsageRequirement
 from ..utilities.helpers import make_logger
 
 logger = make_logger(__name__)
 
 
-class AgentToolUsagePattern(Enum):
-    """
-    Taxonomy of agent tool usage patterns to determine enforcement strategy.
-    """
-    # Decision agents MUST use tools to route/gate properly
-    DECISION_AGENT = "decision_agent"
-    
-    # Data agents should use tools to fetch/analyze data
-    DATA_AGENT = "data_agent" 
-    
-    # Action agents should use tools to perform actions
-    ACTION_AGENT = "action_agent"
-    
-    # Analysis agents may or may not use tools (tools optional)
-    ANALYSIS_AGENT = "analysis_agent"
-    
-    # Chat agents typically don't need tools (tools optional)
-    CHAT_AGENT = "chat_agent"
-
-
-@dataclass
-class ToolUsagePolicy:
-    """
-    Defines tool usage expectations for different agent patterns.
-    """
-    pattern: AgentToolUsagePattern
-    required_tool_usage: bool  # Must use at least one tool
-    required_tools: Optional[Set[str]] = None  # Specific tools that must be used
-    min_tool_calls: int = 1  # Minimum number of tool calls expected
-    max_retries: int = 2  # Maximum retry attempts
-    retry_strategy: Literal["enhance_prompt", "force_tool_choice", "fail"] = "enhance_prompt"
-
-
 class ToolUsageEnforcer:
     """
-    Enforces tool usage policies for agents to ensure they fulfill their intended purpose.
+    Enforces explicit tool usage requirements from workflow specifications.
     """
     
     def __init__(self):
-        self.policies = self._create_default_policies()
         self.retry_prompts = self._create_retry_prompts()
     
-    def _create_default_policies(self) -> Dict[AgentToolUsagePattern, ToolUsagePolicy]:
-        """Create default tool usage policies for different agent patterns."""
-        return {
-            AgentToolUsagePattern.DECISION_AGENT: ToolUsagePolicy(
-                pattern=AgentToolUsagePattern.DECISION_AGENT,
-                required_tool_usage=True,
-                required_tools={"conditional_gate"},
-                min_tool_calls=1,
-                max_retries=2,
-                retry_strategy="enhance_prompt"
-            ),
-            AgentToolUsagePattern.DATA_AGENT: ToolUsagePolicy(
-                pattern=AgentToolUsagePattern.DATA_AGENT,
-                required_tool_usage=True,
-                required_tools=None,  # Any data-fetching tool
-                min_tool_calls=1,
-                max_retries=2,
-                retry_strategy="enhance_prompt"
-            ),
-            AgentToolUsagePattern.ACTION_AGENT: ToolUsagePolicy(
-                pattern=AgentToolUsagePattern.ACTION_AGENT,
-                required_tool_usage=True,
-                required_tools=None,
-                min_tool_calls=1,
-                max_retries=1,
-                retry_strategy="enhance_prompt"
-            ),
-            AgentToolUsagePattern.ANALYSIS_AGENT: ToolUsagePolicy(
-                pattern=AgentToolUsagePattern.ANALYSIS_AGENT,
-                required_tool_usage=False,
-                required_tools=None,
-                min_tool_calls=0,
-                max_retries=0,
-                retry_strategy="fail"
-            ),
-            AgentToolUsagePattern.CHAT_AGENT: ToolUsagePolicy(
-                pattern=AgentToolUsagePattern.CHAT_AGENT,
-                required_tool_usage=False,
-                required_tools=None,
-                min_tool_calls=0,
-                max_retries=0,
-                retry_strategy="fail"
-            )
-        }
+    def _create_retry_prompts(self) -> List[str]:
+        """Create progressive retry prompts."""
+        return [
+            "\n\nIMPORTANT: You have not used the required tools. Please use the tools specified in your requirements before providing analysis.",
+            "\n\nCRITICAL: Tool usage is mandatory for this task. You MUST use the required tools: {required_tools}. This is your final attempt."
+        ]
     
-    def _create_retry_prompts(self) -> Dict[AgentToolUsagePattern, List[str]]:
-        """Create retry prompts for different agent patterns."""
-        return {
-            AgentToolUsagePattern.DECISION_AGENT: [
-                "\n\nIMPORTANT: You have decision-making tools available. You MUST use the conditional_gate or similar tool to make routing decisions. Do not provide analysis without using the tools to determine the actual routing path.",
-                "\n\nCRITICAL: Your role requires using the available tools to make decisions. Please use conditional_gate to determine the proper routing. Analysis alone is insufficient - you must call the tools."
-            ],
-            AgentToolUsagePattern.DATA_AGENT: [
-                "\n\nIMPORTANT: You have data-fetching tools available. You MUST use them to retrieve current information before providing analysis.",
-                "\n\nCRITICAL: Use your available tools to fetch the latest data. Do not rely on outdated information when current data tools are available."
-            ],
-            AgentToolUsagePattern.ACTION_AGENT: [
-                "\n\nIMPORTANT: You have action tools available. You MUST use them to perform the requested actions.",
-                "\n\nCRITICAL: Use your available tools to complete the requested action. Analysis alone is insufficient."
-            ]
-        }
-    
-    def classify_agent_pattern(self, agent_name: str, available_tools: List[str], 
-                             agent_instructions: str = "") -> AgentToolUsagePattern:
+    def validate_tool_usage(
+        self, 
+        requirements: ToolUsageRequirement,
+        tool_usage_results: List[ToolUsageResult]
+    ) -> tuple[bool, str]:
         """
-        Classify an agent into a tool usage pattern based on its configuration.
+        Validate tool usage against explicit requirements.
         
-        Args:
-            agent_name: Name of the agent
-            available_tools: List of tool names available to the agent
-            agent_instructions: Agent's instruction prompt
-            
         Returns:
-            Classified agent tool usage pattern
+            (is_valid, reason): Whether valid and why not if invalid
         """
-        name_lower = agent_name.lower()
-        instructions_lower = agent_instructions.lower()
-        tool_names_lower = [tool.lower() for tool in available_tools]
+        if not requirements.enforce_usage:
+            return True, "No enforcement required"
         
-        # Decision agents - have routing/gating tools
-        decision_tools = {"conditional_gate", "boolean_gate", "threshold_gate", "conditional_multi_gate"}
-        if any(tool in tool_names_lower for tool in decision_tools):
-            return AgentToolUsagePattern.DECISION_AGENT
-        
-        # Check name patterns for decision agents
-        if any(keyword in name_lower for keyword in ["decision", "routing", "gate", "choice", "route"]):
-            return AgentToolUsagePattern.DECISION_AGENT
-            
-        # Check instructions for decision patterns
-        if any(keyword in instructions_lower for keyword in ["decide", "route", "choose", "gate", "conditional"]):
-            return AgentToolUsagePattern.DECISION_AGENT
-        
-        # Data agents - have data fetching tools
-        data_tools = {"get_current_stock_price", "get_historical_stock_prices", "fetch_data", "query_database"}
-        if any(tool in tool_names_lower for tool in data_tools):
-            return AgentToolUsagePattern.DATA_AGENT
-            
-        # Check name patterns for data agents
-        if any(keyword in name_lower for keyword in ["data", "fetch", "query", "stock", "price"]):
-            return AgentToolUsagePattern.DATA_AGENT
-            
-        # Action agents - have action tools
-        action_tools = {"execute", "send", "create", "delete", "update", "trade", "buy", "sell"}
-        if any(tool in tool_names_lower for tool in action_tools):
-            return AgentToolUsagePattern.ACTION_AGENT
-            
-        # Analysis agents - typically have analysis in name but may have optional tools
-        if any(keyword in name_lower for keyword in ["analysis", "analyze", "review", "examine"]):
-            return AgentToolUsagePattern.ANALYSIS_AGENT
-            
-        # Default to chat agent if no clear pattern
-        return AgentToolUsagePattern.CHAT_AGENT
-    
-    def validate_tool_usage(self, pattern: AgentToolUsagePattern, 
-                          tool_usage_results: List[ToolUsageResult],
-                          available_tools: List[str]) -> bool:
-        """
-        Validate whether tool usage meets the policy requirements.
-        
-        Args:
-            pattern: Agent tool usage pattern
-            tool_usage_results: Actual tool usage results from agent execution
-            available_tools: Tools that were available to the agent
-            
-        Returns:
-            True if tool usage meets policy, False otherwise
-        """
-        policy = self.policies.get(pattern)
-        if not policy:
-            logger.warning(f"No policy found for pattern: {pattern}")
-            return True  # Default to passing if no policy
-            
-        # If no tool usage required, always pass
-        if not policy.required_tool_usage:
-            return True
-            
         # Check minimum tool calls
-        if len(tool_usage_results) < policy.min_tool_calls:
-            logger.info(f"Tool usage failed: {len(tool_usage_results)} calls < {policy.min_tool_calls} required")
-            return False
-            
-        # Check if specific required tools were used
-        if policy.required_tools:
+        if len(tool_usage_results) < requirements.min_tool_calls:
+            return False, f"Used {len(tool_usage_results)} tools, minimum {requirements.min_tool_calls} required"
+        
+        # Check required tools were used
+        if requirements.required_tools:
             used_tools = {result.tool_name for result in tool_usage_results}
-            required_available = policy.required_tools.intersection(set(available_tools))
+            required_set = set(requirements.required_tools)
+            missing = required_set - used_tools
             
-            if required_available and not used_tools.intersection(required_available):
-                logger.info(f"Tool usage failed: No required tools used. Required: {required_available}, Used: {used_tools}")
-                return False
+            if missing:
+                return False, f"Missing required tools: {missing}"
         
-        return True
+        # Check final tool requirement
+        if requirements.final_tool_must_be and tool_usage_results:
+            last_tool = tool_usage_results[-1].tool_name
+            if last_tool != requirements.final_tool_must_be:
+                return False, f"Final tool must be '{requirements.final_tool_must_be}', but was '{last_tool}'"
+        
+        return True, "All requirements met"
     
-    def create_enhanced_prompt(self, original_prompt: str, pattern: AgentToolUsagePattern, 
-                             retry_attempt: int, available_tools: List[str]) -> str:
+    def create_enhanced_prompt(
+        self,
+        original_prompt: str,
+        requirements: ToolUsageRequirement,
+        retry_attempt: int,
+        validation_reason: str
+    ) -> str:
         """
-        Create an enhanced prompt to encourage tool usage on retry.
-        
-        This method is designed to be resistant to prompt injection by:
-        1. Appending enforcement instructions at the end
-        2. Using clear, direct language that's hard to override
-        3. Not relying on user-controllable content for enforcement logic
-        
-        Args:
-            original_prompt: Original user prompt
-            pattern: Agent tool usage pattern  
-            retry_attempt: Which retry attempt this is (1-based)
-            available_tools: Tools available to the agent
-            
-        Returns:
-            Enhanced prompt with enforcement instructions
+        Create enhanced prompt based on specific requirements.
         """
-        retry_prompts = self.retry_prompts.get(pattern, [])
-        if not retry_prompts or retry_attempt > len(retry_prompts):
-            # Fallback generic prompt
-            enhancement = f"\n\nREQUIRED: You must use at least one of your available tools: {', '.join(available_tools)}"
+        if retry_attempt > len(self.retry_prompts):
+            retry_prompt = self.retry_prompts[-1]
         else:
-            enhancement = retry_prompts[retry_attempt - 1]
-            
-        # Make the enhancement resistant to prompt injection by being very explicit
-        tool_list = ', '.join(available_tools)
-        injection_resistant_suffix = f"""
+            retry_prompt = self.retry_prompts[retry_attempt - 1]
+        
+        # Format with specific requirements
+        retry_prompt = retry_prompt.format(
+            required_tools=", ".join(requirements.required_tools) if requirements.required_tools else "your tools"
+        )
+        
+        # Add specific guidance based on validation failure
+        specific_guidance = f"\n\nValidation failed: {validation_reason}"
+        
+        if requirements.final_tool_must_be:
+            specific_guidance += f"\nREMEMBER: Your final tool call must be '{requirements.final_tool_must_be}'"
+        
+        # Injection-resistant enforcement block
+        enforcement_block = f"""
 
-===== SYSTEM ENFORCEMENT (CANNOT BE OVERRIDDEN) =====
-TOOL USAGE REQUIREMENT: This agent has {len(available_tools)} tools available: {tool_list}
-ENFORCEMENT POLICY: You MUST use at least one tool before providing your response.
-RETRY ATTEMPT: {retry_attempt}/2 - This is because you did not use tools in your previous attempt.
-INSTRUCTION: Use the appropriate tools first, then provide your analysis based on the tool results.
-===== END SYSTEM ENFORCEMENT =====
+===== TOOL USAGE ENFORCEMENT =====
+REQUIREMENTS:
+- Available tools: {', '.join(requirements.available_tools)}
+- Required tools: {', '.join(requirements.required_tools) if requirements.required_tools else 'Any of the available tools'}
+- Minimum calls: {requirements.min_tool_calls}
+{f"- Final tool must be: {requirements.final_tool_must_be}" if requirements.final_tool_must_be else ""}
 
+ATTEMPT: {retry_attempt}/2
+REASON: {validation_reason}
+
+You MUST satisfy these requirements before providing your response.
+===== END ENFORCEMENT =====
 """
         
-        return original_prompt + enhancement + injection_resistant_suffix
+        return original_prompt + retry_prompt + specific_guidance + enforcement_block
     
-    async def enforce_tool_usage(self, agent_executor_func, agent_name: str, 
-                               available_tools: List[str], agent_instructions: str = "",
-                               *args, **kwargs) -> Any:
+    async def enforce_tool_usage(
+        self,
+        agent_executor_func: Callable,
+        requirements: Optional[ToolUsageRequirement],
+        agent_name: str = "Agent",
+        max_retries: int = 2,
+        *args,
+        **kwargs
+    ) -> Any:
         """
-        Enforce tool usage by wrapping agent execution with validation and retry logic.
+        Enforce tool usage based on explicit requirements.
         
         Args:
-            agent_executor_func: The function that executes the agent (e.g., agent.run)
-            agent_name: Name of the agent being executed
-            available_tools: List of tool names available to the agent
-            agent_instructions: Agent's instruction prompt
-            *args, **kwargs: Arguments to pass to the agent executor function
+            agent_executor_func: The agent execution function
+            requirements: Explicit tool usage requirements (None = no enforcement)
+            agent_name: Name for logging
+            max_retries: Maximum retry attempts
+            *args, **kwargs: Arguments for agent execution
             
         Returns:
-            Agent execution result, potentially after retries
+            Agent execution result
         """
-        # Skip enforcement if no tools available
-        if not available_tools:
-            logger.debug(f"No tools available for agent '{agent_name}', skipping enforcement")
+        # No requirements = no enforcement
+        if not requirements or not requirements.enforce_usage:
+            logger.debug(f"No enforcement for agent '{agent_name}'")
             return await agent_executor_func(*args, **kwargs)
         
-        # Classify the agent pattern
-        pattern = self.classify_agent_pattern(agent_name, available_tools, agent_instructions)
-        policy = self.policies.get(pattern)
-        
-        if not policy or not policy.required_tool_usage:
-            logger.debug(f"Agent '{agent_name}' pattern '{pattern}' does not require tool usage")
-            return await agent_executor_func(*args, **kwargs)
-        
-        logger.info(f"Enforcing tool usage for agent '{agent_name}' with pattern '{pattern}'")
+        logger.info(f"Enforcing tool usage for '{agent_name}': {requirements.min_tool_calls} min calls, required: {requirements.required_tools}")
         
         original_query = args[0] if args else kwargs.get('query', '')
+        validation_reason = ""  # Initialize for first retry attempts
         
-        for attempt in range(policy.max_retries + 1):
-            # On retry attempts, enhance the prompt
+        for attempt in range(max_retries + 1):
+            # Enhance prompt on retries
             if attempt > 0:
                 enhanced_query = self.create_enhanced_prompt(
-                    original_query, pattern, attempt, available_tools
+                    original_query,
+                    requirements,
+                    attempt,
+                    validation_reason
                 )
+                
                 if args:
                     args = (enhanced_query,) + args[1:]
                 else:
                     kwargs['query'] = enhanced_query
                 
-                logger.info(f"Retry attempt {attempt} for agent '{agent_name}' with enhanced prompt")
+                logger.info(f"Retry {attempt} for '{agent_name}'")
             
-            # Execute the agent
+            # Execute agent
             result = await agent_executor_func(*args, **kwargs)
             
-            # Extract tool usage results from the result
-            tool_usage_results = self._extract_tool_usage_from_result(result)
+            # Extract tool usage
+            tool_usage_results = self._extract_tool_usage(result)
             
-            # Validate tool usage
-            if self.validate_tool_usage(pattern, tool_usage_results, available_tools):
-                logger.info(f"Agent '{agent_name}' successfully used tools: {[r.tool_name for r in tool_usage_results]}")
+            # Validate
+            is_valid, validation_reason = self.validate_tool_usage(requirements, tool_usage_results)
+            
+            if is_valid:
+                logger.info(f"'{agent_name}' passed validation: {[r.tool_name for r in tool_usage_results]}")
                 return result
             
-            logger.warning(f"Agent '{agent_name}' attempt {attempt + 1} failed tool usage validation")
+            logger.warning(f"'{agent_name}' failed validation: {validation_reason}")
             
-            # If this was the last attempt, fail or return with warning
-            if attempt >= policy.max_retries:
-                if policy.retry_strategy == "fail":
-                    raise RuntimeError(
-                        f"Agent '{agent_name}' failed to use required tools after {policy.max_retries + 1} attempts. "
-                        f"Available tools: {available_tools}. Tool usage is required for {pattern.value} agents."
-                    )
-                else:
-                    # Return result but log the violation
-                    logger.error(f"Agent '{agent_name}' completed without using tools. This violates the SLA for {pattern.value} agents.")
-                    return result
+            # Last attempt - return with warning
+            if attempt >= max_retries:
+                logger.error(
+                    f"'{agent_name}' failed after {max_retries + 1} attempts. "
+                    f"Requirements not met: {validation_reason}"
+                )
+                return result
         
         return result
     
-    def _extract_tool_usage_from_result(self, result: Any) -> List[ToolUsageResult]:
-        """
-        Extract tool usage results from agent execution result.
-        
-        Args:
-            result: Agent execution result (should have tool_usage_results key)
-            
-        Returns:
-            List of tool usage results from the agent's actual execution
-        """
-        # The agent postprocessing already extracts tool usage properly
-        # We just need to get it from the result dict
+    def _extract_tool_usage(self, result: Any) -> List[ToolUsageResult]:
+        """Extract tool usage from agent result."""
         if isinstance(result, dict) and "tool_usage_results" in result:
             return result["tool_usage_results"] or []
-        
-        # If no tool_usage_results found, return empty (agent didn't use tools)
-        return []
+        return ['should_not_happen']
 
 
-# Global enforcer instance
-tool_usage_enforcer = ToolUsageEnforcer()
+# Global instance
+tool_usage_enforcer_v2 = ToolUsageEnforcer()
+
+
+def create_requirements_from_node_data(node_data: Dict[str, Any]) -> Optional[ToolUsageRequirement]:
+    """
+    Create ToolUsageRequirement from node data.
+    
+    Handles both:
+    1. Explicit tool_requirements field
+    2. Legacy inference from tools list
+    """
+    # Explicit requirements take precedence
+    if "tool_requirements" in node_data:
+        return ToolUsageRequirement(**node_data["tool_requirements"])
+    
+    # Legacy: If agent has conditional_gate, make it required
+    tools = node_data.get("tools", [])
+    if "conditional_gate" in tools:
+        return ToolUsageRequirement(
+            available_tools=tools,
+            required_tools=["conditional_gate"],
+            final_tool_must_be="conditional_gate",
+            min_tool_calls=1,
+            enforce_usage=True
+        )
+    
+    # No special requirements
+    return None

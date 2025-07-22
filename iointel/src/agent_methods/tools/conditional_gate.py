@@ -582,73 +582,8 @@ def conditional_multi_gate(
         )
 
 
-@register_tool
-def threshold_gate(
-    value: Union[float, int, str],
-    thresholds: Dict[str, Union[float, int]],
-    value_name: str = "value",
-    default_route: str = "terminate"
-) -> GateResult:
-    """
-    Simplified threshold-based gate for common numeric routing.
-    
-    Routes based on which threshold is exceeded (checked in descending order).
-    
-    Args:
-        value: Numeric value to check
-        thresholds: Dict of route_name -> threshold_value
-        value_name: Name of the value for logging
-        default_route: Route if no thresholds exceeded
-        
-    Example:
-        thresholds = {
-            "critical": 90,
-            "warning": 70,
-            "normal": 50
-        }
-        # If value=85, routes to "warning"
-    """
-    # Convert value if string
-    if isinstance(value, str):
-        try:
-            value = float(value)
-        except ValueError:
-            return GateResult(
-                routed_to="error",
-                action="terminate",
-                decision_reason=f"Cannot convert '{value}' to number",
-                confidence=0.0
-            )
-    
-    # Sort thresholds by value (descending)
-    sorted_thresholds = sorted(thresholds.items(), key=lambda x: x[1], reverse=True)
-    
-    for route_name, threshold in sorted_thresholds:
-        if value >= threshold:
-            return GateResult(
-                routed_to=route_name,
-                action="branch",
-                matched_route=route_name,
-                decision_reason=f"{value_name} ({value}) >= {threshold}",
-                confidence=1.0,
-                audit_trail={
-                    "value": value,
-                    "threshold": threshold,
-                    "all_thresholds": thresholds
-                }
-            )
-    
-    # No threshold exceeded
-    return GateResult(
-        routed_to=default_route,
-        action="terminate",
-        decision_reason=f"{value_name} ({value}) below all thresholds",
-        confidence=1.0,
-        audit_trail={
-            "value": value,
-            "all_thresholds": thresholds
-        }
-    )
+# threshold_gate removed - use conditional_gate with threshold conditions instead:
+# Example: conditional_gate(condition="price >= 70", routes={"true": "high_price", "false": "low_price"})
 
 
 
@@ -657,7 +592,6 @@ def threshold_gate(
 __all__ = [
     'conditional_gate',
     'conditional_multi_gate',
-    'threshold_gate', 
     'RouteAction',
     'ComparisonOperator',
     'ConditionRule',
