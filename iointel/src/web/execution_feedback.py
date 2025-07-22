@@ -155,7 +155,7 @@ Success Rate: {(len([n for n in summary.nodes_executed if n.status == ExecutionS
         return header + overview + node_details + skipped_details + inputs_details + error_analysis + perf_insights
     
     @staticmethod
-    def generate_improvement_prompt(summary: WorkflowExecutionSummary) -> str:
+    def generate_improvement_prompt(summary: WorkflowExecutionSummary, workflow_spec=None) -> str:
         """Generate a prompt for the WorkflowPlanner to analyze and suggest improvements."""
         
         curated_summary = ExecutionResultCurator.curate_execution_summary(summary)
@@ -182,27 +182,38 @@ Success Rate: {(len([n for n in summary.nodes_executed if n.status == ExecutionS
         # Add explicit summary for agent/planner
         exec_summary = f"\nEXECUTION SUMMARY:\nExecuted nodes: {', '.join(executed_nodes) if executed_nodes else 'None'}\nSkipped nodes: {', '.join(skipped_nodes) if skipped_nodes else 'None'}\n\nNOTE: Nodes skipped with reason 'decision_gated' indicate correct conditional routing. Only one branch should execute; all others should be skipped. If multiple branches are executed, conditional routing failed unless using a conditional_multi_gate node which allows multiple branches to execute."
         
-        return f"""SYSTEM: Workflow execution completed. Here's the technical execution report:
+        # Include full workflow specification if available
+        workflow_context = ""
+        if workflow_spec:
+            workflow_context = f"""
 
+{workflow_spec.to_llm_prompt()}
+
+"""
+        
+        return f"""SYSTEM: Workflow execution completed. Here's the complete analysis context:
+
+{workflow_context}📊 EXECUTION RESULTS
 {curated_summary}
 {path_str}
 {exec_summary}
 
-CRITICAL: Before responding, analyze if this workflow used CONDITIONAL ROUTING properly:
-- Conditional routing SUCCESS means only ONE path executed (e.g., EITHER "buy" OR "sell", not both)
-- Skipped nodes are EXPECTED in conditional workflows - this is correct behavior
-- If multiple conditional branches executed (like both "buy" AND "sell" agents), the conditional_gate FAILED
-- If an agent had search tools that were required in the SLA but didn't use them, it failed to gather needed info, etc
+CRITICAL: Compare the EXPECTED EXECUTION PATTERNS in the workflow spec above with actual results:
+- For conditional workflows: verify only the correct path executed based on routing logic
+- For SLA enforcement: verify required tools were used as specified in node SLAs  
+- Skipped nodes are EXPECTED in conditional workflows when routing works correctly
+- Multiple branch execution indicates conditional routing FAILURE (unless using conditional_multi_gate)
 
 RESPONSE FORMAT: This is execution analysis, NOT a workflow generation request.
 Use CHAT-ONLY mode: Set nodes: null, edges: null in your response.
 
 Provide a BRIEF, CONVERSATIONAL analysis in the reasoning field:
-1. What the workflow was SUPPOSED to do vs what it actually did
-2. If conditional routing worked or failed (be honest!) if present in DAG. Be critical of the conditional routing logic if it was supposed to be used.
-3. Suggest specific fixes: which agent needs better instructions, which tools weren't used, or if the routing logic is broken
+1. What the workflow was SUPPOSED to do (based on spec) vs what it actually did
+2. If conditional routing worked or failed (compare intended topology with execution path)
+3. If SLA enforcement worked (verify tool usage against requirements)
+4. Suggest specific fixes if anything didn't work as designed
 
-Be direct - if the workflow logic failed, say so! Don't sugarcoat broken conditional routing as "successful execution"."""
+Be precise - refer to the workflow specification when analyzing whether execution matched the design."""
 
 
 class ExecutionFeedbackCollector:
@@ -380,9 +391,9 @@ def _is_decision_gated_skip(node_result):
 feedback_collector = ExecutionFeedbackCollector()
 
 
-def create_execution_feedback_prompt(summary: WorkflowExecutionSummary) -> str:
+def create_execution_feedback_prompt(summary: WorkflowExecutionSummary, workflow_spec=None) -> str:
     """Helper function to create feedback prompt for WorkflowPlanner."""
-    return ExecutionResultCurator.generate_improvement_prompt(summary)
+    return ExecutionResultCurator.generate_improvement_prompt(summary, workflow_spec)
 
 
 if __name__ == "__main__":

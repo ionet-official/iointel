@@ -199,6 +199,190 @@ class WorkflowSpec(BaseModel):
         from ..workflow_converter import spec_to_yaml
         return spec_to_yaml(self, **kwargs)
     
+    def to_llm_prompt(self) -> str:
+        """
+        Convert to structured, LLM-friendly representation.
+        
+        This is the single source of truth for how workflows are presented to LLMs.
+        Includes topology, SLAs, routing logic, and all critical information.
+        """
+        lines = []
+        
+        # Header with metadata
+        lines.append("📋 WORKFLOW SPECIFICATION")
+        lines.append("=" * 50)
+        lines.append(f"Title: {self.title}")
+        lines.append(f"Description: {self.description}")
+        lines.append(f"ID: {self.id}")
+        lines.append(f"Version: {self.rev}")
+        lines.append("")
+        
+        # Topology overview
+        lines.append("🏗️ TOPOLOGY OVERVIEW")
+        lines.append("-" * 25)
+        lines.append(f"Total Nodes: {len(self.nodes)}")
+        lines.append(f"Total Edges: {len(self.edges)}")
+        
+        # Categorize nodes
+        node_types = {}
+        decision_nodes = []
+        sla_nodes = []
+        
+        for node in self.nodes:
+            node_type = node.type
+            node_types[node_type] = node_types.get(node_type, 0) + 1
+            
+            # Check for decision nodes
+            if self._is_decision_node(node):
+                decision_nodes.append(node.id)
+            
+            # Check for SLA enforcement
+            if self._has_sla_enforcement(node):
+                sla_nodes.append(node.id)
+        
+        for node_type, count in node_types.items():
+            lines.append(f"- {node_type}: {count}")
+        
+        if decision_nodes:
+            lines.append(f"- Decision nodes: {', '.join(decision_nodes)}")
+        
+        if sla_nodes:
+            lines.append(f"- SLA enforced: {', '.join(sla_nodes)}")
+        
+        lines.append("")
+        
+        # Node details with SLAs
+        lines.append("🔍 NODE SPECIFICATIONS")
+        lines.append("-" * 25)
+        
+        for node in self.nodes:
+            lines.extend(self._format_node_details(node))
+            lines.append("")
+        
+        # Edge routing logic
+        lines.append("🔀 ROUTING LOGIC")
+        lines.append("-" * 20)
+        
+        if not self.edges:
+            lines.append("No routing edges defined (linear execution)")
+        else:
+            # Group edges by source
+            edges_by_source = {}
+            for edge in self.edges:
+                if edge.source not in edges_by_source:
+                    edges_by_source[edge.source] = []
+                edges_by_source[edge.source].append(edge)
+            
+            for source_id, edges in edges_by_source.items():
+                source_node = next((n for n in self.nodes if n.id == source_id), None)
+                if source_node:
+                    lines.append(f"From {source_id} ({source_node.label}):")
+                    
+                    for edge in edges:
+                        target_node = next((n for n in self.nodes if n.id == edge.target), None)
+                        condition_str = f" [condition: {edge.data.condition}]" if edge.data.condition else ""
+                        target_label = target_node.label if target_node else edge.target
+                        lines.append(f"  → {edge.target} ({target_label}){condition_str}")
+                    lines.append("")
+        
+        # Expected execution patterns
+        lines.append("⚡ EXPECTED EXECUTION PATTERNS")
+        lines.append("-" * 35)
+        
+        if decision_nodes:
+            lines.append("CONDITIONAL ROUTING EXPECTED:")
+            lines.append("- Only ONE path should execute based on conditions")
+            lines.append("- Other branches should be skipped (not failures)")
+            lines.append("- Efficiency = executed_nodes / nodes_on_chosen_path")
+            lines.append("")
+        
+        if sla_nodes:
+            lines.append("SLA ENFORCEMENT ACTIVE:")
+            for node_id in sla_nodes:
+                node = next((n for n in self.nodes if n.id == node_id), None)
+                if node and hasattr(node.data, 'sla') and node.data.sla:
+                    sla = node.data.sla
+                    lines.append(f"- {node_id}: {self._format_sla_requirements(sla)}")
+            lines.append("")
+        
+        return "\n".join(lines)
+    
+    def _format_node_details(self, node: 'NodeSpec') -> List[str]:
+        """Format detailed node information."""
+        lines = []
+        
+        # Node header with type indicator
+        node_indicator = "🎯" if self._is_decision_node(node) else "🤖" if node.type == "agent" else "🔧"
+        sla_indicator = " [SLA]" if self._has_sla_enforcement(node) else ""
+        lines.append(f"{node_indicator} {node.id} - {node.label} ({node.type}){sla_indicator}")
+        
+        # Instructions/purpose
+        if hasattr(node.data, 'agent_instructions') and node.data.agent_instructions:
+            lines.append(f"   Purpose: {node.data.agent_instructions[:100]}...")
+        elif hasattr(node.data, 'tool_name') and node.data.tool_name:
+            lines.append(f"   Tool: {node.data.tool_name}")
+        
+        # Tools available
+        if hasattr(node.data, 'tools') and node.data.tools:
+            routing_tools = ['conditional_gate', 'threshold_gate', 'conditional_multi_gate']
+            tool_list = []
+            for tool in node.data.tools:
+                if tool in routing_tools:
+                    tool_list.append(f"🔀{tool}")  # Routing tool
+                else:
+                    tool_list.append(f"🔧{tool}")  # Regular tool
+            lines.append(f"   Tools: {', '.join(tool_list)}")
+        
+        # SLA details
+        if hasattr(node.data, 'sla') and node.data.sla:
+            lines.append(f"   SLA: {self._format_sla_requirements(node.data.sla)}")
+        
+        # Configuration
+        if hasattr(node.data, 'config') and node.data.config:
+            lines.append(f"   Config: {node.data.config}")
+        
+        return lines
+    
+    def _is_decision_node(self, node: 'NodeSpec') -> bool:
+        """Check if node is a decision/routing node."""
+        if node.type == "decision":
+            return True
+        
+        if hasattr(node.data, 'tools') and node.data.tools:
+            routing_tools = ['conditional_gate', 'threshold_gate', 'conditional_multi_gate']
+            return any(tool in routing_tools for tool in node.data.tools)
+        
+        if hasattr(node.data, 'tool_name') and node.data.tool_name:
+            routing_tools = ['conditional_gate', 'threshold_gate', 'conditional_multi_gate']
+            return node.data.tool_name in routing_tools
+        
+        return False
+    
+    def _has_sla_enforcement(self, node: 'NodeSpec') -> bool:
+        """Check if node has SLA enforcement."""
+        return (hasattr(node.data, 'sla') and 
+                node.data.sla and 
+                hasattr(node.data.sla, 'enforce_usage') and 
+                node.data.sla.enforce_usage)
+    
+    def _format_sla_requirements(self, sla) -> str:
+        """Format SLA requirements into readable string."""
+        requirements = []
+        
+        if hasattr(sla, 'tool_usage_required') and sla.tool_usage_required:
+            requirements.append("must use tools")
+        
+        if hasattr(sla, 'min_tool_calls') and sla.min_tool_calls:
+            requirements.append(f"min {sla.min_tool_calls} tool calls")
+        
+        if hasattr(sla, 'required_tools') and sla.required_tools:
+            requirements.append(f"required: {', '.join(sla.required_tools)}")
+        
+        if hasattr(sla, 'final_tool_must_be') and sla.final_tool_must_be:
+            requirements.append(f"must end with: {sla.final_tool_must_be}")
+        
+        return "; ".join(requirements) if requirements else "enforce usage"
+    
     def validate_structure(self, tool_catalog: dict = None) -> List[str]:
         """Validate the workflow structure and return any issues."""
         issues = []

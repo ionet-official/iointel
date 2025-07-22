@@ -1054,7 +1054,7 @@ async def execute_workflow_background(
             faux_user = get_or_create_faux_user(session_id)
             interface_conversation_id = faux_user.interface_conversation_id
         
-        await send_execution_feedback_to_planner(execution_summary, interface_conversation_id)
+        await send_execution_feedback_to_planner(execution_summary, interface_conversation_id, workflow_spec)
         
         # Broadcast completion
         await broadcast_execution_update(
@@ -1085,17 +1085,17 @@ async def execute_workflow_background(
         
         # Generate and send feedback to WorkflowPlanner for error analysis
         # TODO: Pass interface_conversation_id for error feedback too
-        await send_execution_feedback_to_planner(execution_summary)
+        await send_execution_feedback_to_planner(execution_summary, None, workflow_spec)
         
         # Broadcast failure
         await broadcast_execution_update(execution_id, "failed", error=error_msg)
 
 
-async def send_execution_feedback_to_planner(execution_summary: WorkflowExecutionSummary, interface_conversation_id: Optional[str] = None):
+async def send_execution_feedback_to_planner(execution_summary: WorkflowExecutionSummary, interface_conversation_id: Optional[str] = None, workflow_spec: Optional[WorkflowSpec] = None):
     """Send execution results back to WorkflowPlanner for analysis and suggestions."""
     try:
         # Generate feedback prompt
-        feedback_prompt = create_execution_feedback_prompt(execution_summary)
+        feedback_prompt = create_execution_feedback_prompt(execution_summary, workflow_spec)
         
         print(f"📤 Sending execution feedback to WorkflowPlanner")
         print(f"   Execution: {execution_summary.execution_id}")

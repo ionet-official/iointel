@@ -1005,11 +1005,12 @@ Available Tools ({len(tool_catalog)} total):
             WorkflowSpec: Refined workflow specification
         """
         refinement_query = f"""
-Current Workflow: {workflow_spec.model_dump_json(indent=2)}
+{workflow_spec.to_llm_prompt()}
 
-User Feedback: {feedback}
+USER FEEDBACK: {feedback}
 
 Please generate an improved WorkflowSpec that addresses the feedback while maintaining the core functionality.
+Reference the topology and SLA requirements above when making changes.
 """
         result = await self.agent.run(
             refinement_query,
