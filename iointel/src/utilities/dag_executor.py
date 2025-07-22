@@ -16,6 +16,7 @@ from dataclasses import dataclass
 
 from ..agent_methods.data_models.workflow_spec import WorkflowSpec, NodeSpec, EdgeSpec
 from .graph_nodes import WorkflowState, TaskNode, make_task_node
+from .node_execution_wrapper import node_execution_wrapper
 from .helpers import make_logger
 
 logger = make_logger(__name__)
@@ -190,7 +191,7 @@ class DAGExecutor:
     
     def _should_execute_node(self, node_id: str, state: WorkflowState) -> bool:
         """
-        Check if a node should be executed based on decision node results.
+        Check if a node should be executed based on execution_mode and dependency status.
         
         Args:
             node_id: Node to check
@@ -199,7 +200,69 @@ class DAGExecutor:
         Returns:
             True if node should execute, False if it should be skipped
         """
-        # Check if any dependency is a decision node that has gated this node
+        node = self.nodes[node_id]
+        execution_mode = getattr(node.node_spec.data, 'execution_mode', 'consolidate')
+        
+        # Categorize dependencies by completion status
+        completed_dependencies = []
+        skipped_dependencies = []
+        pending_dependencies = []
+        
+        for dep_id in node.dependencies:
+            if dep_id in self.skipped_nodes:
+                skipped_dependencies.append(dep_id)
+            elif dep_id in state.results:
+                dep_result = state.results[dep_id]
+                if isinstance(dep_result, dict) and dep_result.get("status") == "skipped":
+                    skipped_dependencies.append(dep_id)
+                else:
+                    completed_dependencies.append(dep_id)
+            else:
+                pending_dependencies.append(dep_id)
+        
+        # Before applying execution mode logic, check for decision-based routing
+        # This handles cases where routing logic determines execution
+        routing_result = self._check_decision_gating(node_id, state)
+        if routing_result is not None:  # None means no routing logic applies
+            return routing_result
+        
+        if execution_mode == "consolidate":
+            # Wait for ALL dependencies - traditional behavior
+            if skipped_dependencies and not completed_dependencies:
+                # All dependencies were skipped
+                logger.info(f"  ⏭️  Node {node_id} skipped - all dependencies skipped in consolidate mode")
+                return False
+            elif pending_dependencies:
+                # Still waiting for some dependencies
+                return False
+            # All non-skipped dependencies are ready
+            return True
+            
+        elif execution_mode == "for_each":
+            # Execute if we have any completed dependencies (don't wait for skipped ones)
+            if completed_dependencies:
+                logger.info(f"  ✅ Node {node_id} executing in for_each mode - completed: {completed_dependencies}, skipped: {skipped_dependencies}")
+                return True
+            elif not pending_dependencies:
+                # No pending, no completed - all were skipped
+                logger.info(f"  ⏭️  Node {node_id} skipped - no completed dependencies in for_each mode")
+                return False
+            # Still waiting for some dependencies
+            return False
+        
+        # Fallback to consolidate behavior
+        return True
+    
+    def _check_decision_gating(self, node_id: str, state: WorkflowState) -> Optional[bool]:
+        """
+        Check if any dependency is a decision node that has gated this node.
+        This is now only used for decision-based routing logic.
+        
+        Returns:
+            True if node should execute based on routing
+            False if node should be skipped based on routing  
+            None if no routing logic applies
+        """
         for dep_id in self.nodes[node_id].dependencies:
             dep_node = self.nodes[dep_id]
             
@@ -292,7 +355,8 @@ class DAGExecutor:
                             logger.info(f"  ⏭️  Node {node_id} skipped - decision result: False")
                             return False
         
-        return True
+        # No routing logic applies
+        return None
     
     async def execute_dag(self, initial_state: WorkflowState) -> WorkflowState:
         """
@@ -306,6 +370,7 @@ class DAGExecutor:
         """
         logger.info("Starting DAG execution")
         state = initial_state
+        self._last_state = state  # Ensure _is_decision_gated_skip always has access to latest state
         
         for batch_idx, batch in enumerate(self.execution_order):
             logger.info(f"Executing batch {batch_idx}: {batch}")
@@ -353,32 +418,50 @@ class DAGExecutor:
         return state
     
     async def _execute_node(self, node_id: str, state: WorkflowState) -> Any:
-        """Execute a single node."""
+        """Execute a single node with SLA enforcement wrapper."""
         dag_node = self.nodes[node_id]
         
-        # Create task node instance with required parameters
-        # The task_node_class is created by make_task_node with class attributes
-        task_node = dag_node.task_node_class(
-            task=dag_node.task_node_class.task,
-            default_text=dag_node.task_node_class.default_text,
-            default_agents=dag_node.task_node_class.default_agents,
-            conversation_id=dag_node.task_node_class.conversation_id
-        )
+        # Extract node data for SLA requirements
+        node_data = dag_node.node_spec.data.model_dump() if hasattr(dag_node.node_spec.data, 'model_dump') else {}
         
-        # Import here to avoid circular imports
-        from pydantic_graph import GraphRunContext, End
+        # Define the actual node execution function
+        async def execute_node_core():
+            # Create task node instance with required parameters
+            task_node = dag_node.task_node_class(
+                task=dag_node.task_node_class.task,
+                default_text=dag_node.task_node_class.default_text,
+                default_agents=dag_node.task_node_class.default_agents,
+                conversation_id=dag_node.task_node_class.conversation_id
+            )
+            
+            # Import here to avoid circular imports
+            from pydantic_graph import GraphRunContext, End
+            
+            # Execute the node
+            context = GraphRunContext(state=state, deps={})
+            result = await task_node.run(context)
+            
+            # Extract result value
+            if isinstance(result, End):
+                return state.results.get(node_id, None)
+            else:
+                return result
         
-        # Execute the node
-        context = GraphRunContext(state=state, deps={})
-        result = await task_node.run(context)
-        
-        # Extract result value
-        if isinstance(result, End):
-            # If it's an End, get the result from the updated state
-            return state.results.get(node_id, None)
-        else:
-            # This shouldn't happen in our current system, but handle it
+        # Wrap execution with SLA enforcement
+        try:
+            result = await node_execution_wrapper.execute_with_sla_enforcement(
+                node_executor=execute_node_core,
+                node_data=node_data,
+                input_data=state.results,  # Available data from previous nodes
+                node_id=node_id,
+                node_type=dag_node.node_spec.type,
+                node_label=dag_node.node_spec.label
+            )
             return result
+        except Exception as e:
+            logger.error(f"Node {node_id} execution failed with SLA wrapper: {e}")
+            # Fall back to direct execution for compatibility
+            return await execute_node_core()
     
     async def _execute_batch_parallel(self, batch: List[str], state: WorkflowState) -> Dict[str, Any]:
         """Execute a batch of nodes in parallel."""
@@ -508,20 +591,37 @@ class DAGExecutor:
     def get_execution_statistics(self) -> Dict[str, Any]:
         """
         Get execution statistics including skipped nodes.
-        
         Returns:
             Dict with execution statistics
         """
         total_nodes = len(self.nodes)
+        # Count nodes skipped due to decision gating
+        decision_gated_skips = [nid for nid in self.skipped_nodes if self._is_decision_gated_skip(nid)]
+        num_decision_gated_skips = len(decision_gated_skips)
+        effective_total_nodes = total_nodes - num_decision_gated_skips
         executed_nodes = total_nodes - len(self.skipped_nodes)
-        
+        # Only count as inefficient those skipped for other reasons
+        efficiency = (executed_nodes / effective_total_nodes) if effective_total_nodes > 0 else 1.0
         return {
             "total_nodes": total_nodes,
             "executed_nodes": executed_nodes,
             "skipped_nodes": len(self.skipped_nodes),
             "skipped_node_ids": list(self.skipped_nodes),
-            "execution_efficiency": f"{executed_nodes}/{total_nodes} ({100*executed_nodes/total_nodes:.1f}%)" if total_nodes > 0 else "0/0 (0%)"
+            "decision_gated_skips": decision_gated_skips,
+            "execution_efficiency": f"{executed_nodes}/{effective_total_nodes} ({100*efficiency:.1f}%)" if effective_total_nodes > 0 else "N/A (all skips decision-gated)"
         }
+
+    def _is_decision_gated_skip(self, node_id: str) -> bool:
+        # Returns True if the node was skipped due to decision gating
+        # Check the state.results for this node if available
+        # For now, check if the node's result has status 'skipped' and reason 'decision_gated'
+        # This method may need to be passed state if not available as attribute
+        # We'll assume state is available as self._last_state (set in execute_dag)
+        if hasattr(self, '_last_state') and self._last_state:
+            result = self._last_state.results.get(node_id)
+            if isinstance(result, dict):
+                return result.get("status") == "skipped" and result.get("reason") == "decision_gated"
+        return False
 
 
 def create_dag_executor_from_spec(
