@@ -25,14 +25,24 @@ from iointel.src.agent_methods.data_models.workflow_spec import (
 from iointel.src.utilities.dag_executor import DAGExecutor
 from iointel.src.utilities.graph_nodes import WorkflowState
 from iointel.src.agent_methods.data_models.datamodels import AgentParams
+from iointel.src.utilities.io_logger import get_component_logger
 
 # Import tools to register them
+from iointel.src.agent_methods.tools.user_input import prompt_tool
+from iointel.src.agent_methods.tools import conditional_gate
+
+# Create beautiful IOLogger for test output
+test_logger = get_component_logger("ROUTING_TEST")
 
 async def test_positive_routing():
     """Test that positive routing works correctly."""
     
-    print("🧪 TESTING POSITIVE SENTIMENT ROUTING")
-    print("=" * 50)
+    test_logger.info("🧪 TESTING POSITIVE SENTIMENT ROUTING", data={
+        "test_type": "positive_sentiment_routing",
+        "description": "Testing conditional routing with positive sentiment input",
+        "expected_flow": ["data_input", "decision_agent", "positive_agent", "email_agent"],
+        "skipped_nodes": ["negative_agent"]
+    })
     
     # Create a workflow that should route to positive
     workflow = WorkflowSpec(
@@ -189,10 +199,12 @@ async def test_positive_routing():
         conversation_id="test_positive_routing"
     )
     
-    # Show execution plan
-    print("📋 Execution Plan:")
-    for i, batch in enumerate(executor.execution_order):
-        print(f"  Batch {i}: {batch}")
+    # Show execution plan with beautiful logging
+    test_logger.info("📋 DAG Execution Plan Generated", data={
+        "total_batches": len(executor.execution_order),
+        "execution_batches": {f"batch_{i}": batch for i, batch in enumerate(executor.execution_order)},
+        "parallelizable_nodes": sum(len(batch) > 1 for batch in executor.execution_order)
+    })
     
     # Execute workflow
     initial_state = WorkflowState(
@@ -202,59 +214,91 @@ async def test_positive_routing():
     )
     
     try:
-        print("\n🚀 Executing workflow...")
+        test_logger.info("🚀 Starting workflow execution", data={
+            "initial_state": "test_positive_routing",
+            "input_message": "buy 1000 shares of TSLA now, great opportunity!",
+            "expected_routing": "positive"
+        })
         final_state = await executor.execute_dag(initial_state)
         
-        print("\n📊 EXECUTION RESULTS:")
+        # Analyze execution results with beautiful logging
+        execution_results = {}
         for node_id, result in final_state.results.items():
             if isinstance(result, dict) and "status" in result:
-                status = result["status"]
-                reason = result.get("reason", "")
-                print(f"  {node_id}: {status} {f'({reason})' if reason else ''}")
+                execution_results[node_id] = {
+                    "status": result["status"],
+                    "reason": result.get("reason", ""),
+                    "executed": result["status"] != "skipped"
+                }
             else:
-                print(f"  {node_id}: executed successfully")
+                execution_results[node_id] = {
+                    "status": "completed",
+                    "reason": "",
+                    "executed": True
+                }
         
-        # Check routing behavior
-        print("\n🔍 POSITIVE ROUTING ANALYSIS:")
+        test_logger.success("📊 Workflow execution completed", data={
+            "execution_results": execution_results,
+            "total_nodes": len(final_state.results),
+            "executed_nodes": sum(1 for r in execution_results.values() if r["executed"]),
+            "skipped_nodes": sum(1 for r in execution_results.values() if not r["executed"])
+        })
         
-        # Decision agent should route to positive
+        # Analyze routing behavior with detailed logging
+        routing_analysis = {"decision_route": "unknown", "gate_confidence": 0.0, "audit_trail": {}}
+        
         if "decision_agent" in final_state.results:
             decision_result = final_state.results["decision_agent"]
             if isinstance(decision_result, dict) and "tool_usage_results" in decision_result:
                 tool_usage = decision_result["tool_usage_results"]
                 if tool_usage:
                     gate_result = tool_usage[0].tool_result
-                    routed_to = getattr(gate_result, 'routed_to', 'unknown')
-                    print(f"  ✅ Decision routed to: {routed_to}")
+                    routing_analysis.update({
+                        "decision_route": getattr(gate_result, 'routed_to', 'unknown'),
+                        "gate_confidence": getattr(gate_result, 'confidence', 0.0),
+                        "decision_reason": getattr(gate_result, 'decision_reason', ''),
+                        "audit_trail": getattr(gate_result, 'audit_trail', {})
+                    })
         
-        # Check execution status
+        # Validate routing behavior
         positive_executed = "positive_agent" in final_state.results and final_state.results["positive_agent"].get("status") != "skipped"
         negative_skipped = (final_state.results.get("negative_agent", {}).get("status") == "skipped")
         email_executed = "email_agent" in final_state.results and final_state.results["email_agent"].get("status") != "skipped"
         
-        print(f"  ✅ positive_agent executed: {positive_executed}")
-        print(f"  ✅ negative_agent skipped: {negative_skipped}")
-        print(f"  🎯 email_agent executed: {email_executed}")
+        routing_validation = {
+            "positive_agent_executed": positive_executed,
+            "negative_agent_skipped": negative_skipped,
+            "email_agent_executed": email_executed,
+            "routing_correct": positive_executed and negative_skipped and email_executed
+        }
         
-        if positive_executed and negative_skipped and email_executed:
-            print("\n🎉 POSITIVE ROUTING WORKING CORRECTLY!")
-            print("   positive_agent executed → negative_agent skipped → email_agent got one input")
-        else:
-            print("\n❌ UNEXPECTED ROUTING BEHAVIOR:")
-            print(f"   positive_executed: {positive_executed}")
-            print(f"   negative_skipped: {negative_skipped}")
-            print(f"   email_executed: {email_executed}")
+        test_logger.info("🔍 Routing behavior analysis", data={
+            **routing_analysis,
+            "validation_results": routing_validation
+        })
         
-        # Show execution statistics
+        # Final test results
         stats = executor.get_execution_statistics()
-        print("\n📈 EXECUTION STATISTICS:")
-        print(f"  Total nodes: {stats['total_nodes']}")
-        print(f"  Executed: {stats['executed_nodes']}")
-        print(f"  Skipped: {stats['skipped_nodes']}")
-        print(f"  Efficiency: {stats['execution_efficiency']}")
+        if routing_validation["routing_correct"]:
+            test_logger.success("🎉 POSITIVE ROUTING TEST PASSED", data={
+                "test_result": "SUCCESS",
+                "flow_validation": "positive_agent executed → negative_agent skipped → email_agent processed one input",
+                "execution_stats": stats,
+                "routing_efficiency": f"{stats['executed_nodes']}/{stats['total_nodes']} nodes executed"
+            })
+        else:
+            test_logger.error("❌ POSITIVE ROUTING TEST FAILED", data={
+                "test_result": "FAILURE",
+                "validation_failures": routing_validation,
+                "execution_stats": stats
+            })
         
     except Exception as e:
-        print(f"❌ Execution failed: {e}")
+        test_logger.critical("❌ Test execution failed", data={
+            "error_type": type(e).__name__,
+            "error_message": str(e),
+            "test_phase": "workflow_execution"
+        })
         import traceback
         traceback.print_exc()
 

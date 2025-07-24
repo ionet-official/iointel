@@ -23,6 +23,8 @@ from iointel.src.utilities.graph_nodes import WorkflowState
 from iointel.src.agent_methods.data_models.datamodels import AgentParams
 
 # Import tools to register them
+from iointel.src.agent_methods.tools.user_input import prompt_tool
+from iointel.src.agent_methods.tools import conditional_gate
 
 async def test_negative_routing():
     """Test that negative routing works correctly."""
