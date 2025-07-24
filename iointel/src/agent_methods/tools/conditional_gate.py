@@ -181,6 +181,7 @@ class ConditionalGateConfig(BaseModel):
 class GateResult(BaseModel):
     """Result from conditional gate evaluation. Will match the route name if the condition is met."""
     routed_to: str = Field(..., description="Route name for DAG executor")
+    route_index: int = Field(..., description="Route index (0, 1, 2...) for DAG executor matching")
     action: RouteActionLiteral = Field(..., description="Action taken: 'continue', 'terminate', or 'branch'")
     matched_route: Optional[str] = None
     evaluated_conditions: List[Dict[str, Any]] = Field(default_factory=list)
@@ -325,10 +326,13 @@ class ConditionalGateBase:
                 data = json.loads(data)
             except json.JSONDecodeError as e:
                 return None, None, {
-                    "routed_to": [],
-                    "matched_routes": [],
+                    "routed_to": "error",
+                    "route_index": -999,
+                    "action": "terminate", 
+                    "matched_route": None,
                     "decision_reason": f"Invalid JSON data: {e}",
-                    "confidence": 0.0
+                    "confidence": 0.0,
+                    "audit_trail": {}
                 }
         
         # Parse and validate router config
@@ -337,31 +341,35 @@ class ConditionalGateBase:
                 router_config = RouterConfig.model_validate(router_config)
             except Exception as e:
                 return None, None, {
-                    "routed_to": [],
-                    "matched_routes": [],
+                    "routed_to": "error",
+                    "route_index": -999,
+                    "action": "terminate",
+                    "matched_route": None,
                     "decision_reason": f"Invalid router configuration: {e}",
-                    "confidence": 0.0
+                    "confidence": 0.0,
+                    "audit_trail": {}
                 }
         
         return data, router_config, None
     
     @staticmethod
-    def _evaluate_all_conditions(data: Dict[str, Any], router_config: RouterConfig) -> tuple[List[str], List[str], Dict[str, Any]]:
+    def _evaluate_all_conditions(data: Dict[str, Any], router_config: RouterConfig) -> tuple[List[str], List[str], List[int], Dict[str, Any]]:
         """
-        Evaluate all conditions and return matched routes, actions, and audit trail.
+        Evaluate all conditions and return matched routes, actions, indexes, and audit trail.
         
         Returns:
-            Tuple of (matched_routes, matched_actions, audit_trail)
+            Tuple of (matched_routes, matched_actions, matched_indexes, audit_trail)
         """
         matched_routes = []
         matched_actions = []
+        matched_indexes = []
         audit_trail = {
             "input_data": {"keys": list(data.keys())},
             "evaluated_conditions": []
         }
         
         # Evaluate ALL conditions and collect matches
-        for condition in router_config.conditions:
+        for index, condition in enumerate(router_config.conditions):
             result, reason = ConditionalGateBase._evaluate_simple_condition(data, condition)
             
             audit_trail["evaluated_conditions"].append({
@@ -369,15 +377,17 @@ class ConditionalGateBase:
                 "operator": condition.operator,
                 "value": condition.value,
                 "result": result,
-                "reason": reason
+                "reason": reason,
+                "route_index": index
             })
             
             # If condition matches, add to matched routes
             if result:
                 matched_routes.append(condition.route)
                 matched_actions.append(condition.action)
+                matched_indexes.append(index)
         
-        return matched_routes, matched_actions, audit_trail
+        return matched_routes, matched_actions, matched_indexes, audit_trail
 
 
 def evaluate_condition(data: Dict[str, Any], rule: ConditionRule) -> tuple[bool, str]:
@@ -482,25 +492,27 @@ def conditional_gate(
         return GateResult(**error_result)
     
     # Get evaluation results
-    matched_routes, matched_actions, audit_trail = ConditionalGateBase._evaluate_all_conditions(data, router_config)
+    matched_routes, matched_actions, matched_indexes, audit_trail = ConditionalGateBase._evaluate_all_conditions(data, router_config)
     
     # Return first match (single route behavior)
     if matched_routes:
         return GateResult(
             routed_to=matched_routes[0],
+            route_index=matched_indexes[0],
             action=matched_actions[0],
             matched_route=matched_routes[0],
-            decision_reason=f"Matched condition: {matched_routes[0]}",
+            decision_reason=f"Matched condition: {matched_routes[0]} (index {matched_indexes[0]})",
             confidence=1.0,
             audit_trail=audit_trail
         )
     
-    # No conditions matched - use default
+    # No conditions matched - use default (use -1 to indicate default route)
     return GateResult(
         routed_to=router_config.default_route,
+        route_index=-1,
         action=router_config.default_action,
         matched_route=None,
-        decision_reason=f"No conditions matched, using default '{router_config.default_route}'",
+        decision_reason=f"No conditions matched, using default '{router_config.default_route}' (index -1)",
         confidence=1.0,
         audit_trail=audit_trail
     )

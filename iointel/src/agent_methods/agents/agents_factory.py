@@ -53,9 +53,8 @@ def create_agent(
         elif isinstance(tool, dict) and 'name' in tool:
             tool_names.append(tool['name'])
     
-    # Determine effective SLA requirements from AgentParams
-    effective_sla = params.sla_requirements
-    # If not set, fallback to catalog/classifier (None means use default logic in inject_pre_prompts)
+    # AgentParams no longer has sla_requirements - use None to let inject_pre_prompts handle it
+    effective_sla = None
     
     # Apply pre-prompt injection based on agent type classification and SLA
     enhanced_instructions, classification = inject_pre_prompts(

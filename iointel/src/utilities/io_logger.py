@@ -208,6 +208,71 @@ system_logger = IOLogger("SYSTEM")
 structured_logger = IOLogger("STRUCTURED", structured=True)
 
 
+# ===== PROMPT LOGGING SYSTEM =====
+# Global prompt history for debugging and analysis
+prompt_history: list[Dict[str, Any]] = []
+
+def log_prompt(
+    prompt_type: str, 
+    prompt: str, 
+    response: Optional[str] = None, 
+    metadata: Optional[Dict[str, Any]] = None
+) -> str:
+    """
+    Log a prompt for debugging purposes.
+    
+    Args:
+        prompt_type: Type of prompt (workflow_generation, agent_instruction, etc.)
+        prompt: The actual prompt sent to the LLM
+        response: The response from the LLM (optional)
+        metadata: Additional metadata about the prompt
+        
+    Returns:
+        Unique ID for the logged prompt
+    """
+    import uuid
+    
+    prompt_entry = {
+        "timestamp": datetime.now().isoformat(),
+        "type": prompt_type,
+        "prompt": prompt,
+        "response": response,
+        "metadata": metadata or {},
+        "id": str(uuid.uuid4())
+    }
+    
+    prompt_history.append(prompt_entry)
+    
+    # Log to console with cyberpunk styling
+    agent_logger.info(f"🤖 Logged {prompt_type} prompt", data={
+        "prompt_id": prompt_entry["id"],
+        "prompt_length": len(prompt),
+        "has_response": response is not None,
+        "metadata_keys": list(metadata.keys()) if metadata else []
+    })
+    
+    return prompt_entry["id"]
+
+def get_prompt_history() -> list[Dict[str, Any]]:
+    """Get all logged prompts."""
+    return prompt_history.copy()
+
+def clear_prompt_history() -> int:
+    """Clear all logged prompts and return count of cleared prompts."""
+    global prompt_history
+    count = len(prompt_history)
+    prompt_history.clear()
+    agent_logger.info(f"🧹 Cleared {count} prompts from history")
+    return count
+
+def get_prompt_by_id(prompt_id: str) -> Optional[Dict[str, Any]]:
+    """Get a specific prompt by its ID."""
+    for prompt in prompt_history:
+        if prompt["id"] == prompt_id:
+            return prompt.copy()
+    return None
+
+
 def get_component_logger(component: str) -> IOLogger:
     """Get a logger for a specific component."""
     return IOLogger(component)

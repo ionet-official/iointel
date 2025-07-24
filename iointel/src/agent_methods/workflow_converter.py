@@ -126,12 +126,12 @@ class WorkflowConverter:
         }
         
         # Add node-type specific metadata
-        if node.type == "tool" and node.data.tool_name:
-            task_metadata["tool_name"] = node.data.tool_name
+        if node.type == "data_source" and node.data.source_name:
+            task_metadata["tool_name"] = node.data.source_name  # Keep tool_name for backward compatibility
             
-            # Validate tool exists
-            if node.data.tool_name not in TOOLS_REGISTRY:
-                logger.warning(f"Tool '{node.data.tool_name}' not found in registry")
+            # Validate source exists
+            if node.data.source_name not in TOOLS_REGISTRY:
+                logger.warning(f"Data source '{node.data.source_name}' not found in registry")
         
         elif node.type == "agent" and node.data.agent_instructions:
             task_metadata["agent_instructions"] = node.data.agent_instructions
@@ -274,8 +274,8 @@ class WorkflowConverter:
                 # Fallback to default agents if no instructions
                 return self.default_agents
         
-        # Tool nodes typically don't need agents
-        if node.type == "tool":
+        # Data source nodes typically don't need agents
+        if node.type == "data_source":
             return None
         
         # Workflow calls might need agents for coordination
