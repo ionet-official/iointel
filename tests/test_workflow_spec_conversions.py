@@ -37,13 +37,14 @@ class TestWorkflowSpecConversions:
             title="Complex Multi-Type Workflow",
             description="A comprehensive workflow demonstrating all node types and conversions",
             nodes=[
-                # Tool node
+                # Data source node
                 NodeSpec(
                     id="fetch_weather",
-                    type="tool",
+                    type="agent",
                     label="Fetch Weather Data",
                     data=NodeData(
-                        tool_name="weather_api",
+                    agent_instructions="Use the weather_api tool to complete this task",
+                        tools=["weather_api"],
                         config={
                             "location": "New York",
                             "units": "celsius",
@@ -90,10 +91,11 @@ class TestWorkflowSpecConversions:
                 # Another tool node
                 NodeSpec(
                     id="send_notification",
-                    type="tool",
+                    type="agent",
                     label="Send Weather Alert",
                     data=NodeData(
-                        tool_name="send_email",
+                    agent_instructions="Use the send_email tool to complete this task",
+                        tools=["send_email"],
                         config={
                             "to": "weather-alerts@example.com",
                             "subject": "Weather Update and Recommendations",
@@ -208,7 +210,7 @@ class TestWorkflowSpecConversions:
         # Verify decision node conversion
         temp_check_task = task_map["check_temperature"]
         assert temp_check_task.type == "decision"
-        # Decision nodes are treated as tool nodes in conversion
+        # Decision nodes are treated as data_source nodes in conversion
         assert temp_check_task.task_metadata.get("tool_name") == "number_compare" or temp_check_task.type == "decision"
         assert temp_check_task.task_metadata["config"]["threshold"] == 20
     
@@ -350,9 +352,10 @@ class TestWorkflowSpecConversions:
             nodes=[
                 NodeSpec(
                     id="node1",
-                    type="tool",
+                    type="agent",
                     label="Node 1",
-                    data=NodeData(tool_name="tool1")
+                    data=NodeData(
+                    agent_instructions="Use the tool1 tool to complete this task",tools=["tool1"])
                 )
             ],
             edges=[
@@ -433,7 +436,7 @@ class TestWorkflowSpecConversions:
             nodes=[
                 NodeSpec(
                     id=f"node_{i}",
-                    type="tool" if i % 2 == 0 else "agent",
+                    type="agent" if i % 2 == 0 else "agent",
                     label=f"Node {i}",
                     data=NodeData(
                         tool_name=f"tool_{i}" if i % 2 == 0 else None,
@@ -489,10 +492,11 @@ class TestWorkflowSpecConversionIntegration:
             nodes=[
                 NodeSpec(
                     id="fetch_weather",
-                    type="tool",
+                    type="agent",
                     label="Fetch Weather Data",
                     data=NodeData(
-                        tool_name="weather_api",
+                    agent_instructions="Use the weather_api tool to complete this task",
+                        tools=["weather_api"],
                         config={
                             "location": "New York",
                             "units": "celsius",
@@ -577,7 +581,7 @@ class TestWorkflowSpecConversionIntegration:
                 nodes=[
                     NodeSpec(
                         id=f"node_{i}",
-                        type="tool",
+                        type="agent",
                         label=f"Use {tool}",
                         data=NodeData(
                             tool_name=tool,

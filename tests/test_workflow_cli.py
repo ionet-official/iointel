@@ -32,10 +32,11 @@ def sample_cli_workflow():
         nodes=[
             NodeSpec(
                 id="start_node",
-                type="tool",
+                type="agent",
                 label="Start Process",
                 data=NodeData(
-                    tool_name="data_fetcher",
+                    agent_instructions="Use the data_fetcher tool to complete this task",
+                    tools=["data_fetcher"],
                     config={"source": "database", "limit": 100},
                     ins=[],
                     outs=["data", "status"]
@@ -54,10 +55,11 @@ def sample_cli_workflow():
             ),
             NodeSpec(
                 id="end_node",
-                type="tool",
+                type="agent",
                 label="Store Results",
                 data=NodeData(
-                    tool_name="result_store",
+                    agent_instructions="Use the result_store tool to complete this task",
+                    tools=["result_store"],
                     config={"destination": "s3://results/", "format": "json"},
                     ins=["insights"],
                     outs=["success"]
@@ -125,9 +127,10 @@ class TestWorkflowASCIIRendering:
             nodes=[
                 NodeSpec(
                     id="solo",
-                    type="tool",
+                    type="agent",
                     label="Solo Node",
-                    data=NodeData(tool_name="solo_tool")
+                    data=NodeData(
+                    agent_instructions="Use the solo_tool tool to complete this task",tools=["solo_tool"])
                 )
             ],
             edges=[]
@@ -143,10 +146,10 @@ class TestWorkflowASCIIRendering:
             rev=1,
             title="Branching Workflow",
             nodes=[
-                NodeSpec(id="root", type="tool", label="Root", data=NodeData()),
-                NodeSpec(id="branch1", type="tool", label="Branch 1", data=NodeData()),
-                NodeSpec(id="branch2", type="tool", label="Branch 2", data=NodeData()),
-                NodeSpec(id="merge", type="tool", label="Merge", data=NodeData())
+                NodeSpec(id="root", type="agent", label="Root", data=NodeData()),
+                NodeSpec(id="branch1", type="agent", label="Branch 1", data=NodeData()),
+                NodeSpec(id="branch2", type="agent", label="Branch 2", data=NodeData()),
+                NodeSpec(id="merge", type="agent", label="Merge", data=NodeData())
             ],
             edges=[
                 EdgeSpec(id="e1", source="root", target="branch1"),
@@ -467,7 +470,7 @@ class TestWorkflowCLIUtilities:
                 id="tool-test",
                 rev=1,
                 title="Tool Test",
-                nodes=[NodeSpec(id="t", type="tool", label="Tool", data=NodeData())],
+                nodes=[NodeSpec(id="t", type="agent", label="Tool", data=NodeData())],
                 edges=[]
             ),
             "agent": WorkflowSpec(
@@ -505,7 +508,7 @@ class TestWorkflowCLIUtilities:
             nodes=[
                 NodeSpec(
                     id="configured_node",
-                    type="tool",
+                    type="agent",
                     label="Configured Node",
                     data=NodeData(
                         config={
@@ -533,7 +536,7 @@ class TestWorkflowCLIUtilities:
             nodes=[
                 NodeSpec(
                     id="port_node",
-                    type="tool",
+                    type="agent",
                     label="Port Node",
                     data=NodeData(
                         ins=["input_data", "config"],
@@ -576,7 +579,7 @@ class TestWorkflowCLIEdgeCases:
             nodes=[
                 NodeSpec(
                     id="very_long_node_identifier_that_exceeds_normal_length",
-                    type="tool",
+                    type="agent",
                     label="This is a very long node label that might cause display issues",
                     data=NodeData()
                 )
@@ -598,7 +601,7 @@ class TestWorkflowCLIEdgeCases:
             nodes=[
                 NodeSpec(
                     id="special_node",
-                    type="tool",
+                    type="agent",
                     label="Spéciål Nödé with 中文 and العربية",
                     data=NodeData()
                 )

@@ -37,10 +37,11 @@ def sample_workflow_spec():
         nodes=[
             NodeSpec(
                 id="fetch_data",
-                type="tool",
+                type="agent",
                 label="Fetch Data",
                 data=NodeData(
-                    tool_name="api_client",
+                    agent_instructions="Use the api_client tool to complete this task",
+                    tools=["api_client"],
                     config={"url": "https://api.example.com/data", "timeout": 30},
                     ins=[],
                     outs=["raw_data", "status"]
@@ -59,10 +60,11 @@ def sample_workflow_spec():
             ),
             NodeSpec(
                 id="store_results",
-                type="tool",
+                type="agent",
                 label="Store Results",
                 data=NodeData(
-                    tool_name="database_writer",
+                    agent_instructions="Use the database_writer tool to complete this task",
+                    tools=["database_writer"],
                     config={"table": "results", "batch_size": 100},
                     ins=["processed_data"],
                     outs=["success", "record_count"]
@@ -165,10 +167,11 @@ class TestWorkflowConverter:
         
         node = NodeSpec(
             id="test_tool",
-            type="tool",
+            type="agent",
             label="Test Tool",
             data=NodeData(
-                tool_name="test_tool_name",
+                    agent_instructions="Use the test_tool_name tool to complete this task",
+                tools=["test_tool_name"],
                 config={"param1": "value1"},
                 ins=["input"],
                 outs=["output"]
@@ -261,9 +264,10 @@ class TestWorkflowConverter:
             nodes=[
                 NodeSpec(
                     id="unknown_tool",
-                    type="tool",
+                    type="agent",
                     label="Unknown Tool",
-                    data=NodeData(tool_name="nonexistent_tool")
+                    data=NodeData(
+                    agent_instructions="Use the nonexistent_tool tool to complete this task",tools=["nonexistent_tool"])
                 )
             ],
             edges=[]
@@ -296,18 +300,18 @@ class TestWorkflowConverter:
         assert edge_map["b"][0].source == "a"
 
     def test_get_agents_for_node_tool(self, default_agents):
-        """Test agent assignment for tool nodes."""
+        """Test agent assignment for data_source nodes."""
         converter = WorkflowConverter(default_agents=default_agents)
         
         tool_node = NodeSpec(
             id="tool_node",
-            type="tool",
+            type="agent",
             label="Tool Node",
             data=NodeData()
         )
         
         agents = converter._get_agents_for_node(tool_node)
-        assert agents is None  # Tool nodes don't need agents
+        assert agents is None  # Data source nodes don't need agents
 
     def test_get_agents_for_node_agent(self, default_agents):
         """Test agent assignment for agent nodes."""
@@ -456,9 +460,10 @@ class TestWorkflowConverterIntegration:
             nodes=[
                 NodeSpec(
                     id="tool_node",
-                    type="tool",
+                    type="agent",
                     label="Tool Node",
-                    data=NodeData(tool_name="test_tool")
+                    data=NodeData(
+                    agent_instructions="Use the test_tool tool to complete this task",tools=["test_tool"])
                 ),
                 NodeSpec(
                     id="agent_node",
@@ -498,10 +503,10 @@ class TestWorkflowConverterIntegration:
             rev=1,
             title="Complex Edges Workflow",
             nodes=[
-                NodeSpec(id="node1", type="tool", label="Node 1", data=NodeData()),
-                NodeSpec(id="node2", type="tool", label="Node 2", data=NodeData()),
-                NodeSpec(id="node3", type="tool", label="Node 3", data=NodeData()),
-                NodeSpec(id="node4", type="tool", label="Node 4", data=NodeData())
+                NodeSpec(id="node1", type="agent", label="Node 1", data=NodeData()),
+                NodeSpec(id="node2", type="agent", label="Node 2", data=NodeData()),
+                NodeSpec(id="node3", type="agent", label="Node 3", data=NodeData()),
+                NodeSpec(id="node4", type="agent", label="Node 4", data=NodeData())
             ],
             edges=[
                 EdgeSpec(
@@ -574,7 +579,7 @@ class TestWorkflowConverterErrorHandling:
             nodes=[
                 NodeSpec(
                     id="minimal_node",
-                    type="tool",
+                    type="agent",
                     label="Minimal Node",
                     data=NodeData()  # Using defaults: empty dicts and lists
                 )

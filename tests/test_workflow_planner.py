@@ -24,18 +24,23 @@ env_path = Path(__file__).parent.parent / "creds.env"
 load_dotenv(env_path)
 
 
+# MIGRATED: Using centralized fixtures instead of local ones
+# The tool_catalog fixture is now provided by tests/fixtures/workflow_test_fixtures.py
+# This provides backward compatibility for existing tests
+
+# Keep this for any tests that still reference it directly  
 @pytest.fixture
-def tool_catalog():
-    """Sample tool catalog for testing."""
+def legacy_tool_catalog():
+    """Legacy tool catalog - migrated tests should use mock_tool_catalog or real_tool_catalog."""
     return {
         "weather_api": {
             "name": "weather_api",
-            "description": "Get weather information for a location",
+            "description": "Get weather information for a location", 
             "parameters": {"location": "string", "units": "string"},
             "returns": ["weather_data", "status"]
         },
         "send_email": {
-            "name": "send_email", 
+            "name": "send_email",
             "description": "Send an email message",
             "parameters": {"to": "string", "subject": "string", "body": "string"},
             "returns": ["sent", "delivery_id"]
@@ -47,6 +52,19 @@ def tool_catalog():
             "returns": ["processed_data", "metadata"]
         }
     }
+
+
+@pytest.fixture
+def real_tool_catalog():
+    """Real tool catalog loaded from environment for integration tests."""
+    from iointel.src.utilities.tool_registry_utils import create_tool_catalog
+    from iointel.src.agent_methods.tools.tool_loader import load_tools_from_env
+    
+    # Load tools from environment first (this registers them)
+    load_tools_from_env('creds.env')
+    
+    # Create and return the real tool catalog
+    return create_tool_catalog()
 
 
 @pytest.fixture
@@ -119,26 +137,26 @@ class TestWorkflowPlanner:
         assert WORKFLOW_PLANNER_INSTRUCTIONS is not None
         assert "WorkflowPlanner-GPT" in WORKFLOW_PLANNER_INSTRUCTIONS
         
-        # Check for all node types
-        assert "tool" in WORKFLOW_PLANNER_INSTRUCTIONS
+        # Check for critical node type distinctions
+        assert "data_source" in WORKFLOW_PLANNER_INSTRUCTIONS
         assert "agent" in WORKFLOW_PLANNER_INSTRUCTIONS
         assert "workflow_call" in WORKFLOW_PLANNER_INSTRUCTIONS
         
         # Check for key concepts
         assert "edge" in WORKFLOW_PLANNER_INSTRUCTIONS.lower()
         assert "node" in WORKFLOW_PLANNER_INSTRUCTIONS.lower()
-        assert "data flow" in WORKFLOW_PLANNER_INSTRUCTIONS.lower()
+        assert "user_input" in WORKFLOW_PLANNER_INSTRUCTIONS.lower()
         assert "condition" in WORKFLOW_PLANNER_INSTRUCTIONS.lower()
 
-    @pytest.mark.asyncio
-    async def test_generate_workflow_success(self, tool_catalog):
-        """Test successful workflow generation using real API."""
+    @pytest.mark.asyncio  
+    async def test_generate_workflow_success(self, mock_tool_catalog):
+        """MIGRATED: Test successful workflow generation using centralized fixtures."""
         # Skip if no API key
         if not os.getenv("OPENAI_API_KEY"):
             pytest.skip("No OPENAI_API_KEY available")
             
-        print("\n=== WORKFLOW GENERATION TEST ===")
-        print(f"Tool Catalog: {json.dumps(tool_catalog, indent=2)}")
+        print("\n=== WORKFLOW GENERATION TEST (MIGRATED) ===")
+        print(f"Tool Catalog: {json.dumps(mock_tool_catalog, indent=2)}")
         
         planner = WorkflowPlanner(
             api_key=os.getenv("OPENAI_API_KEY"),
@@ -152,7 +170,7 @@ class TestWorkflowPlanner:
         
         result = await planner.generate_workflow(
             query=query,
-            tool_catalog=tool_catalog
+            tool_catalog=mock_tool_catalog
         )
         
         print("\n=== GENERATED WORKFLOW ===")
@@ -165,8 +183,10 @@ class TestWorkflowPlanner:
         print(f"\nNodes ({len(result.nodes)}):")
         for node in result.nodes:
             print(f"  - {node.id} ({node.type}): {node.label}")
-            if node.data.tool_name:
-                print(f"    Tool: {node.data.tool_name}")
+            if node.type == "data_source" and hasattr(node.data, 'source_name') and node.data.source_name:
+                print(f"    Source: {node.data.source_name}")
+            elif node.type == "agent" and hasattr(node.data, 'tools') and node.data.tools:
+                print(f"    Tools: {node.data.tools}")
             if node.data.config:
                 print(f"    Config: {json.dumps(node.data.config, indent=6)}")
             print(f"    Inputs: {node.data.ins}")
@@ -918,6 +938,200 @@ class TestWorkflowPlannerEdgeCases:
         
         # Validation should be reasonably fast (< 0.1s even for 30 nodes)
         assert validation_time < 0.1, f"Validation took {validation_time}s for {node_count} nodes"
+
+
+@pytest.mark.asyncio
+async def test_stock_agent_data_source_vs_agent_nodes(real_tool_catalog):
+    """
+    Test that 'stock agent' query correctly creates:
+    - data_source node for user input (NOT for API tools)
+    - agent node with stock analysis tools
+    
+    This test verifies the fix for the data_source/agent node confusion issue.
+    """
+    planner = WorkflowPlanner()
+    tool_catalog = real_tool_catalog
+    
+    # Test with simple 'stock agent' query
+    workflow = await planner.generate_workflow(
+        query='stock agent',
+        tool_catalog=tool_catalog
+    )
+    
+    # Verify workflow was created
+    assert workflow is not None
+    assert workflow.title is not None
+    assert len(workflow.nodes) >= 2  # Should have at least user_input and agent
+    
+    # Find the nodes
+    data_source_nodes = [n for n in workflow.nodes if n.type == 'data_source']
+    agent_nodes = [n for n in workflow.nodes if n.type == 'agent']
+    
+    # Verify we have the right node types
+    assert len(data_source_nodes) >= 1, "Should have at least one data_source node for user input"
+    assert len(agent_nodes) >= 1, "Should have at least one agent node for stock analysis"
+    
+    # Verify data_source is only used for user_input or prompt_tool
+    for ds_node in data_source_nodes:
+        assert ds_node.data.source_name in ['user_input', 'prompt_tool'], \
+            f"data_source node should only be user_input or prompt_tool, got: {ds_node.data.source_name}"
+    
+    # Verify agent node has stock analysis tools
+    stock_agent = None
+    for agent_node in agent_nodes:
+        if agent_node.data.tools and any('stock' in tool or 'price' in tool for tool in agent_node.data.tools):
+            stock_agent = agent_node
+            break
+    
+    assert stock_agent is not None, "Should have an agent with stock analysis tools"
+    assert len(stock_agent.data.tools) >= 1, "Stock agent should have tools"
+    
+    # Verify no data_source nodes have API tools like get_current_stock_price
+    for ds_node in data_source_nodes:
+        if hasattr(ds_node.data, 'source_name'):
+            assert 'get_current_stock_price' not in str(ds_node.data.source_name), \
+                "data_source nodes should NOT have API tools like get_current_stock_price"
+    
+    print(f"✅ Test passed!")
+    print(f"Generated workflow: {workflow.title}")
+    print(f"Nodes created:")
+    for node in workflow.nodes:
+        print(f"  - {node.id}: {node.type} ({node.label})")
+        if node.type == 'data_source':
+            print(f"    source_name: {node.data.source_name}")
+        elif node.type == 'agent' and node.data.tools:
+            print(f"    tools: {node.data.tools}")
+
+
+# ==========================================
+# NEW LAYERED TESTS (using centralized system)  
+# ==========================================
+
+class TestWorkflowPlannerAgenticLayer:
+    """MIGRATED: Agentic layer tests using centralized test repository."""
+    
+    @pytest.mark.asyncio
+    async def test_stock_agent_generation_centralized(self, stock_analysis_prompts, real_tool_catalog):
+        """
+        MIGRATED: Test stock agent generation using centralized test cases.
+        This replaces the old hardcoded test with repository-driven test data.
+        """
+        planner = WorkflowPlanner()
+        
+        for prompt in stock_analysis_prompts:
+            if not prompt:
+                continue
+                
+            print(f"\n=== Testing prompt: '{prompt}' ===")
+            workflow = await planner.generate_workflow(
+                query=prompt,
+                tool_catalog=real_tool_catalog
+            )
+            
+            # Verify the fix for data_source vs agent node confusion
+            assert workflow is not None
+            assert len(workflow.nodes) >= 2  # Should have user input + agent
+            
+            # Check node types
+            data_source_nodes = [n for n in workflow.nodes if n.type == 'data_source']
+            agent_nodes = [n for n in workflow.nodes if n.type == 'agent']
+            
+            assert len(data_source_nodes) >= 1, "Should have data_source node for user input"
+            assert len(agent_nodes) >= 1, "Should have agent node for stock analysis"
+            
+            # Critical: Verify data_source nodes are ONLY for user_input/prompt_tool
+            for node in data_source_nodes:
+                assert hasattr(node.data, 'source_name'), f"data_source node {node.id} missing source_name"
+                assert node.data.source_name in ['user_input', 'prompt_tool'], \
+                    f"data_source node {node.id} has invalid source_name: {node.data.source_name}"
+            
+            # Critical: Verify agent nodes have stock-related tools
+            found_stock_tools = False
+            for node in agent_nodes:
+                if hasattr(node.data, 'tools') and node.data.tools:
+                    stock_tools = [t for t in node.data.tools 
+                                  if any(keyword in t.lower() for keyword in ['stock', 'finance', 'yfinance', 'price'])]
+                    if stock_tools:
+                        found_stock_tools = True
+                        print(f"✅ Agent {node.id} has stock tools: {stock_tools}")
+            
+            assert found_stock_tools, f"No agent nodes found with stock-related tools. Agent tools: {[getattr(n.data, 'tools', []) for n in agent_nodes]}"
+            
+            print(f"✅ Test passed for '{prompt}': {len(data_source_nodes)} data_source nodes, {len(agent_nodes)} agent nodes")
+
+    @pytest.mark.layer("agentic")
+    @pytest.mark.category("stock_analysis")
+    @pytest.mark.asyncio
+    async def test_smart_stock_generation(self, smart_test_data, real_tool_catalog):
+        """Example of using smart fixture dispatcher for agentic tests."""
+        generation_cases = smart_test_data.get('generation_cases', [])
+        
+        planner = WorkflowPlanner()
+        
+        for test_case in generation_cases:
+            if test_case.user_prompt and 'stock' in test_case.user_prompt.lower():
+                workflow = await planner.generate_workflow(
+                    query=test_case.user_prompt,
+                    tool_catalog=test_case.tool_catalog or real_tool_catalog
+                )
+                
+                # Verify expected results if specified
+                if test_case.expected_result:
+                    expected = test_case.expected_result
+                    if expected.get('has_data_source_nodes'):
+                        data_source_nodes = [n for n in workflow.nodes if n.type == 'data_source']
+                        assert len(data_source_nodes) > 0
+                    
+                    if expected.get('has_agent_nodes'):
+                        agent_nodes = [n for n in workflow.nodes if n.type == 'agent']
+                        assert len(agent_nodes) > 0
+
+
+class TestWorkflowPlannerLogicalLayer:
+    """MIGRATED: Logical layer tests for pure workflow validation."""
+    
+    def test_workflow_validation_centralized(self, validation_test_cases, mock_tool_catalog):
+        """Test workflow validation using centralized test cases."""
+        from iointel.src.agent_methods.data_models.workflow_spec import WorkflowSpec
+        
+        for test_case in validation_test_cases:
+            if not test_case.workflow_spec:
+                continue
+                
+            try:
+                workflow = WorkflowSpec(**test_case.workflow_spec)
+                issues = workflow.validate_structure(mock_tool_catalog)
+                
+                if test_case.should_pass:
+                    assert len(issues) == 0, f"Expected test '{test_case.name}' to pass but got issues: {issues}"
+                else:
+                    assert len(issues) > 0, f"Expected test '{test_case.name}' to fail but got no issues"
+                    
+                    # Check expected errors if specified
+                    if test_case.expected_errors:
+                        for expected_error in test_case.expected_errors:
+                            assert any(expected_error in issue for issue in issues), \
+                                f"Expected error '{expected_error}' not found in {issues}"
+            
+            except Exception as e:
+                if test_case.should_pass:
+                    pytest.fail(f"Expected test '{test_case.name}' to pass but got exception: {e}")
+
+    def test_conditional_routing_centralized(self, conditional_routing_cases):
+        """Test conditional routing using centralized test cases."""
+        for test_case in conditional_routing_cases:
+            workflow_spec = test_case.workflow_spec
+            assert workflow_spec is not None
+            assert "nodes" in workflow_spec
+            assert "edges" in workflow_spec
+            
+            # Test routing logic
+            edges = workflow_spec["edges"]
+            for edge in edges:
+                if "data" in edge and "route_index" in edge["data"]:
+                    # New route index system should be integers
+                    assert isinstance(edge["data"]["route_index"], int)
+                    print(f"✅ Edge {edge.get('id', 'unknown')} uses route_index: {edge['data']['route_index']}")
 
 
 if __name__ == "__main__":
