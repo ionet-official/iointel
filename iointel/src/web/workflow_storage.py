@@ -112,12 +112,53 @@ class WorkflowStorage:
             try:
                 content = json_file.read_text(encoding='utf-8')
                 workflow_data = json.loads(content)
+                
+                # Migrate old format on-the-fly
+                workflow_data = self._migrate_legacy_workflow(workflow_data)
+                
                 return WorkflowSpec.model_validate(workflow_data)
             except Exception as e:
                 print(f"❌ Error loading workflow {workflow_id}: {e}")
                 continue
         
         return None
+    
+    def _migrate_legacy_workflow(self, workflow_data: dict) -> dict:
+        """
+        Migrate legacy workflow format on-the-fly.
+        
+        Args:
+            workflow_data: Raw workflow data dict
+            
+        Returns:
+            Migrated workflow data dict
+        """
+        # Data sources that should become data_source nodes
+        DATA_SOURCES = {'user_input', 'prompt_tool'}
+        
+        if 'nodes' in workflow_data:
+            for node in workflow_data['nodes']:
+                if node.get('type') == 'tool':
+                    tool_name = node.get('data', {}).get('tool_name')
+                    
+                    if tool_name in DATA_SOURCES:
+                        # Convert to data_source
+                        node['type'] = 'data_source'
+                        if 'tool_name' in node['data']:
+                            node['data']['source_name'] = node['data'].pop('tool_name')
+                    else:
+                        # Convert to agent with tools
+                        node['type'] = 'agent'
+                        
+                        # Add agent_instructions if missing
+                        if 'agent_instructions' not in node['data']:
+                            node['data']['agent_instructions'] = f"Use the {tool_name} tool to complete this task"
+                        
+                        # Convert tool_name to tools array
+                        if 'tool_name' in node['data']:
+                            node['data']['tools'] = [node['data'].pop('tool_name')]
+        
+        return workflow_data
     
     def list_workflows(self, tags: Optional[List[str]] = None) -> List[Dict[str, Any]]:
         """

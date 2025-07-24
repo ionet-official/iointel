@@ -289,6 +289,7 @@
             overflow-y: auto;
             position: relative;
             flex: 1;
+            max-height: calc(100vh - 200px); /* Ensure scrolling works */
             scrollbar-width: thin;
             scrollbar-color: rgba(100, 255, 100, 0.5) transparent;
         }
@@ -2945,11 +2946,11 @@
             <!-- Session Controls -->
             <div class="session-controls">
                 <div class="session-info">
-                    <span id="sessionStatus">🔄 Single-serve mode</span>
+                    <span id="sessionStatus">💬 <strong>Chat Mode</strong> <span style="color: #64ff64; font-size: 0.9em;">(Memory: ON)</span></span>
                 </div>
                 <div class="session-buttons">
-                    <button id="chatModeToggle" class="session-btn" title="Toggle between chat mode (persistent conversation) and single-serve mode">
-                        💬 Enable Chat Mode
+                    <button id="chatModeToggle" class="session-btn active" title="Toggle between chat mode (persistent conversation) and single-serve mode">
+                        🔄 Disable Memory
                     </button>
                     <button id="resetSession" class="session-btn secondary" title="Start a new conversation session">
                         🔄 New Session
@@ -3033,6 +3034,9 @@
                         <button class="tab-button" onclick="switchTab('logs')">
                             📋 Execution Logs
                         </button>
+                        <button class="tab-button" onclick="switchTab('prompts')">
+                            🤖 Prompts
+                        </button>
                     </div>
                     
                     <!-- Results Tab Content - FIXED LAYOUT -->
@@ -3059,6 +3063,23 @@
                             <div class="execution-logs" id="executionLogs">
                                 <div style="text-align: center; color: rgba(255, 130, 40, 0.5); padding: 2rem;">
                                     No execution logs available yet. Run a workflow to see detailed logs.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Prompts Tab -->
+                    <div id="promptsTab" class="tab-content">
+                        <div class="bottom-section">
+                            <div class="prompts-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; padding: 0 1rem;">
+                                <h3 style="color: #ff6b35; margin: 0;">🤖 Prompt History</h3>
+                                <button class="button button-danger" onclick="clearPrompts()" style="font-size: 0.8rem; padding: 0.4rem 0.8rem;">
+                                    Clear History
+                                </button>
+                            </div>
+                            <div class="prompts-container" id="promptsContainer" style="max-height: 400px; overflow-y: auto; padding: 0 1rem;">
+                                <div style="text-align: center; color: rgba(255, 130, 40, 0.5); padding: 2rem;">
+                                    No prompts logged yet. Generate a workflow to see prompt history.
                                 </div>
                             </div>
                         </div>
@@ -6264,6 +6285,130 @@
             } else if (tabName === 'logs') {
                 document.querySelector('.tab-button:nth-child(2)').classList.add('active');
                 document.getElementById('logsTab').classList.add('active');
+            } else if (tabName === 'prompts') {
+                document.querySelector('.tab-button:nth-child(3)').classList.add('active');
+                document.getElementById('promptsTab').classList.add('active');
+                loadPrompts(); // Load prompts when tab is activated
+            }
+        }
+        
+        // Load prompts from the server
+        async function loadPrompts() {
+            try {
+                const response = await fetch('/api/prompts');
+                const data = await response.json();
+                const prompts = data.prompts || []; // Extract prompts array from response
+                
+                const container = document.getElementById('promptsContainer');
+                
+                if (!prompts || prompts.length === 0) {
+                    container.innerHTML = `
+                        <div style="text-align: center; color: rgba(255, 130, 40, 0.5); padding: 2rem;">
+                            No prompts logged yet. Generate a workflow to see prompt history.
+                        </div>
+                    `;
+                    return;
+                }
+                
+                // Sort prompts by timestamp (newest first)
+                prompts.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+                
+                container.innerHTML = prompts.map(prompt => `
+                    <div class="prompt-item" style="
+                        background: rgba(255, 255, 255, 0.05); 
+                        border: 1px solid rgba(255, 130, 40, 0.2); 
+                        border-radius: 8px; 
+                        padding: 1rem; 
+                        margin-bottom: 1rem; 
+                        font-family: 'Courier New', monospace;
+                    ">
+                        <div class="prompt-header" style="
+                            display: flex; 
+                            justify-content: space-between; 
+                            align-items: center; 
+                            margin-bottom: 0.5rem;
+                        ">
+                            <span class="prompt-type" style="
+                                background: rgba(255, 130, 40, 0.2); 
+                                color: #ff6b35; 
+                                padding: 0.2rem 0.5rem; 
+                                border-radius: 4px; 
+                                font-size: 0.8rem; 
+                                font-weight: bold;
+                            ">${prompt.type}</span>
+                            <span class="prompt-timestamp" style="
+                                color: rgba(255, 130, 40, 0.7); 
+                                font-size: 0.8rem;
+                            ">${new Date(prompt.timestamp).toLocaleString()}</span>
+                        </div>
+                        
+                        <div class="prompt-content" style="
+                            background: rgba(0, 0, 0, 0.3); 
+                            padding: 0.75rem; 
+                            border-radius: 4px; 
+                            margin-bottom: 0.5rem; 
+                            max-height: 200px; 
+                            overflow-y: auto;
+                            white-space: pre-wrap;
+                            font-size: 0.85rem;
+                            line-height: 1.4;
+                        ">${prompt.prompt}</div>
+                        
+                        ${prompt.response ? `
+                            <div class="prompt-response" style="
+                                background: rgba(0, 100, 0, 0.1); 
+                                border-left: 3px solid #4caf50; 
+                                padding: 0.75rem; 
+                                margin-top: 0.5rem; 
+                                border-radius: 0 4px 4px 0;
+                                max-height: 150px; 
+                                overflow-y: auto;
+                                white-space: pre-wrap;
+                                font-size: 0.85rem;
+                                line-height: 1.4;
+                            ">${prompt.response}</div>
+                        ` : ''}
+                        
+                        ${prompt.metadata && Object.keys(prompt.metadata).length > 0 ? `
+                            <div class="prompt-metadata" style="
+                                color: rgba(255, 130, 40, 0.6); 
+                                font-size: 0.75rem; 
+                                margin-top: 0.5rem; 
+                                padding-top: 0.5rem; 
+                                border-top: 1px solid rgba(255, 130, 40, 0.1);
+                            ">
+                                Metadata: ${JSON.stringify(prompt.metadata, null, 2)}
+                            </div>
+                        ` : ''}
+                    </div>
+                `).join('');
+                
+            } catch (error) {
+                console.error('Failed to load prompts:', error);
+                document.getElementById('promptsContainer').innerHTML = `
+                    <div style="text-align: center; color: #ff6b6b; padding: 2rem;">
+                        Failed to load prompt history. Error: ${error.message}
+                    </div>
+                `;
+            }
+        }
+        
+        // Clear all prompts
+        async function clearPrompts() {
+            if (!confirm('Are you sure you want to clear all prompt history?')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/prompts/clear', { method: 'POST' });
+                if (response.ok) {
+                    loadPrompts(); // Reload to show empty state
+                } else {
+                    alert('Failed to clear prompts');
+                }
+            } catch (error) {
+                console.error('Failed to clear prompts:', error);
+                alert('Failed to clear prompts: ' + error.message);
             }
         }
         
@@ -6531,7 +6676,7 @@
         // Session Management
         let currentSession = {
             session_id: null,
-            chat_mode: false,
+            chat_mode: true,  // Default to chat mode enabled
             conversation_id: null
         };
 
@@ -6604,12 +6749,12 @@
             const resetSession = document.getElementById('resetSession');
             
             if (currentSession.chat_mode) {
-                sessionStatus.textContent = '💬 Chat mode (conversation memory active)';
-                chatModeToggle.textContent = '🔄 Disable Chat Mode';
+                sessionStatus.innerHTML = `💬 <strong>Chat Mode</strong> <span style="color: #64ff64; font-size: 0.9em;">(Memory: ON)</span> | Session: ${currentSession.session_id ? currentSession.session_id.slice(-8) : 'New'}`;
+                chatModeToggle.textContent = '🔄 Disable Memory';
                 chatModeToggle.classList.add('active');
             } else {
-                sessionStatus.textContent = '🔄 Single-serve mode (no conversation memory)';
-                chatModeToggle.textContent = '💬 Enable Chat Mode';
+                sessionStatus.innerHTML = `🔄 <strong>Single Mode</strong> <span style="color: #ff6464; font-size: 0.9em;">(Memory: OFF)</span> | No Session`;
+                chatModeToggle.textContent = '💬 Enable Memory';
                 chatModeToggle.classList.remove('active');
             }
             
