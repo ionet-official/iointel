@@ -45,7 +45,8 @@ from iointel.src.agent_methods.tools.collection_manager import search_collection
 
 
 # Register executors for web interface
-@register_custom_task("tool")
+@register_custom_task("data_source")
+@register_custom_task("tool")  # Backward compatibility
 async def web_tool_executor(task_metadata, objective, agents, execution_metadata):
     """Tool executor for web interface with real-time updates, delegates to backend executor."""
     execution_id = execution_metadata.get("execution_id")
@@ -72,74 +73,10 @@ async def web_tool_executor(task_metadata, objective, agents, execution_metadata
                 node_label=tool_name
             )
         
-        # CRITICAL FIX: Tool nodes need to be executed as agent tasks with SLA enforcement
-        # Convert any tool node into a SLA-enforced agent task using intelligent defaults
-        
-        def create_tool_agent_task(tool_name: str, tool_config: dict, execution_metadata: dict) -> dict:
-            """Convert tool node to SLA-enforced agent task with intelligent defaults."""
-            
-            # Default SLA behaviors for all tool nodes
-            default_sla = {
-                "tool_usage_required": True,
-                "required_tools": [tool_name],
-                "min_tool_calls": 1,
-                "enforce_usage": True,
-                "max_retries": 2,
-                "timeout_seconds": 120
-            }
-            
-            # Tool-specific SLA overrides based on tool characteristics
-            tool_specific_sla = {}
-            if "decision" in tool_name or "gate" in tool_name:
-                # Decision/routing tools must be the final tool
-                tool_specific_sla["final_tool_must_be"] = tool_name
-                tool_specific_sla["min_tool_calls"] = 1
-            elif "search" in tool_name or "fetch" in tool_name:
-                # Search/fetch tools might need multiple attempts
-                tool_specific_sla["max_retries"] = 3
-                tool_specific_sla["timeout_seconds"] = 180
-            elif "notification" in tool_name or "email" in tool_name:
-                # Action tools must use the tool (no retries for side effects)
-                tool_specific_sla["max_retries"] = 1
-                tool_specific_sla["timeout_seconds"] = 60
-            
-            # Merge default + tool-specific SLA
-            final_sla = {**default_sla, **tool_specific_sla}
-            
-            # Create intelligent agent instructions based on tool name and config
-            if tool_config:
-                config_summary = ", ".join([f"{k}={v}" for k, v in list(tool_config.items())[:3]])  # Show first 3 config items
-                instruction = f"Use the {tool_name} tool with the configuration ({config_summary}) to complete the objective. Follow the tool's output format and return the result clearly."
-            else:
-                instruction = f"Use the {tool_name} tool to complete the objective. Return the tool's result in a clear, structured format."
-            
-            # Determine execution mode based on node inputs
-            node_id = execution_metadata.get('node_id', '')
-            execution_mode = "consolidate"  # Default for most tools
-            
-            return {
-                "name": f"tool_agent_{tool_name}_{node_id}",
-                "model": "gpt-4o",  # Reliable model for tool usage
-                "agent_instructions": instruction,
-                "tools": [tool_name],  # Only the specific tool is available
-                "sla_requirements": final_sla,
-                "config": tool_config,  # Pass through original tool config
-                "execution_mode": execution_mode,
-                "node_type": "tool",  # Preserve original node type for debugging
-                "original_tool_name": tool_name  # Keep reference to original tool
-            }
-        
-        # Convert tool node to agent task
-        tool_config = task_metadata.get("config", {})
-        agent_task_metadata = create_tool_agent_task(tool_name, tool_config, execution_metadata)
-        
-        print(f"🔄 Converting tool node '{tool_name}' to SLA-enforced agent task")
-        print(f"   SLA: required_tools={agent_task_metadata['sla_requirements']['required_tools']}")
-        print(f"   Config: {tool_config}")
-        
-        # Execute as agent task with SLA enforcement
-        result = await web_agent_executor(agent_task_metadata, objective, agents, execution_metadata)
-        print(f"✅ Tool '{tool_name}' completed: {result}")
+        # Delegate to backend portable executor
+        # This directly executes tools without converting them to agents
+        result = await execute_tool_task(task_metadata, objective, agents, execution_metadata)
+        print(f"✅ Tool '{tool_name}' completed successfully")
         
         # Record node completion in feedback collector
         if execution_id:
@@ -397,6 +334,10 @@ workflow_storage: Optional[WorkflowStorage] = None
 
 # WebSocket connections for real-time updates
 connections: List[WebSocket] = []
+
+# Debug prompt history
+# Import prompt logging from io_logger
+from ..utilities.io_logger import log_prompt, get_prompt_history, clear_prompt_history
 
 
 class WorkflowRequest(BaseModel):
@@ -687,22 +628,9 @@ async def websocket_endpoint(websocket: WebSocket):
     connections.append(websocket)
     system_logger.info("New WebSocket connection established", data={"total_connections": len(connections)})
     
-    # Send current workflow on connection
-    if current_workflow:
-        try:
-            workflow_data = current_workflow.model_dump()
-            # Convert UUID to string for JSON serialization
-            if 'id' in workflow_data:
-                workflow_data['id'] = str(workflow_data['id'])
-            
-            await websocket.send_json({
-                "type": "workflow_update",
-                "workflow": workflow_data,
-                "timestamp": datetime.now().isoformat()
-            })
-            print("📡 Sent current workflow to new connection")
-        except Exception as e:
-            print(f"❌ Failed to send current workflow to new connection: {e}")
+    # Don't automatically send current workflow - let client request it
+    # This prevents session bleed between different users/tabs
+    print("📡 New WebSocket connection established - waiting for client requests")
     
     try:
         while True:
@@ -745,6 +673,22 @@ async def get_execution_status(execution_id: str):
         return {"execution": active_executions[execution_id]}
     else:
         raise HTTPException(status_code=404, detail="Execution not found")
+
+
+# log_prompt function now imported from io_logger
+
+
+@app.get("/api/prompts")
+async def get_prompt_history_api():
+    """Get the prompt history for debugging."""
+    return {"prompts": get_prompt_history()}
+
+
+@app.post("/api/prompts/clear")
+async def clear_prompt_history_api():
+    """Clear the prompt history."""
+    count = clear_prompt_history()
+    return {"success": True, "message": f"Cleared {count} prompts"}
 
 
 @app.get("/api/executions/{execution_id}/feedback")
@@ -847,6 +791,8 @@ async def generate_workflow(workflow_request: WorkflowRequest, request: Request)
         # Generate workflow (could be new workflow or chat-only response)
         # Use faux user's interface conversation ID for WorkflowPlanner memory continuity
         conversation_id = faux_user.interface_conversation_id if faux_user else None
+        
+        # Workflow planner now logs the full prompt internally
         
         result = await planner.generate_workflow(
             query=workflow_request.query,
@@ -1148,9 +1094,7 @@ async def execute_workflow_background(
             "execution_summary": execution_summary
         })
         
-        # Import logger
-        from ..utilities.io_logger import execution_logger
-        
+        # Log execution completion
         execution_logger.success(
             "Workflow execution completed",
             data={
@@ -1228,9 +1172,11 @@ async def execute_workflow_background(
 async def send_execution_feedback_to_planner(execution_summary: WorkflowExecutionSummary, interface_conversation_id: Optional[str] = None, workflow_spec: Optional[WorkflowSpec] = None):
     """Send execution results back to WorkflowPlanner for analysis and suggestions."""
     try:
-        # Import logger
-        from ..utilities.io_logger import execution_logger
+        print(f"🔍 [FEEDBACK] Starting feedback to planner for execution: {execution_summary.execution_id}")
+        print(f"🔍 [FEEDBACK] Interface conversation ID: {interface_conversation_id}")
+        print(f"🔍 [FEEDBACK] Has workflow spec: {workflow_spec is not None}")
         
+        # Import logger
         # Generate feedback prompt
         feedback_prompt = create_execution_feedback_prompt(execution_summary, workflow_spec)
         
@@ -1277,6 +1223,7 @@ async def send_execution_feedback_to_planner(execution_summary: WorkflowExecutio
             feedback_tool_catalog = {}
         
         # Send feedback as system input to planner with proper tool catalog
+        print(f"🔍 [FEEDBACK] Sending feedback to planner.generate_workflow")
         response = await planner.generate_workflow(
             query=feedback_prompt,
             tool_catalog=feedback_tool_catalog,  # Use actual tool catalog for analysis context
@@ -1287,6 +1234,7 @@ async def send_execution_feedback_to_planner(execution_summary: WorkflowExecutio
                 "workflow_title": execution_summary.workflow_title
             }
         )
+        print(f"🔍 [FEEDBACK] Received response from planner")
         
         # Log the analysis response
         if hasattr(response, 'reasoning') and response.reasoning:
@@ -1306,6 +1254,7 @@ async def send_execution_feedback_to_planner(execution_summary: WorkflowExecutio
                 active_executions[execution_summary.execution_id]["planner_feedback"] = response.reasoning
         
         execution_logger.success("Execution feedback processing completed", execution_id=execution_summary.execution_id)
+        print(f"✅ [FEEDBACK] Successfully sent execution feedback to planner for {execution_summary.execution_id}")
         
     except Exception as e:
         execution_logger.error(

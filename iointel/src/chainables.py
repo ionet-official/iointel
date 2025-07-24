@@ -300,6 +300,14 @@ async def execute_agent_task(
     
     # Determine result format for workflow/agent chaining
     agent_result_format_str = execution_metadata.get("agent_result_format", "full")
+    
+    # CRITICAL FIX: Decision agents need "workflow" format to include tool_usage_results
+    # The DAG executor requires tool_usage_results to find conditional_gate routing info
+    node_type = task_metadata.get("node_type", task_metadata.get("type", ""))
+    if node_type == "decision" and agent_result_format_str == "full":
+        agent_result_format_str = "workflow"
+        print(f"🔧 execute_agent_task: Override decision agent to workflow format for routing")
+    
     # print(f"🔧 execute_agent_task: agent_result_format = {agent_result_format_str}")
     
     # Convert string format to AgentResultFormat instance
@@ -420,6 +428,8 @@ async def execute_tool_task(task_metadata, objective, agents, execution_metadata
         logger.error(error_msg)
         raise ValueError(error_msg)
     try:
+        # Pass execution_metadata inside the arguments dict - Tool.run() expects it there
+        # The Tool class will extract it and pass it as additional_args to the actual function
         config_with_metadata = config.copy()
         config_with_metadata['execution_metadata'] = execution_metadata
         result = tool.run(config_with_metadata)

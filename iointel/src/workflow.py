@@ -24,6 +24,7 @@ from .utilities.runners import run_agents_stream
 from .utilities.registries import TASK_EXECUTOR_REGISTRY
 from .utilities.stages import execute_stage
 from .utilities.helpers import make_logger
+from .utilities.io_logger import get_component_logger
 from .utilities.registries import TOOLS_REGISTRY
 from .utilities.stages import (
     SimpleStage,
@@ -193,34 +194,52 @@ class Workflow:
             text_for_task, context_for_task = default_text, {}
         agents_for_task = task.get("agents") or default_agents
         
+        # Create workflow logger for debug output  
+        workflow_logger = get_component_logger("WORKFLOW")
+        
         # Debug: Check task structure for agent tasks
         if task.get("type") == "agent":
-            logger.debug(f"Agent task '{task.get('name', 'unnamed')}' executing with {len(agents_for_task)} agents")
-            logger.debug(f"Task has 'agents' key: {'agents' in task}")
-            logger.debug(f"Task keys: {list(task.keys())}")
-            print(f"🔍 DEBUG AGENT TASK: '{task.get('name', 'unnamed')}'")
-            print(f"   Has 'agents' key: {'agents' in task}")
-            print(f"   Task keys: {list(task.keys())}")
-            print(f"   Number of agents: {len(agents_for_task)}")
+            workflow_logger.info(f"🔍 Agent task analysis", data={
+                "task_name": task.get('name', 'unnamed'),
+                "agent_count": len(agents_for_task),
+                "has_agents_key": 'agents' in task,
+                "task_keys": list(task.keys()),
+                "task_type": "agent"
+            })
             if agents_for_task and hasattr(agents_for_task[0], 'tools'):
-                logger.debug(f"Agent has {len(agents_for_task[0].tools)} tools: {agents_for_task[0].tools}")
+                workflow_logger.debug(f"Agent tools configuration", data={
+                    "tool_count": len(agents_for_task[0].tools),
+                    "tools": [str(tool) for tool in agents_for_task[0].tools]
+                })
         
         execution_metadata = task.get("execution_metadata") or {}
         
         # Debug: Show what we're starting with
-        print(f"🔍 DEBUG: run_task called with task keys: {list(task.keys())}")
-        print(f"🔍 DEBUG: task execution_metadata: {execution_metadata}")
+        workflow_logger.debug("🔍 Task execution starting", data={
+            "task_keys": list(task.keys()),
+            "initial_execution_metadata": execution_metadata,
+            "task_type": task.get("type"),
+            "task_name": task.get("name")
+        })
         
         # Add current task/node ID to execution metadata for tool context
         task_id = task.get("task_id") or task.get("id") or task.get("name")
         if task_id:
             execution_metadata["task_id"] = task_id
             execution_metadata["node_id"] = task_id  # Alias for compatibility
-            print(f"🔍 DEBUG: Added task_id/node_id: {task_id}")
+            workflow_logger.debug("🔍 Task ID resolved", data={
+                "task_id": task_id,
+                "metadata_updated": True
+            })
         else:
-            print("🔍 DEBUG: No task_id found in task")
+            workflow_logger.warning("🔍 No task_id found in task", data={
+                "available_keys": list(task.keys()),
+                "impact": "Task context may be limited"
+            })
         
-        print(f"🔍 DEBUG: Final execution_metadata: {execution_metadata}")
+        workflow_logger.debug("🔍 Final execution metadata prepared", data={
+            "execution_metadata": execution_metadata
+        })
         
         # Ensure conversation_id is in metadata
         if task.get("conversation_id"):

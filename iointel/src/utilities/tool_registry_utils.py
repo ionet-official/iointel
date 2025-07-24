@@ -12,7 +12,10 @@ logger = make_logger(__name__)
 
 
 def create_tool_catalog() -> Dict[str, Any]:
-    """Create a tool catalog from available tools using pydantic-ai's schema generation."""
+    """Create a tool catalog from available tools using pydantic-ai's schema generation. 
+    This is SINGLE POINT OF TRUTH for tool descriptions and parameters, should be used for all tool resolution and documentation.
+    
+    You must import tools into your session for them to register, for this to work. Or load_tools_from_env('creds') before calling this function."""
     from pydantic_ai._function_schema import function_schema
     from pydantic_ai.tools import GenerateToolJsonSchema
     
