@@ -1,6 +1,10 @@
+# VALID NODE TYPES: 'data_source', 'agent', 'decision', 'workflow_call'
 from typing import Literal, Optional, List, Dict
 from uuid import UUID
 from pydantic import BaseModel, Field
+
+# Centralized routing tools definition
+ROUTING_TOOLS = ['conditional_gate', 'threshold_gate', 'conditional_multi_gate']
 
 
 
@@ -35,7 +39,7 @@ class NodeData(BaseModel):
     )
     
     # Optional fields the LLM might specify
-    tool_name: Optional[str] = Field(None, description="Name of the tool from catalog (for tool nodes)")
+    source_name: Optional[str] = Field(None, description="Name of the data source from catalog (for data_source nodes)")
     agent_instructions: Optional[str] = Field(None, description="Instructions for agent (for agent nodes)")
     tools: Optional[List[str]] = Field(None, description="List of tool names available to agent (for agent nodes)")
     workflow_id: Optional[str] = Field(None, description="ID of workflow to call (for workflow_call nodes)")
@@ -45,39 +49,21 @@ class NodeData(BaseModel):
 
 class NodeSpecLLM(BaseModel):
     """Node specification for LLM generation - no ID field."""
-    type: Literal[
-        "tool",              # External tool calls
-        "workflow_call",     # Sub-workflow execution
-        "decision",          # Routing/conditional logic (MUST end with conditional_gate)
-        "data_fetcher",      # Data acquisition (MUST use at least 1 tool)
-        "analyzer",          # Data analysis (tools optional)
-        "executor",          # Action execution (MUST use tools for side effects)
-        "conversational"     # Chat/help (no tools needed)
-    ]
+    type: Literal["data_source", "agent", "workflow_call", "decision"]
     label: str
     data: NodeData
     position: Optional[Dict[str, float]] = None  # FE inserts {x,y}
     runtime: Dict = Field(default_factory=dict)  # e.g. {"timeout":30,"retries":1}
     sla: Optional[SLARequirements] = Field(
         None, 
-        description="SLA requirements for this node. Use null for type-based defaults: decision nodes require routing tools as final tool, other types have type-based defaults."
+        description="SLA requirements for this node. Use null for type-based defaults: decision nodes require routing tools as final tool, agents are lax by default."
     )
 
 
 class NodeSpec(BaseModel):
     """React Flow compatible node specification with deterministic ID."""
     id: str
-    type: Literal["tool", "workflow_call", "decision", "data_fetcher", "analyzer", "executor", "conversational"] = Field(
-        ...,
-        description="Node type: "
-                   "tool (external tool calls), "
-                   "workflow_call (sub-workflow execution), "
-                   "decision (routing/conditional logic - MUST end with conditional_gate), "
-                   "data_fetcher (data acquisition - MUST use at least 1 tool), "
-                   "analyzer (data analysis - tools optional), "
-                   "executor (action execution - MUST use tools for side effects), "
-                   "conversational (chat/help - no tools needed)"
-    )
+    type: Literal["data_source", "agent", "workflow_call", "decision"]
     label: str
     data: NodeData
     position: Optional[Dict[str, float]] = None  # FE inserts {x,y}
@@ -86,7 +72,10 @@ class NodeSpec(BaseModel):
 
 class EdgeData(BaseModel):
     """Data structure for React Flow edge configuration."""
-    condition: Optional[str] = Field(None, description="e.g. \"status=='success'\"")
+    route_index: Optional[int] = Field(None, description="Index of the route (0, 1, 2...) for decision routing")
+    route_label: Optional[str] = Field(None, description="Human-readable route name (e.g. 'buy', 'sell', 'hold')")
+    # Legacy support - will be deprecated
+    condition: Optional[str] = Field(None, description="Legacy condition string - use route_index instead")
 
 
 class EdgeSpecLLM(BaseModel):
@@ -118,6 +107,7 @@ class WorkflowSpecLLM(BaseModel):
     description: str = Field(default="", description="Workflow description or chat response message.")
     nodes: Optional[List[NodeSpecLLM]] = Field(None, description="Workflow nodes. Use null for chat-only responses to preserve previous DAG.")
     edges: Optional[List[EdgeSpecLLM]] = Field(None, description="Workflow edges. Use null for chat-only responses to preserve previous DAG.")
+    sla: Optional[SLARequirements] = Field(None, description="SLA requirements for the workflow. Use null for chat-only responses.")
 
 
 class WorkflowSpec(BaseModel):
@@ -154,7 +144,7 @@ class WorkflowSpec(BaseModel):
             node_type_counters[node_type] = counter
             
             # Create deterministic ID: type_counter (e.g., "tool_1", "agent_1", "user_input_1")
-            if llm_node.type == "tool" and llm_node.data.tool_name == "user_input":
+            if llm_node.type == "data_source" and llm_node.data.source_name == "user_input":
                 node_id = f"user_input_{counter}"
             else:
                 node_id = f"{node_type}_{counter}"
@@ -339,10 +329,9 @@ class WorkflowSpec(BaseModel):
         
         # Tools available
         if hasattr(node.data, 'tools') and node.data.tools:
-            routing_tools = ['conditional_gate', 'threshold_gate', 'conditional_multi_gate']
             tool_list = []
             for tool in node.data.tools:
-                if tool in routing_tools:
+                if tool in ROUTING_TOOLS:
                     tool_list.append(f"🔀{tool}")  # Routing tool
                 else:
                     tool_list.append(f"🔧{tool}")  # Regular tool
@@ -364,12 +353,7 @@ class WorkflowSpec(BaseModel):
             return True
         
         if hasattr(node.data, 'tools') and node.data.tools:
-            routing_tools = ['conditional_gate', 'threshold_gate', 'conditional_multi_gate']
-            return any(tool in routing_tools for tool in node.data.tools)
-        
-        if hasattr(node.data, 'tool_name') and node.data.tool_name:
-            routing_tools = ['conditional_gate', 'threshold_gate', 'conditional_multi_gate']
-            return node.data.tool_name in routing_tools
+            return any(tool in ROUTING_TOOLS for tool in node.data.tools)
         
         return False
     
@@ -449,14 +433,14 @@ class WorkflowSpec(BaseModel):
                 if sla.enforce_usage and not sla.tool_usage_required and not sla.required_tools:
                     issues.append(f"⚠️ SLA WARNING: Node '{node.id}' has enforce_usage=True but no tool requirements specified")
             
-            if node.type == "tool":
-                if not node.data.tool_name:
-                    issues.append(f"Tool node '{node.id}' ({node.label}) missing required 'tool_name'")
-                elif tool_catalog and node.data.tool_name not in tool_catalog:
-                    issues.append(f"🚨 TOOL HALLUCINATION: Node '{node.id}' uses non-existent tool '{node.data.tool_name}'. Available tools: {sorted(tool_catalog.keys())}")
-                elif tool_catalog and node.data.tool_name in tool_catalog:
-                    # Validate tool parameters
-                    tool_info = tool_catalog[node.data.tool_name]
+            if node.type == "data_source":
+                if not node.data.source_name:
+                    issues.append(f"Data source node '{node.id}' ({node.label}) missing required 'source_name'")
+                elif tool_catalog and node.data.source_name not in tool_catalog:
+                    issues.append(f"🚨 SOURCE HALLUCINATION: Node '{node.id}' uses non-existent source '{node.data.source_name}'. Available sources: {sorted(tool_catalog.keys())}")
+                elif tool_catalog and node.data.source_name in tool_catalog:
+                    # Validate source parameters
+                    tool_info = tool_catalog[node.data.source_name]
                     required_params = tool_info.get("required_parameters", [])
                     tool_info.get("parameters", {})
                     config_params = set(node.data.config.keys())
@@ -470,9 +454,9 @@ class WorkflowSpec(BaseModel):
                     if required_params and not node.data.config:
                         issues.append(f"🚨 EMPTY CONFIG: Tool node '{node.id}' ({node.data.tool_name}) has empty config but requires parameters: {sorted(required_params)}")
             
-            elif node.type == "analyzer":
+            elif node.type == "agent":
                 if not node.data.agent_instructions:
-                    issues.append(f"Analyzer node '{node.id}' ({node.label}) missing required 'agent_instructions'")
+                    issues.append(f"Agent node '{node.id}' ({node.label}) missing required 'agent_instructions'")
             
             elif node.type == "workflow_call":
                 if not node.data.workflow_id:
@@ -506,17 +490,12 @@ class WorkflowSpec(BaseModel):
                 incoming_edges[edge.target] = []
             incoming_edges[edge.target].append(edge)
         
-        # Check nodes with routing tools have proper edge wiring
-        routing_tools = ['conditional_gate', 'threshold_gate', 'conditional_multi_gate']
-        
         for node in self.nodes:
             has_routing_tool = False
             
             # Check if node uses routing tools
-            if node.type == "decision" and node.data.tool_name in routing_tools:
-                has_routing_tool = True
-            elif node.type == "analyzer" and node.data.tools:
-                has_routing_tool = any(tool in routing_tools for tool in node.data.tools)
+            if (node.type == "decision" or node.type == "agent") and node.data.tools:
+                has_routing_tool = any(tool in ROUTING_TOOLS for tool in node.data.tools)
             
             if has_routing_tool:
                 node_edges = outgoing_edges.get(node.id, [])
@@ -546,10 +525,8 @@ class WorkflowSpec(BaseModel):
                 if source_node:
                     has_routing_tool = False
                     
-                    if source_node.type == "decision" and source_node.data.tool_name in routing_tools:
-                        has_routing_tool = True
-                    elif source_node.type == "analyzer" and source_node.data.tools:
-                        has_routing_tool = any(tool in routing_tools for tool in source_node.data.tools)
+                    if (source_node.type == "decision" or source_node.type == "agent") and source_node.data.tools:
+                        has_routing_tool = any(tool in ROUTING_TOOLS for tool in source_node.data.tools)
                     
                     if not has_routing_tool:
                         issues.append(f"⚠️ ORPHANED CONDITION: Edge '{edge.id}' has condition '{edge.data.condition}' but source node '{edge.source}' doesn't use routing tools")
@@ -563,19 +540,19 @@ class WorkflowSpec(BaseModel):
                 # This is a root node (has outgoing but no incoming) - OK
                 continue
             elif node.id not in all_targets and node.id not in all_sources:
-                # Completely isolated node
-                issues.append(f"🚨 ISOLATED NODE: Node '{node.id}' ({node.label}) has no connections")
+                # Isolated node - only flag as error if there are multiple nodes
+                if len(self.nodes) > 1:
+                    # Multiple nodes but this one is isolated - that's an error
+                    issues.append(f"🚨 ISOLATED NODE: Node '{node.id}' ({node.label}) has no connections")
+                # Single isolated nodes are OK (e.g., standalone agent workflows)
         
         # 4. SEMANTIC ROUTE VALIDATION: Check route names match between tools and edges
         for node in self.nodes:
             has_routing_tools = False
-            routing_tools = ['conditional_gate', 'threshold_gate', 'conditional_multi_gate']
             
-            # Check both analyzer nodes with tools and decision nodes with tool_name
-            if node.type == 'analyzer' and node.data.tools:
-                has_routing_tools = any(tool in routing_tools for tool in node.data.tools)
-            elif node.type == 'decision' and node.data.tool_name in routing_tools:
-                has_routing_tools = True
+            # Check both agent nodes with tools and decision nodes with tools
+            if (node.type == 'agent' or node.type == 'decision') and node.data.tools:
+                has_routing_tools = any(tool in ROUTING_TOOLS for tool in node.data.tools)
                 
             if has_routing_tools and node.id in outgoing_edges:
                 conditional_edges = [e for e in outgoing_edges[node.id] if e.data.condition]
@@ -586,7 +563,7 @@ class WorkflowSpec(BaseModel):
                     
                     # CRITICAL: Check for decision== patterns when routing tools are used
                     if "decision ==" in condition and "routed_to ==" not in condition:
-                        issues.append(f"🚨 ROUTING MISMATCH: Node '{node.id}' uses routing tools ({routing_tools}) but edge conditions use 'decision ==' pattern. DAG executor expects 'routed_to ==' pattern. Edge condition: '{condition}'")
+                        issues.append(f"🚨 ROUTING MISMATCH: Node '{node.id}' uses routing tools ({ROUTING_TOOLS}) but edge conditions use 'decision ==' pattern. DAG executor expects 'routed_to ==' pattern. Edge condition: '{condition}'")
                     
                     # Check for other incompatible patterns
                     if "action ==" in condition and "routed_to ==" not in condition:

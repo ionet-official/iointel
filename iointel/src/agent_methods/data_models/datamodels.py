@@ -35,7 +35,6 @@ from ...utilities.func_metadata import func_metadata, FuncMetadata
 from ...utilities.exceptions import ToolError
 from ...utilities.registries import TOOL_SELF_REGISTRY
 import inspect
-from .workflow_spec import SLARequirements
 
 
 # monkey patching for OpenAIModel to return a generic schema
@@ -515,9 +514,6 @@ class AgentParams(BaseModel):
 
     model_settings: Optional[Dict[str, Any]] = Field(default_factory=dict)
     output_type: Optional[Any] = str
-    sla_requirements: Optional[SLARequirements] = Field(
-        None, description="SLA requirements for this agent (overrides workflow and catalog defaults)"
-    )
 
     @field_serializer("output_type", when_used="json")
     def dump_output_type(self, v):
