@@ -7,6 +7,59 @@ from iointel.src.utilities.decorators import register_tool
 from iointel.src.agent_methods.data_models.prompt_collections import (
     prompt_collection_manager
 )
+from iointel.src.utilities.io_logger import get_component_logger
+
+# Beautiful IOLogger for structured output
+logger = get_component_logger("USER_INPUT_TOOL")
+
+
+def resolve_user_input_value(user_inputs: Dict[str, Any], node_id: Optional[str] = None) -> Optional[str]:
+    """
+    Simple, straightforward user input resolution.
+    
+    The reality is: if there's user input, just use it. The web UI sends exactly
+    what the user typed. No need for complex fallback strategies.
+    
+    Args:
+        user_inputs: Dictionary of user inputs from execution metadata
+        node_id: Node ID from workflow execution (for logging only)
+        
+    Returns:
+        The user input value or None if not found
+    """
+    if not user_inputs:
+        logger.debug("No user inputs provided")
+        return None
+    
+    logger.info("🔍 User input available", data={
+        "available_keys": list(user_inputs.keys()),
+        "input_count": len(user_inputs)
+    })
+    
+    # If user provided input, use it. Period.
+    if len(user_inputs) == 1:
+        key, value = next(iter(user_inputs.items()))
+        logger.success("✅ Using user input", data={
+            "key": key,
+            "value_preview": str(value)[:50] + "..." if len(str(value)) > 50 else str(value)
+        })
+        return value
+    
+    # Multiple inputs? Use the first one (this shouldn't happen in normal usage)
+    if len(user_inputs) > 1:
+        key, value = next(iter(user_inputs.items()))
+        logger.warning("⚠️ Multiple inputs found, using first", data={
+            "selected_key": key,
+            "available_keys": list(user_inputs.keys()),
+            "value_preview": str(value)[:50] + "..." if len(str(value)) > 50 else str(value)
+        })
+        return value
+    
+    # This should never happen (covered by first check)
+    logger.error("❌ No user input found", data={
+        "user_inputs": user_inputs
+    })
+    return None
 
 
 @register_tool
@@ -50,95 +103,90 @@ def user_input(
             save_to_collection="weather_queries"
         )
     """
-    print(f"📝 Creating user input field: {prompt}")
+    logger.info("📝 User input tool initiated", data={
+        "prompt": prompt,
+        "input_type": input_type,
+        "has_placeholder": placeholder is not None,
+        "has_options": options is not None,
+        "has_default": default_value is not None
+    })
     
     # Check if we have user inputs from execution metadata
     execution_metadata = kwargs.get('execution_metadata', {})
     user_inputs = execution_metadata.get('user_inputs', {})
     
-    # Also get the task_id/node_id from execution_metadata if available
+    # Debug: Log all kwargs to see what's being passed
+    logger.debug("🔍 All kwargs received", data={
+        "kwargs_keys": list(kwargs.keys()),
+        "has_execution_metadata": 'execution_metadata' in kwargs,
+        "execution_metadata_keys": list(execution_metadata.keys()) if execution_metadata else [],
+        "user_inputs_available": user_inputs
+    })
+    
+    # Get task_id/node_id from execution_metadata if available
     node_id = execution_metadata.get('node_id') or execution_metadata.get('task_id')
     
     # Generate form_id to match against
     form_id = prompt.lower().replace(" ", "_").replace("?", "")[:30]
     
-    print(f"🔍 Checking for user inputs. Available keys: {list(user_inputs.keys()) if user_inputs else 'None'}")
-    print(f"🔍 Looking for form_id: '{form_id}'")
-    print(f"🔍 Looking for node_id: '{node_id}'")
-    print(f"🔍 Original prompt: '{prompt}'")
-    print(f"🔍 DEBUG: user_inputs contents: {user_inputs}")
-    print(f"🔍 DEBUG: execution_metadata keys: {list(execution_metadata.keys())}")
+    # Use our simple resolver function
+    user_value = resolve_user_input_value(user_inputs, node_id)
     
-    if user_inputs:
-        # Try multiple strategies to find the user input value
-        user_value = None
-        
-        # Strategy 1: Look for generic 'user_input' key
-        if 'user_input' in user_inputs:
-            user_value = user_inputs['user_input']
-            print(f"✅ Found user input with generic key: {user_value}")
-        
-        # Strategy 2: Look for form_id match
-        elif form_id in user_inputs:
-            user_value = user_inputs[form_id]
-            print(f"✅ Found user input with form_id '{form_id}': {user_value}")
-        
-        # Strategy 3: Look for node_id match
-        elif node_id and node_id in user_inputs:
-            user_value = user_inputs[node_id]
-            print(f"✅ Found user input with node_id '{node_id}': {user_value}")
-        
-        # Strategy 4: Look for any key containing 'user_input'
-        else:
-            for key, value in user_inputs.items():
-                if 'user_input' in key.lower():
-                    user_value = value
-                    print(f"✅ Found user input with key '{key}': {user_value}")
-                    break
-        
-        # Strategy 5: If only one input, use it
-        if not user_value and len(user_inputs) == 1:
-            key, user_value = next(iter(user_inputs.items()))
-            print(f"✅ Found single user input with key '{key}': {user_value}")
-        
-        if user_value is not None:
-            # Save to collection if requested
-            if save_to_collection and user_value.strip():
-                try:
-                    # Try to find existing collection by name
-                    existing_collection = None
-                    for collection in prompt_collection_manager.list_collections():
-                        if collection.name == save_to_collection:
-                            existing_collection = collection
-                            break
+    if user_value is not None:
+        # Save to collection if requested
+        if save_to_collection and user_value.strip():
+            try:
+                # Try to find existing collection by name
+                existing_collection = None
+                for collection in prompt_collection_manager.list_collections():
+                    if collection.name == save_to_collection:
+                        existing_collection = collection
+                        break
+                
+                if existing_collection:
+                    existing_collection.add_record(user_value)
+                    prompt_collection_manager.save_collection(existing_collection) 
+                    logger.success("💾 Saved to existing collection", data={
+                        "collection_name": save_to_collection,
+                        "value_preview": user_value[:50] + "..." if len(user_value) > 50 else user_value
+                    })
+                else:
+                    # Create new collection
+                    prompt_collection_manager.create_collection_from_records(
+                        name=save_to_collection,
+                        records=[user_value],
+                        description=f"Collection for {prompt}",
+                        tags=["user_input", "auto_generated"]
+                    )
+                    logger.success("💾 Created new collection", data={
+                        "collection_name": save_to_collection,
+                        "value_preview": user_value[:50] + "..." if len(user_value) > 50 else user_value
+                    })
                     
-                    if existing_collection:
-                        existing_collection.add_record(user_value)
-                        prompt_collection_manager.save_collection(existing_collection)
-                        print(f"💾 Added '{user_value}' to existing collection '{save_to_collection}'")
-                    else:
-                        # Create new collection
-                        prompt_collection_manager.create_collection_from_records(
-                            name=save_to_collection,
-                            records=[user_value],
-                            description=f"Collection for {prompt}",
-                            tags=["user_input", "auto_generated"]
-                        )
-                        print(f"💾 Created new collection '{save_to_collection}' with record '{user_value}'")
-                        
-                except Exception as e:
-                    print(f"⚠️ Error saving to collection: {e}")
-            
-            return {
-                "tool_type": "user_input",
-                "status": "completed",
-                "user_input": user_value,
-                "message": f"User provided: {user_value}"
-            }
+            except Exception as e:
+                logger.error("⚠️ Collection save failed", data={
+                    "collection_name": save_to_collection,
+                    "error": str(e)
+                })
+        
+        logger.success("✅ User input resolved successfully", data={
+            "value_preview": user_value[:50] + "..." if len(user_value) > 50 else user_value,
+            "saved_to_collection": save_to_collection is not None
+        })
+        
+        return {
+            "tool_type": "user_input",
+            "status": "completed",
+            "user_input": user_value,
+            "message": f"User provided: {user_value}"
+        }
     
-    print("⚠️ No user input value found in execution metadata")
-    
-    # Form ID already generated above
+    # No user input found - need to show input form
+    logger.info("🔄 No user input found, showing input form", data={
+        "form_id": form_id,
+        "node_id": node_id,
+        "will_load_suggestions": load_suggestions or collection_id is not None
+    })
     
     # Load suggestions from collections if requested
     suggestions = []
@@ -159,7 +207,10 @@ def user_input(
                     }
                     collection.mark_used()  # Update usage stats
                     prompt_collection_manager.save_collection(collection)
-                    print(f"📚 Loaded {len(suggestions)} suggestions from collection '{collection.name}'")
+                    logger.success("📚 Loaded specific collection suggestions", data={
+                        "collection_name": collection.name,
+                        "suggestion_count": len(suggestions)
+                    })
             
             if not suggestions and load_suggestions:
                 # Load popular suggestions across all collections
@@ -168,10 +219,22 @@ def user_input(
                     limit=10
                 )
                 suggestions = [record["record"] for record in popular_records]
-                print(f"📚 Loaded {len(suggestions)} popular suggestions")
+                logger.success("📚 Loaded popular suggestions", data={
+                    "suggestion_count": len(suggestions)
+                })
                 
         except Exception as e:
-            print(f"⚠️ Error loading suggestions: {e}")
+            logger.error("⚠️ Error loading suggestions", data={
+                "collection_id": collection_id,
+                "error": str(e)
+            })
+    
+    logger.info("📋 Returning input form for user interaction", data={
+        "form_id": form_id,
+        "input_type": input_type,
+        "has_suggestions": len(suggestions) > 0,
+        "suggestion_count": len(suggestions)
+    })
     
     return {
         "tool_type": "user_input",
@@ -220,7 +283,11 @@ def prompt_tool(
             save_to_collection="analysis_prompts"
         )
     """
-    print(f"📝 Prompt tool executing with message: {message}")
+    logger.info("📝 Prompt tool executing", data={
+        "message_preview": message[:50] + "..." if len(message) > 50 else message,
+        "has_collection_id": collection_id is not None,
+        "will_save_to_collection": save_to_collection is not None
+    })
     
     # Check for user input overrides first (similar to user_input tool)
     execution_metadata = kwargs.get('execution_metadata', {})
@@ -235,7 +302,10 @@ def prompt_tool(
             if override_message is not None:  # Allow empty strings
                 user_input_override = override_message
                 message = override_message
-                print(f"✅ Using user input override: {message}")
+                logger.success("✅ Using user input override", data={
+                    "node_id": node_id,
+                    "override_preview": message[:50] + "..." if len(message) > 50 else message
+                })
     
     # Load from collection if specified (but only if no user input override)
     if collection_id and user_input_override is None:
@@ -246,9 +316,15 @@ def prompt_tool(
                 message = collection.records[0]
                 collection.mark_used()
                 prompt_collection_manager.save_collection(collection)
-                print(f"📚 Loaded message from collection '{collection.name}': {message}")
+                logger.success("📚 Loaded message from collection", data={
+                    "collection_name": collection.name,
+                    "message_preview": message[:50] + "..." if len(message) > 50 else message
+                })
         except Exception as e:
-            print(f"⚠️ Error loading from collection: {e}")
+            logger.error("⚠️ Error loading from collection", data={
+                "collection_id": collection_id,
+                "error": str(e)
+            })
     
     # Save to collection if requested
     if save_to_collection and message.strip():
@@ -263,7 +339,9 @@ def prompt_tool(
             if existing_collection:
                 existing_collection.add_record(message)
                 prompt_collection_manager.save_collection(existing_collection)
-                print(f"💾 Added prompt to existing collection '{save_to_collection}'")
+                logger.success("💾 Added prompt to existing collection", data={
+                    "collection_name": save_to_collection
+                })
             else:
                 # Create new collection
                 prompt_collection_manager.create_collection_from_records(
@@ -272,10 +350,15 @@ def prompt_tool(
                     description="Collection for prompts",
                     tags=["prompt_tool", "auto_generated"]
                 )
-                print(f"💾 Created new collection '{save_to_collection}' with prompt")
+                logger.success("💾 Created new collection with prompt", data={
+                    "collection_name": save_to_collection
+                })
                 
         except Exception as e:
-            print(f"⚠️ Error saving to collection: {e}")
+            logger.error("⚠️ Error saving to collection", data={
+                "collection_name": save_to_collection,
+                "error": str(e)
+            })
     
     return {
         "tool_type": "prompt",
