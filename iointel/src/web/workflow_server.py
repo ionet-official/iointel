@@ -24,6 +24,7 @@ from iointel.src.utilities.tool_registry_utils import create_tool_catalog
 from iointel.src.memory import AsyncMemory
 from iointel.src.workflow import Workflow
 from iointel.src.utilities.decorators import register_custom_task
+from iointel.src.web.conversation_storage import get_conversation_storage
 import uuid
 import asyncio
 
@@ -42,6 +43,9 @@ from .execution_feedback import (
 from ..utilities.io_logger import workflow_logger, execution_logger, system_logger
 from iointel.src.chainables import execute_tool_task, execute_agent_task
 from iointel.src.agent_methods.tools.collection_manager import search_collections, create_collection
+from .test_analytics_api import test_analytics_router
+from .workflow_rag_router import workflow_rag_router
+from .unified_search_service import UnifiedSearchService
 
 
 # Register executors for web interface
@@ -328,6 +332,7 @@ app.add_middleware(
 planner: Optional[WorkflowPlanner] = None
 current_workflow: Optional[WorkflowSpec] = None
 workflow_history: List[WorkflowSpec] = []
+unified_search_service: Optional[UnifiedSearchService] = None
 tool_catalog: Dict[str, Any] = {}
 active_executions: Dict[str, Dict[str, Any]] = {}  # execution_id -> execution_info
 workflow_storage: Optional[WorkflowStorage] = None
@@ -540,9 +545,9 @@ async def broadcast_message(message: Dict):
 
 
 @app.on_event("startup")
-async def startup_event(conversation_id: str = "web_interface_session_01"):
+async def startup_event():
     """Initialize the application on startup."""
-    global planner, tool_catalog, workflow_storage
+    global planner, tool_catalog, workflow_storage, unified_search_service
     
     print("🚀 Starting WorkflowPlanner web server...")
     
@@ -572,14 +577,17 @@ async def startup_event(conversation_id: str = "web_interface_session_01"):
         system_logger.warning("Could not load tools from environment", data={"error": str(e), "fallback": "using empty catalog"})
         tool_catalog = {}
     
-    # Initialize WorkflowPlanner
+    # Initialize WorkflowPlanner with managed conversation
     try:
+        conversation_storage = get_conversation_storage()
+        startup_conversation_id = conversation_storage.get_active_web_conversation()
+        
         planner = WorkflowPlanner(
             memory=memory,
-            conversation_id=conversation_id,
+            conversation_id=startup_conversation_id,
             debug=False
         )
-        system_logger.success("WorkflowPlanner initialized", data={"memory_enabled": True, "conversation_id": conversation_id})
+        system_logger.success("WorkflowPlanner initialized", data={"memory_enabled": True, "conversation_id": startup_conversation_id})
     except Exception as e:
         system_logger.error("WorkflowPlanner initialization failed", data={"error": str(e), "error_type": type(e).__name__})
         raise
@@ -592,12 +600,32 @@ async def startup_event(conversation_id: str = "web_interface_session_01"):
         print(f"❌ WorkflowStorage initialization failed: {e}")
         raise
     
+    # Initialize UnifiedSearchService
+    try:
+        # Check environment variable for search mode
+        import os
+        use_fast_search = os.getenv("FAST_SEARCH_MODE", "true").lower() == "true"
+        
+        unified_search_service = UnifiedSearchService(
+            storage_dir="saved_workflows",
+            test_repository_dir="smart_test_repository",
+            fast_mode=use_fast_search
+        )
+        
+        search_mode = "fast hash encoding" if use_fast_search else "real semantic vectors"
+        print(f"✅ UnifiedSearchService initialized with {search_mode}")
+        print(f"   (Set FAST_SEARCH_MODE=false for real semantic vectors)")
+    except Exception as e:
+        print(f"❌ UnifiedSearchService initialization failed: {e}")
+        # Don't raise - fallback to simple search
+    
     # Register task executors for semantic node types
     try:
         from ..utilities.registries import TASK_EXECUTOR_REGISTRY
         
         # Map semantic node types to appropriate executors
         TASK_EXECUTOR_REGISTRY["tool"] = web_tool_executor
+        TASK_EXECUTOR_REGISTRY["data_source"] = web_tool_executor      # Data source nodes use same executor as tools
         TASK_EXECUTOR_REGISTRY["workflow_call"] = web_workflow_call_executor
         TASK_EXECUTOR_REGISTRY["decision"] = web_agent_executor        # Decision nodes are agents with tools
         TASK_EXECUTOR_REGISTRY["data_fetcher"] = web_agent_executor    # Data fetcher nodes are agents with tools
@@ -789,8 +817,12 @@ async def generate_workflow(workflow_request: WorkflowRequest, request: Request)
                 # Don't set current workflow for chat-only responses
             
         # Generate workflow (could be new workflow or chat-only response)
-        # Use faux user's interface conversation ID for WorkflowPlanner memory continuity
-        conversation_id = faux_user.interface_conversation_id if faux_user else None
+        # Use managed conversation storage for better conversation tracking
+        conversation_storage = get_conversation_storage()
+        conversation_id = conversation_storage.get_active_web_conversation()
+        
+        # Update conversation usage
+        conversation_storage.update_conversation_usage(conversation_id, workflow_delta=1)
         
         # Workflow planner now logs the full prompt internally
         
@@ -860,8 +892,8 @@ async def generate_workflow(workflow_request: WorkflowRequest, request: Request)
                 print(f"        Config: {node.data.config}")
                 print(f"        Ins: {node.data.ins}")
                 print(f"        Outs: {node.data.outs}")
-                if hasattr(node.data, 'sla') and node.data.sla is not None:
-                    print(f"        SLA: {node.data.sla.model_dump_json(indent=2) if hasattr(node.data.sla, 'model_dump_json') else node.data.sla}")
+                if hasattr(node, 'sla') and node.sla is not None:
+                    print(f"        SLA: {node.sla.model_dump_json(indent=2) if hasattr(node.sla, 'model_dump_json') else node.sla}")
             print(f"   Edges ({len(current_workflow.edges)}):")
             for i, edge in enumerate(current_workflow.edges):
                 print(f"     {i+1}. {edge.source} -> {edge.target}")
@@ -875,8 +907,8 @@ async def generate_workflow(workflow_request: WorkflowRequest, request: Request)
                 dag_pretty += f"     Config: {node.data.config}\n"
                 dag_pretty += f"     Ins: {node.data.ins}\n"
                 dag_pretty += f"     Outs: {node.data.outs}\n"
-                if hasattr(node.data, 'sla') and node.data.sla is not None:
-                    dag_pretty += f"     SLA: {node.data.sla.model_dump_json(indent=2) if hasattr(node.data.sla, 'model_dump_json') else node.data.sla}\n"
+                if hasattr(node, 'sla') and node.sla is not None:
+                    dag_pretty += f"     SLA: {node.sla.model_dump_json(indent=2) if hasattr(node.sla, 'model_dump_json') else node.sla}\n"
             dag_pretty += f"Edges ({len(current_workflow.edges)}):\n"
             for i, edge in enumerate(current_workflow.edges):
                 dag_pretty += f"  {i+1}. {edge.source} -> {edge.target}\n"
@@ -1042,7 +1074,7 @@ async def execute_workflow_background(
         # Start execution feedback tracking
         feedback_collector.start_execution_tracking(
             execution_id=execution_id,
-            workflow_spec=current_workflow,
+            workflow_spec=workflow_spec,
             user_inputs=user_inputs or {}
         )
         
@@ -1205,9 +1237,10 @@ async def send_execution_feedback_to_planner(execution_summary: WorkflowExecutio
             feedback_conversation_id = interface_conversation_id
             print(f"🗣️ Using main planner conversation_id for feedback: {feedback_conversation_id}")
         else:
-            # For non-chat mode, use the web interface session conversation ID
-            feedback_conversation_id = "web_interface_session_01"
-            print(f"🗣️ Using fallback web interface conversation_id for feedback: {feedback_conversation_id}")
+            # For non-chat mode, use managed conversation storage
+            conversation_storage = get_conversation_storage()
+            feedback_conversation_id = conversation_storage.get_active_web_conversation()
+            print(f"🗣️ Using managed conversation_id for feedback: {feedback_conversation_id}")
         
         planner = WorkflowPlanner(
             model="gpt-4o-mini",
@@ -1798,6 +1831,12 @@ async def debug_user_model(request: Request):
     }
 
 
+# Include test analytics router
+app.include_router(test_analytics_router)
+
+# Include workflow RAG router
+app.include_router(workflow_rag_router)
+
 # Serve static files
 static_dir = Path(__file__).parent / "static"
 static_dir.mkdir(exist_ok=True)
@@ -1818,14 +1857,332 @@ async def read_root():
     <html>
     <head>
         <title>WorkflowPlanner</title>
+        <style>
+            body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 40px; }
+            .service { background: #f8f9fa; padding: 20px; margin: 10px 0; border-radius: 8px; }
+            .service h3 { margin-top: 0; color: #2563eb; }
+            a { color: #2563eb; text-decoration: none; }
+            a:hover { text-decoration: underline; }
+        </style>
     </head>
     <body>
-        <h1>WorkflowPlanner Web Interface</h1>
-        <p>The static files are not yet created. Please run the setup script.</p>
-        <p>API is available at <a href="/docs">/docs</a></p>
+        <h1>🚀 WorkflowPlanner Web Interface</h1>
+        <p>All services are running in a unified server. Choose what you need:</p>
+        
+        <div class="service">
+            <h3>📊 Test Analytics Panel</h3>
+            <p>Search through 49 tests with RAG, view coverage metrics, and analyze test quality.</p>
+            <p><a href="/test-analytics">Open Test Analytics Panel</a></p>
+        </div>
+        
+        <div class="service">
+            <h3>🔍 Workflow RAG Search</h3>
+            <p>Semantic search over saved workflows using vector similarity.</p>
+            <p><a href="/api/workflow-rag/">RAG Service Info</a> | <a href="/docs#/workflow-rag">API Docs</a></p>
+        </div>
+        
+        <div class="service">
+            <h3>🧪 Main Workflow Interface</h3>
+            <p>The main workflow planning and execution interface.</p>
+            <p><em>Static files not yet created. Run setup script to enable.</em></p>
+        </div>
+        
+        <div class="service">
+            <h3>📚 API Documentation</h3>
+            <p>Complete API documentation for all services.</p>
+            <p><a href="/docs">Open API Docs</a></p>
+        </div>
+        
+        <p style="margin-top: 30px; color: #6b7280;">
+            🎯 All services are now integrated! No need to run separate servers.
+        </p>
     </body>
     </html>
     """)
+
+
+@app.get("/test-analytics", response_class=HTMLResponse)
+async def test_analytics_panel():
+    """Serve the test analytics panel."""
+    analytics_file = static_dir / "test_analytics_panel.html"
+    if analytics_file.exists():
+        return FileResponse(analytics_file)
+    else:
+        raise HTTPException(status_code=404, detail="Test analytics panel not found")
+
+
+@app.get("/search/tools")
+async def search_tools(query: str, top_k: int = 5):
+    """Search available tools using unified semantic search."""
+    try:
+        # Use unified search service if available
+        if unified_search_service:
+            response = unified_search_service.search(
+                query=query,
+                search_types=["tools"],
+                top_k=top_k
+            )
+            
+            # Extract just the tool results
+            tool_results = [r for r in response.results if r.result_type == "tool"]
+            
+            return {
+                "query": query,
+                "results": [r.dict() for r in tool_results],
+                "total_found": len(tool_results)
+            }
+        
+        # Fallback to simple text search
+        print("⚠️ UnifiedSearchService not available, using simple text search")
+        tool_catalog = create_tool_catalog()
+        
+        # Simple text search through tools
+        results = []
+        query_lower = query.lower()
+        
+        for tool_name, tool_info in tool_catalog.items():
+            score = 0.0
+            
+            # Check name match
+            if query_lower in tool_name.lower():
+                score += 10.0
+            
+            # Check description match
+            description = tool_info.get("description", "")
+            if query_lower in description.lower():
+                score += 5.0
+            
+            # Check category match
+            category = tool_info.get("category", "")
+            if query_lower in category.lower():
+                score += 3.0
+            
+            if score > 0:
+                results.append({
+                    "result_type": "tool",
+                    "title": tool_name,
+                    "description": description,
+                    "similarity_score": min(score / 10.0, 1.0),  # Normalize to 0-1
+                    "metadata": {
+                        "parameter_count": len(tool_info.get("parameters", {})),
+                        "category": category,
+                        "required_parameters": tool_info.get("required_parameters", [])
+                    }
+                })
+        
+        # Sort by score and limit
+        results.sort(key=lambda x: x["similarity_score"], reverse=True)
+        results = results[:top_k]
+        
+        return {
+            "query": query,
+            "results": results,
+            "total_found": len(results)
+        }
+        
+    except Exception as e:
+        print(f"Error searching tools: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/search/workflows")
+async def search_workflows_unified(query: str, top_k: int = 5):
+    """Search saved workflows using unified semantic search."""
+    try:
+        # Use unified search service if available
+        if unified_search_service:
+            response = unified_search_service.search(
+                query=query,
+                search_types=["workflows"],
+                top_k=top_k
+            )
+            
+            # Extract workflow results and format for frontend
+            results = []
+            for r in response.results:
+                if r.result_type == "workflow":
+                    results.append({
+                        "result_type": "workflow",
+                        "title": r.title,
+                        "description": r.description,
+                        "similarity_score": r.similarity_score,
+                        "workflow_spec": r.data,  # Full spec data
+                        "metadata": r.metadata
+                    })
+            
+            return {
+                "query": query,
+                "results": results,
+                "total_found": len(results)
+            }
+        
+        # Fallback to workflow RAG service
+        from .workflow_rag_router import get_rag_service
+        
+        service = get_rag_service()
+        search_response = service.search_workflows(query=query, top_k=top_k)
+        
+        # Convert to the format expected by the frontend
+        results = []
+        for result in search_response.results:
+            workflow = result.workflow_spec
+            results.append({
+                "result_type": "workflow",
+                "title": workflow.title,
+                "description": workflow.description,
+                "similarity_score": result.similarity_score,
+                "workflow_spec": workflow.model_dump(),  # Include full spec for loading
+                "metadata": {
+                    "node_count": len(workflow.nodes),
+                    "edge_count": len(workflow.edges),
+                    "id": workflow.id
+                }
+            })
+        
+        return {
+            "query": query,
+            "results": results,
+            "total_found": search_response.total_found
+        }
+        
+    except Exception as e:
+        print(f"Error searching workflows: {e}")
+        # If search services are not available, return empty results
+        return {
+            "query": query,
+            "results": [],
+            "total_found": 0,
+            "error": "Workflow search service initializing..."
+        }
+
+
+@app.get("/api/test-analytics/search")
+async def search_test_analytics(query: str, top_k: int = 10):
+    """Search test cases using unified semantic search."""
+    try:
+        # Use unified search service if available
+        if unified_search_service:
+            response = unified_search_service.search(
+                query=query,
+                search_types=["tests"],
+                top_k=top_k
+            )
+            
+            # Extract test results and format for frontend
+            results = []
+            for r in response.results:
+                if r.result_type == "test":
+                    test_data = r.data
+                    results.append({
+                        "test_id": test_data.get("id"),
+                        "test_name": r.title,
+                        "test_description": r.description,
+                        "test_layer": test_data.get("layer", "unknown"),
+                        "test_category": test_data.get("category", "uncategorized"),
+                        "test_tags": test_data.get("tags", []),
+                        "similarity_score": r.similarity_score,
+                        "user_prompt": test_data.get("user_prompt", ""),
+                        "expected_result": test_data.get("expected_result", {}),
+                        "should_pass": test_data.get("should_pass", True)
+                    })
+            
+            return results
+        
+        # Fallback - return empty results if no unified search
+        print("⚠️ UnifiedSearchService not available for test analytics search")
+        return []
+        
+    except Exception as e:
+        print(f"Error searching test analytics: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# Conversation management endpoints
+@app.get("/api/conversations")
+async def list_conversations():
+    """List all conversations with metadata."""
+    storage = get_conversation_storage()
+    conversations = storage.list_conversations()
+    
+    return {
+        "conversations": [
+            {
+                "conversation_id": conv.conversation_id,
+                "version": conv.version,
+                "session_type": conv.session_type,
+                "status": conv.status,
+                "created_at": conv.created_at,
+                "last_used_at": conv.last_used_at,
+                "total_messages": conv.total_messages,
+                "workflow_count": conv.workflow_count,
+                "execution_count": conv.execution_count,
+                "notes": conv.notes
+            }
+            for conv in conversations
+        ]
+    }
+
+@app.post("/api/conversations/new")
+async def create_new_conversation():
+    """Create a new conversation session."""
+    storage = get_conversation_storage()
+    
+    # Archive the current active conversation first
+    current_conversations = [
+        conv for conv in storage.conversations.values()
+        if conv.session_type == "web_interface" and conv.status == "active"
+    ]
+    
+    for conv in current_conversations:
+        storage.archive_conversation(conv.conversation_id)
+        print(f"📦 Auto-archived previous conversation: {conv.conversation_id} ({conv.version})")
+    
+    # Force create a new conversation 
+    conversation_id = storage.create_conversation(
+        session_type="web_interface",
+        notes="Created via web interface - forced new session"
+    )
+    
+    print(f"✨ Force created new conversation: {conversation_id}")
+    
+    return {
+        "conversation_id": conversation_id,
+        "status": "created"
+    }
+
+@app.post("/api/conversations/{conversation_id}/archive")
+async def archive_conversation(conversation_id: str):
+    """Archive a conversation."""
+    storage = get_conversation_storage()
+    storage.archive_conversation(conversation_id)
+    
+    return {
+        "conversation_id": conversation_id,
+        "status": "archived"
+    }
+
+@app.get("/api/conversations/active")
+async def get_active_conversation():
+    """Get the current active conversation."""
+    storage = get_conversation_storage()
+    conversation_id = storage.get_active_web_conversation()
+    conversation = storage.get_conversation(conversation_id)
+    
+    if conversation:
+        return {
+            "conversation_id": conversation.conversation_id,
+            "version": conversation.version,
+            "session_type": conversation.session_type,
+            "status": conversation.status,
+            "created_at": conversation.created_at,
+            "last_used_at": conversation.last_used_at,
+            "total_messages": conversation.total_messages,
+            "workflow_count": conversation.workflow_count,
+            "execution_count": conversation.execution_count,
+            "notes": conversation.notes
+        }
+    else:
+        raise HTTPException(status_code=404, detail="Active conversation not found")
 
 
 if __name__ == "__main__":

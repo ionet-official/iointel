@@ -1,0 +1,20 @@
+{
+  "id": "3ac27081-71b9-4865-93e7-b8f94e11e3ff",
+  "name": "System Prompts",
+  "description": "Collection for prompts",
+  "records": [
+    "What is the capital of France?"
+  ],
+  "tags": [
+    "prompt_tool",
+    "auto_generated"
+  ],
+  "created_at": "2025-07-16 23:55:56.095829",
+  "updated_at": "2025-07-19 09:45:47.567829",
+  "usage_count": 0,
+  "last_used": null,
+  "compatible_tools": [
+    "prompt_tool",
+    "user_input"
+  ]
+}

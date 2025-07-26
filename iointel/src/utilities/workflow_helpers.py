@@ -213,13 +213,13 @@ def analyze_workflow_spec(spec: WorkflowSpec) -> Dict[str, Any]:
             analysis["execution_modes"][mode].append(node.label)
         
         # Check for SLA
-        if hasattr(node.data, 'sla') and node.data.sla:
+        if hasattr(node, 'sla') and node.sla:
             analysis["sla_nodes"].append({
                 "node": node.label,
-                "enforce_usage": getattr(node.data.sla, 'enforce_usage', False),
-                "required_tools": getattr(node.data.sla, 'required_tools', []),
-                "final_tool_must_be": getattr(node.data.sla, 'final_tool_must_be', None),
-                "min_tool_calls": getattr(node.data.sla, 'min_tool_calls', 0)
+                "enforce_usage": getattr(node.sla, 'enforce_usage', False),
+                "required_tools": getattr(node.sla, 'required_tools', []),
+                "final_tool_must_be": getattr(node.sla, 'final_tool_must_be', None),
+                "min_tool_calls": getattr(node.sla, 'min_tool_calls', 0)
             })
         
         # Check for agents with tools

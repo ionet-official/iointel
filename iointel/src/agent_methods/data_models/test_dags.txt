@@ -1,0 +1,1 @@
+"have one agent write a riddle and whisper that to another agent that tries to solve it! A third agent sees both and evaluates if it is solved. Make it fun and meaningful! Riddles must use basic arithmetic, that agent tools should be able to run and confirm riddle."

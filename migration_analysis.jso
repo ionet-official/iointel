@@ -1,0 +1,1411 @@
+{
+  "summary": {
+    "total_test_files": 100,
+    "files_needing_migration": 100,
+    "migration_percentage": 100.0
+  },
+  "files": {
+    "tests/test_stages.py": {
+      "file_path": "tests/test_stages.py",
+      "fixture_replacements": [],
+      "test_classifications": [],
+      "extracted_test_data": []
+    },
+    "tests/test_workflows.py": {
+      "file_path": "tests/test_workflows.py",
+      "fixture_replacements": [],
+      "test_classifications": [],
+      "extracted_test_data": []
+    },
+    "tests/test_decision_tools.py": {
+      "file_path": "tests/test_decision_tools.py",
+      "fixture_replacements": [],
+      "test_classifications": [
+        {
+          "pattern": "def test.*routing",
+          "layer": "logical",
+          "description": "Conditional routing"
+        }
+      ],
+      "extracted_test_data": []
+    },
+    "tests/test_workflow_cli.py": {
+      "file_path": "tests/test_workflow_cli.py",
+      "fixture_replacements": [],
+      "test_classifications": [],
+      "extracted_test_data": [
+        {
+          "type": "workflow_data",
+          "content": "WorkflowSpec(\n            id=\"empty-uuid\",\n            rev=1,\n            title=\"Empty Workflow\",\n  ...",
+          "start": 3591,
+          "end": 8223
+        },
+        {
+          "type": "workflow_data",
+          "content": "WorkflowSpec(\n                id=\"tool-test\",\n                rev=1,\n                title=\"Tool Tes...",
+          "start": 17482,
+          "end": 18240
+        },
+        {
+          "type": "workflow_data",
+          "content": "WorkflowSpec(\n            id=\"ports-test\",\n            rev=1,\n            title=\"Ports Test\",\n      ...",
+          "start": 19722,
+          "end": 22514
+        }
+      ]
+    },
+    "tests/test_kwargs_handling.py": {
+      "file_path": "tests/test_kwargs_handling.py",
+      "fixture_replacements": [],
+      "test_classifications": [],
+      "extracted_test_data": []
+    },
+    "tests/test_enhanced_tool_catalog.py": {
+      "file_path": "tests/test_enhanced_tool_catalog.py",
+      "fixture_replacements": [],
+      "test_classifications": [],
+      "extracted_test_data": []
+    },
+    "tests/test_workflow_web_api.py": {
+      "file_path": "tests/test_workflow_web_api.py",
+      "fixture_replacements": [],
+      "test_classifications": [
+        {
+          "pattern": "def test.*generate.*workflow",
+          "layer": "agentic",
+          "description": "LLM workflow generation"
+        }
+      ],
+      "extracted_test_data": [
+        {
+          "type": "workflow_data",
+          "content": "\"nodes\": [\n            {\n                \"id\": \"test_node\",\n                \"type\": \"tool\",\n        ...",
+          "start": 672,
+          "end": 914
+        }
+      ]
+    },
+    "tests/test_workflow_planner.py": {
+      "file_path": "tests/test_workflow_planner.py",
+      "fixture_replacements": [
+        "real_tool_catalog \u2192 already centralized"
+      ],
+      "test_classifications": [
+        {
+          "pattern": "def test.*generate.*workflow",
+          "layer": "agentic",
+          "description": "LLM workflow generation"
+        },
+        {
+          "pattern": "def test.*validation",
+          "layer": "logical",
+          "description": "Workflow validation"
+        },
+        {
+          "pattern": "def test.*routing",
+          "layer": "logical",
+          "description": "Conditional routing"
+        }
+      ],
+      "extracted_test_data": [
+        {
+          "type": "workflow_data",
+          "content": "WorkflowSpec(\n        id=uuid.uuid4()",
+          "start": 2338,
+          "end": 2375
+        },
+        {
+          "type": "workflow_data",
+          "content": "WorkflowSpec(\n            id=uuid.uuid4(),\n            rev=1,\n            title=\"Conditional Workflo...",
+          "start": 36520,
+          "end": 36860
+        },
+        {
+          "type": "workflow_data",
+          "content": "WorkflowSpec(\n            id=uuid.uuid4()",
+          "start": 38192,
+          "end": 38233
+        },
+        {
+          "type": "workflow_data",
+          "content": "WorkflowSpec(**test_case.workflow_spec)\n                issues = workflow.validate_structure(mock_to...",
+          "start": 46353,
+          "end": 46562
+        }
+      ]
+    },
+    "tests/test_execution_environment_critical_issues.py": {
+      "file_path": "tests/test_execution_environment_critical_issues.py",
+      "fixture_replacements": [],
+      "test_classifications": [
+        {
+          "pattern": "def test.*execution",
+          "layer": "orchestration",
+          "description": "Workflow execution"
+        }
+      ],
+      "extracted_test_data": [
+        {
+          "type": "workflow_data",
+          "content": "WorkflowSpec(\n            id=uuid4(),\n            rev=1,\n            title=\"Simple Test Workflow\",\n ...",
+          "start": 1759,
+          "end": 2257
+        },
+        {
+          "type": "workflow_data",
+          "content": "\"nodes\": [node.model_dump() for node in spec.nodes]",
+          "start": 4061,
+          "end": 4112
+        },
+        {
+          "type": "workflow_data",
+          "content": "\"edges\": [edge.model_dump() for edge in spec.edges]",
+          "start": 4126,
+          "end": 4177
+        }
+      ]
+    },
+    "tests/test_workflow_spec_conversions.py": {
+      "file_path": "tests/test_workflow_spec_conversions.py",
+      "fixture_replacements": [],
+      "test_classifications": [
+        {
+          "pattern": "def test.*execution",
+          "layer": "orchestration",
+          "description": "Workflow execution"
+        }
+      ],
+      "extracted_test_data": [
+        {
+          "type": "workflow_data",
+          "content": "WorkflowSpec(\n            id=uuid.uuid4()",
+          "start": 782,
+          "end": 823
+        },
+        {
+          "type": "workflow_data",
+          "content": "WorkflowSpec(\n            id=uuid.uuid4(),\n            rev=1,\n            title=\"Invalid Workflow\",\n...",
+          "start": 14342,
+          "end": 17563
+        },
+        {
+          "type": "workflow_data",
+          "content": "WorkflowSpec(\n            id=uuid.uuid4()",
+          "start": 19558,
+          "end": 19599
+        },
+        {
+          "type": "workflow_data",
+          "content": "WorkflowSpec(\n                id=uuid.uuid4()",
+          "start": 23187,
+          "end": 23232
+        }
+      ]
+    },
+    "tests/test_utilities.py": {
+      "file_path": "tests/test_utilities.py",
+      "fixture_replacements": [],
+      "test_classifications": [],
+      "extracted_test_data": []
+    },
+    "tests/test_centralized_workflow_testing.py": {
+      "file_path": "tests/test_centralized_workflow_testing.py",
+      "fixture_replacements": [],
+      "test_classifications": [
+        {
+          "pattern": "def test.*validation",
+          "layer": "logical",
+          "description": "Workflow validation"
+        },
+        {
+          "pattern": "def test.*routing",
+          "layer": "logical",
+          "description": "Conditional routing"
+        },
+        {
+          "pattern": "def test.*execution",
+          "layer": "orchestration",
+          "description": "Workflow execution"
+        },
+        {
+          "pattern": "def test.*feedback",
+          "layer": "feedback",
+          "description": "Chat feedback"
+        }
+      ],
+      "extracted_test_data": [
+        {
+          "type": "workflow_data",
+          "content": "WorkflowSpec(**workflow_data)\n                issues = workflow.validate_structure(mock_tool_catalog...",
+          "start": 2036,
+          "end": 2235
+        }
+      ]
+    },
+    "tests/test_tasks.py": {
+      "file_path": "tests/test_tasks.py",
+      "fixture_replacements": [],
+      "test_classifications": [],
+      "extracted_test_data": []
+    },
+    "tests/test_execution_environment_equivalence.py": {
+      "file_path": "tests/test_execution_environment_equivalence.py",
+      "fixture_replacements": [],
+      "test_classifications": [
+        {
+          "pattern": "def test.*execution",
+          "layer": "orchestration",
+          "description": "Workflow execution"
+        }
+      ],
+      "extracted_test_data": [
+        {
+          "type": "workflow_data",
+          "content": "WorkflowSpec(\n            id=uuid4(),\n            rev=1,\n            title=\"Simple Equivalence Test ...",
+          "start": 2589,
+          "end": 2885
+        },
+        {
+          "type": "workflow_data",
+          "content": "WorkflowSpec(\n            id=uuid4(),\n            rev=1,\n            title=\"Complex Equivalence Test...",
+          "start": 6074,
+          "end": 6747
+        },
+        {
+          "type": "workflow_data",
+          "content": "WorkflowSpec(\n            id=uuid4(),\n            rev=1,\n            title=\"Error Test Workflow\",\n  ...",
+          "start": 16750,
+          "end": 18966
+        },
+        {
+          "type": "workflow_data",
+          "content": "WorkflowSpec(\n            id=uuid4(),\n            rev=1,\n            title=\"Parallel Test Workflow\",...",
+          "start": 21025,
+          "end": 21710
+        },
+        {
+          "type": "workflow_data",
+          "content": "\"nodes\": [node.model_dump() for node in spec.nodes]",
+          "start": 9735,
+          "end": 9786
+        },
+        {
+          "type": "workflow_data",
+          "content": "\"edges\": [edge.model_dump() for edge in spec.edges]",
+          "start": 9800,
+          "end": 9851
+        }
+      ]
+    },
+    "tests/test_riddle_whisper_workflow.py": {
+      "file_path": "tests/test_riddle_whisper_workflow.py",
+      "fixture_replacements": [],
+      "test_classifications": [
+        {
+          "pattern": "def test.*execution",
+          "layer": "orchestration",
+          "description": "Workflow execution"
+        }
+      ],
+      "extracted_test_data": [
+        {
+          "type": "workflow_data",
+          "content": "WorkflowSpec(\n        id=uuid4()",
+          "start": 2044,
+          "end": 2076
+        }
+      ]
+    },
+    "tests/test_client.py": {
+      "file_path": "tests/test_client.py",
+      "fixture_replacements": [],
+      "test_classifications": [],
+      "extracted_test_data": []
+    },
+    "tests/test_workflow_converter.py": {
+      "file_path": "tests/test_workflow_converter.py",
+      "fixture_replacements": [],
+      "test_classifications": [],
+      "extracted_test_data": [
+        {
+          "type": "workflow_data",
+          "content": "WorkflowSpec(\n        id=uuid.uuid4()",
+          "start": 636,
+          "end": 673
+        },
+        {
+          "type": "workflow_data",
+          "content": "WorkflowSpec(\n            id=uuid.uuid4(),\n            rev=1,\n            title=\"Unknown Tool Workfl...",
+          "start": 9273,
+          "end": 14633
+        },
+        {
+          "type": "workflow_data",
+          "content": "WorkflowSpec(\n            id=uuid.uuid4(),\n            rev=1,\n            title=\"Multi-Type Workflow...",
+          "start": 16635,
+          "end": 17683
+        },
+        {
+          "type": "workflow_data",
+          "content": "WorkflowSpec(\n            id=uuid.uuid4(),\n            rev=1,\n            title=\"Complex Edges Workf...",
+          "start": 18355,
+          "end": 21955
+        }
+      ]
+    },
+    "tests/test_workflow_spec.py": {
+      "file_path": "tests/test_workflow_spec.py",
+      "fixture_replacements": [],
+      "test_classifications": [],
+      "extracted_test_data": [
+        {
+          "type": "workflow_data",
+          "content": "WorkflowSpec(\n            id=workflow_id,\n            rev=1,\n            title=\"Test Workflow\",\n    ...",
+          "start": 6271,
+          "end": 7005
+        },
+        {
+          "type": "workflow_data",
+          "content": "WorkflowSpec(\n            id=uuid.uuid4(),\n            rev=1,\n            title=\"Metadata Workflow\",...",
+          "start": 7229,
+          "end": 8719
+        },
+        {
+          "type": "workflow_data",
+          "content": "WorkflowSpec(\n            id=uuid.uuid4(),\n            rev=1,\n            title=\"Valid Workflow\",\n  ...",
+          "start": 9981,
+          "end": 19472
+        },
+        {
+          "type": "workflow_data",
+          "content": "WorkflowSpec(\n            id=uuid.uuid4(),\n            rev=1,\n            title=\"Complex Config Work...",
+          "start": 20854,
+          "end": 21441
+        },
+        {
+          "type": "workflow_data",
+          "content": "\"nodes\": [\n                {\n                    \"id\": \"deserial_node\",\n                    \"type\": ...",
+          "start": 8852,
+          "end": 9135
+        }
+      ]
+    },
+    "tests/test_conditional_dag_termination.py": {
+      "file_path": "tests/test_conditional_dag_termination.py",
+      "fixture_replacements": [],
+      "test_classifications": [
+        {
+          "pattern": "def test.*execution",
+          "layer": "orchestration",
+          "description": "Workflow execution"
+        }
+      ],
+      "extracted_test_data": [
+        {
+          "type": "workflow_data",
+          "content": "WorkflowSpec(\n            id=uuid4(),\n            rev=1,\n            title=\"Test Conditional Workflo...",
+          "start": 3892,
+          "end": 4605
+        },
+        {
+          "type": "workflow_data",
+          "content": "WorkflowSpec(\n            id=uuid4(),\n            rev=1,\n            title=\"Agent Conditional Gate T...",
+          "start": 18925,
+          "end": 19403
+        }
+      ]
+    },
+    "tests/test_workflow_routing_validation.py": {
+      "file_path": "tests/test_workflow_routing_validation.py",
+      "fixture_replacements": [],
+      "test_classifications": [
+        {
+          "pattern": "def test.*validation",
+          "layer": "logical",
+          "description": "Workflow validation"
+        },
+        {
+          "pattern": "def test.*routing",
+          "layer": "logical",
+          "description": "Conditional routing"
+        },
+        {
+          "pattern": "def test.*feedback",
+          "layer": "feedback",
+          "description": "Chat feedback"
+        }
+      ],
+      "extracted_test_data": [
+        {
+          "type": "workflow_data",
+          "content": "WorkflowSpec(\n            id=uuid4(),\n            rev=1,\n            title=\"Valid Routing Workflow\",...",
+          "start": 2751,
+          "end": 3347
+        },
+        {
+          "type": "workflow_data",
+          "content": "WorkflowSpec(\n            id=uuid4(),\n            rev=1,\n            title=\"Dangling Routing Node\",\n...",
+          "start": 4358,
+          "end": 4813
+        },
+        {
+          "type": "workflow_data",
+          "content": "WorkflowSpec(\n            id=uuid4(),\n            rev=1,\n            title=\"Unconditional Routing\",\n...",
+          "start": 6208,
+          "end": 6660
+        },
+        {
+          "type": "workflow_data",
+          "content": "WorkflowSpec(\n            id=uuid4(),\n            rev=1,\n            title=\"Broken Edge\",\n          ...",
+          "start": 7509,
+          "end": 8092
+        },
+        {
+          "type": "workflow_data",
+          "content": "WorkflowSpec(\n            id=uuid4(),\n            rev=1,\n            title=\"Orphaned Condition\",\n   ...",
+          "start": 9307,
+          "end": 9755
+        },
+        {
+          "type": "workflow_data",
+          "content": "WorkflowSpec(\n            id=uuid4(),\n            rev=1,\n            title=\"Agent Routing\",\n        ...",
+          "start": 11495,
+          "end": 12074
+        },
+        {
+          "type": "workflow_data",
+          "content": "WorkflowSpec(\n            id=uuid4(),\n            rev=1,\n            title=\"Multiple Routing Tools\",...",
+          "start": 14692,
+          "end": 15345
+        },
+        {
+          "type": "workflow_data",
+          "content": "WorkflowSpec(\n            id=uuid4(),\n            rev=1,\n            title=\"Complex Routing Workflow...",
+          "start": 19669,
+          "end": 20282
+        },
+        {
+          "type": "workflow_data",
+          "content": "WorkflowSpec(\n            id=uuid4(),\n            rev=1, \n            title=\"Validation Feedback Tes...",
+          "start": 21007,
+          "end": 21728
+        },
+        {
+          "type": "workflow_data",
+          "content": "WorkflowSpec(\n            id=uuid4(),\n            rev=1,\n            title=\"Real World Routing Misma...",
+          "start": 24310,
+          "end": 25101
+        }
+      ]
+    },
+    "tests/test_agents.py": {
+      "file_path": "tests/test_agents.py",
+      "fixture_replacements": [],
+      "test_classifications": [],
+      "extracted_test_data": []
+    },
+    "tests/ui/test_ui_tool_display.py": {
+      "file_path": "tests/ui/test_ui_tool_display.py",
+      "fixture_replacements": [],
+      "test_classifications": [],
+      "extracted_test_data": [
+        {
+          "type": "workflow_data",
+          "content": "\"nodes\": [\n            {\n                \"id\": \"math_solver\",\n                \"type\": \"agent\",\n     ...",
+          "start": 1520,
+          "end": 1856
+        }
+      ]
+    },
+    "tests/tools/test_dict_tool_resolution.py": {
+      "file_path": "tests/tools/test_dict_tool_resolution.py",
+      "fixture_replacements": [],
+      "test_classifications": [],
+      "extracted_test_data": []
+    },
+    "tests/tools/test_centralized_utils.py": {
+      "file_path": "tests/tools/test_centralized_utils.py",
+      "fixture_replacements": [],
+      "test_classifications": [],
+      "extracted_test_data": []
+    },
+    "tests/tools/test_tool_catalog_fix.py": {
+      "file_path": "tests/tools/test_tool_catalog_fix.py",
+      "fixture_replacements": [],
+      "test_classifications": [],
+      "extracted_test_data": []
+    },
+    "tests/tools/test_text_input_tools.py": {
+      "file_path": "tests/tools/test_text_input_tools.py",
+      "fixture_replacements": [],
+      "test_classifications": [],
+      "extracted_test_data": [
+        {
+          "type": "workflow_data",
+          "content": "WorkflowSpec(\n        id=uuid.uuid4(),\n        rev=1,\n        title=\"Text Input Test Workflow\",\n    ...",
+          "start": 2765,
+          "end": 3029
+        }
+      ]
+    },
+    "tests/tools/test_tool_get_wrapped_fn.py": {
+      "file_path": "tests/tools/test_tool_get_wrapped_fn.py",
+      "fixture_replacements": [],
+      "test_classifications": [],
+      "extracted_test_data": []
+    },
+    "tests/test_agno/test_calculator.py": {
+      "file_path": "tests/test_agno/test_calculator.py",
+      "fixture_replacements": [],
+      "test_classifications": [],
+      "extracted_test_data": []
+    },
+    "tests/test_agno/test_yfinance.py": {
+      "file_path": "tests/test_agno/test_yfinance.py",
+      "fixture_replacements": [],
+      "test_classifications": [],
+      "extracted_test_data": []
+    },
+    "tests/test_agno/test_file.py": {
+      "file_path": "tests/test_agno/test_file.py",
+      "fixture_replacements": [],
+      "test_classifications": [],
+      "extracted_test_data": []
+    },
+    "tests/test_agno/test_shell.py": {
+      "file_path": "tests/test_agno/test_shell.py",
+      "fixture_replacements": [],
+      "test_classifications": [],
+      "extracted_test_data": []
+    },
+    "tests/test_agno/test_csv.py": {
+      "file_path": "tests/test_agno/test_csv.py",
+      "fixture_replacements": [],
+      "test_classifications": [],
+      "extracted_test_data": []
+    },
+    "tests/web/test_markdown_rendering.py": {
+      "file_path": "tests/web/test_markdown_rendering.py",
+      "fixture_replacements": [],
+      "test_classifications": [],
+      "extracted_test_data": []
+    },
+    "tests/web/test_frontend_feedback.py": {
+      "file_path": "tests/web/test_frontend_feedback.py",
+      "fixture_replacements": [],
+      "test_classifications": [
+        {
+          "pattern": "def test.*feedback",
+          "layer": "feedback",
+          "description": "Chat feedback"
+        }
+      ],
+      "extracted_test_data": []
+    },
+    "tests/web/test_execution_feedback.py": {
+      "file_path": "tests/web/test_execution_feedback.py",
+      "fixture_replacements": [],
+      "test_classifications": [
+        {
+          "pattern": "def test.*execution",
+          "layer": "orchestration",
+          "description": "Workflow execution"
+        },
+        {
+          "pattern": "def test.*feedback",
+          "layer": "feedback",
+          "description": "Chat feedback"
+        }
+      ],
+      "extracted_test_data": [
+        {
+          "type": "workflow_data",
+          "content": "WorkflowSpec(\n        id=uuid4(),\n        rev=1,\n        title=\"Email Processing and Organization Wo...",
+          "start": 792,
+          "end": 2083
+        },
+        {
+          "type": "workflow_data",
+          "content": "WorkflowSpec(\n        id=uuid4()",
+          "start": 8060,
+          "end": 8092
+        }
+      ]
+    },
+    "tests/integration/test_chat_feature_integration.py": {
+      "file_path": "tests/integration/test_chat_feature_integration.py",
+      "fixture_replacements": [],
+      "test_classifications": [],
+      "extracted_test_data": []
+    },
+    "tests/integration/test_full_dag_sla_enforcement.py": {
+      "file_path": "tests/integration/test_full_dag_sla_enforcement.py",
+      "fixture_replacements": [],
+      "test_classifications": [],
+      "extracted_test_data": [
+        {
+          "type": "workflow_data",
+          "content": "WorkflowSpec(\n            id=uuid.uuid4(),\n            rev=1,\n            title=\"Simple Agent Test\",...",
+          "start": 1184,
+          "end": 2261
+        },
+        {
+          "type": "workflow_data",
+          "content": "WorkflowSpec(\n            id=uuid.uuid4(),\n            rev=1,\n            title=\"Decision Agent Test...",
+          "start": 3248,
+          "end": 4609
+        },
+        {
+          "type": "workflow_data",
+          "content": "WorkflowSpec(\n            id=uuid.uuid4()",
+          "start": 6787,
+          "end": 6828
+        },
+        {
+          "type": "workflow_data",
+          "content": "WorkflowSpec(\n            id=uuid.uuid4(),\n            rev=1,\n            title=\"SLA Violation Test\"...",
+          "start": 11000,
+          "end": 12312
+        }
+      ]
+    },
+    "tests/test_tools_isolated/test_retrieval.py": {
+      "file_path": "tests/test_tools_isolated/test_retrieval.py",
+      "fixture_replacements": [],
+      "test_classifications": [],
+      "extracted_test_data": []
+    },
+    "tests/test_tools_isolated/test_wolfram.py": {
+      "file_path": "tests/test_tools_isolated/test_wolfram.py",
+      "fixture_replacements": [],
+      "test_classifications": [],
+      "extracted_test_data": []
+    },
+    "tests/test_tools_isolated/test_duckduckgo.py": {
+      "file_path": "tests/test_tools_isolated/test_duckduckgo.py",
+      "fixture_replacements": [],
+      "test_classifications": [],
+      "extracted_test_data": []
+    },
+    "tests/test_tools_isolated/test_firecrawl_tool.py": {
+      "file_path": "tests/test_tools_isolated/test_firecrawl_tool.py",
+      "fixture_replacements": [],
+      "test_classifications": [],
+      "extracted_test_data": []
+    },
+    "tests/test_tools_isolated/test_solscan.py": {
+      "file_path": "tests/test_tools_isolated/test_solscan.py",
+      "fixture_replacements": [],
+      "test_classifications": [],
+      "extracted_test_data": []
+    },
+    "tests/test_tools_isolated/test_searxng.py": {
+      "file_path": "tests/test_tools_isolated/test_searxng.py",
+      "fixture_replacements": [],
+      "test_classifications": [],
+      "extracted_test_data": []
+    },
+    "tests/test_tools_isolated/test_coinmarketcap.py": {
+      "file_path": "tests/test_tools_isolated/test_coinmarketcap.py",
+      "fixture_replacements": [],
+      "test_classifications": [],
+      "extracted_test_data": []
+    },
+    "tests/workflows/test_clean_workflow_simple.py": {
+      "file_path": "tests/workflows/test_clean_workflow_simple.py",
+      "fixture_replacements": [],
+      "test_classifications": [],
+      "extracted_test_data": []
+    },
+    "tests/workflows/test_web_workflow_fix.py": {
+      "file_path": "tests/workflows/test_web_workflow_fix.py",
+      "fixture_replacements": [],
+      "test_classifications": [],
+      "extracted_test_data": []
+    },
+    "tests/workflows/test_workflow_tools.py": {
+      "file_path": "tests/workflows/test_workflow_tools.py",
+      "fixture_replacements": [],
+      "test_classifications": [],
+      "extracted_test_data": []
+    },
+    "tests/agents/test_working_agno_agent.py": {
+      "file_path": "tests/agents/test_working_agno_agent.py",
+      "fixture_replacements": [],
+      "test_classifications": [],
+      "extracted_test_data": []
+    },
+    "tests/agents/test_agent_data_flow_fix.py": {
+      "file_path": "tests/agents/test_agent_data_flow_fix.py",
+      "fixture_replacements": [],
+      "test_classifications": [],
+      "extracted_test_data": [
+        {
+          "type": "workflow_data",
+          "content": "WorkflowSpec(\n        id=uuid.uuid4(),\n        rev=1,\n        title=\"User Input to Agent Test\",\n    ...",
+          "start": 773,
+          "end": 2045
+        }
+      ]
+    },
+    "tests/test_tools_with_agents/test_searxng_agent.py": {
+      "file_path": "tests/test_tools_with_agents/test_searxng_agent.py",
+      "fixture_replacements": [],
+      "test_classifications": [],
+      "extracted_test_data": []
+    },
+    "tests/test_tools_with_agents/test_crawl_agent.py": {
+      "file_path": "tests/test_tools_with_agents/test_crawl_agent.py",
+      "fixture_replacements": [],
+      "test_classifications": [],
+      "extracted_test_data": []
+    },
+    "tests/test_tools_with_agents/test_duckduckgo_agent.py": {
+      "file_path": "tests/test_tools_with_agents/test_duckduckgo_agent.py",
+      "fixture_replacements": [],
+      "test_classifications": [],
+      "extracted_test_data": []
+    },
+    "tests/test_tools_with_agents/test_coinmarketcap_agent.py": {
+      "file_path": "tests/test_tools_with_agents/test_coinmarketcap_agent.py",
+      "fixture_replacements": [],
+      "test_classifications": [],
+      "extracted_test_data": []
+    },
+    "tests/test_tools_with_agents/test_wolframalpha_agent.py": {
+      "file_path": "tests/test_tools_with_agents/test_wolframalpha_agent.py",
+      "fixture_replacements": [],
+      "test_classifications": [],
+      "extracted_test_data": []
+    },
+    "tests/test_tools_with_agents/test_basic_agent_tools.py": {
+      "file_path": "tests/test_tools_with_agents/test_basic_agent_tools.py",
+      "fixture_replacements": [],
+      "test_classifications": [],
+      "extracted_test_data": []
+    },
+    "tests/integrations/test_collection_ui_integration.py": {
+      "file_path": "tests/integrations/test_collection_ui_integration.py",
+      "fixture_replacements": [],
+      "test_classifications": [],
+      "extracted_test_data": []
+    },
+    "tests/integrations/test_data_flow_comprehensive.py": {
+      "file_path": "tests/integrations/test_data_flow_comprehensive.py",
+      "fixture_replacements": [],
+      "test_classifications": [
+        {
+          "pattern": "def test.*execution",
+          "layer": "orchestration",
+          "description": "Workflow execution"
+        }
+      ],
+      "extracted_test_data": [
+        {
+          "type": "workflow_data",
+          "content": "WorkflowSpec(\n        id=uuid.uuid4()",
+          "start": 3794,
+          "end": 3831
+        },
+        {
+          "type": "workflow_data",
+          "content": "WorkflowSpec(\n        id=uuid.uuid4(),\n        rev=1,\n        title=\"Parallel Branches Test\",\n      ...",
+          "start": 6600,
+          "end": 6727
+        },
+        {
+          "type": "workflow_data",
+          "content": "WorkflowSpec(\n        id=uuid.uuid4()",
+          "start": 9428,
+          "end": 9465
+        }
+      ]
+    },
+    "tests/integrations/test_final_fix.py": {
+      "file_path": "tests/integrations/test_final_fix.py",
+      "fixture_replacements": [],
+      "test_classifications": [],
+      "extracted_test_data": []
+    },
+    "tests/integrations/test_collection_api_integration.py": {
+      "file_path": "tests/integrations/test_collection_api_integration.py",
+      "fixture_replacements": [],
+      "test_classifications": [],
+      "extracted_test_data": []
+    },
+    "tests/integrations/test_integrated_dag.py": {
+      "file_path": "tests/integrations/test_integrated_dag.py",
+      "fixture_replacements": [],
+      "test_classifications": [
+        {
+          "pattern": "def test.*execution",
+          "layer": "orchestration",
+          "description": "Workflow execution"
+        }
+      ],
+      "extracted_test_data": [
+        {
+          "type": "workflow_data",
+          "content": "WorkflowSpec(\n        id=uuid.uuid4()",
+          "start": 1777,
+          "end": 1814
+        }
+      ]
+    },
+    "tests/integrations/test_exact_scenario.py": {
+      "file_path": "tests/integrations/test_exact_scenario.py",
+      "fixture_replacements": [],
+      "test_classifications": [],
+      "extracted_test_data": []
+    },
+    "tests/utilities/test_ascii_viz.py": {
+      "file_path": "tests/utilities/test_ascii_viz.py",
+      "fixture_replacements": [],
+      "test_classifications": [],
+      "extracted_test_data": []
+    },
+    "tests/utilities/test_validation_enhancement.py": {
+      "file_path": "tests/utilities/test_validation_enhancement.py",
+      "fixture_replacements": [],
+      "test_classifications": [
+        {
+          "pattern": "def test.*validation",
+          "layer": "logical",
+          "description": "Workflow validation"
+        }
+      ],
+      "extracted_test_data": [
+        {
+          "type": "workflow_data",
+          "content": "WorkflowSpec(\n        id=uuid4()",
+          "start": 1176,
+          "end": 1208
+        },
+        {
+          "type": "workflow_data",
+          "content": "WorkflowSpec(\n        id=uuid4()",
+          "start": 2024,
+          "end": 2056
+        },
+        {
+          "type": "workflow_data",
+          "content": "WorkflowSpec(\n        id=uuid4()",
+          "start": 3225,
+          "end": 3257
+        },
+        {
+          "type": "workflow_data",
+          "content": "WorkflowSpec(\n        id=uuid4()",
+          "start": 4068,
+          "end": 4100
+        }
+      ]
+    },
+    "tests/utilities/test_prompt_collections.py": {
+      "file_path": "tests/utilities/test_prompt_collections.py",
+      "fixture_replacements": [],
+      "test_classifications": [],
+      "extracted_test_data": []
+    },
+    "tests/utilities/test_io_logger.py": {
+      "file_path": "tests/utilities/test_io_logger.py",
+      "fixture_replacements": [],
+      "test_classifications": [
+        {
+          "pattern": "def test.*execution",
+          "layer": "orchestration",
+          "description": "Workflow execution"
+        }
+      ],
+      "extracted_test_data": [
+        {
+          "type": "workflow_data",
+          "content": "WorkflowSpec(\n            id=uuid4(),\n            rev=1,\n            title=\"Test Workflow\",\n        ...",
+          "start": 3775,
+          "end": 4426
+        },
+        {
+          "type": "workflow_data",
+          "content": "WorkflowSpec(\n            id=uuid4(),\n            rev=1,\n            title=\"Stock Trading Decision W...",
+          "start": 5875,
+          "end": 7852
+        }
+      ]
+    },
+    "tests/utilities/test_dag_executor.py": {
+      "file_path": "tests/utilities/test_dag_executor.py",
+      "fixture_replacements": [],
+      "test_classifications": [
+        {
+          "pattern": "def test.*validation",
+          "layer": "logical",
+          "description": "Workflow validation"
+        },
+        {
+          "pattern": "def test.*execution",
+          "layer": "orchestration",
+          "description": "Workflow execution"
+        }
+      ],
+      "extracted_test_data": [
+        {
+          "type": "workflow_data",
+          "content": "WorkflowSpec(\n        id=uuid.uuid4()",
+          "start": 1934,
+          "end": 1971
+        },
+        {
+          "type": "workflow_data",
+          "content": "WorkflowSpec(\n        id=uuid.uuid4()",
+          "start": 4395,
+          "end": 4432
+        },
+        {
+          "type": "workflow_data",
+          "content": "WorkflowSpec(\n        id=uuid.uuid4()",
+          "start": 8319,
+          "end": 8356
+        },
+        {
+          "type": "workflow_data",
+          "content": "WorkflowSpec(\n        id=uuid.uuid4()",
+          "start": 11020,
+          "end": 11057
+        }
+      ]
+    },
+    "tests/utilities/test_node_execution_wrapper.py": {
+      "file_path": "tests/utilities/test_node_execution_wrapper.py",
+      "fixture_replacements": [],
+      "test_classifications": [
+        {
+          "pattern": "def test.*validation",
+          "layer": "logical",
+          "description": "Workflow validation"
+        },
+        {
+          "pattern": "def test.*execution",
+          "layer": "orchestration",
+          "description": "Workflow execution"
+        }
+      ],
+      "extracted_test_data": []
+    },
+    "tests/utilities/test_user_input_flow.py": {
+      "file_path": "tests/utilities/test_user_input_flow.py",
+      "fixture_replacements": [],
+      "test_classifications": [],
+      "extracted_test_data": []
+    },
+    "tests/utilities/test_tool_usage_enforcement.py": {
+      "file_path": "tests/utilities/test_tool_usage_enforcement.py",
+      "fixture_replacements": [],
+      "test_classifications": [],
+      "extracted_test_data": []
+    },
+    "tests/execution/test_simple_dag.py": {
+      "file_path": "tests/execution/test_simple_dag.py",
+      "fixture_replacements": [],
+      "test_classifications": [],
+      "extracted_test_data": [
+        {
+          "type": "workflow_data",
+          "content": "WorkflowSpec(\n        id=uuid.uuid4(),\n        rev=1,\n        title=\"Simple Test\",\n        descripti...",
+          "start": 688,
+          "end": 1597
+        },
+        {
+          "type": "workflow_data",
+          "content": "WorkflowSpec(\n        id=uuid.uuid4(),\n        rev=1,\n        title=\"Decision Test\",\n        descrip...",
+          "start": 2749,
+          "end": 3717
+        }
+      ]
+    },
+    "tests/execution/test_skip_propagation_fix.py": {
+      "file_path": "tests/execution/test_skip_propagation_fix.py",
+      "fixture_replacements": [],
+      "test_classifications": [],
+      "extracted_test_data": [
+        {
+          "type": "workflow_data",
+          "content": "WorkflowSpec(\n        id=uuid.uuid4(),\n        rev=1,\n        title=\"Skip Propagation Test\", \n      ...",
+          "start": 1143,
+          "end": 1407
+        }
+      ]
+    },
+    "tests/diagnostics/test_self_parameter_leak.py": {
+      "file_path": "tests/diagnostics/test_self_parameter_leak.py",
+      "fixture_replacements": [],
+      "test_classifications": [],
+      "extracted_test_data": []
+    },
+    "tests/diagnostics/test_tool_instance_diagnosis.py": {
+      "file_path": "tests/diagnostics/test_tool_instance_diagnosis.py",
+      "fixture_replacements": [],
+      "test_classifications": [],
+      "extracted_test_data": []
+    },
+    "tests/sla/test_complete_sla_system.py": {
+      "file_path": "tests/sla/test_complete_sla_system.py",
+      "fixture_replacements": [],
+      "test_classifications": [],
+      "extracted_test_data": [
+        {
+          "type": "workflow_data",
+          "content": "WorkflowSpec(\n        id=uuid.uuid4(),\n        rev=1,\n        title=\"Stock Decision Workflow with SL...",
+          "start": 1331,
+          "end": 2476
+        },
+        {
+          "type": "workflow_data",
+          "content": "WorkflowSpec(\n        id=uuid.uuid4(),\n        rev=1,\n        title=\"Simple Chat Workflow\",\n        ...",
+          "start": 4842,
+          "end": 5773
+        }
+      ]
+    },
+    "tests/sla/test_flexible_sla_demo.py": {
+      "file_path": "tests/sla/test_flexible_sla_demo.py",
+      "fixture_replacements": [],
+      "test_classifications": [],
+      "extracted_test_data": [
+        {
+          "type": "workflow_data",
+          "content": "WorkflowSpec(\n        id=uuid.uuid4(),\n        rev=1,\n        title=\"Custom SLA Test\", \n        desc...",
+          "start": 1262,
+          "end": 2415
+        },
+        {
+          "type": "workflow_data",
+          "content": "WorkflowSpec(\n        id=uuid.uuid4(),\n        rev=1,\n        title=\"No SLA Override Test\", \n       ...",
+          "start": 4359,
+          "end": 5748
+        }
+      ]
+    },
+    "tests/routing/test_dual_routing.py": {
+      "file_path": "tests/routing/test_dual_routing.py",
+      "fixture_replacements": [],
+      "test_classifications": [
+        {
+          "pattern": "def test.*routing",
+          "layer": "logical",
+          "description": "Conditional routing"
+        }
+      ],
+      "extracted_test_data": [
+        {
+          "type": "workflow_data",
+          "content": "WorkflowSpec(\n        id=uuid.uuid4(),\n        rev=1,\n        title=\"Dual Routing Test\", \n        de...",
+          "start": 1284,
+          "end": 1522
+        }
+      ]
+    },
+    "tests/routing/test_positive_routing.py": {
+      "file_path": "tests/routing/test_positive_routing.py",
+      "fixture_replacements": [],
+      "test_classifications": [
+        {
+          "pattern": "def test.*routing",
+          "layer": "logical",
+          "description": "Conditional routing"
+        }
+      ],
+      "extracted_test_data": [
+        {
+          "type": "workflow_data",
+          "content": "WorkflowSpec(\n        id=uuid.uuid4()",
+          "start": 1798,
+          "end": 1835
+        }
+      ]
+    },
+    "tests/routing/test_negative_routing.py": {
+      "file_path": "tests/routing/test_negative_routing.py",
+      "fixture_replacements": [],
+      "test_classifications": [
+        {
+          "pattern": "def test.*routing",
+          "layer": "logical",
+          "description": "Conditional routing"
+        }
+      ],
+      "extracted_test_data": [
+        {
+          "type": "workflow_data",
+          "content": "WorkflowSpec(\n        id=uuid.uuid4()",
+          "start": 1254,
+          "end": 1291
+        }
+      ]
+    },
+    "tests/workflows/patterns/test_user_input_workflows.py": {
+      "file_path": "tests/workflows/patterns/test_user_input_workflows.py",
+      "fixture_replacements": [],
+      "test_classifications": [
+        {
+          "pattern": "def test.*validation",
+          "layer": "logical",
+          "description": "Workflow validation"
+        },
+        {
+          "pattern": "def test.*routing",
+          "layer": "logical",
+          "description": "Conditional routing"
+        }
+      ],
+      "extracted_test_data": [
+        {
+          "type": "workflow_data",
+          "content": "WorkflowSpec(\n        id=uuid4()",
+          "start": 3003,
+          "end": 3035
+        },
+        {
+          "type": "workflow_data",
+          "content": "WorkflowSpec(\n        id=uuid4()",
+          "start": 6304,
+          "end": 6336
+        },
+        {
+          "type": "workflow_data",
+          "content": "WorkflowSpec(\n        id=uuid4()",
+          "start": 9793,
+          "end": 9825
+        }
+      ]
+    },
+    "tests/workflows/patterns/test_multi_gate_workflows.py": {
+      "file_path": "tests/workflows/patterns/test_multi_gate_workflows.py",
+      "fixture_replacements": [],
+      "test_classifications": [
+        {
+          "pattern": "def test.*routing",
+          "layer": "logical",
+          "description": "Conditional routing"
+        },
+        {
+          "pattern": "def test.*execution",
+          "layer": "orchestration",
+          "description": "Workflow execution"
+        }
+      ],
+      "extracted_test_data": [
+        {
+          "type": "workflow_data",
+          "content": "WorkflowSpec(\n        id=uuid4()",
+          "start": 5590,
+          "end": 5622
+        },
+        {
+          "type": "workflow_data",
+          "content": "WorkflowSpec(\n        id=uuid4()",
+          "start": 9501,
+          "end": 9533
+        },
+        {
+          "type": "workflow_data",
+          "content": "WorkflowSpec(\n        id=uuid4()",
+          "start": 14256,
+          "end": 14288
+        }
+      ]
+    },
+    "tests/workflows/patterns/test_conditional_routing.py": {
+      "file_path": "tests/workflows/patterns/test_conditional_routing.py",
+      "fixture_replacements": [],
+      "test_classifications": [
+        {
+          "pattern": "def test.*validation",
+          "layer": "logical",
+          "description": "Workflow validation"
+        },
+        {
+          "pattern": "def test.*routing",
+          "layer": "logical",
+          "description": "Conditional routing"
+        },
+        {
+          "pattern": "def test.*execution",
+          "layer": "orchestration",
+          "description": "Workflow execution"
+        }
+      ],
+      "extracted_test_data": [
+        {
+          "type": "workflow_data",
+          "content": "WorkflowSpec(\n        id=uuid4()",
+          "start": 4625,
+          "end": 4657
+        },
+        {
+          "type": "workflow_data",
+          "content": "WorkflowSpec(\n        id=uuid4()",
+          "start": 7867,
+          "end": 7899
+        }
+      ]
+    },
+    "tests/workflows/chat/test_workflow_chat_responses.py": {
+      "file_path": "tests/workflows/chat/test_workflow_chat_responses.py",
+      "fixture_replacements": [],
+      "test_classifications": [
+        {
+          "pattern": "def test.*execution",
+          "layer": "orchestration",
+          "description": "Workflow execution"
+        },
+        {
+          "pattern": "def test.*feedback",
+          "layer": "feedback",
+          "description": "Chat feedback"
+        }
+      ],
+      "extracted_test_data": []
+    },
+    "tests/workflows/chat/test_improved_chat_responses.py": {
+      "file_path": "tests/workflows/chat/test_improved_chat_responses.py",
+      "fixture_replacements": [],
+      "test_classifications": [],
+      "extracted_test_data": []
+    },
+    "tests/workflows/chat/test_chat_only_response.py": {
+      "file_path": "tests/workflows/chat/test_chat_only_response.py",
+      "fixture_replacements": [],
+      "test_classifications": [],
+      "extracted_test_data": [
+        {
+          "type": "workflow_data",
+          "content": "WorkflowSpec(\n        id=uuid.uuid4(),\n        rev=1,\n        title=\"Normal Workflow\",\n        descr...",
+          "start": 2856,
+          "end": 3228
+        }
+      ]
+    },
+    "tests/workflows/planner/test_workflow_planner_with_execution.py": {
+      "file_path": "tests/workflows/planner/test_workflow_planner_with_execution.py",
+      "fixture_replacements": [],
+      "test_classifications": [
+        {
+          "pattern": "def test.*routing",
+          "layer": "logical",
+          "description": "Conditional routing"
+        }
+      ],
+      "extracted_test_data": []
+    },
+    "tests/workflows/planner/test_tool_vs_agent_placement.py": {
+      "file_path": "tests/workflows/planner/test_tool_vs_agent_placement.py",
+      "fixture_replacements": [],
+      "test_classifications": [],
+      "extracted_test_data": []
+    },
+    "tests/workflows/planner/test_workflow_planner_dag_generation.py": {
+      "file_path": "tests/workflows/planner/test_workflow_planner_dag_generation.py",
+      "fixture_replacements": [],
+      "test_classifications": [],
+      "extracted_test_data": []
+    },
+    "tests/workflows/planning/test_workflow_planner_updates.py": {
+      "file_path": "tests/workflows/planning/test_workflow_planner_updates.py",
+      "fixture_replacements": [],
+      "test_classifications": [],
+      "extracted_test_data": []
+    },
+    "tests/workflows/planning/test_workflow_generation.py": {
+      "file_path": "tests/workflows/planning/test_workflow_generation.py",
+      "fixture_replacements": [],
+      "test_classifications": [],
+      "extracted_test_data": []
+    },
+    "tests/workflows/planning/test_workflow_planner.py": {
+      "file_path": "tests/workflows/planning/test_workflow_planner.py",
+      "fixture_replacements": [],
+      "test_classifications": [
+        {
+          "pattern": "def test.*execution",
+          "layer": "orchestration",
+          "description": "Workflow execution"
+        }
+      ],
+      "extracted_test_data": []
+    },
+    "tests/workflows/execution/test_workflow_fix_final.py": {
+      "file_path": "tests/workflows/execution/test_workflow_fix_final.py",
+      "fixture_replacements": [],
+      "test_classifications": [],
+      "extracted_test_data": []
+    },
+    "tests/workflows/execution/test_workflow_execution_fixes.py": {
+      "file_path": "tests/workflows/execution/test_workflow_execution_fixes.py",
+      "fixture_replacements": [],
+      "test_classifications": [
+        {
+          "pattern": "def test.*execution",
+          "layer": "orchestration",
+          "description": "Workflow execution"
+        }
+      ],
+      "extracted_test_data": []
+    },
+    "tests/workflows/execution/test_actual_saved_workflow.py": {
+      "file_path": "tests/workflows/execution/test_actual_saved_workflow.py",
+      "fixture_replacements": [],
+      "test_classifications": [],
+      "extracted_test_data": []
+    },
+    "tests/workflows/routing/test_conditional_multi_gate.py": {
+      "file_path": "tests/workflows/routing/test_conditional_multi_gate.py",
+      "fixture_replacements": [],
+      "test_classifications": [],
+      "extracted_test_data": []
+    },
+    "tests/tools/agno/test_agno_tools.py": {
+      "file_path": "tests/tools/agno/test_agno_tools.py",
+      "fixture_replacements": [],
+      "test_classifications": [],
+      "extracted_test_data": []
+    },
+    "tests/tools/agno/test_complete_agno_fix.py": {
+      "file_path": "tests/tools/agno/test_complete_agno_fix.py",
+      "fixture_replacements": [],
+      "test_classifications": [],
+      "extracted_test_data": []
+    },
+    "tests/tools/agno/test_agno_tools_simple.py": {
+      "file_path": "tests/tools/agno/test_agno_tools_simple.py",
+      "fixture_replacements": [],
+      "test_classifications": [],
+      "extracted_test_data": []
+    },
+    "tests/tools/agno/test_agno_tools_final.py": {
+      "file_path": "tests/tools/agno/test_agno_tools_final.py",
+      "fixture_replacements": [],
+      "test_classifications": [],
+      "extracted_test_data": []
+    },
+    "tests/tools/agno/test_clean_agno_workflow.py": {
+      "file_path": "tests/tools/agno/test_clean_agno_workflow.py",
+      "fixture_replacements": [],
+      "test_classifications": [],
+      "extracted_test_data": []
+    },
+    "tests/tools/agno/test_agno_new_pattern.py": {
+      "file_path": "tests/tools/agno/test_agno_new_pattern.py",
+      "fixture_replacements": [],
+      "test_classifications": [],
+      "extracted_test_data": []
+    }
+  },
+  "recommendations": [
+    "Replace 1 local fixtures with centralized ones",
+    "Classify 43 tests into appropriate layers",
+    "Move 86 hardcoded test data items to test repository",
+    "Run tests before and after migration to ensure compatibility",
+    "Update CI/CD pipelines to use new test structure",
+    "Train team on new centralized testing patterns"
+  ]
+}

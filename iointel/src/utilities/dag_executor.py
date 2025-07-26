@@ -106,14 +106,15 @@ class DAGExecutor:
                 print(f"🔧 Using {len(node_agents)} task-specific agents for node {node.id}")
             else:
                 node_agents = agents or []
-                if node.type == "agent" and len(node_agents) == 0:
+                if (node.type in ["agent", "decision"]) and len(node_agents) == 0:
                     # Auto-create agents from WorkflowSpec node data
+                    # Decision nodes are also agents (with routing tools)
                     hydrated_agents = self._hydrate_agents_from_node(node)
                     if hydrated_agents:
                         node_agents = hydrated_agents
-                        print(f"🔧 Auto-created {len(node_agents)} agents for node {node.id}")
+                        print(f"🔧 Auto-created {len(node_agents)} agents for {node.type} node {node.id}")
                     else:
-                        print(f"⚠️ WARNING: Agent node {node.id} has no agents and no agent_instructions!")
+                        print(f"⚠️ WARNING: {node.type} node {node.id} has no agents and no agent_instructions!")
             
             task_node_class = make_task_node(
                 task=task_data,
@@ -481,11 +482,11 @@ class DAGExecutor:
             else:
                 return result
         
-        # Wrap execution with SLA enforcement
+        # Wrap execution with SLA enforcement using authoritative NodeSpec
         try:
             result = await node_execution_wrapper.execute_with_sla_enforcement(
                 node_executor=execute_node_core,
-                node_data=node_data,
+                node_spec=dag_node.node_spec,  # Pass full NodeSpec as authoritative source
                 input_data=state.results,  # Available data from previous nodes
                 node_id=node_id,
                 node_type=dag_node.node_spec.type,
@@ -576,7 +577,7 @@ class DAGExecutor:
         Returns:
             List of AgentParams if successful, None otherwise
         """
-        if node.type != "agent" or not node.data.agent_instructions:
+        if node.type not in ["agent", "decision"] or not node.data.agent_instructions:
             return None
             
         try:

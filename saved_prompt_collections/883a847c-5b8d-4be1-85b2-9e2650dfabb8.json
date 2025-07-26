@@ -1,0 +1,22 @@
+{
+  "id": "883a847c-5b8d-4be1-85b2-9e2650dfabb8",
+  "name": "user_requests",
+  "description": "Collection for Enter your request (e.g., crypto info, weather, stocks):",
+  "records": [
+    "how is crypto market today?",
+    "which coins are doing well today?",
+    "Can you give me a summary of top stocks?"
+  ],
+  "tags": [
+    "user_input",
+    "auto_generated"
+  ],
+  "created_at": "2025-07-19 10:07:36.521119",
+  "updated_at": "2025-07-19 10:21:45.045579",
+  "usage_count": 0,
+  "last_used": null,
+  "compatible_tools": [
+    "prompt_tool",
+    "user_input"
+  ]
+}

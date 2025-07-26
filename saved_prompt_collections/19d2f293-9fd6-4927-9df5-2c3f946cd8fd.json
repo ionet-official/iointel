@@ -1,0 +1,20 @@
+{
+  "id": "19d2f293-9fd6-4927-9df5-2c3f946cd8fd",
+  "name": "User Preferences",
+  "description": "Collection for What is your favorite programming language?",
+  "records": [
+    "Python - I love its simplicity and power"
+  ],
+  "tags": [
+    "user_input",
+    "auto_generated"
+  ],
+  "created_at": "2025-07-16 23:50:35.457441",
+  "updated_at": "2025-07-16 23:50:35.457442",
+  "usage_count": 0,
+  "last_used": null,
+  "compatible_tools": [
+    "prompt_tool",
+    "user_input"
+  ]
+}

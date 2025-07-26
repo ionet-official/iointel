@@ -1,3 +1,4 @@
+import os
 #!/usr/bin/env python3
 """
 Test Workflow Planner Agent DAG Generation
@@ -10,11 +11,12 @@ This tests that the workflow planner agent can correctly generate DAGs with:
 """
 import asyncio
 import sys
-sys.path.append('/Users/alexandermorisse/Documents/GitHub/iointel')
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '../../..'))
 
 from iointel.src.agent_methods.agents.workflow_planner import WorkflowPlanner
 # WorkflowSpecLLM import removed as it's not used directly in current implementation
 from iointel.src.utilities.tool_registry_utils import create_tool_catalog
+import os
 
 async def test_workflow_generation():
     """Test that workflow planner generates correct DAGs with execution modes and SLA."""

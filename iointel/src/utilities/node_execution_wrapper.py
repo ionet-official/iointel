@@ -69,65 +69,36 @@ class NodeExecutionWrapper:
             "\n\n⚠️ FINAL ATTEMPT: This is your last chance to meet the SLA requirements. You MUST use the specified tools: {required_tools}"
         ]
     
-    def extract_sla_requirements(self, node_data: Dict[str, Any], agent_params: Optional[Any] = None) -> SLARequirements:
+    def extract_sla_requirements(self, node_spec: Any, node_data: Dict[str, Any] = None) -> SLARequirements:
         """
-        Extract SLA requirements with complete workflow flexibility.
+        Extract SLA requirements from WorkflowSpec NodeSpec - SINGLE SOURCE OF TRUTH.
         
-        FLEXIBLE SLA SYSTEM - TYPED WITH PYDANTIC:
-        - Workflow can define custom SLA for ANY tool (web_search, conditional_gate, etc.)
-        - Typed validation ensures configuration correctness
-        - Catalog becomes advisory, not prescriptive
+        REFACTORED APPROACH:
+        1. Use NodeSpec.sla field as authoritative source (from WorkflowPlanner)
+        2. Fall back to node.data.sla for legacy workflows
+        3. NO GUESSING - if WorkflowPlanner didn't set SLA, no enforcement
         
-        Priority order:
-        1. Workflow-defined SLA (node.data.sla) - HIGHEST PRIORITY 
-        2. Node-level SLA (node.sla) - NODE LEVEL
-        3. Agent-level SLA configuration  
-        4. Catalog advisory defaults (optional)
-        5. No enforcement (default)
+        Args:
+            node_spec: NodeSpec object with .sla field (preferred)
+            node_data: Legacy dict-based node data (fallback)
         """
-        logger.debug(f"🔍 Flexible SLA extraction from node_data keys: {list(node_data.keys())}")
+        # 1. AUTHORITATIVE SOURCE: NodeSpec.sla field from WorkflowPlanner
+        if hasattr(node_spec, 'sla') and node_spec.sla is not None:
+            logger.info(f"✅ Using authoritative SLA from WorkflowSpec: {node_spec.sla}")
+            return node_spec.sla
         
-        # 1. WORKFLOW-DEFINED SLA (HIGHEST PRIORITY)
-        # node.data.sla - allows per-node custom SLA configuration
-        if "sla" in node_data and node_data["sla"] is not None:
+        # 2. FALLBACK: Legacy node.data.sla for backwards compatibility
+        if node_data and "sla" in node_data and node_data["sla"] is not None:
             sla_config = node_data["sla"]
-            logger.info(f"🎯 Found workflow-defined SLA in node.data: {sla_config}")
+            logger.info(f"🔄 Using legacy SLA from node.data: {sla_config}")
             
-            # Handle typed Pydantic SLARequirements or dict
             if isinstance(sla_config, SLARequirements):
                 return sla_config
             elif isinstance(sla_config, dict):
                 return SLARequirements(**sla_config)
         
-        # 2. Legacy support for sla_requirements field
-        if "sla_requirements" in node_data and node_data["sla_requirements"] is not None:
-            sla_config = node_data["sla_requirements"]
-            logger.info(f"🔍 Found legacy SLA requirements: {sla_config}")
-            if isinstance(sla_config, dict):
-                return SLARequirements(**sla_config)
-            return sla_config
-        
-        # 3. Agent-level SLA configuration (AgentParams doesn't have sla_requirements currently)
-        # This is for future extension when we add SLA to AgentParams
-        if (agent_params and 
-            hasattr(agent_params, "sla_requirements") and 
-            agent_params.sla_requirements is not None):
-            logger.info(f"🔍 Using agent-level SLA: {agent_params.sla_requirements}")
-            return agent_params.sla_requirements
-        
-        # 4. Catalog advisory defaults (only as fallback)
-        tools = node_data.get("tools", [])
-        if tools:
-            catalog_sla = get_sla_requirements_for_tools(tools)
-            logger.info(f"📚 Using catalog advisory SLA for tools {tools}: enforce={catalog_sla.enforce_usage}")
-            # Convert catalog SLA to Pydantic if needed
-            if not isinstance(catalog_sla, SLARequirements):
-                catalog_dict = catalog_sla.__dict__ if hasattr(catalog_sla, '__dict__') else vars(catalog_sla)
-                return SLARequirements(**catalog_dict)
-            return catalog_sla
-        
-        # 5. No enforcement by default
-        logger.debug("🔍 No SLA configuration found, no enforcement")
+        # 3. NO ENFORCEMENT - WorkflowPlanner is responsible for setting SLA
+        logger.debug(f"🔍 No SLA found in NodeSpec or node.data - no enforcement")
         return SLARequirements(enforce_usage=False)
     
     def validate_sla_compliance(
@@ -246,10 +217,10 @@ Data will not flow downstream until compliance is achieved.
     async def execute_with_sla_enforcement(
         self,
         node_executor: Callable,
-        node_data: Dict[str, Any],
+        node_spec: Any,
         input_data: Any,
         node_id: str = "unknown",
-        node_type: str = "unknown",
+        node_type: str = "unknown", 
         node_label: str = "Unknown Node"
     ) -> Any:
         """
@@ -259,7 +230,7 @@ Data will not flow downstream until compliance is achieved.
         
         Args:
             node_executor: Function that executes the actual node
-            node_data: Node configuration data
+            node_spec: NodeSpec object from WorkflowSpec (authoritative source)
             input_data: Input data for the node
             node_id: Node identifier
             node_type: Node type (agent, tool, etc.)
@@ -268,8 +239,8 @@ Data will not flow downstream until compliance is achieved.
         Returns:
             Node execution result (after SLA validation)
         """
-        # Extract SLA requirements
-        sla_requirements = self.extract_sla_requirements(node_data)
+        # Extract SLA requirements from authoritative WorkflowSpec
+        sla_requirements = self.extract_sla_requirements(node_spec)
         
         # Skip enforcement if not required
         if not sla_requirements.enforce_usage:

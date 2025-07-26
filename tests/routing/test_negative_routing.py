@@ -1,3 +1,4 @@
+import os
 #!/usr/bin/env python3
 """
 Test Negative Sentiment Routing Through DAG
@@ -13,7 +14,7 @@ Case: decision_agent routes to negative
 import asyncio
 import sys
 import uuid
-sys.path.append('/Users/alexandermorisse/Documents/GitHub/iointel')
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '../..'))
 
 from iointel.src.agent_methods.data_models.workflow_spec import (
     WorkflowSpec, NodeSpec, NodeData, EdgeSpec, EdgeData, SLARequirements
@@ -25,6 +26,7 @@ from iointel.src.agent_methods.data_models.datamodels import AgentParams
 # Import tools to register them
 from iointel.src.agent_methods.tools.user_input import prompt_tool
 from iointel.src.agent_methods.tools import conditional_gate
+import os
 
 async def test_negative_routing():
     """Test that negative routing works correctly."""

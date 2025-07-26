@@ -3,7 +3,7 @@ from ...agents import Agent
 from ..data_models.datamodels import AgentParams, Tool, AgentSwarm
 from typing import Callable, Sequence
 from .tool_factory import instantiate_stateful_tool, resolve_tools
-from ..data_models.agent_pre_prompt_injection import inject_pre_prompts
+from ..data_models.agent_pre_prompt_injection import inject_pre_prompts_from_sla
 from ...utilities.helpers import make_logger
 
 logger = make_logger(__name__)
@@ -56,19 +56,17 @@ def create_agent(
     # AgentParams no longer has sla_requirements - use None to let inject_pre_prompts handle it
     effective_sla = None
     
-    # Apply pre-prompt injection based on agent type classification and SLA
-    enhanced_instructions, classification = inject_pre_prompts(
+    # Apply pre-prompt injection based on SLA requirements (single source of truth)
+    # TODO: Get SLA from NodeSpec when available, for now use legacy classification
+    enhanced_instructions = inject_pre_prompts_from_sla(
         original_instructions=params.instructions,
-        tools=tool_names,
+        sla_requirements=effective_sla,  # Will be None for now, updated when NodeSpec available
         agent_name=params.name,
-        context=None,
-        sla_requirements=effective_sla
+        tools=tool_names
     )
     
-    logger.info(f"🤖 Agent '{params.name}' classified as {classification.agent_type.value} "
-                f"(confidence: {classification.confidence:.2f})")
-    logger.debug(f"   Reasoning: {classification.reasoning}")
-    if classification.sla_enforcement:
+    logger.info(f"🤖 Agent '{params.name}' instructions enhanced")
+    if effective_sla:
         logger.info("   🔒 SLA enforcement enabled")
     
     output_type = params.output_type

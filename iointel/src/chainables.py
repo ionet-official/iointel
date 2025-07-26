@@ -281,7 +281,7 @@ def execute_custom(
             return response.execute()
 
 
-@register_custom_task("agent")
+@register_custom_task("agent")  # Core agent executor
 async def execute_agent_task(
     task_metadata: dict, objective: str, agents: List[Agent], execution_metadata: dict
 ):
@@ -410,7 +410,8 @@ async def execute_agent_task(
     return response
 
 
-@register_custom_task("tool")
+@register_custom_task("data_source")  # Core data_source executor  
+@register_custom_task("tool")  # Backward compatibility
 async def execute_tool_task(task_metadata, objective, agents, execution_metadata):
     """Portable, backend-agnostic tool executor for 'tool' nodes."""
     from .utilities.registries import TOOLS_REGISTRY
@@ -441,6 +442,13 @@ async def execute_tool_task(task_metadata, objective, agents, execution_metadata
         error_msg = f"Tool '{tool_name}' failed: {str(e)}"
         logger.error(error_msg)
         raise
+
+
+@register_custom_task("decision")  # Core decision executor
+async def execute_decision_task(task_metadata, objective, agents, execution_metadata):
+    """Core decision executor - delegates to agent executor for decision agents."""
+    # Decision nodes are just agents with routing tools, so delegate to agent executor
+    return await execute_agent_task(task_metadata, objective, agents, execution_metadata)
 
 
 ##############################################

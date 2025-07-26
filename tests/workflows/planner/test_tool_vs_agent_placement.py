@@ -1,3 +1,4 @@
+import os
 #!/usr/bin/env python3
 """
 Test WorkflowPlanner Tool vs Agent Node Placement
@@ -10,12 +11,13 @@ Tests the critical fix for tool vs agent node placement based on user requiremen
 """
 import asyncio
 import sys
-sys.path.append('/Users/alexandermorisse/Documents/GitHub/iointel')
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '../../..'))
 
 from iointel.src.agent_methods.agents.workflow_planner import WorkflowPlanner
 from iointel.src.utilities.tool_registry_utils import create_tool_catalog
 from iointel.src.agent_methods.data_models.workflow_spec import WorkflowSpec
 from iointel.src.agent_methods.tools.tool_loader import load_tools_from_env
+import os
 
 
 class TestToolVsAgentPlacement:

@@ -1,10 +1,64 @@
 # VALID NODE TYPES: 'data_source', 'agent', 'decision', 'workflow_call'
-from typing import Literal, Optional, List, Dict
+from typing import Literal, Optional, List, Dict, Set
 from uuid import UUID
+from datetime import datetime
 from pydantic import BaseModel, Field
+from .data_source_registry import ValidDataSourceName
 
 # Centralized routing tools definition
 ROUTING_TOOLS = ['conditional_gate', 'threshold_gate', 'conditional_multi_gate']
+
+
+class TestResult(BaseModel):
+    """Result of running a test against a workflow."""
+    test_id: str
+    test_name: str
+    passed: bool
+    executed_at: datetime
+    execution_details: Optional[Dict] = None
+    error_message: Optional[str] = None
+
+
+class TestAlignment(BaseModel):
+    """Test alignment metadata for workflows."""
+    test_ids: Set[str] = Field(default_factory=set, description="Test IDs that validate this workflow")
+    test_results: List[TestResult] = Field(default_factory=list, description="Historical test results")
+    last_validated: Optional[datetime] = None
+    validation_status: Literal["untested", "passing", "failing", "mixed"] = "untested"
+    production_ready: bool = Field(default=False, description="True if all critical tests pass")
+    
+    def add_test_result(self, result: TestResult):
+        """Add a new test result and update validation status."""
+        self.test_results.append(result)
+        self.test_ids.add(result.test_id)
+        self.last_validated = result.executed_at
+        self._update_validation_status()
+    
+    def _update_validation_status(self):
+        """Update validation status based on latest test results."""
+        if not self.test_results:
+            self.validation_status = "untested"
+            self.production_ready = False
+            return
+        
+        # Get latest result for each test
+        latest_results = {}
+        for result in self.test_results:
+            if result.test_id not in latest_results or result.executed_at > latest_results[result.test_id].executed_at:
+                latest_results[result.test_id] = result
+        
+        passed = sum(1 for r in latest_results.values() if r.passed)
+        total = len(latest_results)
+        
+        if passed == total:
+            self.validation_status = "passing"
+            self.production_ready = True
+        elif passed == 0:
+            self.validation_status = "failing"
+            self.production_ready = False
+        else:
+            self.validation_status = "mixed"
+            self.production_ready = False
 
 
 
@@ -39,7 +93,7 @@ class NodeData(BaseModel):
     )
     
     # Optional fields the LLM might specify
-    source_name: Optional[str] = Field(None, description="Name of the data source from catalog (for data_source nodes)")
+    source_name: Optional[ValidDataSourceName] = Field(None, description="Name of the data source from registry (for data_source nodes only)")
     agent_instructions: Optional[str] = Field(None, description="Instructions for agent (for agent nodes)")
     tools: Optional[List[str]] = Field(None, description="List of tool names available to agent (for agent nodes)")
     workflow_id: Optional[str] = Field(None, description="ID of workflow to call (for workflow_call nodes)")
@@ -68,6 +122,7 @@ class NodeSpec(BaseModel):
     data: NodeData
     position: Optional[Dict[str, float]] = None  # FE inserts {x,y}
     runtime: Dict = Field(default_factory=dict)  # e.g. {"timeout":30,"retries":1}
+    sla: Optional[SLARequirements] = Field(None, description="SLA requirements for this node from WorkflowPlanner")
 
 
 class EdgeData(BaseModel):
@@ -107,7 +162,6 @@ class WorkflowSpecLLM(BaseModel):
     description: str = Field(default="", description="Workflow description or chat response message.")
     nodes: Optional[List[NodeSpecLLM]] = Field(None, description="Workflow nodes. Use null for chat-only responses to preserve previous DAG.")
     edges: Optional[List[EdgeSpecLLM]] = Field(None, description="Workflow edges. Use null for chat-only responses to preserve previous DAG.")
-    sla: Optional[SLARequirements] = Field(None, description="SLA requirements for the workflow. Use null for chat-only responses.")
 
 
 class WorkflowSpec(BaseModel):
@@ -153,19 +207,16 @@ class WorkflowSpec(BaseModel):
             label_to_id_map[llm_node.label] = node_id
             
             # Use LLM-specified SLA (either at node level or data level)
-            final_sla = llm_node.sla or llm_node.data.sla
-                
-            # Create node data with merged SLA
-            node_data = llm_node.data.model_copy()
-            node_data.sla = final_sla
+            final_sla = llm_node.sla or getattr(llm_node.data, 'sla', None)
             
             nodes.append(NodeSpec(
                 id=node_id,
                 type=llm_node.type,
                 label=llm_node.label,
-                data=node_data,
+                data=llm_node.data,
                 position=llm_node.position,
-                runtime=llm_node.runtime
+                runtime=llm_node.runtime,
+                sla=final_sla  # Store SLA at NodeSpec level as authoritative source
             ))
         
         # Generate deterministic edge IDs and map source/target to new node IDs
@@ -305,8 +356,8 @@ class WorkflowSpec(BaseModel):
             lines.append("SLA ENFORCEMENT ACTIVE:")
             for node_id in sla_nodes:
                 node = next((n for n in self.nodes if n.id == node_id), None)
-                if node and hasattr(node.data, 'sla') and node.data.sla:
-                    sla = node.data.sla
+                if node and hasattr(node, 'sla') and node.sla:
+                    sla = node.sla
                     lines.append(f"- {node_id}: {self._format_sla_requirements(sla)}")
             lines.append("")
         
@@ -324,8 +375,8 @@ class WorkflowSpec(BaseModel):
         # Instructions/purpose
         if hasattr(node.data, 'agent_instructions') and node.data.agent_instructions:
             lines.append(f"   Purpose: {node.data.agent_instructions[:100]}...")
-        elif hasattr(node.data, 'tool_name') and node.data.tool_name:
-            lines.append(f"   Tool: {node.data.tool_name}")
+        elif hasattr(node.data, 'source_name') and node.data.source_name:
+            lines.append(f"   Source: {node.data.source_name}")
         
         # Tools available
         if hasattr(node.data, 'tools') and node.data.tools:
@@ -338,8 +389,8 @@ class WorkflowSpec(BaseModel):
             lines.append(f"   Tools: {', '.join(tool_list)}")
         
         # SLA details
-        if hasattr(node.data, 'sla') and node.data.sla:
-            lines.append(f"   SLA: {self._format_sla_requirements(node.data.sla)}")
+        if hasattr(node, 'sla') and node.sla:
+            lines.append(f"   SLA: {self._format_sla_requirements(node.sla)}")
         
         # Configuration
         if hasattr(node.data, 'config') and node.data.config:
@@ -359,10 +410,10 @@ class WorkflowSpec(BaseModel):
     
     def _has_sla_enforcement(self, node: 'NodeSpec') -> bool:
         """Check if node has SLA enforcement."""
-        return (hasattr(node.data, 'sla') and 
-                node.data.sla and 
-                hasattr(node.data.sla, 'enforce_usage') and 
-                node.data.sla.enforce_usage)
+        return (hasattr(node, 'sla') and 
+                node.sla and 
+                hasattr(node.sla, 'enforce_usage') and 
+                node.sla.enforce_usage)
     
     def _format_sla_requirements(self, sla) -> str:
         """Format SLA requirements into readable string."""
@@ -416,8 +467,8 @@ class WorkflowSpec(BaseModel):
         # Validate node-type specific requirements
         for node in self.nodes:
             # Validate SLA configuration if present
-            if node.data.sla:
-                sla = node.data.sla
+            if hasattr(node, 'sla') and node.sla:
+                sla = node.sla
                 # Validate SLA references actual tools available to the node
                 if sla.required_tools:
                     available_tools = set(node.data.tools or [])
@@ -448,11 +499,11 @@ class WorkflowSpec(BaseModel):
                     # Check for missing required parameters (only check actually required ones)
                     missing_params = set(required_params) - config_params
                     if missing_params:
-                        issues.append(f"🚨 MISSING PARAMETERS: Tool node '{node.id}' ({node.data.tool_name}) missing required parameters: {sorted(missing_params)}. Config has: {sorted(config_params)}")
+                        issues.append(f"🚨 MISSING PARAMETERS: Data source node '{node.id}' ({node.data.source_name}) missing required parameters: {sorted(missing_params)}. Config has: {sorted(config_params)}")
                     
                     # Check for empty config when parameters are required
                     if required_params and not node.data.config:
-                        issues.append(f"🚨 EMPTY CONFIG: Tool node '{node.id}' ({node.data.tool_name}) has empty config but requires parameters: {sorted(required_params)}")
+                        issues.append(f"🚨 EMPTY CONFIG: Data source node '{node.id}' ({node.data.source_name}) has empty config but requires parameters: {sorted(required_params)}")
             
             elif node.type == "agent":
                 if not node.data.agent_instructions:
@@ -462,9 +513,11 @@ class WorkflowSpec(BaseModel):
                 if not node.data.workflow_id:
                     issues.append(f"Workflow call node '{node.id}' ({node.label}) missing required 'workflow_id'")
             
-            elif node.type == "decision" and node.data.tool_name:
-                if tool_catalog and node.data.tool_name not in tool_catalog:
-                    issues.append(f"🚨 TOOL HALLUCINATION: Decision node '{node.id}' uses non-existent tool '{node.data.tool_name}'. Available tools: {sorted(tool_catalog.keys())}")
+            elif node.type == "decision" and hasattr(node.data, 'tools') and node.data.tools:
+                # Check if decision node tools exist in catalog
+                for tool in node.data.tools:
+                    if tool_catalog and tool not in tool_catalog:
+                        issues.append(f"🚨 TOOL HALLUCINATION: Decision node '{node.id}' uses non-existent tool '{tool}'. Available tools: {sorted(tool_catalog.keys())}")
         return issues
 
     def validate_routing_consistency(self, mode: str = "strict") -> List[str]:
@@ -505,12 +558,12 @@ class WorkflowSpec(BaseModel):
                     issues.append(f"🚨 DANGLING ROUTING NODE: '{node.id}' ({node.label}) uses routing tools but has no outgoing edges")
                     continue
                 
-                # Check for conditional vs unconditional edges
-                conditional_edges = [e for e in node_edges if e.data and e.data.condition]
-                [e for e in node_edges if not (e.data and e.data.condition)]
+                # Check for routing vs unconditional edges (using route_index)
+                routing_edges = [e for e in node_edges if e.data and e.data.route_index is not None]
+                [e for e in node_edges if not (e.data and e.data.route_index is not None)]
                 
-                if not conditional_edges:
-                    issues.append(f"🚨 MISSING CONDITIONS: Routing node '{node.id}' ({node.label}) has outgoing edges but none have conditions")
+                if not routing_edges:
+                    issues.append(f"🚨 MISSING ROUTE_INDEX: Routing node '{node.id}' ({node.label}) has outgoing edges but none have route_index set")
                 
                 # All targets must exist
                 for edge in node_edges:
@@ -518,9 +571,9 @@ class WorkflowSpec(BaseModel):
                     if not target_exists:
                         issues.append(f"🚨 BROKEN EDGE: Edge '{edge.id}' points to non-existent target '{edge.target}'")
         
-        # Check for orphaned conditional edges (edges with conditions from non-routing nodes)
+        # Check for orphaned routing edges (edges with route_index from non-routing nodes)
         for edge in self.edges:
-            if edge.data and edge.data.condition:
+            if edge.data and edge.data.route_index is not None:
                 source_node = next((n for n in self.nodes if n.id == edge.source), None)
                 if source_node:
                     has_routing_tool = False
@@ -529,7 +582,7 @@ class WorkflowSpec(BaseModel):
                         has_routing_tool = any(tool in ROUTING_TOOLS for tool in source_node.data.tools)
                     
                     if not has_routing_tool:
-                        issues.append(f"⚠️ ORPHANED CONDITION: Edge '{edge.id}' has condition '{edge.data.condition}' but source node '{edge.source}' doesn't use routing tools")
+                        issues.append(f"⚠️ ORPHANED ROUTE_INDEX: Edge '{edge.id}' has route_index '{edge.data.route_index}' but source node '{edge.source}' doesn't use routing tools")
         
         # Check for unreachable nodes (no incoming edges)
         all_targets = {edge.target for edge in self.edges}
@@ -593,15 +646,70 @@ class WorkflowSpec(BaseModel):
         
         return issues
     
+    # Test Alignment Methods
+    def get_test_alignment(self) -> TestAlignment:
+        """Get test alignment metadata for this workflow."""
+        alignment_data = self.metadata.get('test_alignment', {})
+        return TestAlignment(**alignment_data) if alignment_data else TestAlignment()
+    
+    def add_test_result(self, test_id: str, test_name: str, passed: bool, 
+                       execution_details: Optional[Dict] = None, error_message: Optional[str] = None):
+        """Add a test result to this workflow's alignment metadata."""
+        alignment = self.get_test_alignment()
+        result = TestResult(
+            test_id=test_id,
+            test_name=test_name,
+            passed=passed,
+            executed_at=datetime.now(),
+            execution_details=execution_details,
+            error_message=error_message
+        )
+        alignment.add_test_result(result)
+        self.metadata['test_alignment'] = alignment.model_dump()
+    
+    def is_production_ready(self) -> bool:
+        """Check if this workflow is ready for production use."""
+        alignment = self.get_test_alignment()
+        return alignment.production_ready
+    
+    def get_validation_status(self) -> Literal["untested", "passing", "failing", "mixed"]:
+        """Get the current validation status of this workflow."""
+        alignment = self.get_test_alignment()
+        return alignment.validation_status
+    
+    def get_failing_tests(self) -> List[TestResult]:
+        """Get list of tests that are currently failing for this workflow."""
+        alignment = self.get_test_alignment()
+        if not alignment.test_results:
+            return []
+        
+        # Get latest result for each test
+        latest_results = {}
+        for result in alignment.test_results:
+            if result.test_id not in latest_results or result.executed_at > latest_results[result.test_id].executed_at:
+                latest_results[result.test_id] = result
+        
+        return [result for result in latest_results.values() if not result.passed]
+    
+    def link_to_test(self, test_id: str):
+        """Link this workflow to a test without running it."""
+        alignment = self.get_test_alignment()
+        alignment.test_ids.add(test_id)
+        self.metadata['test_alignment'] = alignment.model_dump()
+    
     def validate_tools(self, tool_catalog: dict) -> List[str]:
         """Specifically validate that all tools used exist in the catalog."""
         issues = []
         available_tools = set(tool_catalog.keys())
         
         for node in self.nodes:
-            if node.data.tool_name:
-                if node.data.tool_name not in available_tools:
-                    issues.append(f"Node '{node.id}' uses (hallucinated) unavailable tool '{node.data.tool_name}'")
+            if hasattr(node.data, 'source_name') and node.data.source_name:
+                if node.data.source_name not in available_tools:
+                    issues.append(f"Node '{node.id}' uses (hallucinated) unavailable data source '{node.data.source_name}'")
+            elif hasattr(node.data, 'tools') and node.data.tools:
+                for tool in node.data.tools:
+                    if tool not in available_tools:
+                        issues.append(f"Node '{node.id}' uses (hallucinated) unavailable tool '{tool}'")
         
         return issues
 

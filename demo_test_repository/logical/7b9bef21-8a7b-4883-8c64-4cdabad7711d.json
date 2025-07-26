@@ -1,0 +1,79 @@
+{
+  "type": "test_case",
+  "data": {
+    "id": "7b9bef21-8a7b-4883-8c64-4cdabad7711d",
+    "name": "Data Source Registry Validation",
+    "description": "Validates that WorkflowPlanner only uses valid data source names and prevents 'crawl_the_web' type mistakes",
+    "layer": "logical",
+    "category": "data_source_validation",
+    "user_prompt": null,
+    "workflow_spec": {
+      "id": "data-source-validation-test",
+      "rev": 1,
+      "title": "Data Source Validation Test",
+      "description": "Test that ensures only valid data sources are used",
+      "nodes": [
+        {
+          "id": "user_input_1",
+          "type": "data_source",
+          "label": "User Input",
+          "data": {
+            "source_name": "user_input",
+            "config": {
+              "prompt": "Enter your query"
+            },
+            "ins": [],
+            "outs": [
+              "query"
+            ]
+          }
+        },
+        {
+          "id": "agent_1",
+          "type": "agent",
+          "label": "Web Crawler Agent",
+          "data": {
+            "agent_instructions": "Crawl the web for information",
+            "tools": [
+              "Crawler-scrape_url"
+            ],
+            "ins": [
+              "query"
+            ],
+            "outs": [
+              "result"
+            ]
+          }
+        }
+      ],
+      "edges": [
+        {
+          "id": "edge_1",
+          "source": "user_input_1",
+          "target": "agent_1",
+          "data": {
+            "route_index": 0
+          }
+        }
+      ]
+    },
+    "tool_catalog": null,
+    "context": null,
+    "expected_result": {
+      "validates_successfully": true,
+      "no_invalid_source_names": true,
+      "web_crawling_uses_agent_tools": true
+    },
+    "should_pass": true,
+    "expected_errors": null,
+    "tags": [
+      "data_source",
+      "validation",
+      "crawl_web_fix",
+      "registry"
+    ],
+    "created_at": "2025-07-25T01:56:47.795775",
+    "updated_at": "2025-07-25T01:56:47.795783",
+    "author": "system"
+  }
+}

@@ -101,7 +101,7 @@ class AgentTypeClassifier:
                 agent_type=AgentType.DECISION,
                 confidence=0.8,
                 reasoning=f"Agent name '{agent_name}' suggests decision-making role",
-                required_pre_prompts=self._get_decision_agent_pre_prompts([]),
+                required_pre_prompts=self._get_decision_agent_pre_prompts(decision_tools_found),
                 sla_enforcement=False  # No decision tools available
             )
         
@@ -110,7 +110,7 @@ class AgentTypeClassifier:
                 agent_type=AgentType.DECISION,
                 confidence=0.7,
                 reasoning="Instructions suggest decision-making role",
-                required_pre_prompts=self._get_decision_agent_pre_prompts([]),
+                required_pre_prompts=self._get_decision_agent_pre_prompts(decision_tools_found),
                 sla_enforcement=False  # No decision tools available
             )
         
@@ -143,7 +143,7 @@ class AgentTypeClassifier:
                 agent_type=AgentType.ANALYSIS,
                 confidence=0.7,
                 reasoning=f"Agent name '{agent_name}' suggests analysis role",
-                required_pre_prompts=self._get_analysis_agent_pre_prompts([]),
+                required_pre_prompts=self._get_analysis_agent_pre_prompts(tools),
                 sla_enforcement=False
             )
         
@@ -152,7 +152,7 @@ class AgentTypeClassifier:
             agent_type=AgentType.CHAT,
             confidence=0.6,
             reasoning="No specific patterns detected, defaulting to chat agent",
-            required_pre_prompts=self._get_chat_agent_pre_prompts([]),
+            required_pre_prompts=self._get_chat_agent_pre_prompts(tools),
             sla_enforcement=False
         )
     
@@ -223,41 +223,66 @@ class AgentTypeClassifier:
         ]
 
 
-def inject_pre_prompts(
+def inject_pre_prompts_from_sla(
     original_instructions: str,
-    tools: List[str],
+    sla_requirements: Optional[Any] = None,  # SLARequirements from WorkflowSpec
     agent_name: str = "",
-    context: Optional[Dict[str, Any]] = None,
-    sla_requirements: Optional[Any] = None  # Accept SLARequirements or dict
-) -> tuple[str, AgentTypeClassification]:
+    tools: List[str] = None
+) -> str:
     """
-    Injects pre-prompts into the agent's instructions based on its type and SLA requirements.
-    If sla_requirements is provided, it overrides catalog/classifier defaults.
-    Returns (enhanced_instructions, classification)
+    Inject pre-prompts based on SLA requirements from WorkflowSpec - SINGLE SOURCE OF TRUTH.
+    
+    REFACTORED APPROACH:
+    - SLA requirements are the authoritative source for agent behavior
+    - No guessing or pattern matching - WorkflowPlanner sets the policy
+    - Simple, consistent prompt enhancement based on actual requirements
+    
+    Args:
+        original_instructions: Agent's base instructions
+        sla_requirements: SLARequirements from WorkflowSpec NodeSpec
+        agent_name: Agent name for context
+        tools: Available tools (for logging/context only)
+        
+    Returns:
+        Enhanced instructions string
     """
-    classifier = AgentTypeClassifier()
-    # If explicit SLA requirements are provided, use them to guide classification
-    if sla_requirements is not None:
-        # If tool_usage_required or enforce_usage is True, treat as decision agent
-        enforce = getattr(sla_requirements, 'enforce_usage', False) or getattr(sla_requirements, 'tool_usage_required', False)
-        required_tools = getattr(sla_requirements, 'required_tools', [])
-        if enforce and required_tools:
-            classification = AgentTypeClassification(
-                agent_type=AgentType.DECISION,
-                confidence=1.0,
-                reasoning=f"Explicit SLA requirements: must use {required_tools}",
-                required_pre_prompts=classifier._get_decision_agent_pre_prompts(required_tools),
-                sla_enforcement=True
-            )
-        else:
-            # Fallback to normal classification if not a decision agent
-            classification = classifier.classify_agent(tools, original_instructions, agent_name, context)
+    if not sla_requirements or not getattr(sla_requirements, 'enforce_usage', False):
+        # No SLA enforcement - return original instructions
+        return original_instructions
+    
+    # Build SLA-specific pre-prompts based on actual requirements
+    pre_prompts = []
+    
+    # Determine agent type from SLA requirements
+    if getattr(sla_requirements, 'final_tool_must_be', None):
+        # Has final tool requirement - likely a decision agent
+        final_tool = sla_requirements.final_tool_must_be
+        pre_prompts.extend([
+            f"🎯 You are a DECISION AGENT with MANDATORY tool usage requirements.",
+            f"⚡ CRITICAL: '{final_tool}' must be your FINAL tool call",
+            "🚫 TOOL USAGE IS MANDATORY - Do not provide analysis without using your required tools"
+        ])
     else:
-        classification = classifier.classify_agent(tools, original_instructions, agent_name, context)
-    # Inject pre-prompts
-    pre_prompts = classification.required_pre_prompts
-    enhanced_instructions = "\n".join(pre_prompts + [original_instructions])
-    return enhanced_instructions, classification
+        # General agent with tool requirements
+        pre_prompts.append("📊 You are an AGENT with specific tool usage requirements.")
+    
+    # Add required tools information
+    required_tools = getattr(sla_requirements, 'required_tools', [])
+    if required_tools:
+        pre_prompts.append(f"🔧 REQUIRED TOOLS: You MUST use these tools: {', '.join(required_tools)}")
+    
+    # Add minimum tool calls requirement
+    min_calls = getattr(sla_requirements, 'min_tool_calls', 0)
+    if min_calls > 1:
+        pre_prompts.append(f"📈 MINIMUM USAGE: You must make at least {min_calls} tool calls")
+    
+    # Add enforcement reminder
+    pre_prompts.append("✅ This ensures proper workflow execution and data flow control")
+    
+    # Combine pre-prompts with original instructions
+    enhanced_instructions = "\n".join(pre_prompts + ["", original_instructions])
+    
+    return enhanced_instructions
 
 
 # Global classifier instance

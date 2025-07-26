@@ -1,0 +1,51 @@
+{
+  "type": "test_case",
+  "data": {
+    "id": "3b4ce545-9d18-4ba0-9acd-f4274aabcbce",
+    "name": "WorkflowPlanner Anti-Hallucination Test",
+    "description": "Tests that WorkflowPlanner doesn't hallucinate invalid data sources like 'crawl_the_web'",
+    "layer": "agentic",
+    "category": "data_source_validation",
+    "user_prompt": "crawl the web tool",
+    "workflow_spec": null,
+    "tool_catalog": {
+      "user_input": {
+        "description": "Get user input",
+        "parameters": {
+          "prompt": {
+            "type": "string"
+          }
+        },
+        "required_parameters": []
+      },
+      "Crawler-scrape_url": {
+        "description": "Scrape content from a URL",
+        "parameters": {
+          "url": {
+            "type": "string"
+          }
+        },
+        "required_parameters": [
+          "url"
+        ]
+      }
+    },
+    "context": null,
+    "expected_result": {
+      "creates_agent_with_crawler_tool": true,
+      "does_not_create_crawl_web_data_source": true,
+      "uses_valid_source_names_only": true
+    },
+    "should_pass": true,
+    "expected_errors": null,
+    "tags": [
+      "anti_hallucination",
+      "data_source",
+      "agent_vs_tool",
+      "crawler"
+    ],
+    "created_at": "2025-07-25T01:56:47.796057",
+    "updated_at": "2025-07-25T01:56:47.796061",
+    "author": "system"
+  }
+}

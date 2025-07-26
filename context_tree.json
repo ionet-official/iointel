@@ -1,0 +1,59 @@
+{
+  "id": "root",
+  "title": "A Self-Writing Wiki",
+  "content": null,
+  "children": [
+    {
+      "id": "q3yvy75",
+      "title": "Strategies",
+      "content": "A collection of different strategies to tackle projects, problems, and improvements.",
+      "children": [],
+      "deletable": false
+    },
+    {
+      "id": "s84inpu",
+      "title": "ToDo",
+      "content": "A list of tasks and pending actions that need completion.",
+      "children": [
+        {
+          "id": "00fz286",
+          "title": "Sample ToDo Item",
+          "content": "- [ ] Sample Task: Describe a sample task here.",
+          "children": [],
+          "deletable": false
+        }
+      ],
+      "deletable": false
+    },
+    {
+      "id": "0l8z5c0",
+      "title": "Errors",
+      "content": "Log of errors encountered and potential fixes to consider.",
+      "children": [],
+      "deletable": false
+    },
+    {
+      "id": "h2963fd",
+      "title": "Cooking",
+      "content": null,
+      "children": [
+        {
+          "id": "phtapeq",
+          "title": "Recipe 1: Pancakes",
+          "content": "### Ingredients\n- 1 cup flour\n- 1 tablespoon sugar\n- 2 teaspoons baking powder\n- 1/4 teaspoon salt\n- 1 egg\n- 1 cup milk\n- 2 tablespoons vegetable oil\n\n### Instructions\n1. In a bowl, mix flour, sugar, baking powder, and salt.\n2. Add egg, milk, and oil; mix until smooth.\n3. Heat a lightly oiled griddle or frying pan over medium heat.\n4. Pour or scoop the batter onto the griddle, using approximately 1/4 cup for each pancake.\n5. Cook until pancakes are golden brown on both sides.",
+          "children": [],
+          "deletable": false
+        },
+        {
+          "id": "i87px0p",
+          "title": "Recipe 2: Spaghetti Carbonara",
+          "content": "### Ingredients\n- 200g spaghetti\n- 100g pancetta or bacon, chopped\n- 2 large eggs\n- 50g grated Parmesan cheese\n- 2 cloves garlic, minced\n- Black pepper\n\n### Instructions\n1. Cook spaghetti according to package instructions; drain and reserve some pasta water.\n2. In a pan, cook pancetta until crispy. Add garlic and cook for another minute.\n3. In a bowl, beat eggs and mix with cheese and black pepper.\n4. Add spaghetti and pancetta to the egg mixture; combine thoroughly without heat.\n5. Mix in a little pasta water to create a creamy sauce.",
+          "children": [],
+          "deletable": false
+        }
+      ],
+      "deletable": false
+    }
+  ],
+  "deletable": false
+}

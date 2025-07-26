@@ -1,3 +1,4 @@
+import os
 #!/usr/bin/env python3
 """
 Test Workflow Planner with Execution
@@ -9,9 +10,10 @@ This tests the complete pipeline:
 """
 import asyncio
 import sys
-sys.path.append('/Users/alexandermorisse/Documents/GitHub/iointel')
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '../../..'))
 
 from iointel.src.utilities.workflow_helpers import plan_and_execute, analyze_workflow_spec
+import os
 
 async def test_complete_workflow_pipeline():
     """Test the complete workflow generation and execution pipeline."""

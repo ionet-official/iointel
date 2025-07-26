@@ -1,3 +1,4 @@
+import os
 #!/usr/bin/env python3
 """
 Self Parameter Leak Investigation
@@ -5,12 +6,13 @@ Self Parameter Leak Investigation
 Focus on why 'self' parameters are leaking into tool catalogs
 """
 import sys
-sys.path.append('/Users/alexandermorisse/Documents/GitHub/iointel')
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '../..'))
 
 from iointel.src.agent_methods.tools.tool_loader import load_tools_from_env
 from iointel.src.utilities.tool_registry_utils import create_tool_catalog
 from iointel.src.utilities.registries import TOOLS_REGISTRY
 import inspect
+import os
 
 def investigate_self_parameter_leak():
     """Investigate why 'self' appears in tool parameters."""

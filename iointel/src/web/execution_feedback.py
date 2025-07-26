@@ -310,6 +310,22 @@ class ExecutionFeedbackCollector:
         execution_data = self.active_executions[execution_id]
         workflow_spec = execution_data["workflow_spec"]
         
+        # Safety check for None workflow_spec
+        if workflow_spec is None:
+            print(f"⚠️ Warning: workflow_spec is None for execution {execution_id}")
+            # Return minimal summary with error status
+            return WorkflowExecutionSummary(
+                execution_id=execution_id,
+                status=ExecutionStatus.FAILED,
+                total_duration=0,
+                node_count=0,
+                executed_count=0,
+                skipped_count=0,
+                efficiency=0.0,
+                execution_path=[],
+                error_summary=error_summary or "Workflow specification was not found"
+            )
+        
         # Calculate total duration
         start_time = datetime.fromisoformat(execution_data["started_at"])
         end_time = datetime.now()

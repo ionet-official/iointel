@@ -1,0 +1,44 @@
+{
+  "id": "root",
+  "title": "A Self-Writing Wiki",
+  "content": null,
+  "children": [
+    {
+      "id": "3w0w6iu",
+      "title": "TODO List",
+      "content": null,
+      "children": [
+        {
+          "id": "bl9lwjb",
+          "title": "Reminders",
+          "content": null,
+          "children": [],
+          "deletable": false
+        },
+        {
+          "id": "nniy5yv",
+          "title": "Urgent",
+          "content": null,
+          "children": [],
+          "deletable": false
+        },
+        {
+          "id": "0b1meic",
+          "title": "Goals",
+          "content": "\n### Goals\n\n- **Lose Weight**\n  - Develop a balanced diet plan.\n  - Monitor daily calorie intake.\n\n- **Swim Every Day in Posillipo, Italy**\n  - Schedule daily swim sessions.\n\n- **Do Pushups and Pullups**\n  - Create a workout routine incorporating pushups and pullups.\n\n- **Work on Six Pack**\n  - Include core workouts.\n  - Evaluate progress weekly.\n\n- **Read Carl Jung's Red Book**\n  - Allocate daily reading time.\n\n- **Write 1 to 2 Pages a Day**\n  - Set aside specific writing time each day.",
+          "children": [],
+          "deletable": false
+        }
+      ],
+      "deletable": false
+    },
+    {
+      "id": "rwjc25u",
+      "title": "Reminder to Pack",
+      "content": "You need to pack your items.",
+      "children": [],
+      "deletable": true
+    }
+  ],
+  "deletable": false
+}

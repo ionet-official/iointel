@@ -36,7 +36,7 @@ class TestLayer(Enum):
 
 @dataclass
 class WorkflowTestCase:
-    """A single workflow test case with metadata."""
+    """A single test case with metadata. Extensible to any test type."""
     
     id: str
     name: str
@@ -44,9 +44,10 @@ class WorkflowTestCase:
     layer: TestLayer
     category: str  # e.g., "conditional_routing", "stock_analysis", "validation"
     
-    # Test inputs
+    # Test type and inputs
+    test_type: str = "workflow_validation"  # Type of test executor to use
     user_prompt: Optional[str] = None  # For agentic tests
-    workflow_spec: Optional[Dict[str, Any]] = None  # For logical tests
+    workflow_spec: Optional[Dict[str, Any]] = None  # For logical workflow tests
     tool_catalog: Optional[Dict[str, Any]] = None
     context: Optional[Dict[str, Any]] = None
     
@@ -214,6 +215,10 @@ class WorkflowTestRepository:
         return [tc for tc in self._test_cases.values() 
                 if any(tag in tc.tags for tag in tags)]
     
+    def get_all_tests(self) -> List[WorkflowTestCase]:
+        """Get all test cases in the repository."""
+        return list(self._test_cases.values())
+    
     def create_logical_test(
         self,
         name: str,
@@ -223,13 +228,14 @@ class WorkflowTestRepository:
         expected_result: Optional[Dict[str, Any]] = None,
         should_pass: bool = True,
         expected_errors: Optional[List[str]] = None,
-        tags: Optional[List[str]] = None
+        tags: Optional[List[str]] = None,
+        test_type: str = "workflow_validation"
     ) -> WorkflowTestCase:
         """
         Create a logical layer test case.
         
         These test pure data structures - conditional gates, validation, routing logic.
-        No LLM involvement.
+        No LLM involvement. Can specify custom test_type for different executors.
         """
         test_case = WorkflowTestCase(
             id=str(uuid.uuid4()),
@@ -237,6 +243,7 @@ class WorkflowTestRepository:
             description=description,
             layer=TestLayer.LOGICAL,
             category=category,
+            test_type=test_type,
             workflow_spec=workflow_spec,
             expected_result=expected_result,
             should_pass=should_pass,
@@ -275,6 +282,40 @@ class WorkflowTestRepository:
             should_pass=should_pass,
             expected_errors=expected_errors,
             tags=tags or []
+        )
+        self.add_test_case(test_case)
+        return test_case
+    
+    def create_orchestration_test(
+        self,
+        name: str,
+        description: str,
+        category: str,
+        user_prompt: str,
+        expected_result: Optional[Dict[str, Any]] = None,
+        should_pass: bool = True,
+        expected_errors: Optional[List[str]] = None,
+        tags: Optional[List[str]] = None,
+        execution_config: Optional[Dict[str, Any]] = None
+    ) -> WorkflowTestCase:
+        """
+        Create an orchestration layer test case.
+        
+        These test full workflow execution with DAG execution and SLA enforcement.
+        """
+        test_case = WorkflowTestCase(
+            id=str(uuid.uuid4()),
+            name=name,
+            description=description,
+            layer=TestLayer.ORCHESTRATION,
+            category=category,
+            test_type="workflow_execution",
+            user_prompt=user_prompt,
+            expected_result=expected_result,
+            should_pass=should_pass,
+            expected_errors=expected_errors,
+            tags=tags or [],
+            context=execution_config or {}
         )
         self.add_test_case(test_case)
         return test_case

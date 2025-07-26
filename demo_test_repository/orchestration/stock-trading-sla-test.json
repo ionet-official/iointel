@@ -1,0 +1,33 @@
+{
+  "type": "test_case",
+  "data": {
+    "id": "stock-trading-sla-test",
+    "name": "Stock Trading with SLA Enforcement",
+    "description": "Full pipeline test with SLA requirements for stock tools",
+    "layer": "orchestration",
+    "category": "stock_trading_pipeline",
+    "user_prompt": "A user input, connected to a stock Decision agent using tools that fetch historical and current stock prices, with a required conditional gate that connects to a buy or sell agent. A trade is triggered if the given stock(s) are 5% greater or less than their historical price (compare to yesterday). A 5% bump means a sell, a -5% or more means a buy. Both agents are connected to an email agent that sends email to me, alex@io.net about the trade.",
+    "workflow_spec": null,
+    "tool_catalog": null,
+    "context": null,
+    "expected_result": {
+      "has_user_input_data_source": true,
+      "decision_agent_has_stock_tools": true,
+      "has_conditional_routing": true,
+      "buy_sell_agents_have_email_tools": true,
+      "sla_enforcement_active": true
+    },
+    "should_pass": true,
+    "expected_errors": null,
+    "tags": [
+      "stock_trading",
+      "sla",
+      "conditional_routing",
+      "email",
+      "pipeline"
+    ],
+    "created_at": "2025-07-25T01:56:47.796674",
+    "updated_at": "2025-07-25T01:56:47.796677",
+    "author": "system"
+  }
+}

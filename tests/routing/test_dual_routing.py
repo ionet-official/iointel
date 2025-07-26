@@ -1,3 +1,4 @@
+import os
 #!/usr/bin/env python3
 """
 Test Dual Routing Through DAG
@@ -15,7 +16,7 @@ Case: Two parallel analysis paths
 import asyncio
 import sys
 import uuid
-sys.path.append('/Users/alexandermorisse/Documents/GitHub/iointel')
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '../..'))
 
 from iointel.src.agent_methods.data_models.workflow_spec import (
     WorkflowSpec, NodeSpec, NodeData, EdgeSpec, EdgeData, SLARequirements
@@ -23,6 +24,7 @@ from iointel.src.agent_methods.data_models.workflow_spec import (
 from iointel.src.utilities.dag_executor import DAGExecutor
 from iointel.src.utilities.graph_nodes import WorkflowState
 from iointel.src.agent_methods.data_models.datamodels import AgentParams
+import os
 
 # Import tools to register them
 

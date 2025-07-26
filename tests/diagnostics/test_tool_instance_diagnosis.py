@@ -1,3 +1,4 @@
+import os
 #!/usr/bin/env python3
 """
 Tool Instance Diagnosis Test
@@ -5,7 +6,7 @@ Tool Instance Diagnosis Test
 Investigate the 'self' error by examining tool registration vs execution instances.
 """
 import sys
-sys.path.append('/Users/alexandermorisse/Documents/GitHub/iointel')
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '../..'))
 
 from iointel.src.agent_methods.tools.tool_loader import load_tools_from_env
 from iointel.src.utilities.tool_registry_utils import create_tool_catalog
@@ -13,6 +14,7 @@ from iointel.src.utilities.registries import TOOLS_REGISTRY
 from iointel.src.agent_methods.data_models.datamodels import AgentParams
 from iointel.src.agents import Agent
 import inspect
+import os
 
 def analyze_tool_instances():
     """Analyze tool registration and instance relationships."""
