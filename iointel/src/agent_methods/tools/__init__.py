@@ -40,6 +40,9 @@ from .tool_loader import load_tools_from_env, get_registered_tools, get_tool_by_
 # Import user input tools
 from . import user_input
 
+# Import conditional gate tools
+from . import conditional_gate
+
 # Tool Clusters for convenience
 class ToolClusters:
     """Convenience groupings of related tools."""
