@@ -84,12 +84,23 @@ async def web_tool_executor(task_metadata, objective, agents, execution_metadata
         
         # Record node completion in feedback collector
         if execution_id:
+            # For tools, the result is the direct tool output
+            tool_usage_results = [{
+                'tool_name': tool_name,
+                'input': objective,  # The task objective was the input
+                'result': result,
+                'metadata': {'execution_type': 'direct_tool'}
+            }]
+            
             feedback_collector.record_node_completion(
                 execution_id=execution_id,
                 node_id=node_id,
                 status=ExecutionStatus.SUCCESS,
-                result_preview=str(result)[:200] if result else None,
-                tool_usage=[tool_name]
+                result_preview=str(result)[:1000] if result else None,
+                tool_usage=[tool_name],
+                full_agent_output=None,  # Tools don't have agent output
+                tool_usage_results=tool_usage_results,
+                final_result=result
             )
         
         # Broadcast task completion
@@ -179,12 +190,45 @@ async def web_agent_executor(task_metadata, objective, agents, execution_metadat
                     else:
                         tool_usage.append('unknown')
             
+            # Extract rich data from agent result
+            agent_output = None
+            tool_usage_results = []
+            final_result = None
+            
+            if isinstance(result, dict):
+                # Get the full agent output (reasoning, analysis, etc.)
+                # result['result'] contains the actual agent response (result.output from Agent.run)
+                agent_output = result.get('result', '')
+                # Convert to string if needed
+                if not isinstance(agent_output, str):
+                    agent_output = str(agent_output) if agent_output else ''
+                
+                # Get detailed tool usage results
+                if 'tool_usage_results' in result:
+                    for tool in result['tool_usage_results']:
+                        if hasattr(tool, 'tool_name'):
+                            # ToolUsageResult object
+                            tool_usage_results.append({
+                                'tool_name': tool.tool_name,
+                                'input': getattr(tool, 'input', None),
+                                'result': getattr(tool, 'result', None),
+                                'metadata': getattr(tool, 'metadata', {})
+                            })
+                        elif isinstance(tool, dict):
+                            tool_usage_results.append(tool)
+                
+                # Get the complete structured result
+                final_result = result
+            
             feedback_collector.record_node_completion(
                 execution_id=execution_id,
                 node_id=node_id,
                 status=ExecutionStatus.SUCCESS,
-                result_preview=str(result.get('result', result))[:200] if result else None,
-                tool_usage=tool_usage
+                result_preview=str(result.get('result', result))[:1000] if result else None,
+                tool_usage=tool_usage,
+                full_agent_output=agent_output,
+                tool_usage_results=tool_usage_results,
+                final_result=final_result
             )
         
         # Broadcast task completion
@@ -565,7 +609,7 @@ async def startup_event():
         from dotenv import load_dotenv
         load_dotenv("creds.env")
         available_tools = load_tools_from_env("creds.env")
-        tool_catalog = create_tool_catalog()
+        tool_catalog = create_tool_catalog(filter_broken=True, verbose_format=False)
         system_logger.success(
             "Tools and catalog loaded successfully",
             data={
@@ -1062,11 +1106,19 @@ async def execute_workflow_background(
         await broadcast_execution_update(execution_id, "running")
         
         # Convert WorkflowSpec to executable Workflow
-        workflow_spec.to_workflow_definition()
-        yaml_content = workflow_spec.to_yaml()
+        workflow_def = workflow_spec.to_workflow_definition()
         
-        # Create workflow from YAML with custom conversation ID
-        workflow = Workflow.from_yaml(yaml_str=yaml_content)
+        # Post-DAG introspection: Update API keys for all agents
+        from ..agent_methods.workflow_converter import update_workflow_api_keys
+        workflow_def = update_workflow_api_keys(workflow_def, debug=True)
+        
+        # Convert back to YAML and create workflow from updated definition
+        yaml_content = workflow_def.model_dump(mode="json")
+        import yaml
+        yaml_str = yaml.safe_dump(yaml_content, sort_keys=False)
+        
+        # Create workflow from updated YAML
+        workflow = Workflow.from_yaml(yaml_str=yaml_str)
         workflow.objective = workflow_spec.description
         
         print(f"📋 Executing workflow with {len(workflow.tasks)} tasks")
@@ -1250,7 +1302,7 @@ async def send_execution_feedback_to_planner(execution_summary: WorkflowExecutio
         
         # Get the current tool catalog for analysis context
         try:
-            feedback_tool_catalog = create_tool_catalog()
+            feedback_tool_catalog = create_tool_catalog(filter_broken=True, verbose_format=False)
         except Exception as e:
             print(f"⚠️ Warning: Could not load tool catalog for feedback analysis: {e}")
             feedback_tool_catalog = {}
@@ -1934,7 +1986,7 @@ async def search_tools(query: str, top_k: int = 5):
         
         # Fallback to simple text search
         print("⚠️ UnifiedSearchService not available, using simple text search")
-        tool_catalog = create_tool_catalog()
+        tool_catalog = create_tool_catalog(filter_broken=True, verbose_format=False)
         
         # Simple text search through tools
         results = []
