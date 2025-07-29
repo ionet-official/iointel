@@ -11,9 +11,14 @@ from ..utilities.helpers import make_logger
 logger = make_logger(__name__)
 
 
-def create_tool_catalog() -> Dict[str, Any]:
+def create_tool_catalog(filter_broken: bool = True, verbose_format: bool = True, debug: bool = False) -> Dict[str, Any]:
     """Create a tool catalog from available tools using pydantic-ai's schema generation. 
     This is SINGLE POINT OF TRUTH for tool descriptions and parameters, should be used for all tool resolution and documentation.
+    
+    Args:
+        filter_broken: If True, exclude tools that fail instantiation checks
+        verbose_format: If True, include full descriptions and schemas. If False, use concise format  
+        debug: If True, require parameter descriptions (causes warnings). If False, skip parameter descriptions
     
     You must import tools into your session for them to register, for this to work. Or load_tools_from_env('creds') before calling this function."""
     from pydantic_ai._function_schema import function_schema
@@ -22,6 +27,14 @@ def create_tool_catalog() -> Dict[str, Any]:
     catalog = {}
     
     for tool_name, tool in TOOLS_REGISTRY.items():
+        # Test if tool can be instantiated
+        if filter_broken:
+            try:
+                # Try to get the wrapped function to check if tool is properly configured
+                tool.get_wrapped_fn()
+            except Exception as e:
+                logger.debug(f"Skipping broken tool '{tool_name}': {e}")
+                continue
         try:
             # Use pydantic-ai's sophisticated function schema generation
             func_schema = function_schema(
@@ -29,7 +42,7 @@ def create_tool_catalog() -> Dict[str, Any]:
                 schema_generator=GenerateToolJsonSchema,
                 takes_ctx=False,  # Our tools don't use RunContext
                 docstring_format='auto',  # Auto-detect docstring format
-                require_parameter_descriptions=False
+                require_parameter_descriptions=debug  # Only require descriptions in debug mode
             )
             
             # Extract rich parameter information from the generated schema
@@ -55,14 +68,50 @@ def create_tool_catalog() -> Dict[str, Any]:
                     
                 parameters_with_descriptions[param_name] = param_entry
             
-            catalog[tool_name] = {
-                "name": tool.name,
-                "description": func_schema.description or tool.description,
-                "parameters": parameters_with_descriptions,  # Rich parameter info with descriptions
-                "required_parameters": required_params,
-                "is_async": func_schema.is_async,
-                "json_schema": json_schema  # Full schema for advanced use cases
-            }
+            # Build catalog entry based on format preference
+            if verbose_format:
+                catalog[tool_name] = {
+                    "name": tool.name,
+                    "description": func_schema.description or tool.description,
+                    "parameters": parameters_with_descriptions,  # Rich parameter info with descriptions
+                    "required_parameters": required_params,
+                    "is_async": func_schema.is_async,
+                    "json_schema": json_schema  # Full schema for advanced use cases
+                }
+            else:
+                # Concise format for LLM consumption
+                brief_desc = (func_schema.description or tool.description or "")
+                if len(brief_desc) > 100:
+                    brief_desc = brief_desc[:97] + "..."
+                
+                # Simple parameter list with types - required first, then optional with ?
+                param_list = []
+                # Add required parameters first (no ?)
+                for p in required_params:
+                    param_type = parameters_with_descriptions.get(p, {}).get('type', 'any')
+                    # Clean up type names
+                    clean_type = param_type.replace('string', 'str').replace('integer', 'int').replace('number', 'float').replace('boolean', 'bool')
+                    if clean_type != 'any':
+                        param_list.append(f"{p}: {clean_type}")
+                    else:
+                        param_list.append(p)
+                # Add optional parameters with ? suffix
+                for p in parameters_with_descriptions:
+                    if p not in required_params:
+                        param_type = parameters_with_descriptions.get(p, {}).get('type', 'any')
+                        # Clean up type names
+                        clean_type = param_type.replace('string', 'str').replace('integer', 'int').replace('number', 'float').replace('boolean', 'bool')
+                        if clean_type != 'any':
+                            param_list.append(f"{p}: {clean_type}?")
+                        else:
+                            param_list.append(f"{p}?")
+                
+                catalog[tool_name] = {
+                    "name": tool.name,
+                    "description": brief_desc,
+                    "params": param_list,  # Simple list like ["query", "pages?"]
+                    "required": required_params
+                }
             
         except Exception as e:
             # Fallback to original method if pydantic-ai schema generation fails
@@ -94,13 +143,50 @@ def create_tool_catalog() -> Dict[str, Any]:
                         "required": param_name in required_params
                     }
             
-            catalog[tool_name] = {
-                "name": tool.name,
-                "description": tool.description,
-                "parameters": parameters,
-                "required_parameters": required_params,
-                "is_async": tool.is_async
-            }
+            # Fallback with format preference
+            if verbose_format:
+                catalog[tool_name] = {
+                    "name": tool.name,
+                    "description": tool.description,
+                    "parameters": parameters,
+                    "required_parameters": required_params,
+                    "is_async": tool.is_async
+                }
+            else:
+                # Concise fallback format
+                brief_desc = tool.description or ""
+                if len(brief_desc) > 100:
+                    brief_desc = brief_desc[:97] + "..."
+                
+                param_list = []
+                # Add required parameters first (no ?) with types
+                for p in required_params:
+                    param_info = parameters.get(p, {})
+                    param_type = param_info.get('type', 'any')
+                    # Clean up type names
+                    clean_type = param_type.replace('string', 'str').replace('integer', 'int').replace('number', 'float').replace('boolean', 'bool')
+                    if clean_type != 'any':
+                        param_list.append(f"{p}: {clean_type}")
+                    else:
+                        param_list.append(p)
+                # Add optional parameters with ? suffix and types
+                for p in parameters:
+                    if p not in required_params:
+                        param_info = parameters.get(p, {})
+                        param_type = param_info.get('type', 'any')
+                        # Clean up type names
+                        clean_type = param_type.replace('string', 'str').replace('integer', 'int').replace('number', 'float').replace('boolean', 'bool')
+                        if clean_type != 'any':
+                            param_list.append(f"{p}: {clean_type}?")
+                        else:
+                            param_list.append(f"{p}?")
+                
+                catalog[tool_name] = {
+                    "name": tool.name,
+                    "description": brief_desc,
+                    "params": param_list,
+                    "required": required_params
+                }
     
     return catalog
 
