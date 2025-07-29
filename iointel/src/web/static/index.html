@@ -2863,6 +2863,55 @@
             margin-left: 2px;
         }
         
+        /* Enhanced SLA Pills */
+        .sla-indicators {
+            animation: fadeInUp 0.3s ease-out;
+        }
+        
+        .sla-pill {
+            transition: all 0.2s ease;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+            white-space: nowrap;
+            user-select: none;
+        }
+        
+        .sla-pill:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+            filter: brightness(1.1);
+        }
+        
+        .sla-pill.main-sla {
+            border-width: 1.5px;
+            font-family: 'Monaco', 'Menlo', monospace;
+        }
+        
+        .sla-pill.tool-required {
+            border-style: dashed;
+        }
+        
+        .sla-pill.final-tool {
+            border-style: double;
+            border-width: 2px;
+        }
+        
+        .sla-pill.min-calls,
+        .sla-pill.timeout {
+            opacity: 0.9;
+            font-family: 'Monaco', 'Menlo', monospace;
+        }
+        
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(4px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
         .data-visualization {
             background: rgba(10, 10, 20, 0.8);
             border: 1px solid rgba(100, 255, 100, 0.2);
@@ -4284,18 +4333,18 @@
                         `;
                     }
                     
-                    // Add SLA status display for nodes with SLA requirements
+                    // Add enhanced SLA status display for nodes with SLA requirements
                     console.log(`🔍 Node ${node.id} SLA check:`, node.sla);
                     if (node.sla && node.sla.enforce_usage) {
                         const sla = node.sla;
                         const slaType = getSLAType(sla, node.data.tools);
                         console.log(`✅ Node ${node.id} has SLA enforcement:`, slaType, sla);
+                        
+                        // Generate enhanced SLA pill with detailed information
+                        const slaPills = generateSLAPills(sla, node.data.tools);
                         nodeContent += `
-                            <div class="sla-status ${slaType}" style="margin-top: 6px;">
-                                <span class="sla-icon">🎯</span>
-                                <span class="sla-label">${getSLALabel(slaType)}</span>
-                                ${sla.required_tools && sla.required_tools.length > 0 ? 
-                                    `<span class="sla-detail">${sla.required_tools.join(', ')}</span>` : ''}
+                            <div class="sla-indicators" style="margin-top: 6px; display: flex; flex-wrap: wrap; gap: 4px;">
+                                ${slaPills.join('')}
                             </div>
                         `;
                     } else {
@@ -4705,6 +4754,192 @@
                 default:
                     return '';
             }
+        }
+        
+        function generateSLAPills(sla, tools) {
+            const pills = [];
+            const routingTools = ['conditional_gate', 'threshold_gate', 'conditional_multi_gate'];
+            const hasRoutingTools = tools && tools.some(tool => routingTools.includes(tool));
+            
+            // Main SLA enforcement pill with detailed tooltip
+            if (sla.enforce_usage) {
+                const slaType = getSLAType(sla, tools);
+                const colors = {
+                    'decision': { bg: 'rgba(255, 165, 0, 0.25)', border: '#ffa500', text: '#ffa500' },
+                    'strict': { bg: 'rgba(255, 50, 50, 0.25)', border: '#ff3232', text: '#ff3232' },
+                    'enforced': { bg: 'rgba(255, 200, 0, 0.25)', border: '#ffc800', text: '#ffc800' }
+                };
+                const color = colors[slaType] || colors.enforced;
+                
+                // Build detailed SLA info for tooltip
+                const slaDetails = [];
+                if (sla.tool_usage_required) slaDetails.push('• Tool usage REQUIRED');
+                if (sla.required_tools && sla.required_tools.length > 0) {
+                    slaDetails.push(`• Required tools: ${sla.required_tools.join(', ')}`);
+                }
+                if (sla.final_tool_must_be) {
+                    slaDetails.push(`• Final tool MUST be: ${sla.final_tool_must_be}`);
+                }
+                if (sla.min_tool_calls > 0) {
+                    slaDetails.push(`• Minimum ${sla.min_tool_calls} tool calls`);
+                }
+                if (sla.timeout_seconds && sla.timeout_seconds !== 120) {
+                    slaDetails.push(`• Timeout: ${sla.timeout_seconds}s`);
+                }
+                if (sla.max_retries && sla.max_retries !== 2) {
+                    slaDetails.push(`• Max retries: ${sla.max_retries}`);
+                }
+                
+                const tooltipText = `SLA ENFORCEMENT DETAILS:\\n${slaDetails.join('\\n')}`;
+                
+                pills.push(`
+                    <div class="sla-pill main-sla" style="
+                        background: ${color.bg};
+                        border: 1px solid ${color.border};
+                        color: ${color.text};
+                        padding: 2px 6px;
+                        border-radius: 8px;
+                        font-size: 9px;
+                        font-weight: bold;
+                        display: flex;
+                        align-items: center;
+                        gap: 2px;
+                        cursor: help;
+                    " title="${tooltipText}">
+                        <span>🎯</span>
+                        <span>${getSLALabel(slaType)}</span>
+                        <span style="opacity: 0.7; font-size: 8px;">ⓘ</span>
+                    </div>
+                `);
+            }
+            
+            // Required tools pills with enhanced labeling
+            if (sla.required_tools && sla.required_tools.length > 0) {
+                // Add a label pill first
+                pills.push(`
+                    <div class="sla-pill tool-label" style="
+                        background: rgba(70, 70, 70, 0.3);
+                        border: 1px solid #666;
+                        color: #ccc;
+                        padding: 1px 3px;
+                        border-radius: 4px;
+                        font-size: 7px;
+                        font-weight: 600;
+                        text-transform: uppercase;
+                    ">
+                        REQUIRED
+                    </div>
+                `);
+                
+                sla.required_tools.forEach(tool => {
+                    const isRoutingTool = routingTools.includes(tool);
+                    const toolColor = isRoutingTool 
+                        ? { bg: 'rgba(255, 140, 0, 0.2)', border: '#ff8c00', text: '#ff8c00' }
+                        : { bg: 'rgba(100, 255, 100, 0.2)', border: '#64ff64', text: '#64ff64' };
+                    
+                    pills.push(`
+                        <div class="sla-pill tool-required" style="
+                            background: ${toolColor.bg};
+                            border: 1px solid ${toolColor.border};
+                            color: ${toolColor.text};
+                            padding: 1px 4px;
+                            border-radius: 6px;
+                            font-size: 8px;
+                            font-weight: 500;
+                            display: flex;
+                            align-items: center;
+                            gap: 1px;
+                        " title="This tool MUST be used during execution">
+                            <span>${isRoutingTool ? '🎯' : '🔧'}</span>
+                            <span>${tool}</span>
+                        </div>
+                    `);
+                });
+            }
+            
+            // Final tool requirement - CRITICAL for routing decisions
+            if (sla.final_tool_must_be) {
+                // Add label first
+                pills.push(`
+                    <div class="sla-pill final-label" style="
+                        background: rgba(138, 43, 226, 0.4);
+                        border: 1px solid #8a2be2;
+                        color: #ffffff;
+                        padding: 1px 3px;
+                        border-radius: 4px;
+                        font-size: 7px;
+                        font-weight: 700;
+                        text-transform: uppercase;
+                    ">
+                        FINAL
+                    </div>
+                `);
+                
+                const isRoutingTool = routingTools.includes(sla.final_tool_must_be);
+                pills.push(`
+                    <div class="sla-pill final-tool" style="
+                        background: rgba(138, 43, 226, 0.25);
+                        border: 2px solid #8a2be2;
+                        color: #8a2be2;
+                        padding: 2px 5px;
+                        border-radius: 6px;
+                        font-size: 8px;
+                        font-weight: 700;
+                        display: flex;
+                        align-items: center;
+                        gap: 2px;
+                        border-style: double;
+                    " title="This tool MUST be called LAST - critical for routing decisions!">
+                        <span>🏁</span>
+                        <span>${sla.final_tool_must_be}</span>
+                        <span style="opacity: 0.8;">LAST</span>
+                    </div>
+                `);
+            }
+            
+            // Minimum tool calls requirement
+            if (sla.min_tool_calls > 0) {
+                pills.push(`
+                    <div class="sla-pill min-calls" style="
+                        background: rgba(255, 193, 7, 0.2);
+                        border: 1px solid #ffc107;
+                        color: #ffc107;
+                        padding: 1px 4px;
+                        border-radius: 6px;
+                        font-size: 8px;
+                        font-weight: 500;
+                        display: flex;
+                        align-items: center;
+                        gap: 1px;
+                    ">
+                        <span>📊</span>
+                        <span>≥${sla.min_tool_calls}</span>
+                    </div>
+                `);
+            }
+            
+            // Timeout information (if non-default)
+            if (sla.timeout_seconds && sla.timeout_seconds !== 120) {
+                pills.push(`
+                    <div class="sla-pill timeout" style="
+                        background: rgba(108, 117, 125, 0.2);
+                        border: 1px solid #6c757d;
+                        color: #6c757d;
+                        padding: 1px 4px;
+                        border-radius: 6px;
+                        font-size: 8px;
+                        font-weight: 500;
+                        display: flex;
+                        align-items: center;
+                        gap: 1px;
+                    ">
+                        <span>⏱️</span>
+                        <span>${sla.timeout_seconds}s</span>
+                    </div>
+                `);
+            }
+            
+            return pills;
         }
 
         function getNodeColor(type, nodeData) {
@@ -7246,9 +7481,10 @@ ${result.snippet ? `**Matching Content**: ${result.snippet}` : ''}`;
                 }
                 
                 listDiv.innerHTML = conversations.map(conv => {
-                    const created = new Date(conv.created_at).toLocaleDateString();
-                    const lastUsed = new Date(conv.last_used_at).toLocaleDateString();
-                    const isActive = currentConversation && conv.conversation_id === currentConversation.conversation_id;
+                    try {
+                        const created = new Date(conv.created_at).toLocaleDateString();
+                        const lastUsed = new Date(conv.last_used_at).toLocaleDateString();
+                        const isActive = currentConversation && conv.conversation_id === currentConversation.conversation_id;
                     const statusColor = {
                         'active': '#64ff64',
                         'archived': '#888',
@@ -7300,6 +7536,10 @@ ${result.snippet ? `**Matching Content**: ${result.snippet}` : ''}`;
                             </div>
                         </div>
                     `;
+                    } catch (error) {
+                        console.error('Error processing conversation:', conv.conversation_id, error);
+                        return `<div style="color: #ff6666; padding: 1rem;">Error loading conversation ${conv.conversation_id}</div>`;
+                    }
                 }).join('');
                 
             } catch (error) {
