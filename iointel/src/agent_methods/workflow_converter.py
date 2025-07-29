@@ -227,9 +227,9 @@ class WorkflowConverter:
                             api_key=api_key,
                             base_url=base_url,
                             tools=agent_tools,  # 🔑 Use node-specific tools!
-                            context=custom_agent.context,
-                            persona=custom_agent.persona,
-                            model_settings=custom_agent.model_settings,
+                            context=getattr(custom_agent, 'context', None),
+                            persona=getattr(custom_agent, 'persona', None),
+                            model_settings=getattr(custom_agent, 'model_settings', None),
                         )
                     return [agent_params]
                 else:
@@ -249,14 +249,22 @@ class WorkflowConverter:
                     
                     # Use centralized model configuration
                     from ..utilities.constants import get_model_config
-                    config = get_model_config(
+                    model_config = get_model_config(
                         model=node.data.model,
                         api_key=None,  # Let it use defaults
                         base_url=None  # Let it use defaults
                     )
-                    model = config["model"]
-                    api_key = config["api_key"]
-                    base_url = config["base_url"]
+                    model = model_config["model"]
+                    api_key = model_config["api_key"]
+                    base_url = model_config["base_url"]
+                    
+                    # Handle None node config gracefully
+                    node_config = node.data.config or {}
+                    
+                    # Ensure node_config is a dict (defensive programming)
+                    if not isinstance(node_config, dict):
+                        logger.warning(f"Node {node.id} config is not a dict: {type(node_config)}, using empty dict")
+                        node_config = {}
                     
                     agent_params = AgentParams(
                         name=f"agent_{node.id}",
@@ -265,9 +273,9 @@ class WorkflowConverter:
                         api_key=api_key,
                         base_url=base_url,
                         tools=agent_tools,  # 🔑 Load tools for the agent!
-                        context=node.data.config.get("context"),
-                        persona=node.data.config.get("persona"),
-                        model_settings=node.data.config.get("model_settings"),
+                        context=node_config.get("context") if node_config else None,
+                        persona=node_config.get("persona") if node_config else None,
+                        model_settings=node_config.get("model_settings") if node_config else None,
                     )
                     return [agent_params]
             else:
@@ -332,3 +340,66 @@ def spec_to_definition(
     """
     converter = WorkflowConverter(default_agents=agents, **kwargs)
     return converter.convert(spec)
+
+
+def update_workflow_api_keys(workflow_def, debug: bool = False):
+    """
+    Post-DAG introspection to update API keys for all agents in a workflow.
+    
+    This function ensures all agents have the correct API keys and base URLs
+    for their specified models, especially important for Llama models that
+    need IO Intel API configuration.
+    
+    Args:
+        workflow_def: WorkflowDefinition to update
+        debug: Whether to print debug information
+        
+    Returns:
+        Updated WorkflowDefinition with proper API configuration
+    """
+    from ..utilities.constants import get_model_config
+    
+    if debug:
+        print("🔧 Updating workflow API keys for all agents...")
+    
+    # Update default agents
+    if workflow_def.agents:
+        for i, agent in enumerate(workflow_def.agents):
+            if hasattr(agent, 'model') and agent.model:
+                config = get_model_config(
+                    model=agent.model,
+                    api_key=getattr(agent, 'api_key', None),
+                    base_url=getattr(agent, 'base_url', None)
+                )
+                
+                # Update agent configuration
+                agent.api_key = config["api_key"]
+                agent.base_url = config["base_url"]
+                agent.model = config["model"]  # Ensure model is canonical
+                
+                if debug:
+                    print(f"   🤖 Updated default agent {i}: {agent.model} -> {config['base_url']}")
+    
+    # Update task-level agents
+    for task in workflow_def.tasks:
+        if hasattr(task, 'agents') and task.agents:
+            for agent in task.agents:
+                if hasattr(agent, 'model') and agent.model:
+                    config = get_model_config(
+                        model=agent.model,
+                        api_key=getattr(agent, 'api_key', None),
+                        base_url=getattr(agent, 'base_url', None)
+                    )
+                    
+                    # Update agent configuration
+                    agent.api_key = config["api_key"]
+                    agent.base_url = config["base_url"]
+                    agent.model = config["model"]  # Ensure model is canonical
+                    
+                    if debug:
+                        print(f"   🤖 Updated task agent '{agent.name}': {agent.model} -> {config['base_url']}")
+    
+    if debug:
+        print("✅ Workflow API key update complete")
+    
+    return workflow_def
