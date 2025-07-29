@@ -78,7 +78,7 @@ class SLARequirements(BaseModel):
 class NodeData(BaseModel):
     """Data structure for React Flow node configuration - LLM generated only."""
     # Core configuration that LLM understands
-    config: Dict = Field(default_factory=dict, description="Tool/agent parameters (e.g., query, format)")
+    config: Optional[Dict] = Field(None, description="Tool/agent parameters (e.g., query, format). Required for data_source nodes.")
     
     # Data flow ports
     ins: List[str] = Field(default_factory=list, description="Input port names (e.g., 'data', 'query', 'config')")
@@ -157,7 +157,15 @@ class WorkflowSpecLLM(BaseModel):
     Workflow specification for LLM generation - no IDs, system generates them.
     For chat-only responses, set nodes and edges to null.
     """
-    reasoning: str = Field(default="", description="Your engaging response to the user! For tool listings: organize by category with emojis, highlight capabilities, suggest use cases. For workflows: explain your design decisions. Be enthusiastic about IO.net's capabilities!")
+    reasoning: str = Field(default="", description="""Your engaging response to the user! For refinements: acknowledge SPECIFIC changes requested and explain how you're implementing them. 
+For tool listings: organize by category with emojis, highlight capabilities, suggest use cases. 
+For workflows: explain your design decisions. Be enthusiastic about IO.net's capabilities!
+
+REFINEMENT EXAMPLES:
+- "Change tools to X" → "I've updated the agent to use only X tools as requested"
+- "Remove Y tool" → "I've removed Y tool from the agent's available tools"
+- "Add SLA for Z" → "I've added SLA enforcement requiring Z tool usage"
+- Always be SPECIFIC about what you changed!""")
     title: Optional[str] = Field(None, description="Workflow title. Use null for chat-only responses.")
     description: str = Field(default="", description="Workflow description or chat response message.")
     nodes: Optional[List[NodeSpecLLM]] = Field(None, description="Workflow nodes. Use null for chat-only responses to preserve previous DAG.")
@@ -174,7 +182,15 @@ class WorkflowSpec(BaseModel):
     """
     id: UUID
     rev: int
-    reasoning: str = Field(default="", description="Your engaging response to the user! For tool listings: organize by category with emojis, highlight capabilities, suggest use cases. For workflows: explain your design decisions. Be enthusiastic about IO.net's capabilities!")
+    reasoning: str = Field(default="", description="""Your engaging response to the user! For refinements: acknowledge SPECIFIC changes requested and explain how you're implementing them. 
+For tool listings: organize by category with emojis, highlight capabilities, suggest use cases. 
+For workflows: explain your design decisions. Be enthusiastic about IO.net's capabilities!
+
+REFINEMENT EXAMPLES:
+- "Change tools to X" → "I've updated the agent to use only X tools as requested"
+- "Remove Y tool" → "I've removed Y tool from the agent's available tools"
+- "Add SLA for Z" → "I've added SLA enforcement requiring Z tool usage"
+- Always be SPECIFIC about what you changed!""")
     title: str
     description: str = ""
     nodes: List[NodeSpec]
@@ -259,7 +275,7 @@ class WorkflowSpec(BaseModel):
         """
         Convert to structured, LLM-friendly representation.
         
-        This is the single source of truth for how workflows are presented to LLMs.
+        This is the hermetic single source of truth for workflow representation.
         Includes topology, SLAs, routing logic, and all critical information.
         """
         lines = []
@@ -288,7 +304,7 @@ class WorkflowSpec(BaseModel):
             node_type = node.type
             node_types[node_type] = node_types.get(node_type, 0) + 1
             
-            # Check for decision nodes
+            # Check for decision nodes  
             if self._is_decision_node(node):
                 decision_nodes.append(node.id)
             
@@ -296,142 +312,81 @@ class WorkflowSpec(BaseModel):
             if self._has_sla_enforcement(node):
                 sla_nodes.append(node.id)
         
-        for node_type, count in node_types.items():
-            lines.append(f"- {node_type}: {count}")
-        
+        lines.append(f"Node Types: {dict(node_types)}")
         if decision_nodes:
-            lines.append(f"- Decision nodes: {', '.join(decision_nodes)}")
-        
+            lines.append(f"Decision Nodes: {decision_nodes}")
         if sla_nodes:
-            lines.append(f"- SLA enforced: {', '.join(sla_nodes)}")
-        
+            lines.append(f"SLA-Enforced Nodes: {sla_nodes}")
         lines.append("")
         
-        # Node details with SLAs
-        lines.append("🔍 NODE SPECIFICATIONS")
-        lines.append("-" * 25)
+        # Detailed node specifications
+        lines.append("🔗 NODE SPECIFICATIONS")
+        lines.append("-" * 30)
         
         for node in self.nodes:
-            lines.extend(self._format_node_details(node))
-            lines.append("")
-        
-        # Edge routing logic
-        lines.append("🔀 ROUTING LOGIC")
-        lines.append("-" * 20)
-        
-        if not self.edges:
-            lines.append("No routing edges defined (linear execution)")
-        else:
-            # Group edges by source
-            edges_by_source = {}
-            for edge in self.edges:
-                if edge.source not in edges_by_source:
-                    edges_by_source[edge.source] = []
-                edges_by_source[edge.source].append(edge)
+            lines.append(f"Node ID: {node.id}")
+            lines.append(f"  Label: {node.label}")
+            lines.append(f"  Type: {node.type}")
             
-            for source_id, edges in edges_by_source.items():
-                source_node = next((n for n in self.nodes if n.id == source_id), None)
-                if source_node:
-                    lines.append(f"From {source_id} ({source_node.label}):")
-                    
-                    for edge in edges:
-                        target_node = next((n for n in self.nodes if n.id == edge.target), None)
-                        condition_str = f" [condition: {edge.data.condition}]" if edge.data.condition else ""
-                        target_label = target_node.label if target_node else edge.target
-                        lines.append(f"  → {edge.target} ({target_label}){condition_str}")
-                    lines.append("")
-        
-        # Expected execution patterns
-        lines.append("⚡ EXPECTED EXECUTION PATTERNS")
-        lines.append("-" * 35)
-        
-        if decision_nodes:
-            lines.append("CONDITIONAL ROUTING EXPECTED:")
-            lines.append("- Only ONE path should execute based on conditions")
-            lines.append("- Other branches should be skipped (not failures)")
-            lines.append("- Efficiency = executed_nodes / nodes_on_chosen_path")
+            # Node data details
+            if hasattr(node.data, 'agent_instructions') and node.data.agent_instructions:
+                lines.append(f"  Instructions: {node.data.agent_instructions}")
+            
+            if hasattr(node.data, 'tools') and node.data.tools:
+                lines.append(f"  Tools: {node.data.tools}")
+            
+            if hasattr(node.data, 'source_name') and node.data.source_name:
+                lines.append(f"  Data Source: {node.data.source_name}")
+                if hasattr(node.data, 'config') and node.data.config:
+                    lines.append(f"  Config: {node.data.config}")
+            
+            # SLA information
+            if hasattr(node, 'sla') and node.sla:
+                lines.append(f"  SLA:")
+                if hasattr(node.sla, 'enforce_usage') and node.sla.enforce_usage:
+                    lines.append(f"    Enforce Usage: {node.sla.enforce_usage}")
+                if hasattr(node.sla, 'required_tools') and node.sla.required_tools:
+                    lines.append(f"    Required Tools: {node.sla.required_tools}")
+                if hasattr(node.sla, 'final_tool_must_be') and node.sla.final_tool_must_be:
+                    lines.append(f"    Final Tool Must Be: {node.sla.final_tool_must_be}")
+            
             lines.append("")
         
-        if sla_nodes:
-            lines.append("SLA ENFORCEMENT ACTIVE:")
-            for node_id in sla_nodes:
-                node = next((n for n in self.nodes if n.id == node_id), None)
-                if node and hasattr(node, 'sla') and node.sla:
-                    sla = node.sla
-                    lines.append(f"- {node_id}: {self._format_sla_requirements(sla)}")
+        # Edge specifications with routing logic
+        lines.append("🎯 EDGE SPECIFICATIONS & ROUTING")
+        lines.append("-" * 40)
+        
+        for edge in self.edges:
+            lines.append(f"Edge: {edge.source} → {edge.target}")
+            if edge.sourceHandle:
+                lines.append(f"  Source Handle: {edge.sourceHandle}")
+            if edge.targetHandle:
+                lines.append(f"  Target Handle: {edge.targetHandle}")
+            
+            # Routing logic
+            if edge.data and hasattr(edge.data, 'condition') and edge.data.condition:
+                lines.append(f"  Condition: {edge.data.condition}")
+            
+            if edge.data and hasattr(edge.data, 'route_index') and edge.data.route_index is not None:
+                lines.append(f"  Route Index: {edge.data.route_index}")
+            
             lines.append("")
         
         return "\n".join(lines)
     
-    def _format_node_details(self, node: 'NodeSpec') -> List[str]:
-        """Format detailed node information."""
-        lines = []
-        
-        # Node header with type indicator
-        node_indicator = "🎯" if self._is_decision_node(node) else "🤖" if node.type == "agent" else "🔧"
-        sla_indicator = " [SLA]" if self._has_sla_enforcement(node) else ""
-        lines.append(f"{node_indicator} {node.id} - {node.label} ({node.type}){sla_indicator}")
-        
-        # Instructions/purpose
-        if hasattr(node.data, 'agent_instructions') and node.data.agent_instructions:
-            lines.append(f"   Purpose: {node.data.agent_instructions[:100]}...")
-        elif hasattr(node.data, 'source_name') and node.data.source_name:
-            lines.append(f"   Source: {node.data.source_name}")
-        
-        # Tools available
-        if hasattr(node.data, 'tools') and node.data.tools:
-            tool_list = []
-            for tool in node.data.tools:
-                if tool in ROUTING_TOOLS:
-                    tool_list.append(f"🔀{tool}")  # Routing tool
-                else:
-                    tool_list.append(f"🔧{tool}")  # Regular tool
-            lines.append(f"   Tools: {', '.join(tool_list)}")
-        
-        # SLA details
-        if hasattr(node, 'sla') and node.sla:
-            lines.append(f"   SLA: {self._format_sla_requirements(node.sla)}")
-        
-        # Configuration
-        if hasattr(node.data, 'config') and node.data.config:
-            lines.append(f"   Config: {node.data.config}")
-        
-        return lines
+    def _is_decision_node(self, node) -> bool:
+        """Check if a node is a decision/routing node."""
+        return (node.type == 'decision' or 
+                (hasattr(node.data, 'tools') and node.data.tools and 
+                 any(tool in ['conditional_gate', 'routing_gate'] for tool in node.data.tools)))
     
-    def _is_decision_node(self, node: 'NodeSpec') -> bool:
-        """Check if node is a decision/routing node."""
-        if node.type == "decision":
-            return True
-        
-        if hasattr(node.data, 'tools') and node.data.tools:
-            return any(tool in ROUTING_TOOLS for tool in node.data.tools)
-        
-        return False
+    def _has_sla_enforcement(self, node) -> bool:
+        """Check if a node has SLA enforcement."""
+        return (hasattr(node, 'sla') and node.sla and 
+                hasattr(node.sla, 'enforce_usage') and node.sla.enforce_usage)
     
-    def _has_sla_enforcement(self, node: 'NodeSpec') -> bool:
-        """Check if node has SLA enforcement."""
-        return (hasattr(node, 'sla') and 
-                node.sla and 
-                hasattr(node.sla, 'enforce_usage') and 
-                node.sla.enforce_usage)
-    
-    def _format_sla_requirements(self, sla) -> str:
-        """Format SLA requirements into readable string."""
-        requirements = []
-        
-        if hasattr(sla, 'tool_usage_required') and sla.tool_usage_required:
-            requirements.append("must use tools")
-        
-        if hasattr(sla, 'min_tool_calls') and sla.min_tool_calls:
-            requirements.append(f"min {sla.min_tool_calls} tool calls")
-        
-        if hasattr(sla, 'required_tools') and sla.required_tools:
-            requirements.append(f"required: {', '.join(sla.required_tools)}")
-        
-        if hasattr(sla, 'final_tool_must_be') and sla.final_tool_must_be:
-            requirements.append(f"must end with: {sla.final_tool_must_be}")
-        
-        return "; ".join(requirements) if requirements else "enforce usage"
+    # DEPRECATED: Node formatting methods moved to centralized conversion_utils
+    # These will be removed after full migration
     
     def validate_structure(self, tool_catalog: dict = None) -> List[str]:
         """Validate the workflow structure and return any issues."""
@@ -494,16 +449,16 @@ class WorkflowSpec(BaseModel):
                     tool_info = tool_catalog[node.data.source_name]
                     required_params = tool_info.get("required_parameters", [])
                     tool_info.get("parameters", {})
-                    config_params = set(node.data.config.keys())
+                    config_params = set(node.data.config.keys()) if node.data.config else set()
                     
-                    # Check for missing required parameters (only check actually required ones)
+                    # Check for missing required parameters - NO AUTO-HEALING, FAIL FAST
                     missing_params = set(required_params) - config_params
                     if missing_params:
                         issues.append(f"🚨 MISSING PARAMETERS: Data source node '{node.id}' ({node.data.source_name}) missing required parameters: {sorted(missing_params)}. Config has: {sorted(config_params)}")
                     
-                    # Check for empty config when parameters are required
-                    if required_params and not node.data.config:
-                        issues.append(f"🚨 EMPTY CONFIG: Data source node '{node.id}' ({node.data.source_name}) has empty config but requires parameters: {sorted(required_params)}")
+                    # Check for None/empty config - NO AUTO-HEALING, FAIL FAST  
+                    if required_params and (not node.data.config):
+                        issues.append(f"🚨 EMPTY CONFIG: Data source node '{node.id}' ({node.data.source_name}) has None/empty config but requires parameters: {sorted(required_params)}")
             
             elif node.type == "agent":
                 if not node.data.agent_instructions:
