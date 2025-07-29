@@ -10,7 +10,30 @@ logger = make_logger(__name__)
 
 
 def instantiate_agent_default(params: AgentParams) -> Agent:
-    return Agent(**params.model_dump(exclude={"tools", "sla_requirements"}), tools=params.tools)
+    # HACK: Force correct API configuration for Llama models
+    from ...utilities.constants import get_model_config
+    
+    agent_dict = params.model_dump(exclude={"tools", "sla_requirements"})
+    
+    # Override API configuration based on model
+    if agent_dict.get("model"):
+        print(f"🔧 HACK: Fixing API config for model: {agent_dict['model']}")
+        print(f"   Original api_key: {agent_dict.get('api_key', 'None')[:10]}..." if agent_dict.get('api_key') else "   Original api_key: None")
+        print(f"   Original base_url: {agent_dict.get('base_url', 'None')}")
+        
+        config = get_model_config(
+            model=agent_dict["model"],
+            api_key=agent_dict.get("api_key"),
+            base_url=agent_dict.get("base_url")
+        )
+        agent_dict["model"] = config["model"]
+        agent_dict["api_key"] = config["api_key"]
+        agent_dict["base_url"] = config["base_url"]
+        
+        print(f"   New api_key: {config['api_key'][:10]}..." if config['api_key'] else "   New api_key: None")
+        print(f"   New base_url: {config['base_url']}")
+    
+    return Agent(**agent_dict, tools=params.tools)
 
 
 def create_agent(

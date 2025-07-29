@@ -131,11 +131,25 @@ class Agent(BaseModel):
         """
         # Use centralized model configuration
         from .utilities.constants import get_model_config
+        
+        # HACK: Force load environment for Llama models
+        if isinstance(model, str) and "llama" in model.lower():
+            import os
+            from dotenv import load_dotenv
+            load_dotenv("creds.env")
+            print(f"🔧 HACK: Force loading creds.env for Llama model: {model}")
+            print(f"   IO_API_KEY present: {'IO_API_KEY' in os.environ}")
+        
         config = get_model_config(
             model=model if isinstance(model, str) else None,
             api_key=api_key if isinstance(api_key, str) else None,
             base_url=base_url
         )
+        
+        # HACK: Extra debug for Llama models
+        if isinstance(model, str) and "llama" in model.lower():
+            print(f"   Resolved API key: {config['api_key'][:20]}..." if config['api_key'] else "NONE")
+            print(f"   Resolved base URL: {config['base_url']}")
         
         resolved_api_key = (
             api_key
@@ -147,6 +161,13 @@ class Agent(BaseModel):
         if isinstance(model, OpenAIModel):
             resolved_model = model
         else:
+            # HACK: More debug for Llama models
+            if isinstance(model, str) and "llama" in model.lower():
+                print(f"🔧 Creating OpenAIModel:")
+                print(f"   model_name: {model}")
+                print(f"   base_url: {resolved_base_url}")
+                print(f"   api_key length: {len(resolved_api_key.get_secret_value())}")
+                
             kwargs = dict(
                 model_kwargs,
                 provider=OpenAIProvider(
