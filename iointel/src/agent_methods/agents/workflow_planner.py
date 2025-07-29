@@ -1,18 +1,26 @@
 import os
 import uuid
 from typing import Dict, Any, Optional
-from ...agents import Agent
-from ...memory import AsyncMemory
-from ..data_models.workflow_spec import WorkflowSpec, WorkflowSpecLLM, ROUTING_TOOLS
+from iointel.src.agents import Agent
+from iointel.src.memory import AsyncMemory
+from iointel.src.agent_methods.data_models.workflow_spec import WorkflowSpec, WorkflowSpecLLM, ROUTING_TOOLS
 from datetime import datetime
-from ...utilities.io_logger import log_prompt
-from .workflow_prompts import get_workflow_planner_instructions
+from iointel.src.utilities.io_logger import log_prompt
+from iointel.src.utilities.unified_prompt_system import unified_prompt_system, PromptType
+from iointel.src.utilities.conversion_utils import (
+    validation_errors_to_llm_prompt,
+    workflow_spec_to_llm_prompt,
+    tool_catalog_to_llm_prompt
+)
+from iointel.src.agent_methods.agents.workflow_prompts import get_workflow_planner_instructions
 
 
 class WorkflowPromptBuilder:
     """
     Encapsulates all prompt construction logic for the WorkflowPlanner.
     Provides clean separation between prompt building and execution logic.
+    
+    TODO: Migrate to unified_prompt_system for better reusability and search.
     """
     
     def __init__(self, query: str, tool_catalog: Dict[str, Any], schema: Dict[str, Any], context: Optional[Dict[str, Any]] = None):
@@ -34,25 +42,57 @@ class WorkflowPromptBuilder:
         return self
     
     def build(self) -> str:
-        """Build the complete prompt for the workflow planner."""
-        # Split tools and data sources
-        tools_section, data_sources_section = self._split_tools_and_data_sources(self.tool_catalog)
+        """Build the complete prompt using unified prompt system."""
+        # Get workflow planner instructions from unified system
+        templates = unified_prompt_system.search_templates(
+            prompt_type=PromptType.AGENT_INSTRUCTIONS,
+            tags=["workflow_planner"]
+        )
         
+        if not templates:
+            # Fallback to basic prompt if template not found
+            return f"Generate a workflow for: {self.query}\nUse these tools: {self.tool_catalog}"
+        
+        # Get data sources for template variables
+        from iointel.src.agent_methods.data_models.data_source_registry import (
+            get_valid_data_source_names, 
+            create_data_source_knowledge_section
+        )
+        
+        valid_sources = get_valid_data_source_names()
+        sources_list = "', '".join(valid_sources)
+        data_source_knowledge = create_data_source_knowledge_section()
+        
+        # Render the template with dynamic data
+        prompt_instance = unified_prompt_system.render_prompt(
+            templates[0].id,
+            VALID_DATA_SOURCES=f"'{sources_list}'",
+            DATA_SOURCE_KNOWLEDGE=data_source_knowledge
+        )
+        
+        # Build additional context sections - PUT CRITICAL INSTRUCTIONS FIRST!
         parts = [
+            "🚨🚨🚨 CRITICAL: READ THIS FIRST - DATA SOURCE CONFIG IS MANDATORY 🚨🚨🚨",
+            "Every data_source node MUST have config with ALL required parameters.",
+            "",
+            "COPY THESE EXACT TEMPLATES:",
+            "user_input: {\"type\": \"data_source\", \"label\": \"Your Label\", \"data\": {\"source_name\": \"user_input\", \"config\": {\"prompt\": \"Your prompt\", \"default_value\": \"Your default\"}}}",
+            "prompt_tool: {\"type\": \"data_source\", \"label\": \"Your Label\", \"data\": {\"source_name\": \"prompt_tool\", \"config\": {\"prompt\": \"Your prompt\", \"default_value\": \"Your default\"}}}",
+            "",
+            "🚨 NEVER use config: null or config: {} - ALWAYS include prompt and default_value",
+            "=" * 80,
+            "",
             self._build_error_feedback(),
             self._build_previous_workflow_context(), 
+            self._build_refinement_guidance() if self.previous_workflow else None,
+            prompt_instance.content,  # Use the unified prompt system content
+            "",
             f"User Query: {self.query}",
             "",
             "📋 EXPECTED OUTPUT SCHEMA:",
             self._format_schema(self.schema),
             "",
-            tools_section,
-            "",
-            data_sources_section,
-            "",
-            self._build_tool_return_formats(),
-            "",
-            self._build_critical_requirements(),
+            self._build_tools_section(),
             "",
             f"Additional Context: {self.context}",
             "",
@@ -61,12 +101,35 @@ class WorkflowPromptBuilder:
         
         return "\n".join(part for part in parts if part is not None)
     
+    def _build_error_feedback(self) -> str:
+        """Build validation error feedback using centralized conversion utils."""
+        if not self.validation_errors:
+            return ""
+        
+        from iointel.src.utilities.conversion_utils import validation_errors_to_llm_prompt
+        return validation_errors_to_llm_prompt(self.validation_errors)
+    
+    def _build_refinement_guidance(self) -> str:
+        """Build refinement guidance when a previous workflow exists."""
+        if not self.previous_workflow:
+            return ""
+        
+        return f"""
+🔄 WORKFLOW REFINEMENT REQUEST:
+The user is asking to refine or improve an existing workflow. 
+Consider the previous workflow structure and user feedback to make targeted improvements.
+
+Previous workflow: {self.previous_workflow.title}
+"""
+    
+    def _build_tools_section(self) -> str:
+        """Build tools section using existing logic."""
+        tools_section, data_sources_section = self._split_tools_and_data_sources(self.tool_catalog)
+        return f"{tools_section}\n\n{data_sources_section}"
+    
     def _split_tools_and_data_sources(self, tool_catalog: Dict[str, Any]) -> tuple[str, str]:
         """Split into tools (for agents) and data sources (completely separate)."""
         from ..data_models.data_source_registry import get_valid_data_source_names, get_data_source_description
-        
-        # Tools are just the tool_catalog as-is (no data sources in there)
-        tools = tool_catalog
         
         # Data sources are completely separate - build from registry
         data_sources = {}
@@ -80,158 +143,114 @@ class WorkflowPromptBuilder:
                             "type": "string",
                             "description": "The prompt to show to the user when collecting input",
                             "required": True
+                        },
+                        "default_value": {
+                            "type": "string",
+                            "description": "The default value to use if the user doesn't provide one",
+                            "required": True
                         }
                     },
-                    "required_parameters": ["prompt"]
+                    "required_parameters": ["prompt", "default_value"]
                 }
             elif source_name == "prompt_tool":
                 data_sources[source_name] = {
                     "name": source_name,
                     "description": get_data_source_description(source_name),
                     "parameters": {
-                        "message": {
+                        "prompt": {
                             "type": "string",
-                            "description": "The prompt/context message to inject into the workflow",
+                            "description": "The prompt to show for this contextual input",
+                            "required": True
+                        },
+                        "default_value": {
+                            "type": "string",
+                            "description": "The default value to use for this contextual input",
                             "required": True
                         }
                     },
-                    "required_parameters": ["message"]
+                    "required_parameters": ["prompt", "default_value"]
                 }
         
         # Format sections
-        tools_section = self._format_catalog_section("🔧 AVAILABLE TOOLS (for agent nodes)", tools, "Use these in agent/decision nodes' tools array")
+        tools_section = self._format_catalog_section("🔧 AVAILABLE TOOLS (for agent nodes)", tool_catalog, "Use these in agent/decision nodes' tools array")
         data_sources_section = self._format_catalog_section("📋 AVAILABLE DATA SOURCES (for data_source nodes)", data_sources, "Use these as source_name in data_source nodes")
         
         return tools_section, data_sources_section
     
     def _format_catalog_section(self, title: str, catalog: Dict[str, Any], usage_note: str) -> str:
-        """Format a section of the catalog (tools or data sources)."""
+        """Format a section of the catalog using centralized converter."""
         if not catalog:
             return f"{title}:\n❌ NO ITEMS AVAILABLE"
         
-        formatted_items = []
-        for item_name, item_info in catalog.items():
-            # Format parameters with rich descriptions
-            parameters = item_info.get('parameters', {})
-            required_params = item_info.get('required_parameters', [])
-            
-            param_details = []
-            for param_name, param_info in parameters.items():
-                if isinstance(param_info, dict):
-                    # Rich format with descriptions
-                    param_type = param_info.get('type', 'any')
-                    param_desc = param_info.get('description', 'No description')
-                    is_required = param_info.get('required', param_name in required_params)
-                    default_val = param_info.get('default')
-                    
-                    req_indicator = " (required)" if is_required else " (optional)"
-                    default_info = f" [default: {default_val}]" if default_val is not None else ""
-                    param_details.append(f"     • {param_name} ({param_type}){req_indicator}{default_info}: {param_desc}")
-                else:
-                    # Fallback for simple format
-                    req_indicator = " (required)" if param_name in required_params else " (optional)"
-                    param_details.append(f"     • {param_name} ({param_info}){req_indicator}")
-            
-            params_section = "\n".join(param_details) if param_details else "     • No parameters"
-            
-            # Usage example
-            usage_example = f'{{"source_name": "{item_name}", "config": {{ ... }} }}' if "DATA SOURCES" in title else f'"{item_name}"'
-            if item_name == 'user_input':
-                usage_example += '\n   🔗 Data Flow: Use `{node_id}` to reference user input (stores value directly)'
-            
-            formatted_items.append(f"""
-📦 {item_name}
-   Description: {item_info.get('description', 'No description')}
-   Parameters:
-{params_section}
-   Usage: {usage_example}
-""")
+        # Use centralized converter for tool catalog
+        catalog_prompt = tool_catalog_to_llm_prompt(catalog)
         
-        return f"""{title} ({len(catalog)} total):
-{''.join(formatted_items)}
-
-🚨 {usage_note}. Any other names will cause failure."""
-    
-    def _build_error_feedback(self) -> Optional[str]:
-        """Build validation error feedback section."""
-        if not self.validation_errors:
-            return None
-            
-        latest_errors = self.validation_errors[-1]
+        # Replace the generic header with our specific title
+        catalog_prompt = catalog_prompt.replace("# Available Tools:", title)
         
-        # Provide specific guidance based on error types
-        guidance = []
-        for error in latest_errors:
-            if "MISSING ROUTE_INDEX" in error:
-                guidance.append("🔧 FIX: Add route_index to edges from decision nodes. Example: edge.data.route_index = 0 for first route, 1 for second route")
-            elif "DANGLING ROUTING NODE" in error:
-                guidance.append("🔧 FIX: Decision nodes MUST have outgoing edges to route to different agents based on conditions")
-            elif "SOURCE HALLUCINATION" in error:
-                guidance.append("🔧 FIX: Use only valid tool names from the provided tool catalog. Check spelling and availability")
-            elif "ORPHANED ROUTE_INDEX" in error:
-                guidance.append("🔧 FIX: Only add route_index to edges FROM decision nodes that have conditional_gate tool")
-            elif "SLA MISCONFIGURATION" in error:
-                guidance.append("🔧 FIX: Ensure SLA requirements match available tools. The conditional_gate tool must be in the tools list")
-            else:
-                guidance.append(f"🔧 FIX: {error}")
+        # Add usage note and data source examples if needed
+        suffix = f"\n🚨 {usage_note}. Any other names will cause failure."
         
-        return f"""❌ PREVIOUS ATTEMPT FAILED WITH VALIDATION ERRORS:
-{chr(10).join(f"- {error}" for error in latest_errors)}
+        if "DATA SOURCES" in title:
+            # Add mandatory config examples for data sources - CLEAR AS FUCK
+            suffix = f"""
 
-🛠️ SPECIFIC FIXES REQUIRED:
-{chr(10).join(guidance)}
+🚨🚨🚨 CRITICAL: DATA SOURCE CONFIG IS MANDATORY 🚨🚨🚨
+Every data_source node MUST have config with ALL required parameters.
 
-📋 REMINDER OF KEY RULES:
-1. Decision nodes MUST have the conditional_gate tool
-2. Decision nodes need outgoing edges with route_index (0, 1, etc.) for routing
-3. Only use tools that exist in the provided tool catalog
-4. Nodes after decision gates should use execution_mode: "for_each"
+COPY THESE EXACT TEMPLATES (filled in with appropriate values for the users query):
 
-"""
+user_input template:
+{{
+  "type": "data_source",
+  "label": "Your Label Here", 
+  "data": {{
+    "source_name": "user_input",
+    "config": {{
+      "prompt": "Your specific prompt text here",
+      "default_value": "Your default value here"
+    }}
+  }}
+}}
+
+prompt_tool template:
+{{
+  "type": "data_source",
+  "label": "Your Label Here",
+  "data": {{
+    "source_name": "prompt_tool", 
+    "config": {{
+      "prompt": "Your specific prompt text here",
+      "default_value": "Your default value here"
+    }}
+  }}
+}}
+
+🚨 NEVER use config: null or config: {{}} - ALWAYS include prompt and default_value
+{suffix}"""
+        
+        return f"{catalog_prompt}{suffix}"
+
     
     def _build_previous_workflow_context(self) -> Optional[str]:
-        """Build previous workflow context for refinement."""
+        """Build previous workflow context for refinement using centralized converter."""
         if not self.previous_workflow:
             return None
-            
-        # Build comprehensive node descriptions
-        node_descriptions = []
-        for node in self.previous_workflow.nodes:
-            node_desc = f"  - {node.id} ({node.type}): {node.label}"
-            if node.type == "data_source":
-                node_desc += f" | source: {node.data.source_name}"
-            elif node.type == "agent":
-                # Show first 100 chars of instructions
-                if node.data.agent_instructions:
-                    inst_preview = node.data.agent_instructions[:100] + "..." if len(node.data.agent_instructions) > 100 else node.data.agent_instructions
-                    node_desc += f" | instructions: {inst_preview}"
-                if node.data.tools:
-                    node_desc += f" | tools: {node.data.tools}"
-            node_descriptions.append(node_desc)
         
-        # Build edge descriptions
-        edge_descriptions = []
-        for edge in self.previous_workflow.edges:
-            edge_desc = f"  - {edge.source} → {edge.target}"
-            if edge.data and edge.data.condition:
-                edge_desc += f" (condition: {edge.data.condition})"
-            edge_descriptions.append(edge_desc)
+        # Use centralized converter to get workflow representation
+        workflow_prompt = workflow_spec_to_llm_prompt(self.previous_workflow)
         
-        return f"""📝 PREVIOUS WORKFLOW (for reference):
-Title: {self.previous_workflow.title}
-Description: {self.previous_workflow.description}
-Reasoning: {self.previous_workflow.reasoning}
-
-📊 NODES ({len(self.previous_workflow.nodes)} total):
-{chr(10).join(node_descriptions)}
-
-🔗 EDGES ({len(self.previous_workflow.edges)} total):
-{chr(10).join(edge_descriptions) if edge_descriptions else "  - No edges defined"}
+        # Add refinement-specific guidance
+        refinement_guidance = f"""
+📝 PREVIOUS WORKFLOW (for reference):
+{workflow_prompt}
 
 🔄 REFINEMENT MODE: You should preserve the overall structure and only modify what the user specifically requests. 
 When user says "change X to Y", find node X and replace it with Y while keeping all connections intact.
-
+When user says "remove X" or "Change tool X to required as last step", remove only that specific item (tool, node, etc.) and keep everything else.
 """
+        
+        return refinement_guidance
     
     def _build_tool_return_formats(self) -> str:
         """Build tool return format documentation."""
@@ -258,7 +277,12 @@ When user says "change X to Y", find node X and replace it with Y while keeping 
 - Follow the exact schema structure above
 - Ensure all nodes are connected (no orphaned nodes)
 - Ensure all required fields are populated based on node type
-- 🧠 AGENT DATA FLOW: Agents receive context from previous steps and reason with tools"""
+- 🧠 AGENT DATA FLOW: Agents receive context from previous steps and reason with tools
+
+🚨 DATA SOURCE CONFIG REQUIREMENTS (CRITICAL):
+- Data source config requirements are shown in the DATA SOURCES section above
+- NEVER use empty config - all parameters are mandatory
+- Follow the exact templates provided in the DATA SOURCES section"""
     
     def _format_schema(self, schema: Dict[str, Any]) -> str:
         """Format the JSON schema to highlight key requirements."""
@@ -318,6 +342,7 @@ class WorkflowPlanner:
         api_key: Optional[str] = None,
         base_url: Optional[str] = None,
         debug: bool = False,
+        validation_bypass: bool = False,
         **kwargs
     ):
         """
@@ -334,6 +359,10 @@ class WorkflowPlanner:
         """
         self.conversation_id = conversation_id or str(uuid.uuid4())
         self.last_workflow: Optional[WorkflowSpec] = None  # Track last generated workflow
+        self.validation_bypass = validation_bypass  # For debugging broken validation
+        
+        if self.validation_bypass:
+            print("⚠️ WorkflowPlanner initialized with validation bypass enabled")
         
         # Initialize the underlying agent with structured output
         self.agent = Agent(
@@ -420,6 +449,23 @@ class WorkflowPlanner:
                         "instructions_length": len(get_workflow_planner_instructions())
                     },
                     attempt=attempt
+                )
+                
+                # Log the full prompt to UI for transaction visibility
+                from ...utilities.io_logger import log_prompt
+                
+                full_prompt = f"CONTEXT:\n{context_info}\n\nUSER QUERY:\n{query}"
+                log_prompt(
+                    prompt_type=f"workflow_generation_attempt_{attempt}",
+                    prompt=full_prompt,
+                    metadata={
+                        "attempt": attempt,
+                        "max_retries": max_retries,
+                        "query": query,
+                        "conversation_id": self.conversation_id,
+                        "tool_count": len(tool_catalog) if tool_catalog else 0,
+                        "context_size": len(context_info)
+                    }
                 )
                 
                 # Execute the LLM call with just the user's query
@@ -512,14 +558,25 @@ class WorkflowPlanner:
                             "name": source_name,
                             "description": get_data_source_description(source_name),
                             "parameters": {
-                                "message": {
+                                "prompt": {
                                     "type": "string",
-                                    "description": "The prompt/context message to inject into the workflow",
+                                    "description": "The prompt to show for this contextual input",
+                                    "required": True
+                                },
+                                "default_value": {
+                                    "type": "string",
+                                    "description": "The default value to use for this contextual input",
                                     "required": True
                                 }
                             },
-                            "required_parameters": ["message"]
+                            "required_parameters": ["prompt", "default_value"]
                         }
+                
+                # Check validation bypass
+                if getattr(self, 'validation_bypass', False):
+                    print("⚠️ VALIDATION BYPASSED - Returning unvalidated workflow")
+                    self.last_workflow = workflow_spec
+                    return workflow_spec
                 
                 structural_issues = workflow_spec.validate_structure(validation_catalog)
                 if structural_issues:
@@ -530,6 +587,23 @@ class WorkflowPlanner:
                         for i, issue in enumerate(structural_issues, 1):
                             print(f"  {i}. {issue}")
                         print("─" * 60)
+                        
+                        # Log validation issues to UI for transaction visibility
+                        validation_feedback = "VALIDATION ISSUES:\n" + "\n".join(f"{i}. {issue}" for i, issue in enumerate(structural_issues, 1))
+                        validation_feedback += f"\n\nGENERATED WORKFLOW:\n{workflow_spec.to_llm_prompt()}"
+                        
+                        log_prompt(
+                            prompt_type=f"validation_failure_attempt_{attempt}",
+                            prompt=validation_feedback,
+                            metadata={
+                                "attempt": attempt,
+                                "issues_count": len(structural_issues),
+                                "workflow_title": workflow_spec.title,
+                                "conversation_id": self.conversation_id,
+                                "retry_planned": True
+                            }
+                        )
+                        
                         validation_errors.append(structural_issues)
                         continue
                     else:
@@ -653,7 +727,8 @@ Generation Timestamp: {datetime.now().isoformat()}
         for node in workflow_spec.nodes:
             if node.type == 'data_source':
                 tool_name = getattr(node.data, 'source_name', 'unknown')
-                tool_nodes.append(f"  🔧 {node.label} (source: {tool_name})")
+                config = getattr(node.data, 'config', {})
+                tool_nodes.append(f"  🔧 {node.label} (source: {tool_name}) config: {config}")
                 
             else:
                 agent_tools = getattr(node.data, 'tools', [])
