@@ -31,9 +31,7 @@ class Crawler(BaseModel):
             api_key (str): The API key for Firecrawl.
             timeout (int): How many seconds to wait while scraping.
         """
-        if not api_key:
-            api_key = FIRECRAWL_API_KEY
-        if not api_key:
+        if not (api_key := api_key or FIRECRAWL_API_KEY):
             raise RuntimeError("Firecrawl API key is not set")
         super().__init__(api_key=api_key, timeout=timeout)
         self._app = FirecrawlApp(api_key=api_key)
