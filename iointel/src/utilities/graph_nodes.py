@@ -120,11 +120,33 @@ class TaskNode(BaseNode[WorkflowState]):
         )
 
         # Store the core result value for data flow
-        if isinstance(result, dict):
+        # Handle DataSourceResult objects (from data source execution)
+        if hasattr(result, 'tool_type') and hasattr(result, 'result'):
+            # This is a DataSourceResult - extract the actual result
+            core_value = result.result
+            print(f"   🔧 Extracted data source result for data flow: {core_value}")
+        # Handle AgentExecutionResult objects (from new typed data flow)
+        elif hasattr(result, 'agent_response') and hasattr(result.agent_response, 'tool_usage_results'):
+            # Extract tool result from AgentExecutionResult for data flow
+            tool_results = result.agent_response.tool_usage_results
+            if tool_results and len(tool_results) > 0:
+                core_value = tool_results[0].tool_result
+                print(f"   🔧 Extracted tool result for data flow: {core_value}")
+            else:
+                # No tool results, fall back to storing the full result object
+                core_value = result
+                print(f"   ⚠️  No tool results found, storing full AgentExecutionResult")
+        elif isinstance(result, dict):
             # Extract the main value from different result formats
             if "result" in result:
                 # Standard format: {"result": value, ...}
-                core_value = result["result"]
+                # Check if the result contains a DataSourceResult object
+                if hasattr(result["result"], 'tool_type') and hasattr(result["result"], 'result'):
+                    # Extract from nested DataSourceResult
+                    core_value = result["result"].result
+                    print(f"   🔧 Extracted data source result from dict wrapper: {core_value}")
+                else:
+                    core_value = result["result"]
             elif "user_input" in result:
                 # User input format: {"user_input": value, ...}
                 core_value = result["user_input"]

@@ -37,16 +37,19 @@ class DAGExecutor:
     Supports conditional execution gating through decision nodes.
     """
     
-    def __init__(self):
+    def __init__(self, use_typed_execution: bool = False):
         self.nodes: Dict[str, DAGNode] = {}
         self.execution_order: List[List[str]] = []  # List of batches that can run in parallel
         self.edges: List[EdgeSpec] = []  # Store edges for conditional checking
         self.skipped_nodes: Set[str] = set()  # Track nodes skipped due to decision gating
+        self.use_typed_execution = use_typed_execution
+        self.conversation_id: Optional[str] = None
+        self.agents: Optional[List[Any]] = None
+        self.workflow_spec: Optional[WorkflowSpec] = None  # Store the full workflow spec
     
     def build_execution_graph(
         self, 
-        nodes: List[NodeSpec], 
-        edges: List[EdgeSpec],
+        workflow_spec: WorkflowSpec,
         objective: str = "",
         agents: Optional[List[Any]] = None,
         conversation_id: Optional[str] = None,
@@ -54,11 +57,10 @@ class DAGExecutor:
         agents_by_node: Optional[Dict[str, List[Any]]] = None
     ) -> Dict[str, DAGNode]:
         """
-        Build a DAG from nodes and edges, with proper dependency tracking.
+        Build a DAG from workflow spec with proper dependency tracking.
         
         Args:
-            nodes: List of workflow nodes
-            edges: List of edges defining dependencies
+            workflow_spec: Complete workflow specification
             objective: Workflow objective
             agents: Default agents
             conversation_id: Conversation ID for task nodes
@@ -66,17 +68,54 @@ class DAGExecutor:
         Returns:
             Dictionary mapping node IDs to DAGNode objects
         """
+        # Store the workflow spec
+        self.workflow_spec = workflow_spec
+        nodes = workflow_spec.nodes
+        edges = workflow_spec.edges
+        
         logger.info(f"Building DAG with {len(nodes)} nodes and {len(edges)} edges")
         
         # Initialize nodes
         self.nodes = {}
         for node in nodes:
             # Create base task data
+            # For agent nodes with inputs, the objective will be dynamically resolved from input data
+            # This allows agents to receive the actual user input instead of a generic "Execute X" message
+            node_objective = f"Execute {node.label}"
+            
+            # Special handling for user_input nodes - extract the actual input value
+            if node.type == "data_source" and node.data.source_name == "user_input":
+                # Extract user input from node config
+                config = node.data.config or {}
+                if "message" in config:
+                    node_objective = config["message"]
+                elif "default_value" in config:
+                    node_objective = config["default_value"]
+                logger.info(f"📝 User input node '{node.id}' has value: {node_objective}")
+            
+            # For agent nodes that depend on user input, we'll resolve this dynamically
+            elif node.type == "agent" and node.data.ins:
+                # Check if this agent depends on a user_input node
+                for edge in edges:
+                    if edge.target == node.id:
+                        source_node = next((n for n in nodes if n.id == edge.source), None)
+                        if source_node and source_node.type == "data_source" and source_node.data.source_name == "user_input":
+                            # This agent depends on user input - get the value
+                            config = source_node.data.config or {}
+                            if "message" in config:
+                                node_objective = config["message"]
+                            elif "default_value" in config:
+                                node_objective = config["default_value"]
+                            else:
+                                node_objective = ""  # Empty if no input provided
+                            logger.info(f"🎯 Agent node '{node.id}' will receive user input as objective: {node_objective}")
+                            break 
+                
             task_data = {
                 "task_id": node.id,
                 "name": node.label,
                 "type": node.type,
-                "objective": f"Execute {node.label}",
+                "objective": node_objective,
                 "task_metadata": {
                     "config": node.data.config,
                     "tool_name": getattr(node.data, 'source_name', None) or getattr(node.data, 'tool_name', None),
@@ -132,6 +171,8 @@ class DAGExecutor:
         
         # Store edges for conditional checking
         self.edges = edges
+        self.conversation_id = conversation_id
+        self.agents = agents
         
         # Build dependency relationships from edges
         for edge in edges:
@@ -276,48 +317,79 @@ class DAGExecutor:
                     routed_to = None  # Keep for backward compatibility and logging
                     
                     # Support both dict and Pydantic model formats
-                    if isinstance(dep_result, dict):
-                        # First check direct route_index field
-                        route_index = dep_result.get("route_index")
-                        routed_to = dep_result.get("routed_to")  # For logging
-                        
-                        # If not found, check for tool_usage_results with conditional_gate
-                        if route_index is None and "tool_usage_results" in dep_result:
-                            # Get the LAST (most recent) conditional_gate result, not the first
-                            conditional_gate_results = []
-                            for tool_result in dep_result["tool_usage_results"]:
-                                if hasattr(tool_result, "tool_name") and tool_result.tool_name == "conditional_gate":
-                                    conditional_gate_results.append(tool_result)
+                    tool_usage_results = None
+                    
+                    # Extract tool_usage_results from different result formats
+                    if hasattr(dep_result, 'agent_response') and dep_result.agent_response:
+                        # AgentExecutionResult with agent_response
+                        if hasattr(dep_result.agent_response, 'tool_usage_results'):
+                            tool_usage_results = dep_result.agent_response.tool_usage_results
+                    elif isinstance(dep_result, dict):
+                        # Dict format - could be legacy or have agent_response
+                        if "agent_response" in dep_result and dep_result["agent_response"]:
+                            agent_resp = dep_result["agent_response"]
+                            if isinstance(agent_resp, dict) and "tool_usage_results" in agent_resp:
+                                tool_usage_results = agent_resp["tool_usage_results"]
+                            elif hasattr(agent_resp, 'tool_usage_results'):
+                                tool_usage_results = agent_resp.tool_usage_results
+                        elif "tool_usage_results" in dep_result:
+                            # Direct tool_usage_results in dict
+                            tool_usage_results = dep_result["tool_usage_results"]
+                    
+                    # Look for route_index in tool_usage_results
+                    if tool_usage_results:
+                        # Get the LAST (most recent) conditional_gate result
+                        conditional_gate_results = []
+                        for tool_result in tool_usage_results:
+                            tool_name = None
+                            if hasattr(tool_result, "tool_name"):
+                                tool_name = tool_result.tool_name
+                            elif isinstance(tool_result, dict) and "tool_name" in tool_result:
+                                tool_name = tool_result["tool_name"]
                             
-                            # Use the last result (most recent tool call)
-                            if conditional_gate_results:
-                                tool_result = conditional_gate_results[-1]
-                                if hasattr(tool_result, "tool_result"):
-                                    gate_result = tool_result.tool_result
-                                    if hasattr(gate_result, "route_index"):
-                                        route_index = gate_result.route_index
-                                        routed_to = getattr(gate_result, "routed_to", "unknown")
-                                        logger.info(f"🔍 Found routing decision from conditional_gate", data={
-                                            "decision_node": dep_id,
-                                            "route_index": route_index,
-                                            "routed_to": routed_to,
-                                            "confidence": getattr(gate_result, "confidence", 1.0),
-                                            "decision_reason": getattr(gate_result, "decision_reason", ""),
-                                            "result_type": "gate_result_object"
-                                        })
-                                    elif isinstance(gate_result, dict) and "route_index" in gate_result:
-                                        route_index = gate_result["route_index"]
-                                        routed_to = gate_result.get("routed_to", "unknown")
-                                        logger.info(f"🔍 Found routing decision from conditional_gate dict", data={
-                                            "decision_node": dep_id,
-                                            "route_index": route_index,
-                                            "routed_to": routed_to,
-                                            "result_type": "dict_format"
-                                        })
-                    else:
-                        # Pydantic model (like GateResult)
-                        route_index = getattr(dep_result, "route_index", None)
-                        routed_to = getattr(dep_result, "routed_to", None)
+                            if tool_name == "conditional_gate":
+                                conditional_gate_results.append(tool_result)
+                        
+                        # Use the last result (most recent tool call)
+                        if conditional_gate_results:
+                            tool_result = conditional_gate_results[-1]
+                            gate_result = None
+                            
+                            if hasattr(tool_result, "tool_result"):
+                                gate_result = tool_result.tool_result
+                            elif isinstance(tool_result, dict) and "tool_result" in tool_result:
+                                gate_result = tool_result["tool_result"]
+                            
+                            if gate_result:
+                                if hasattr(gate_result, "route_index"):
+                                    route_index = gate_result.route_index
+                                    routed_to = getattr(gate_result, "routed_to", "unknown")
+                                    logger.info(f"🔍 Found routing decision from conditional_gate", data={
+                                        "decision_node": dep_id,
+                                        "route_index": route_index,
+                                        "routed_to": routed_to,
+                                        "confidence": getattr(gate_result, "confidence", 1.0),
+                                        "decision_reason": getattr(gate_result, "decision_reason", ""),
+                                        "result_type": "gate_result_object"
+                                    })
+                                elif isinstance(gate_result, dict) and "route_index" in gate_result:
+                                    route_index = gate_result["route_index"]
+                                    routed_to = gate_result.get("routed_to", "unknown")
+                                    logger.info(f"🔍 Found routing decision from conditional_gate dict", data={
+                                        "decision_node": dep_id,
+                                        "route_index": route_index,
+                                        "routed_to": routed_to,
+                                        "result_type": "dict_format"
+                                    })
+                    
+                    # Direct route_index check (legacy)
+                    if route_index is None:
+                        if hasattr(dep_result, "route_index"):
+                            route_index = dep_result.route_index
+                            routed_to = getattr(dep_result, "routed_to", None)
+                        elif isinstance(dep_result, dict) and "route_index" in dep_result:
+                            route_index = dep_result["route_index"]
+                            routed_to = dep_result.get("routed_to")
                     
                     if route_index is not None:
                         # Find edges from this decision node to our target node
@@ -404,6 +476,13 @@ class DAGExecutor:
             Final workflow state with all results
         """
         logger.info("Starting DAG execution")
+        logger.info(f"🎯 Execution Plan: {len(self.execution_order)} batches, max parallelism: {max(len(batch) for batch in self.execution_order)}")
+        for i, batch in enumerate(self.execution_order):
+            if len(batch) > 1:
+                logger.info(f"  📦 Batch {i}: {batch} (parallel)")
+            else:
+                logger.info(f"  📦 Batch {i}: {batch} (sequential)")
+        
         state = initial_state
         self._last_state = state  # Ensure _is_decision_gated_skip always has access to latest state
         
@@ -413,34 +492,42 @@ class DAGExecutor:
             if len(batch) == 1:
                 # Single node - check if it should execute
                 node_id = batch[0]
-                if self._should_execute_node(node_id, state):
+                logger.info(f"  🔍 Evaluating single node: {node_id}")
+                should_execute = self._should_execute_node(node_id, state)
+                logger.info(f"  🎯 Decision for {node_id}: {'EXECUTE' if should_execute else 'SKIP'}")
+                
+                if should_execute:
+                    logger.info(f"  🚀 Executing {node_id}...")
                     result = await self._execute_node(node_id, state)
                     state.results[node_id] = result
-                    logger.info(f"  ✅ {node_id} → {result}")
+                    logger.info(f"  ✅ {node_id} → COMPLETED")
                 else:
                     self.skipped_nodes.add(node_id)
                     state.results[node_id] = {"status": "skipped", "reason": "decision_gated"}
-                    logger.info(f"  ⏭️  {node_id} → skipped")
+                    logger.info(f"  ⏭️  {node_id} → SKIPPED (decision gated)")
             else:
                 # Multiple nodes - check each and execute those that should run
-                logger.info(f"  🔄 Checking {len(batch)} nodes for execution")
+                logger.info(f"  🔄 Evaluating {len(batch)} nodes for parallel execution")
                 nodes_to_execute = []
                 for node_id in batch:
-                    if self._should_execute_node(node_id, state):
+                    should_execute = self._should_execute_node(node_id, state)
+                    logger.info(f"  🎯 Decision for {node_id}: {'EXECUTE' if should_execute else 'SKIP'}")
+                    
+                    if should_execute:
                         nodes_to_execute.append(node_id)
                     else:
                         self.skipped_nodes.add(node_id)
                         state.results[node_id] = {"status": "skipped", "reason": "decision_gated"}
-                        logger.info(f"  ⏭️  {node_id} → skipped")
+                        logger.info(f"  ⏭️  {node_id} → SKIPPED (decision gated)")
                 
                 if nodes_to_execute:
-                    logger.info(f"  🔄 Executing {len(nodes_to_execute)} nodes in parallel")
+                    logger.info(f"  🚀 Launching {len(nodes_to_execute)} nodes in parallel: {nodes_to_execute}")
                     results = await self._execute_batch_parallel(nodes_to_execute, state)
                     
                     # Update state with all results
                     for node_id, result in results.items():
                         state.results[node_id] = result
-                        logger.info(f"  ✅ {node_id} → {result}")
+                        logger.info(f"  ✅ {node_id} → COMPLETED")
                 else:
                     logger.info("  ⏭️  All nodes in batch skipped")
         
@@ -455,6 +542,10 @@ class DAGExecutor:
     async def _execute_node(self, node_id: str, state: WorkflowState) -> Any:
         """Execute a single node with SLA enforcement wrapper."""
         dag_node = self.nodes[node_id]
+        
+        # Use typed execution if enabled
+        if self.use_typed_execution:
+            return await self._execute_node_typed(node_id, state)
         
         # Extract node data for SLA requirements
         node_data = dag_node.node_spec.data.model_dump() if hasattr(dag_node.node_spec.data, 'model_dump') else {}
@@ -497,6 +588,35 @@ class DAGExecutor:
             logger.error(f"Node {node_id} execution failed with SLA wrapper: {e}")
             # Fall back to direct execution for compatibility
             return await execute_node_core()
+    
+    async def _execute_node_typed(self, node_id: str, state: WorkflowState) -> Any:
+        """Execute a single node using typed execution system."""
+        from .typed_execution import TypedExecutionContext, TypedNodeExecutor
+        from ..utilities.io_logger import get_component_logger
+        
+        logger = get_component_logger("DAG_EXECUTOR")
+        dag_node = self.nodes[node_id]
+        
+        logger.info(f"🎯 Typed execution of node {node_id}")
+        
+        # Create typed execution context with full workflow awareness
+        context = TypedExecutionContext(
+            workflow_spec=self.workflow_spec,
+            current_node_id=node_id,
+            state=state,
+            agents=dag_node.task_node_class.default_agents,
+            conversation_id=self.conversation_id,
+            objective=dag_node.task_node_class.task.get("objective")  # Legacy support
+        )
+        
+        # Execute using typed executor
+        try:
+            result = await TypedNodeExecutor.execute(context)
+            logger.info(f"✅ Typed execution completed for {node_id}")
+            return result
+        except Exception as e:
+            logger.error(f"❌ Typed execution failed for {node_id}: {e}")
+            raise
     
     async def _execute_batch_parallel(self, batch: List[str], state: WorkflowState) -> Dict[str, Any]:
         """Execute a batch of nodes in parallel."""
@@ -591,6 +711,7 @@ class DAGExecutor:
             if node.data.tools:
                 for tool_name in node.data.tools:
                     if tool_name in TOOLS_REGISTRY:
+                        # Just pass the tool name - resolution happens in create_agent
                         agent_tools.append(tool_name)
                         logger.info(f"Loading tool '{tool_name}' for agent '{node.id}'")
                     else:
@@ -679,8 +800,7 @@ def create_dag_executor_from_spec(
     """
     executor = DAGExecutor()
     executor.build_execution_graph(
-        nodes=spec.nodes,
-        edges=spec.edges,
+        workflow_spec=spec,
         objective=objective or spec.description,
         agents=agents,
         conversation_id=conversation_id
