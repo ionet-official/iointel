@@ -37,11 +37,13 @@ from .utils import what_time_is_it
 # Import the smart tool loader first
 from .tool_loader import load_tools_from_env, get_registered_tools, get_tool_by_name
 
-# Import user input tools
-from . import user_input
+# Note: user_input moved to data_sources module
 
 # Import conditional gate tools
 from . import conditional_gate
+
+# Import basic math tools
+from . import basic_math
 
 # Tool Clusters for convenience
 class ToolClusters:
