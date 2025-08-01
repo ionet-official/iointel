@@ -6,20 +6,12 @@ WorkflowPlanner as system context for analysis and improvement suggestions.
 """
 
 from datetime import datetime
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any, Optional, Union
 from dataclasses import dataclass
-from enum import Enum
 
 from iointel.src.agent_methods.data_models.workflow_spec import WorkflowSpec
-
-
-class ExecutionStatus(Enum):
-    """Execution status types."""
-    SUCCESS = "success"
-    FAILED = "failed"
-    PARTIAL = "partial"
-    TIMEOUT = "timeout"
-    CANCELLED = "cancelled"
+from iointel.src.agent_methods.data_models.datamodels import ToolUsageResult
+from iointel.src.agent_methods.data_models.execution_models import AgentExecutionResult, ExecutionStatus
 
 
 @dataclass
@@ -39,10 +31,16 @@ class NodeExecutionResult:
     sla_validation_attempts: int = 0
     sla_validation_passed: bool = True
     sla_requirements: Optional[Dict[str, Any]] = None
+    # NEW: Capture full outputs and tool results
+    full_agent_output: Optional[str] = None  # Complete agent response/reasoning
+    tool_usage_results: List[Dict[str, Any]] = None  # Detailed tool results with inputs/outputs  
+    final_result: Optional[Any] = None  # Complete structured result from node
     
     def __post_init__(self):
         if self.tool_usage is None:
             self.tool_usage = []
+        if self.tool_usage_results is None:
+            self.tool_usage_results = []
 
 
 @dataclass
@@ -74,88 +72,11 @@ class ExecutionResultCurator:
     @staticmethod
     def curate_execution_summary(summary: WorkflowExecutionSummary) -> str:
         """Generate a curated, human-readable execution summary."""
-        
-        # Header with key metrics
-        header = f"""🤖 SYSTEM EXECUTION REPORT
-=============================
-Workflow: {summary.workflow_title}
-Execution ID: {summary.execution_id}
-Status: {summary.status.value.upper()}
-Duration: {summary.total_duration_seconds:.2f}s
-Timestamp: {summary.finished_at or summary.started_at}
-"""
-        
-        # Execution overview
-        total_nodes = len(summary.nodes_executed) + len(summary.nodes_skipped)
-        executed_count = len(summary.nodes_executed)
-        skipped_count = len(summary.nodes_skipped)
-        
-        overview = f"""
-📊 EXECUTION OVERVIEW
---------------------
-Total Nodes: {total_nodes}
-Executed: {executed_count}
-Skipped: {skipped_count}
-Success Rate: {(len([n for n in summary.nodes_executed if n.status == ExecutionStatus.SUCCESS]) / max(executed_count, 1) * 100):.1f}%
-"""
-        
-        # Node execution details
-        node_details = "\n🔍 NODE EXECUTION DETAILS\n" + "-" * 1
-        for node in summary.nodes_executed:
-            status_emoji = "✅" if node.status == ExecutionStatus.SUCCESS else "❌"
-            duration_str = f" ({node.duration_seconds:.2f}s)" if node.duration_seconds else ""
-            
-            node_details += f"""
-{status_emoji} {node.node_label} ({node.node_type}){duration_str}"""
-            
-            if node.tool_usage:
-                node_details += f"\n   Tools: {', '.join(node.tool_usage)}"
-            
-            if node.result_preview:
-                preview = node.result_preview[:100] + "..." if len(node.result_preview) > 100 else node.result_preview
-                node_details += f"\n   Result: {preview}"
-            
-            if node.error_message:
-                error_preview = node.error_message[:150] + "..." if len(node.error_message) > 150 else node.error_message
-                node_details += f"\n   Error: {error_preview}"
-        
-        # Skipped nodes
-        skipped_details = ""
-        if summary.nodes_skipped:
-            skipped_details = "\n\n⏭️ SKIPPED NODES\n" + "-" * 15 + "\n"
-            skipped_details += "\n".join(f"• {node_id}" for node_id in summary.nodes_skipped)
-        
-        # User inputs
-        inputs_details = ""
-        if summary.user_inputs:
-            inputs_details = "\n\n📝 USER INPUTS\n" + "-" * 13 + "\n"
-            for key, value in summary.user_inputs.items():
-                value_str = str(value)[:100] + "..." if len(str(value)) > 100 else str(value)
-                inputs_details += f"• {key}: {value_str}\n"
-        
-        # Error analysis
-        error_analysis = ""
-        if summary.status != ExecutionStatus.SUCCESS:
-            error_analysis = "\n\n🚨 ERROR ANALYSIS\n" + "-" * 16
-            if summary.error_summary:
-                error_analysis += f"\n{summary.error_summary}"
-            
-            # Common error patterns
-            failed_nodes = [n for n in summary.nodes_executed if n.status != ExecutionStatus.SUCCESS]
-            if failed_nodes:
-                error_analysis += f"\n\nFailed Nodes: {len(failed_nodes)}"
-                for node in failed_nodes:
-                    if node.error_message:
-                        error_analysis += f"\n• {node.node_label}: {node.error_message[:100]}"
-        
-        # Performance insights
-        perf_insights = ""
-        if summary.performance_metrics:
-            perf_insights = "\n\n⚡ PERFORMANCE INSIGHTS\n" + "-" * 22
-            for metric, value in summary.performance_metrics.items():
-                perf_insights += f"\n• {metric}: {value}"
-        
-        return header + overview + node_details + skipped_details + inputs_details + error_analysis + perf_insights
+        # Use centralized conversion utility for consistent formatting
+        from iointel.src.utilities.conversion_utils import execution_summary_to_llm_prompt
+        return execution_summary_to_llm_prompt(summary)
+        # DEPRECATED: Formatting logic moved to centralized conversion utilities
+        # This method now uses the single source of truth conversion utilities
     
     @staticmethod
     def generate_improvement_prompt(summary: WorkflowExecutionSummary, workflow_spec=None) -> str:
@@ -189,13 +110,129 @@ Success Rate: {(len([n for n in summary.nodes_executed if n.status == ExecutionS
         active_workflow_spec = summary.workflow_spec or workflow_spec
         workflow_context = ""
         if active_workflow_spec:
+            # Use centralized conversion utility instead of scattered methods
+            from iointel.src.utilities.conversion_utils import workflow_spec_to_llm_structured
             workflow_context = f"""
 
-{active_workflow_spec.to_llm_prompt()}
+{workflow_spec_to_llm_structured(active_workflow_spec)}
 
 """
         
-        return f"""SYSTEM: Workflow execution completed. Here's the complete analysis context:
+        # Use unified prompt system for cleaner, more focused feedback
+        try:
+            from iointel.src.utilities.unified_prompt_system import unified_prompt_system, PromptType
+        except ImportError:
+            # Fallback: unified prompt system not available, use simple feedback
+            unified_prompt_system = None
+            PromptType = None
+        
+        if summary.status == ExecutionStatus.SUCCESS:
+            # SUCCESS: Build concise results summary
+            
+            # Extract key results from successful nodes
+            agent_results = []
+            tool_results = []
+            
+            for node in summary.nodes_executed:
+                if node.status == ExecutionStatus.SUCCESS:
+                    # Agent outputs (the actual reasoning/responses) - NO TRUNCATION
+                    if hasattr(node, 'full_agent_output') and node.full_agent_output:
+                        agent_results.append(f"• **{node.node_label}**: {node.full_agent_output}")
+                    elif node.result_preview:
+                        agent_results.append(f"• **{node.node_label}**: {node.result_preview}")
+                    
+                    # Tool usage (what tools actually did)
+                    if hasattr(node, 'tool_usage_results') and node.tool_usage_results:
+                        for tool_result in node.tool_usage_results:
+                            # Handle both dict and ToolUsageResult objects
+                            if isinstance(tool_result, dict):
+                                tool_name = tool_result.get('tool_name', 'unknown')
+                                result = tool_result.get('result', 'No output')
+                            else:
+                                # It's a ToolUsageResult object
+                                tool_name = tool_result.tool_name
+                                result = tool_result.tool_result
+                            
+                            if result and result != 'None':
+                                # Show key info but keep reasonable length
+                                result_str = str(result)
+                                if len(result_str) > 300:
+                                    result_str = result_str[:300] + "..."
+                                tool_results.append(f"• **{tool_name}**: {result_str}")
+            
+            # Create concise prompt using unified system
+            agent_outputs_text = "\n".join(agent_results) if agent_results else "No agent outputs captured"
+            tool_results_text = "\n".join(tool_results) if tool_results else "No tool results captured"
+            
+            # Check if we actually have meaningful results
+            has_meaningful_results = bool(agent_results) or bool(tool_results)
+            
+            # If no meaningful results, treat as incomplete execution
+            if not has_meaningful_results:
+                return f"""SYSTEM: ⚠️ **{summary.workflow_title}** executed in {summary.total_duration_seconds:.1f}s but produced no meaningful results.
+
+🔍 **EXECUTION ANALYSIS:**
+- Workflow nodes executed: {len(summary.nodes_executed)}
+- Agent outputs captured: 0
+- Tool results captured: 0
+
+❓ **POTENTIAL ISSUES:**
+- Agents may not be producing output correctly
+- Tool results may not be captured properly
+- The workflow may be missing agent nodes that produce results
+
+RESPONSE FORMAT: This is an execution analysis, NOT a workflow generation request.
+Use CHAT-ONLY mode: Set nodes: null, edges: null in your response.
+
+Please acknowledge that the workflow ran but didn't produce expected outputs, and suggest checking the workflow design."""
+            
+            # Try to use unified prompt system if available
+            if unified_prompt_system and PromptType:
+                try:
+                    templates = unified_prompt_system.search_templates(
+                        prompt_type=PromptType.EXECUTION_FEEDBACK,
+                        tags=["success"]
+                    )
+                    
+                    if templates:
+                        instance = unified_prompt_system.render_prompt(
+                            templates[0].id,
+                            workflow_title=summary.workflow_title,
+                            duration=f"{summary.total_duration_seconds:.1f}",
+                            agent_outputs=agent_outputs_text,
+                            tool_results=tool_results_text,
+                            value_summary=f"Successfully processed user input through {len(summary.nodes_executed)} workflow steps"
+                        )
+                        
+                        # Record usage for improvement
+                        unified_prompt_system.record_prompt_result(instance.id, success=True)
+                        
+                        return f"""SYSTEM: {instance.content}
+
+RESPONSE FORMAT: This is a results report, NOT a workflow generation request.
+Use CHAT-ONLY mode: Set nodes: null, edges: null in your response.
+
+Focus on celebrating what the workflow accomplished and the value delivered to the user."""
+                    
+                except Exception as e:
+                    print(f"⚠️ Failed to use unified prompt template: {e}")
+            
+            # Fallback to simple success prompt with FULL RESULTS
+            return f"""SYSTEM: ✅ **{summary.workflow_title}** completed in {summary.total_duration_seconds:.1f}s
+
+🎯 **RESULTS:**
+{agent_outputs_text}
+
+🛠️ **TOOLS USED:**
+{tool_results_text}
+
+RESPONSE FORMAT: This is a results report, NOT a workflow generation request.
+Use CHAT-ONLY mode: Set nodes: null, edges: null in your response.
+
+Summarize the KEY RESULTS above - focus on the specific recommendations, decisions, or outcomes the user received."""
+        else:
+            # FAILURE: Do introspection and analysis
+            return f"""SYSTEM: Workflow execution failed or had issues. Provide analysis and suggestions.
 
 {workflow_context}📊 EXECUTION RESULTS
 {curated_summary}
@@ -264,7 +301,10 @@ class ExecutionFeedbackCollector:
         status: ExecutionStatus,
         result_preview: str = None,
         error_message: str = None,
-        tool_usage: List[str] = None
+        tool_usage: List[str] = None,
+        full_agent_output: str = None,
+        tool_usage_results: Union[List[Dict[str, Any]], List[ToolUsageResult]] = None,
+        final_result: Union[Any, AgentExecutionResult] = None
     ):
         """Record that a node has completed executing."""
         if execution_id not in self.active_executions:
@@ -279,6 +319,9 @@ class ExecutionFeedbackCollector:
         node_result.result_preview = result_preview
         node_result.error_message = error_message
         node_result.tool_usage = tool_usage or []
+        node_result.full_agent_output = full_agent_output
+        node_result.tool_usage_results = tool_usage_results or []
+        node_result.final_result = final_result
         
         # Calculate duration
         if node_result.started_at and node_result.finished_at:
@@ -438,39 +481,114 @@ if __name__ == "__main__":
         ]
     )
     
-    # Example execution tracking
-    execution_id = "test-execution-123"
+    # Test Case 1: FAILURE scenario (existing test)
+    print("=" * 80)
+    print("TEST CASE 1: FAILURE SCENARIO")
+    print("=" * 80)
+    
+    execution_id_fail = "test-execution-fail"
     
     feedback_collector.start_execution_tracking(
-        execution_id=execution_id,
+        execution_id=execution_id_fail,
         workflow_spec=example_workflow,
         user_inputs={"user_input_1": "Test email content"}
     )
     
-    # Simulate node execution
-    feedback_collector.record_node_start(execution_id, "agent_1", "agent", "Email Agent")
+    # Simulate node execution with failure
+    feedback_collector.record_node_start(execution_id_fail, "agent_1", "agent", "Email Agent")
     feedback_collector.record_node_completion(
-        execution_id, "agent_1", ExecutionStatus.SUCCESS,
+        execution_id_fail, "agent_1", ExecutionStatus.SUCCESS,
         result_preview="Email processed successfully"
     )
     
-    feedback_collector.record_node_start(execution_id, "agent_2", "agent", "Context Tree Agent")
+    feedback_collector.record_node_start(execution_id_fail, "agent_2", "agent", "Context Tree Agent")
     feedback_collector.record_node_completion(
-        execution_id, "agent_2", ExecutionStatus.FAILED,
+        execution_id_fail, "agent_2", ExecutionStatus.FAILED,
         error_message="KeyError: 'self'"
     )
     
     # Complete execution and generate feedback
-    summary = feedback_collector.complete_execution(
-        execution_id=execution_id,
+    summary_fail = feedback_collector.complete_execution(
+        execution_id=execution_id_fail,
         error_summary="Agent initialization failed due to type hint issue"
     )
     
-    # Generate feedback prompt
-    # feedback_prompt = create_execution_feedback_prompt(summary)
-    # print(feedback_prompt)
-
-    print("--------------START OF EXECUTION SUMMARY------------------")
-    # add ExecutionResultCurator.curate_execution_summary(summary) to the feedback_prompt
-    feedback_prompt = ExecutionResultCurator.generate_improvement_prompt(summary, example_workflow)
-    print(feedback_prompt)
+    feedback_prompt_fail = ExecutionResultCurator.generate_improvement_prompt(summary_fail, example_workflow)
+    print(feedback_prompt_fail)
+    
+    print("\n" + "=" * 80)
+    print("TEST CASE 2: SUCCESS SCENARIO")
+    print("=" * 80)
+    
+    # Test Case 2: SUCCESS scenario
+    execution_id_success = "test-execution-success"
+    
+    feedback_collector.start_execution_tracking(
+        execution_id=execution_id_success,
+        workflow_spec=example_workflow,
+        user_inputs={"user_input_1": "Process email about project updates"}
+    )
+    
+    # Simulate successful node execution with rich data
+    feedback_collector.record_node_start(execution_id_success, "agent_1", "agent", "Email Agent")
+    feedback_collector.record_node_completion(
+        execution_id_success, "agent_1", ExecutionStatus.SUCCESS,
+        result_preview="Extracted 3 action items from email: 1) Review proposal 2) Schedule meeting 3) Update timeline",
+        tool_usage=["email_parser", "text_analyzer"],
+        full_agent_output="I've analyzed the email about project updates and identified three critical action items that need attention. The email contains important timeline information and resource requests that require immediate action.",
+        tool_usage_results=[
+            {
+                "tool_name": "email_parser", 
+                "input": "Process email about project updates",
+                "result": {"subject": "Project Updates - Action Required", "sender": "project_manager@company.com", "action_items": ["Review proposal", "Schedule meeting", "Update timeline"]},
+                "metadata": {"confidence": 0.95, "processed_at": "2025-07-27T14:31:48Z"}
+            },
+            {
+                "tool_name": "text_analyzer",
+                "input": "Analyze extracted action items for priority",
+                "result": {"high_priority": ["Review proposal"], "medium_priority": ["Schedule meeting", "Update timeline"], "urgency_score": 8.2},
+                "metadata": {"analysis_type": "priority_scoring"}
+            }
+        ],
+        final_result={"action_items": 3, "high_priority_count": 1, "total_urgency_score": 8.2}
+    )
+    
+    feedback_collector.record_node_start(execution_id_success, "agent_2", "agent", "Context Tree Agent") 
+    feedback_collector.record_node_completion(
+        execution_id_success, "agent_2", ExecutionStatus.SUCCESS,
+        result_preview="Created context tree with 3 nodes, stored in memory for easy retrieval",
+        tool_usage=["create_context_tree", "memory_store"],
+        full_agent_output="Successfully organized the action items into a hierarchical context tree structure. Each item has been categorized by priority and assigned metadata for efficient retrieval and tracking.",
+        tool_usage_results=[
+            {
+                "tool_name": "create_context_tree",
+                "input": {"action_items": ["Review proposal", "Schedule meeting", "Update timeline"], "priority_data": {"high": 1, "medium": 2}},
+                "result": {
+                    "tree_id": "ctx_tree_001",
+                    "nodes": [
+                        {"id": "node_1", "content": "Review proposal", "priority": "high", "parent": None},
+                        {"id": "node_2", "content": "Schedule meeting", "priority": "medium", "parent": "node_1"},
+                        {"id": "node_3", "content": "Update timeline", "priority": "medium", "parent": "node_1"}
+                    ],
+                    "structure": "hierarchical"
+                },
+                "metadata": {"creation_time": "2025-07-27T14:31:48Z", "node_count": 3}
+            },
+            {
+                "tool_name": "memory_store",
+                "input": {"tree_id": "ctx_tree_001", "storage_type": "persistent"},
+                "result": {"storage_id": "mem_store_abc123", "status": "stored", "retrieval_key": "project_updates_tree"},
+                "metadata": {"storage_size": "2.4KB", "ttl": "30_days"}
+            }
+        ],
+        final_result={"context_tree_id": "ctx_tree_001", "stored_location": "mem_store_abc123", "retrieval_key": "project_updates_tree", "node_count": 3}
+    )
+    
+    # Complete successful execution
+    summary_success = feedback_collector.complete_execution(
+        execution_id=execution_id_success,
+        final_outputs={"action_items": 3, "context_tree_nodes": 3, "stored_in_memory": True}
+    )
+    
+    feedback_prompt_success = ExecutionResultCurator.generate_improvement_prompt(summary_success, example_workflow)
+    print(feedback_prompt_success)

@@ -3223,6 +3223,10 @@
                     handleWorkflowUpdate(data.workflow);
                 } else if (data.type === 'execution_update') {
                     handleExecutionUpdate(data);
+                } else if (data.type === 'chat_message') {
+                    // Handle chat messages sent via WebSocket (like execution feedback)
+                    console.log('💬 Received chat message via WebSocket');
+                    addMessageToChat(data.content, data.role, data.metadata);
                 }
             };
             
@@ -3728,11 +3732,8 @@
                 // Refresh display to show updated task statuses
                 updateExecutionInfo();
                 
-                // Fetch and display execution feedback
-                if (currentExecution && currentExecution.id) {
-                    console.log('📊 Fetching execution feedback...');
-                    fetchAndDisplayExecutionFeedback(currentExecution.id);
-                }
+                // Execution feedback now comes via WebSocket as a chat_message
+                // No need to poll the API anymore
             }
         }
         
@@ -3749,6 +3750,9 @@
                     
                     const feedbackData = await response.json();
                     console.log('📊 Execution feedback received:', feedbackData);
+                    console.log('📊 Planner feedback exists:', !!feedbackData.planner_feedback);
+                    console.log('📊 Planner feedback type:', typeof feedbackData.planner_feedback);
+                    console.log('📊 Planner feedback preview:', feedbackData.planner_feedback ? feedbackData.planner_feedback.substring(0, 100) + '...' : 'null/undefined');
                     
                     // Store execution logs for the logs tab
                     if (feedbackData.execution_summary) {
@@ -3758,6 +3762,7 @@
                     
                     // Only display AI analysis/feedback if available (skip raw report to avoid duplication)
                     if (feedbackData.planner_feedback) {
+                        console.log('📊 Adding planner feedback to chat');
                         // Add the AI analysis with execution context
                         addMessageToChat(feedbackData.planner_feedback, 'assistant', { isExecutionReport: true });
                         
@@ -3772,7 +3777,7 @@
                         // Fallback to raw report only if no AI analysis available
                         addMessageToChat(feedbackData.curated_summary, 'system', { isExecutionReport: true });
                     }
-                }, 2000); // Wait 2 seconds for backend processing
+                }, 5000); // Wait 5 seconds for backend processing (increased from 2s)
                 
             } catch (error) {
                 console.error('❌ Error fetching execution feedback:', error);

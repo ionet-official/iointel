@@ -39,12 +39,11 @@ from .workflow_storage import WorkflowStorage
 from .execution_feedback import (
     feedback_collector, 
     create_execution_feedback_prompt,
-    ExecutionStatus,
     WorkflowExecutionSummary
 )
 from ..utilities.io_logger import workflow_logger, execution_logger, system_logger
 from iointel.src.chainables import execute_tool_task, execute_data_source_task, execute_agent_task
-from iointel.src.agent_methods.data_models.execution_models import DataSourceResult
+from iointel.src.agent_methods.data_models.execution_models import DataSourceResult, ExecutionStatus
 from iointel.src.agent_methods.tools.collection_manager import search_collections, create_collection
 from .test_analytics_api import test_analytics_router
 from .workflow_rag_router import workflow_rag_router
@@ -1131,8 +1130,8 @@ async def execute_workflow_background(
         # Execute the workflow using DAGExecutor for proper user input handling
         from ..utilities.dag_executor import DAGExecutor
         
-        # Create DAG executor with typed execution
-        dag_executor = DAGExecutor(use_typed_execution=True)
+        # Create DAG executor with typed execution and feedback tracking
+        dag_executor = DAGExecutor(use_typed_execution=True, feedback_collector=feedback_collector)
         
         # Build execution graph with user inputs in metadata
         dag_executor.build_execution_graph(
@@ -1158,8 +1157,8 @@ async def execute_workflow_background(
             results={}
         )
         
-        # Execute the DAG
-        final_state = await dag_executor.execute_dag(initial_state)
+        # Execute the DAG with the same execution_id
+        final_state = await dag_executor.execute_dag(initial_state, execution_id=execution_id)
         
         # Extract results from the final state
         dag_results = final_state.results
@@ -1170,12 +1169,15 @@ async def execute_workflow_background(
             'status': 'completed'
         }
         
-        # Complete execution feedback tracking
-        final_outputs = dag_results if dag_results else {}
-        execution_summary = feedback_collector.complete_execution(
-            execution_id=execution_id,
-            final_outputs=final_outputs
-        )
+        # Get execution summary from DAG executor (if available) or complete it here
+        execution_summary = getattr(final_state, 'execution_summary', None)
+        if not execution_summary:
+            # Fallback: complete execution tracking if DAG didn't do it
+            final_outputs = dag_results if dag_results else {}
+            execution_summary = feedback_collector.complete_execution(
+                execution_id=execution_id,
+                final_outputs=final_outputs
+            )
         
         # Update execution info with serialized results
         active_executions[execution_id].update({
@@ -1330,6 +1332,12 @@ async def send_execution_feedback_to_planner(execution_summary: WorkflowExecutio
             }
         )
         print(f"🔍 [FEEDBACK] Received response from planner")
+        print(f"🔍 [FEEDBACK] Response type: {type(response)}")
+        print(f"🔍 [FEEDBACK] Response attrs: {dir(response) if response else 'None'}")
+        print(f"🔍 [FEEDBACK] Has reasoning attr: {hasattr(response, 'reasoning')}")
+        if hasattr(response, 'reasoning'):
+            print(f"🔍 [FEEDBACK] Reasoning type: {type(response.reasoning)}")
+            print(f"🔍 [FEEDBACK] Reasoning value: {response.reasoning[:100] if response.reasoning else 'None/Empty'}...")
         
         # Log the analysis response
         if hasattr(response, 'reasoning') and response.reasoning:
@@ -1347,6 +1355,26 @@ async def send_execution_feedback_to_planner(execution_summary: WorkflowExecutio
             # Store feedback for potential display to user
             if execution_summary.execution_id in active_executions:
                 active_executions[execution_summary.execution_id]["planner_feedback"] = response.reasoning
+                print(f"💾 [FEEDBACK] Stored planner feedback for execution {execution_summary.execution_id[:8]}: {len(response.reasoning)} chars")
+                print(f"💾 [FEEDBACK] Feedback will be available at /api/executions/{execution_summary.execution_id}/feedback")
+                
+                # CRITICAL: Send the feedback as a chat message via WebSocket
+                # This uses the same pattern as chat-only responses
+                await broadcast_message({
+                    "type": "chat_message",
+                    "role": "assistant",
+                    "content": response.reasoning,
+                    "metadata": {
+                        "is_execution_feedback": True,
+                        "execution_id": execution_summary.execution_id
+                    },
+                    "timestamp": datetime.now().isoformat()
+                })
+                print(f"📡 [FEEDBACK] Broadcast planner feedback as chat message")
+        else:
+            print(f"⚠️ [FEEDBACK] No reasoning in response or response.reasoning is empty")
+            if execution_summary.execution_id in active_executions:
+                print(f"⚠️ [FEEDBACK] Not storing planner_feedback (would be None/empty)")
         
         execution_logger.success("Execution feedback processing completed", execution_id=execution_summary.execution_id)
         print(f"✅ [FEEDBACK] Successfully sent execution feedback to planner for {execution_summary.execution_id}")

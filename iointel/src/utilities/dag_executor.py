@@ -37,7 +37,7 @@ class DAGExecutor:
     Supports conditional execution gating through decision nodes.
     """
     
-    def __init__(self, use_typed_execution: bool = False):
+    def __init__(self, use_typed_execution: bool = False, feedback_collector=None):
         self.nodes: Dict[str, DAGNode] = {}
         self.execution_order: List[List[str]] = []  # List of batches that can run in parallel
         self.edges: List[EdgeSpec] = []  # Store edges for conditional checking
@@ -46,6 +46,8 @@ class DAGExecutor:
         self.conversation_id: Optional[str] = None
         self.agents: Optional[List[Any]] = None
         self.workflow_spec: Optional[WorkflowSpec] = None  # Store the full workflow spec
+        self.feedback_collector = feedback_collector  # Optional feedback tracking
+        self.execution_id: Optional[str] = None  # Track current execution ID
     
     def build_execution_graph(
         self, 
@@ -465,16 +467,27 @@ class DAGExecutor:
         # No routing logic applies
         return None
     
-    async def execute_dag(self, initial_state: WorkflowState) -> WorkflowState:
+    async def execute_dag(self, initial_state: WorkflowState, execution_id: Optional[str] = None) -> WorkflowState:
         """
         Execute the DAG respecting dependencies and enabling parallel execution.
         
         Args:
             initial_state: Initial workflow state
+            execution_id: Optional execution ID to use for tracking (if not provided, generates one)
             
         Returns:
             Final workflow state with all results
         """
+        # If feedback collector is provided, start tracking
+        if self.feedback_collector and self.workflow_spec:
+            import uuid
+            # Use provided execution_id or generate one
+            self.execution_id = execution_id or f"dag_{uuid.uuid4().hex[:8]}"
+            self.feedback_collector.start_execution_tracking(
+                execution_id=self.execution_id,
+                workflow_spec=self.workflow_spec,
+                user_inputs=initial_state.user_inputs if hasattr(initial_state, 'user_inputs') else {}
+            )
         logger.info("Starting DAG execution")
         logger.info(f"🎯 Execution Plan: {len(self.execution_order)} batches, max parallelism: {max(len(batch) for batch in self.execution_order)}")
         for i, batch in enumerate(self.execution_order):
@@ -498,13 +511,42 @@ class DAGExecutor:
                 
                 if should_execute:
                     logger.info(f"  🚀 Executing {node_id}...")
-                    result = await self._execute_node(node_id, state)
-                    state.results[node_id] = result
-                    logger.info(f"  ✅ {node_id} → COMPLETED")
+                    
+                    # Record node start if feedback tracking is enabled
+                    if self.feedback_collector and self.execution_id:
+                        node = self.nodes[node_id].node_spec
+                        self.feedback_collector.record_node_start(
+                            execution_id=self.execution_id,
+                            node_id=node_id,
+                            node_type=node.type,
+                            node_label=node.label
+                        )
+                    
+                    try:
+                        result = await self._execute_node(node_id, state)
+                        state.results[node_id] = result
+                        logger.info(f"  ✅ {node_id} → COMPLETED")
+                        
+                        # Record node completion if feedback tracking is enabled
+                        if self.feedback_collector and self.execution_id:
+                            await self._record_node_completion(node_id, result, success=True)
+                            
+                    except Exception as e:
+                        logger.error(f"  ❌ {node_id} → FAILED: {e}")
+                        
+                        # Record node failure if feedback tracking is enabled
+                        if self.feedback_collector and self.execution_id:
+                            await self._record_node_completion(node_id, None, success=False, error=str(e))
+                        raise
+                        
                 else:
                     self.skipped_nodes.add(node_id)
                     state.results[node_id] = {"status": "skipped", "reason": "decision_gated"}
                     logger.info(f"  ⏭️  {node_id} → SKIPPED (decision gated)")
+                    
+                    # Record node skip if feedback tracking is enabled  
+                    if self.feedback_collector and self.execution_id:
+                        self.feedback_collector.record_node_skipped(self.execution_id, node_id)
             else:
                 # Multiple nodes - check each and execute those that should run
                 logger.info(f"  🔄 Evaluating {len(batch)} nodes for parallel execution")
@@ -515,10 +557,24 @@ class DAGExecutor:
                     
                     if should_execute:
                         nodes_to_execute.append(node_id)
+                        
+                        # Record node start if feedback tracking is enabled
+                        if self.feedback_collector and self.execution_id:
+                            node = self.nodes[node_id].node_spec
+                            self.feedback_collector.record_node_start(
+                                execution_id=self.execution_id,
+                                node_id=node_id,
+                                node_type=node.type,
+                                node_label=node.label
+                            )
                     else:
                         self.skipped_nodes.add(node_id)
                         state.results[node_id] = {"status": "skipped", "reason": "decision_gated"}
                         logger.info(f"  ⏭️  {node_id} → SKIPPED (decision gated)")
+                        
+                        # Record node skip if feedback tracking is enabled
+                        if self.feedback_collector and self.execution_id:
+                            self.feedback_collector.record_node_skipped(self.execution_id, node_id)
                 
                 if nodes_to_execute:
                     logger.info(f"  🚀 Launching {len(nodes_to_execute)} nodes in parallel: {nodes_to_execute}")
@@ -528,6 +584,10 @@ class DAGExecutor:
                     for node_id, result in results.items():
                         state.results[node_id] = result
                         logger.info(f"  ✅ {node_id} → COMPLETED")
+                        
+                        # Record node completion if feedback tracking is enabled
+                        if self.feedback_collector and self.execution_id:
+                            await self._record_node_completion(node_id, result, success=True)
                 else:
                     logger.info("  ⏭️  All nodes in batch skipped")
         
@@ -536,6 +596,15 @@ class DAGExecutor:
         logger.info(f"DAG execution completed: {len(executed_nodes)} executed, {len(self.skipped_nodes)} skipped")
         if self.skipped_nodes:
             logger.info(f"  Skipped nodes: {list(self.skipped_nodes)}")
+        
+        # Complete feedback tracking if enabled
+        if self.feedback_collector and self.execution_id:
+            summary = self.feedback_collector.complete_execution(
+                execution_id=self.execution_id,
+                final_outputs=state.results
+            )
+            # Store summary in state for workflow server to use
+            state.execution_summary = summary
         
         return state
     
@@ -640,6 +709,82 @@ class DAGExecutor:
                 raise
         
         return results
+    
+    async def _record_node_completion(self, node_id: str, result: Any, success: bool, error: Optional[str] = None):
+        """Record node completion with the feedback collector."""
+        from ..agent_methods.data_models.execution_models import AgentExecutionResult, ExecutionStatus
+        
+        node = self.nodes[node_id].node_spec
+        
+        # Extract outputs based on result type
+        agent_output = None
+        result_preview = None
+        tool_usage = []
+        tool_usage_results = []
+        
+        if success and result:
+            if isinstance(result, AgentExecutionResult):
+                # Typed execution result
+                if result.agent_response:
+                    agent_output = result.agent_response.result
+                    if not isinstance(agent_output, str):
+                        agent_output = str(agent_output) if agent_output else ''
+                    result_preview = agent_output[:1000] if agent_output else None
+                    
+                    # Extract tool usage
+                    if result.agent_response.tool_usage_results:
+                        for tool in result.agent_response.tool_usage_results:
+                            tool_usage.append(tool.tool_name)
+                            tool_usage_results.append({
+                                'tool_name': tool.tool_name,
+                                'result': tool.tool_result,
+                                'input': tool.tool_args
+                            })
+            
+            elif isinstance(result, dict):
+                # Legacy dict result
+                if 'result' in result:
+                    agent_output = str(result['result'])
+                    result_preview = agent_output[:1000] if agent_output else None
+                    
+                if 'tool_usage_results' in result:
+                    for tool in result.get('tool_usage_results', []):
+                        # Handle both dict and ToolUsageResult objects
+                        if isinstance(tool, dict):
+                            tool_name = tool.get('tool_name', 'unknown')
+                            tool_usage.append(tool_name)
+                            tool_usage_results.append(tool)
+                        else:
+                            # It's a ToolUsageResult object
+                            tool_usage.append(tool.tool_name)
+                            tool_usage_results.append({
+                                'tool_name': tool.tool_name,
+                                'result': tool.tool_result,
+                                'input': tool.tool_args
+                            })
+            
+            elif hasattr(result, 'result'):
+                # DataSourceResult or similar
+                result_value = result.result
+                if result_value:
+                    result_preview = str(result_value)[:1000]
+            
+            else:
+                # Simple value result
+                result_preview = str(result)[:1000] if result else None
+        
+        # Record completion
+        self.feedback_collector.record_node_completion(
+            execution_id=self.execution_id,
+            node_id=node_id,
+            status=ExecutionStatus.SUCCESS if success else ExecutionStatus.FAILED,
+            result_preview=result_preview,
+            error_message=error,
+            tool_usage=tool_usage,
+            full_agent_output=agent_output,
+            tool_usage_results=tool_usage_results,
+            final_result=result
+        )
     
     def validate_dag(self) -> List[str]:
         """
