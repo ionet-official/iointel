@@ -107,7 +107,7 @@ GOOD RULE: add a user_input, as it is a data_source node that user can use to tr
    ⚠️ NEVER use data_source for API calls like stock prices, weather, etc!
    ⚠️ data_source is ONLY for collecting user input or prompt injection!
    ```json
-   {"id": "user_stock", "type": "data_source", "data": {"source_name": "user_input", "config": {"prompt": "What stock would you like to analyze? (e.g., AAPL, TSLA)"}, "outs": ["symbol"]}}
+   {"id": "user_stock", "type": "data_source", "data": {"source_name": "user_input", "config": {"message": "What stock would you like to analyze? (e.g., AAPL, TSLA)", "default_value": "AAPL"}, "outs": ["symbol"]}}
    ```
 
 2. **agent** - For ALL tool usage, API calls, and intelligent reasoning
@@ -175,7 +175,7 @@ OUTPUT: Complete stock analysis pipeline with user input, multi-source analysis,
       "label": "Stock Symbol Input",
       "data": {
         "source_name": "user_input",
-        "config": {"prompt": "Enter stock symbol (AAPL, TSLA, NVDA, etc.)"},
+        "config": {"message": "Enter stock symbol (AAPL, TSLA, NVDA, etc.)", "default_value": "AAPL"},
         "outs": ["symbol"]
       }
     },
@@ -220,7 +220,7 @@ OUTPUT: Complete trading pipeline with decision routing and notifications
       "label": "Crypto Symbol Input", 
       "data": {
         "source_name": "user_input",
-        "config": {"prompt": "Enter crypto symbol (BTC, ETH, ADA, etc.)"},
+        "config": {"message": "Enter crypto symbol (BTC, ETH, ADA, etc.)", "default_value": "BTC"},
         "outs": ["symbol"]
       }
     },
@@ -291,7 +291,7 @@ OUTPUT: Intelligent research pipeline with multi-source data gathering
       "label": "Company Name Input",
       "data": {
         "source_name": "user_input", 
-        "config": {"prompt": "Enter company name or ticker symbol"},
+        "config": {"message": "Enter company name or ticker symbol", "default_value": "Apple Inc"},
         "outs": ["company"]
       }
     },
@@ -423,10 +423,10 @@ Every workflow should feel like getting MORE than the user expected - sophistica
 ```
 
 **2. MISSING PARAMETERS PREVENTION:**
-- ❌ NEVER create user_input data_source without 'prompt' parameter
+- ❌ NEVER create user_input data_source without 'message' and 'default_value' parameters
 - ✅ ALWAYS include required config for data_source nodes:
 ```json
-{"id": "stock_input", "type": "data_source", "data": {"source_name": "user_input", "config": {"prompt": "Enter stock symbol (e.g., AAPL)"}}}
+{"id": "stock_input", "type": "data_source", "data": {"source_name": "user_input", "config": {"message": "Enter stock symbol (e.g., AAPL)", "default_value": "AAPL"}}}
 ```
 - ❌ NEVER leave config empty on nodes that require parameters
 
@@ -566,7 +566,7 @@ For normal workflows:
      "label": "Get User Input",
      "data": {
        "source_name": "user_input",  // 🚨 REQUIRED for type="data_source"
-       "config": {"prompt": "Enter stock symbol"},
+       "config": {"message": "Enter stock symbol", "default_value": "AAPL"},
        "execution_mode": "consolidate",
        "ins": [],
        "outs": ["symbol"]
@@ -744,7 +744,7 @@ Every node's `data` object can contain these fields:
 
 **Universal Fields (all node types):**
 - `execution_mode`: "consolidate" | "for_each" (default: "consolidate")
-- `config`: {} (tool/agent parameters)
+- `config`: {required_params} (tool/agent parameters - NEVER empty for data_source!)
 - `ins`: [] (input port names)
 - `outs`: [] (output port names)
 
@@ -914,9 +914,9 @@ tool_catalog = {
 - **PURPOSE**: Collect interactive user input during workflow execution
 - **USE FOR**: Stock symbols, dates, amounts, preferences from the user
 - **EXAMPLES**: "Enter stock symbol", "Choose time period", "Input investment amount"
-- **⚠️ REQUIRED CONFIG**: MUST include 'prompt' parameter or validation FAILS
-- **✅ CORRECT**: {"source_name": "user_input", "config": {"prompt": "Enter stock symbol"}}
-- **❌ WRONG**: {"source_name": "user_input", "config": {}}  // Missing prompt causes validation failure!
+- **⚠️ REQUIRED CONFIG**: MUST include 'message' and 'default_value' parameters or validation FAILS
+- **✅ CORRECT**: {"source_name": "user_input", "config": {"message": "Enter stock symbol", "default_value": "AAPL"}}
+- **❌ WRONG**: {"source_name": "user_input", "config": {}}  // Missing message and default_value causes validation failure!
 
 🔄 **conditional_gate (agent tool ONLY)**: 
 - **PURPOSE**: Route workflows based on conditions in decision/agent nodes
@@ -1022,7 +1022,7 @@ tool_catalog = {
       "label": "Stock Symbol Input",
       "data": {
         "source_name": "user_input",
-        "config": {"prompt": "Enter stock symbol (e.g., AAPL, TSLA)"},
+        "config": {"message": "Enter stock symbol (e.g., AAPL, TSLA)", "default_value": "AAPL"},
         "execution_mode": "consolidate",
         "ins": [],
         "outs": ["stock_symbol"]
