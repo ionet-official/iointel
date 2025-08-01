@@ -33,7 +33,7 @@ class Crawler(BaseModel):
         """
         if not api_key:
             api_key = FIRECRAWL_API_KEY
-        if not FIRECRAWL_API_KEY:
+        if not api_key:
             raise RuntimeError("Firecrawl API key is not set")
         super().__init__(api_key=api_key, timeout=timeout)
         self._app = FirecrawlApp(api_key=api_key)

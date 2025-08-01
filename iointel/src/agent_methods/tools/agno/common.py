@@ -37,6 +37,10 @@ def make_base(agno_tool_cls: type[Toolkit]):
 
 def wrap_tool(name, agno_method):
     def wrapper(func):
-        return register_tool(name=name)(wraps(agno_method)(func))
+        # copy only docstring and annotations from original agno tool,
+        # leave other properties like __qualname__ or __module__ as is
+        return register_tool(name=name)(
+            wraps(agno_method, assigned=["__doc__", "__annotations__"])(func)
+        )
 
     return wrapper

@@ -3,8 +3,9 @@ from pydantic import BaseModel
 from ..data_models.datamodels import AgentParams
 from typing import Callable, List
 import re
-from ...utilities.registries import TOOLS_REGISTRY
+from ...utilities.registries import TOOLS_REGISTRY, STATEFUL_TOOL_DEFAULTS
 from ...utilities.helpers import make_logger
+from ...utilities.tooling import get_tool_model_class
 from ..data_models.datamodels import Tool
 
 import textwrap
@@ -54,21 +55,18 @@ def rehydrate_tool(tool_def: Tool) -> Callable:
     return fn
 
 
-def instantiate_stateful_tool(tool: Tool, state_args: dict | None) -> BaseModel | None:
-    if not isinstance(state_args, dict):
-        return None
+def instantiate_stateful_tool(tool: Tool, state_args: dict) -> BaseModel:
     if tool.fn.__qualname__.count(".") != 1:
         raise ValueError(f"Tool {tool.name} is not nested correctly")
-    tool_cls: type[BaseModel] = tool.fn.__globals__[tool.fn.__qualname__.split(".")[0]]
-    tool_obj = tool_cls.model_validate(state_args)
+    tool_cls = get_tool_model_class(tool)
+    overrides = STATEFUL_TOOL_DEFAULTS.get(tool.name, {})
+    tool_obj = tool_cls.model_validate(overrides | state_args)
     return tool_obj
 
 
 async def resolve_tools(
     params: AgentParams,
-    tool_instantiator: Callable[
-        [Tool, dict | None], BaseModel | None
-    ] = instantiate_stateful_tool,
+    tool_instantiator: Callable[[Tool, dict], BaseModel] = instantiate_stateful_tool,
 ) -> List[Tool]:
     """
     Resolve the tools in an AgentParams object.
@@ -146,19 +144,15 @@ async def resolve_tools(
                 and tool_obj.fn_metadata.stateful
                 and tool_obj.fn_self is None
             ):
-                fn_self = tool_instantiator(tool_obj, state_args)
+                fn_self = tool_instantiator(tool_obj, state_args or {})
                 if inspect.isawaitable(fn_self):
                     fn_self = await fn_self
-                if fn_self is not None:
-                    fn_method = getattr(fn_self, tool_obj.fn.__name__, None)
-                    if (
-                        not inspect.ismethod(fn_method)
-                        or fn_method.__func__ != tool_obj.fn
-                    ):
-                        raise ValueError(
-                            f"Tool {tool_obj.name} got code replaced when intantiating, spoofing detected"
-                        )
-                    tool_obj = tool_obj.instantiate_from_state(fn_self)
+                fn_method = getattr(fn_self, tool_obj.fn.__name__, None)
+                if not inspect.ismethod(fn_method) or fn_method.__func__ != tool_obj.fn:
+                    raise ValueError(
+                        f"Tool {tool_obj.name} got code replaced when instantiating, spoofing detected"
+                    )
+                tool_obj = tool_obj.instantiate_from_state(fn_self)
 
             resolved_tools.append(
                 registered_tool.model_copy(update={"fn_self": tool_obj.fn_self})
