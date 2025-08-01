@@ -2,6 +2,7 @@
 FastAPI server for serving WorkflowSpecs to the web interface.
 """
 
+import os
 import sys
 from typing import Dict, Any, List, Optional
 from datetime import datetime
@@ -25,6 +26,7 @@ from iointel.src.memory import AsyncMemory
 from iointel.src.workflow import Workflow
 from iointel.src.utilities.decorators import register_custom_task
 from iointel.src.web.conversation_storage import get_conversation_storage
+from iointel.src.utilities.constants import get_model_config
 import uuid
 import asyncio
 
@@ -41,7 +43,8 @@ from .execution_feedback import (
     WorkflowExecutionSummary
 )
 from ..utilities.io_logger import workflow_logger, execution_logger, system_logger
-from iointel.src.chainables import execute_tool_task, execute_agent_task
+from iointel.src.chainables import execute_tool_task, execute_data_source_task, execute_agent_task
+from iointel.src.agent_methods.data_models.execution_models import DataSourceResult
 from iointel.src.agent_methods.tools.collection_manager import search_collections, create_collection
 from .test_analytics_api import test_analytics_router
 from .workflow_rag_router import workflow_rag_router
@@ -55,7 +58,10 @@ async def web_tool_executor(task_metadata, objective, agents, execution_metadata
     """Tool executor for web interface with real-time updates, delegates to backend executor."""
     execution_id = execution_metadata.get("execution_id")
     tool_name = task_metadata.get("tool_name")
-    print(f"🔧 [WEB] Executing tool: {tool_name} (execution: {execution_id})")
+    source_name = task_metadata.get("source_name")
+    task_name = source_name or tool_name
+    task_type = "data_source" if source_name else "tool"
+    print(f"🔧 [WEB] Executing {task_type}: {task_name} (execution: {execution_id})")
     # Broadcast task start if we have connections available
     if execution_id and 'connections' in globals() and len(connections) > 0:
         try:
@@ -77,10 +83,16 @@ async def web_tool_executor(task_metadata, objective, agents, execution_metadata
                 node_label=tool_name
             )
         
-        # Delegate to backend portable executor
-        # This directly executes tools without converting them to agents
-        result = await execute_tool_task(task_metadata, objective, agents, execution_metadata)
-        print(f"✅ Tool '{tool_name}' completed successfully")
+        # Delegate to appropriate backend executor based on task type
+        # Check if this is a data_source task or a tool task
+        source_name = task_metadata.get("source_name")
+        if source_name:
+            # This is a data_source task - use data source executor
+            result: DataSourceResult = await execute_data_source_task(task_metadata, objective, agents, execution_metadata)
+        else:
+            # This is a tool task - use tool executor
+            result: DataSourceResult = await execute_tool_task(task_metadata, objective, agents, execution_metadata)
+        print(f"✅ {task_type.title()} '{task_name}' completed successfully")
         
         # Record node completion in feedback collector
         if execution_id:
@@ -88,15 +100,15 @@ async def web_tool_executor(task_metadata, objective, agents, execution_metadata
             tool_usage_results = [{
                 'tool_name': tool_name,
                 'input': objective,  # The task objective was the input
-                'result': result,
+                'result': result.result,
                 'metadata': {'execution_type': 'direct_tool'}
             }]
             
             feedback_collector.record_node_completion(
                 execution_id=execution_id,
                 node_id=node_id,
-                status=ExecutionStatus.SUCCESS,
-                result_preview=str(result)[:1000] if result else None,
+                status=ExecutionStatus.SUCCESS if result.status.value == "completed" else ExecutionStatus.FAILED,
+                result_preview=str(result.result)[:1000] if result.result else None,
                 tool_usage=[tool_name],
                 full_agent_output=None,  # Tools don't have agent output
                 tool_usage_results=tool_usage_results,
@@ -109,11 +121,11 @@ async def web_tool_executor(task_metadata, objective, agents, execution_metadata
                 await broadcast_execution_update(
                     execution_id,
                     "running",
-                    results={"current_task": tool_name, "status": "completed", "result": result}
+                    results={"current_task": tool_name, "status": "completed", "result": result.result}
                 )
             except Exception as e:
                 print(f"⚠️ Failed to broadcast completion: {e}")
-        return result
+        return result.result if result.status.value == "completed" else None
     except Exception as e:
         error_msg = f"Tool '{tool_name}' failed: {str(e)}"
         print(f"❌ {error_msg}")
@@ -175,60 +187,34 @@ async def web_agent_executor(task_metadata, objective, agents, execution_metadat
         
         # Record node completion in feedback collector
         if execution_id:
-            # Extract tool usage from result if available
+            # Extract tool usage from typed result
             tool_usage = []
-            if isinstance(result, dict) and 'tool_usage_results' in result:
-                # Handle both dict and ToolUsageResult objects
-                tool_usage = []
-                for tool in result['tool_usage_results']:
-                    if hasattr(tool, 'tool_name'):
-                        # It's a ToolUsageResult object
-                        tool_usage.append(tool.tool_name)
-                    elif isinstance(tool, dict):
-                        # It's a dict
-                        tool_usage.append(tool.get('tool_name', 'unknown'))
-                    else:
-                        tool_usage.append('unknown')
+            if result.agent_response and result.agent_response.tool_usage_results:
+                for tool in result.agent_response.tool_usage_results:
+                    tool_usage.append(tool.tool_name)
             
-            # Extract rich data from agent result
+            # Extract data from typed result for feedback
             agent_output = None
-            tool_usage_results = []
-            final_result = None
+            result_preview = None
             
-            if isinstance(result, dict):
-                # Get the full agent output (reasoning, analysis, etc.)
-                # result['result'] contains the actual agent response (result.output from Agent.run)
-                agent_output = result.get('result', '')
+            if result.agent_response:
+                # Get the agent output from typed response
+                agent_output = result.agent_response.result
                 # Convert to string if needed
                 if not isinstance(agent_output, str):
                     agent_output = str(agent_output) if agent_output else ''
-                
-                # Get detailed tool usage results
-                if 'tool_usage_results' in result:
-                    for tool in result['tool_usage_results']:
-                        if hasattr(tool, 'tool_name'):
-                            # ToolUsageResult object
-                            tool_usage_results.append({
-                                'tool_name': tool.tool_name,
-                                'input': getattr(tool, 'input', None),
-                                'result': getattr(tool, 'result', None),
-                                'metadata': getattr(tool, 'metadata', {})
-                            })
-                        elif isinstance(tool, dict):
-                            tool_usage_results.append(tool)
-                
-                # Get the complete structured result
-                final_result = result
+                result_preview = agent_output[:1000] if agent_output else None
             
+            # Pass typed models directly to feedback collector
             feedback_collector.record_node_completion(
                 execution_id=execution_id,
                 node_id=node_id,
                 status=ExecutionStatus.SUCCESS,
-                result_preview=str(result.get('result', result))[:1000] if result else None,
+                result_preview=result_preview,
                 tool_usage=tool_usage,
                 full_agent_output=agent_output,
-                tool_usage_results=tool_usage_results,
-                final_result=final_result
+                tool_usage_results=result.agent_response.tool_usage_results if result.agent_response else [],
+                final_result=result  # Pass the typed AgentExecutionResult directly
             )
         
         # Broadcast task completion
@@ -609,7 +595,7 @@ async def startup_event():
         from dotenv import load_dotenv
         load_dotenv("creds.env")
         available_tools = load_tools_from_env("creds.env")
-        tool_catalog = create_tool_catalog(filter_broken=True, verbose_format=False)
+        tool_catalog = create_tool_catalog(filter_broken=True, verbose_format=False, use_working_filter=True)
         system_logger.success(
             "Tools and catalog loaded successfully",
             data={
@@ -626,7 +612,15 @@ async def startup_event():
         conversation_storage = get_conversation_storage()
         startup_conversation_id = conversation_storage.get_active_web_conversation()
         
+        # Use shared model configuration for main planner
+        main_model = os.getenv("WORKFLOW_PLANNER_MODEL", "gpt-4o")
+        model_config = get_model_config(model=main_model)
+        print(f"🤖 [MAIN] Using model config: {model_config['model']} @ {model_config['base_url']}")
+        
         planner = WorkflowPlanner(
+            model=model_config["model"],
+            api_key=model_config["api_key"],
+            base_url=model_config["base_url"],
             memory=memory,
             conversation_id=startup_conversation_id,
             debug=False
@@ -647,7 +641,6 @@ async def startup_event():
     # Initialize UnifiedSearchService
     try:
         # Check environment variable for search mode
-        import os
         use_fast_search = os.getenv("FAST_SEARCH_MODE", "true").lower() == "true"
         
         unified_search_service = UnifiedSearchService(
@@ -1105,23 +1098,8 @@ async def execute_workflow_background(
         active_executions[execution_id]["status"] = "running"
         await broadcast_execution_update(execution_id, "running")
         
-        # Convert WorkflowSpec to executable Workflow
-        workflow_def = workflow_spec.to_workflow_definition()
-        
-        # Post-DAG introspection: Update API keys for all agents
-        from ..agent_methods.workflow_converter import update_workflow_api_keys
-        workflow_def = update_workflow_api_keys(workflow_def, debug=True)
-        
-        # Convert back to YAML and create workflow from updated definition
-        yaml_content = workflow_def.model_dump(mode="json")
-        import yaml
-        yaml_str = yaml.safe_dump(yaml_content, sort_keys=False)
-        
-        # Create workflow from updated YAML
-        workflow = Workflow.from_yaml(yaml_str=yaml_str)
-        workflow.objective = workflow_spec.description
-        
-        print(f"📋 Executing workflow with {len(workflow.tasks)} tasks")
+        # No need to convert to Workflow - DAGExecutor works directly with WorkflowSpec
+        print(f"📋 Executing workflow with {len(workflow_spec.nodes)} nodes using DAGExecutor")
         
         # Start execution feedback tracking
         feedback_collector.start_execution_tracking(
@@ -1147,23 +1125,53 @@ async def execute_workflow_background(
             conversation_id = f"web_execution_{execution_id}"
             print(f"🔄 Using single-serve mode with execution conversation_id: {conversation_id}")
         
-        # Add execution_id and user inputs to all task metadata for real-time updates
-        for task in workflow.tasks:
-            if "execution_metadata" not in task:
-                task["execution_metadata"] = {}
-            task["execution_metadata"]["execution_id"] = execution_id
-            
-            # Add user inputs to task metadata if provided
-            if user_inputs:
-                task["execution_metadata"]["user_inputs"] = user_inputs
-                task["execution_metadata"]["form_id"] = form_id
-                print(f"🔍 Adding user_inputs to task {task.get('task_id', 'unknown')}: {user_inputs}")
+        # DAGExecutor now handles execution_metadata propagation internally
+        print(f"🔍 User inputs will be handled by DAGExecutor: {user_inputs}")
         
-        # Execute the workflow
-        results = await workflow.run_tasks(conversation_id=conversation_id)
+        # Execute the workflow using DAGExecutor for proper user input handling
+        from ..utilities.dag_executor import DAGExecutor
+        
+        # Create DAG executor with typed execution
+        dag_executor = DAGExecutor(use_typed_execution=True)
+        
+        # Build execution graph with user inputs in metadata
+        dag_executor.build_execution_graph(
+            workflow_spec=workflow_spec,
+            objective=workflow_spec.description,
+            conversation_id=conversation_id,
+            execution_metadata_by_node={
+                node.id: {
+                    "execution_id": execution_id,
+                    "user_inputs": user_inputs or {},
+                    "form_id": form_id,
+                    "client_mode": True
+                }
+                for node in workflow_spec.nodes
+            }
+        )
+        
+        # Create initial state for DAG execution
+        from ..utilities.graph_nodes import WorkflowState
+        initial_state = WorkflowState(
+            initial_text=workflow_spec.description,
+            conversation_id=conversation_id,
+            results={}
+        )
+        
+        # Execute the DAG
+        final_state = await dag_executor.execute_dag(initial_state)
+        
+        # Extract results from the final state
+        dag_results = final_state.results
+        
+        # Convert DAG results to workflow format for compatibility
+        results = {
+            'results': dag_results,
+            'status': 'completed'
+        }
         
         # Complete execution feedback tracking
-        final_outputs = results.get('results', {}) if results else {}
+        final_outputs = dag_results if dag_results else {}
         execution_summary = feedback_collector.complete_execution(
             execution_id=execution_id,
             final_outputs=final_outputs
@@ -1283,26 +1291,28 @@ async def send_execution_feedback_to_planner(execution_summary: WorkflowExecutio
         # Initialize WorkflowPlanner for feedback analysis
         from ..agent_methods.agents.workflow_planner import WorkflowPlanner
         
-        # CRITICAL: Use the SAME conversation ID as the main planner for continuity
-        # This ensures the planner sees its own workflow execution feedback
-        if interface_conversation_id:
-            feedback_conversation_id = interface_conversation_id
-            print(f"🗣️ Using main planner conversation_id for feedback: {feedback_conversation_id}")
-        else:
-            # For non-chat mode, use managed conversation storage
-            conversation_storage = get_conversation_storage()
-            feedback_conversation_id = conversation_storage.get_active_web_conversation()
-            print(f"🗣️ Using managed conversation_id for feedback: {feedback_conversation_id}")
+        # CRITICAL: Use the EXACT SAME conversation ID as the main planner for continuity
+        # This ensures the feedback planner sees its own workflow generation in conversation history
+        conversation_storage = get_conversation_storage()
+        feedback_conversation_id = conversation_storage.get_active_web_conversation()
+        print(f"🗣️ Using SAME conversation_id as main planner for feedback: {feedback_conversation_id}")
+        print(f"🔗 This ensures feedback planner sees its own workflow generation context")
+        
+        # Use shared model configuration - can be overridden via WORKFLOW_PLANNER_MODEL env var
+        feedback_model = os.getenv("WORKFLOW_PLANNER_MODEL", "gpt-4o")  # Use lightweight model for feedback
+        model_config = get_model_config(model=feedback_model)
+        print(f"🤖 [FEEDBACK] Using model config: {model_config['model']} @ {model_config['base_url']}")
         
         planner = WorkflowPlanner(
-            model="gpt-4o-mini",
-            api_key=None,  # Use env var
+            model=model_config["model"],
+            api_key=model_config["api_key"],
+            base_url=model_config["base_url"],
             conversation_id=feedback_conversation_id
         )
         
         # Get the current tool catalog for analysis context
         try:
-            feedback_tool_catalog = create_tool_catalog(filter_broken=True, verbose_format=False)
+            feedback_tool_catalog = create_tool_catalog(filter_broken=True, verbose_format=False, use_working_filter=True)
         except Exception as e:
             print(f"⚠️ Warning: Could not load tool catalog for feedback analysis: {e}")
             feedback_tool_catalog = {}
@@ -1412,13 +1422,19 @@ async def load_example_workflow(example_id: str):
 
 
 @app.delete("/api/executions/{execution_id}")
+@app.post("/api/executions/{execution_id}/cancel")
+async def cancel_execution_endpoint(execution_id: str):
+    """Cancel a running execution."""
+    return await cancel_execution(execution_id)
+
 async def cancel_execution(execution_id: str):
     """Cancel/remove an execution."""
     if execution_id in active_executions:
         # Note: This doesn't actually cancel running tasks, just removes from tracking
+        print(f"🛑 Cancelling execution: {execution_id}")
         del active_executions[execution_id]
         await broadcast_execution_update(execution_id, "cancelled")
-        return {"success": True, "message": "Execution removed"}
+        return {"success": True, "message": "Execution cancelled"}
     else:
         raise HTTPException(status_code=404, detail="Execution not found")
 
@@ -1986,7 +2002,7 @@ async def search_tools(query: str, top_k: int = 5):
         
         # Fallback to simple text search
         print("⚠️ UnifiedSearchService not available, using simple text search")
-        tool_catalog = create_tool_catalog(filter_broken=True, verbose_format=False)
+        tool_catalog = create_tool_catalog(filter_broken=True, verbose_format=False, use_working_filter=True)
         
         # Simple text search through tools
         results = []
