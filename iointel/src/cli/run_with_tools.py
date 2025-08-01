@@ -5,7 +5,7 @@ from rich.console import Console
 from rich.panel import Panel
 import os
 from dotenv import load_dotenv
-from iointel.src.agent_methods.tools import r2r, firecrawl, searxng, wolfram
+from iointel.src.agent_methods.tools import firecrawl, searxng, wolfram
 
 # Initialize rich console
 console = Console()
@@ -22,9 +22,9 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 OPENAI_API_BASE = os.getenv("OPENAI_API_BASE")
 
 
-r2r_client = r2r.R2RClient(
-    base_url=os.getenv("R2R_BASE_URL"), api_key=os.getenv("R2R_API_KEY")
-)
+# r2r_client = r2r.R2RClient(
+#     base_url=os.getenv("R2R_BASE_URL"), api_key=os.getenv("R2R_API_KEY")
+# )
 firecrawl = firecrawl.Crawler(api_key=os.getenv("FIRE_CRAWL_API_KEY"))
 searxng = searxng.SearxngClient(base_url=os.getenv("SEARXNG_URL"))
 wolfram = wolfram.Wolfram(api_key=os.getenv("WOLFRAM_API"))
@@ -36,15 +36,12 @@ runner = Agent(
     You can perform calculations and check weather information.
     Always explain your reasoning before using a tool.
     After using a tool, explain the result to the user.""",
-    # model="meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8",
-    # api_key="io-v1-c1af24f4f007d634ec37506eb6b86f70129790e0668d045c",
-    # base_url="https://api.intelligence-dev.io.solutions/api/v1",
     model="gpt-4o",
     api_key=OPENAI_API_KEY,
     base_url=OPENAI_API_BASE,
     memory=memory,
     tools=[
-        r2r_client.rag_search,
+        #r2r_client.rag_search,
         firecrawl.scrape_url,
         searxng.search,
         searxng.get_urls,
