@@ -49,3 +49,7 @@ population_results.json
 
 # Codex directory (local knowledge wiki)
 codex/
+
+# Scripts directory - only ignore debug and utilities subdirs
+scripts/debug/
+scripts/utilities/
