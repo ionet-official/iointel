@@ -46,3 +46,6 @@ temp_backup/
 *.json.backup
 machine_learning_papers.json
 population_results.json
+
+# Codex directory (local knowledge wiki)
+codex/
