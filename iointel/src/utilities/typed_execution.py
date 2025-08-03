@@ -19,6 +19,7 @@ class TypedExecutionContext:
     agents: Optional[List[Agent]] = None  # Available agents
     conversation_id: Optional[str] = None
     objective: Optional[str] = None  # Legacy support
+    execution_metadata: Optional[Dict[str, Any]] = None  # Runtime metadata (user_inputs, etc.)
     
     @property
     def node(self) -> NodeSpec:

@@ -39,6 +39,22 @@ async def execute_agent_typed(context: TypedExecutionContext) -> Any:
     # Determine objective (query) and context separately
     objective = None
     
+    # BACKWARD COMPATIBILITY: If node has empty ins[] but has incoming edges,
+    # pass ALL available results as context (old behavior)
+    node_ins = getattr(context.node_data, 'ins', [])
+    if (not node_ins or len(node_ins) == 0) and context.incoming_edges:
+        logger.info(f"Node {context.current_node_id} has empty ins[] but has edges - using ALL results for backward compatibility")
+        # Pass all available results as context
+        agent_context = context.available_results.copy()
+        # Still get edge-based input data for objective determination
+        if not input_data and agent_context:
+            # Use first string value as objective if available
+            for key, value in agent_context.items():
+                if isinstance(value, str):
+                    objective = value
+                    logger.info(f"Using {key} as objective from available results: {objective[:50]}...")
+                    break
+    
     # If we have edge-based input data, determine what's the query vs context
     if input_data:
         # Strategy: If there's a single string input, use it as the objective
@@ -56,7 +72,8 @@ async def execute_agent_typed(context: TypedExecutionContext) -> Any:
             logger.info(f"Multiple inputs, creating descriptive objective for processing")
         
         # ALL input data goes into context (including the objective)
-        agent_context = input_data
+        # Merge with any existing context from backward compatibility
+        agent_context.update(input_data)
         logger.info(f"Node {context.current_node_id} receiving inputs from edges: {list(input_data.keys())}")
     elif context.get_dependencies():
         # Node has dependencies but no data yet - this shouldn't happen in normal flow
@@ -131,22 +148,24 @@ async def execute_data_source_typed(context: TypedExecutionContext) -> Any:
         # For other data sources, pass config directly
         request = config
     
-    # Execute data source
+    # Execute data source with runtime metadata
     execution_metadata = {
         "node_id": context.node_id,
         "conversation_id": context.conversation_id,
-        # Pass through any user_inputs from the state
-        "user_inputs": context.state.user_inputs if hasattr(context.state, 'user_inputs') else {}
+        # Get user_inputs directly from state where they belong
+        "user_inputs": context.state.user_inputs
     }
     
     response = data_source_func(request, execution_metadata=execution_metadata)
     
-    # Extract result value
-    if hasattr(response, 'result'):
-        return response.result
-    elif hasattr(response, 'message'):
-        return response.message
+    # Extract result value based on response type
+    from ..agent_methods.data_sources.models import DataSourceResponse
+    
+    if isinstance(response, DataSourceResponse):
+        # DataSourceResponse has 'message' field for the actual content
+        return response.message or response.default_value
     else:
+        # Fallback for other response types
         return response
 
 

@@ -10,6 +10,7 @@ class WorkflowState:
     initial_text: str = ""
     conversation_id: str = ""
     results: Dict[str, Any] = field(default_factory=dict)
+    user_inputs: Dict[str, Any] = field(default_factory=dict)  # Runtime user inputs
 
     @classmethod
     def get_id(cls) -> str:
@@ -120,13 +121,16 @@ class TaskNode(BaseNode[WorkflowState]):
         )
 
         # Store the core result value for data flow
+        # Import the types to use isinstance checks
+        from ..agent_methods.data_models.execution_models import DataSourceResult, AgentExecutionResult
+        
         # Handle DataSourceResult objects (from data source execution)
-        if hasattr(result, 'tool_type') and hasattr(result, 'result'):
+        if isinstance(result, DataSourceResult):
             # This is a DataSourceResult - extract the actual result
             core_value = result.result
             print(f"   🔧 Extracted data source result for data flow: {core_value}")
         # Handle AgentExecutionResult objects (from new typed data flow)
-        elif hasattr(result, 'agent_response') and hasattr(result.agent_response, 'tool_usage_results'):
+        elif isinstance(result, AgentExecutionResult) and result.agent_response:
             # Extract tool result from AgentExecutionResult for data flow
             tool_results = result.agent_response.tool_usage_results
             if tool_results and len(tool_results) > 0:
@@ -141,7 +145,7 @@ class TaskNode(BaseNode[WorkflowState]):
             if "result" in result:
                 # Standard format: {"result": value, ...}
                 # Check if the result contains a DataSourceResult object
-                if hasattr(result["result"], 'tool_type') and hasattr(result["result"], 'result'):
+                if isinstance(result["result"], DataSourceResult):
                     # Extract from nested DataSourceResult
                     core_value = result["result"].result
                     print(f"   🔧 Extracted data source result from dict wrapper: {core_value}")

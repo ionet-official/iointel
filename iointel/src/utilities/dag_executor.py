@@ -19,7 +19,7 @@ from .graph_nodes import WorkflowState, TaskNode, make_task_node
 from .node_execution_wrapper import node_execution_wrapper
 from .io_logger import get_component_logger
 
-logger = get_component_logger("DAG_EXECUTOR")
+logger = get_component_logger("DAG_EXECUTOR", grouped=True)
 
 
 @dataclass
@@ -75,126 +75,130 @@ class DAGExecutor:
         nodes = workflow_spec.nodes
         edges = workflow_spec.edges
         
-        logger.info(f"Building DAG with {len(nodes)} nodes and {len(edges)} edges")
-        
-        # Initialize nodes
-        self.nodes = {}
-        for node in nodes:
-            # Create base task data
-            # For agent nodes with inputs, the objective will be dynamically resolved from input data
-            # This allows agents to receive the actual user input instead of a generic "Execute X" message
-            node_objective = f"Execute {node.label}"
+        with logger.group(f"Building DAG", execution_id=self.execution_id):
+            logger.info(f"Building DAG with {len(nodes)} nodes and {len(edges)} edges")
             
-            # Special handling for user_input nodes - extract the actual input value
-            if node.type == "data_source" and node.data.source_name == "user_input":
-                # Extract user input from node config
-                config = node.data.config or {}
-                if "message" in config:
-                    node_objective = config["message"]
-                elif "default_value" in config:
-                    node_objective = config["default_value"]
-                logger.info(f"📝 User input node '{node.id}' has value: {node_objective}")
+            # Initialize nodes
+            self.nodes = {}
             
-            # For agent nodes that depend on user input, we'll resolve this dynamically
-            elif node.type == "agent" and node.data.ins:
-                # Check if this agent depends on a user_input node
-                for edge in edges:
-                    if edge.target == node.id:
-                        source_node = next((n for n in nodes if n.id == edge.source), None)
-                        if source_node and source_node.type == "data_source" and source_node.data.source_name == "user_input":
-                            # This agent depends on user input - get the value
-                            config = source_node.data.config or {}
-                            if "message" in config:
-                                node_objective = config["message"]
-                            elif "default_value" in config:
-                                node_objective = config["default_value"]
-                            else:
-                                node_objective = ""  # Empty if no input provided
-                            logger.info(f"🎯 Agent node '{node.id}' will receive user input as objective: {node_objective}")
-                            break 
+            # Process each node
+            for node in nodes:
+                # Create base task data
+                # For agent nodes with inputs, the objective will be dynamically resolved from input data
+                # This allows agents to receive the actual user input instead of a generic "Execute X" message
+                node_objective = f"Execute {node.label}"
                 
-            task_data = {
-                "task_id": node.id,
-                "name": node.label,
-                "type": node.type,
-                "objective": node_objective,
-                "task_metadata": {
-                    "config": node.data.config,
-                    "tool_name": getattr(node.data, 'source_name', None) or getattr(node.data, 'tool_name', None),
-                    "agent_instructions": node.data.agent_instructions,
-                    "workflow_id": node.data.workflow_id,
-                    "ports": {
-                        "inputs": node.data.ins,
-                        "outputs": node.data.outs
+                # Special handling for user_input nodes - extract the actual input value
+                if node.type == "data_source" and node.data.source_name == "user_input":
+                    # Extract user input from node config
+                    config = node.data.config or {}
+                    if "message" in config:
+                        node_objective = config["message"]
+                    elif "default_value" in config:
+                        node_objective = config["default_value"]
+                    logger.info(f"📝 User input node '{node.id}' has value: {node_objective}")
+                
+                # For agent nodes that depend on user input, we'll resolve this dynamically
+                elif node.type == "agent" and node.data.ins:
+                    # Check if this agent depends on a user_input node
+                    for edge in edges:
+                        if edge.target == node.id:
+                            source_node = next((n for n in nodes if n.id == edge.source), None)
+                            if source_node and source_node.type == "data_source" and source_node.data.source_name == "user_input":
+                                # This agent depends on user input - get the value
+                                config = source_node.data.config or {}
+                                if "message" in config:
+                                    node_objective = config["message"]
+                                elif "default_value" in config:
+                                    node_objective = config["default_value"]
+                                else:
+                                    node_objective = ""  # Empty if no input provided
+                                logger.info(f"🎯 Agent node '{node.id}' will receive user input as objective: {node_objective}")
+                                break 
+                
+                task_data = {
+                    "task_id": node.id,
+                    "name": node.label,
+                    "type": node.type,
+                    "objective": node_objective,
+                    "task_metadata": {
+                        "config": node.data.config,
+                        "tool_name": getattr(node.data, 'source_name', None) or getattr(node.data, 'tool_name', None),
+                        "agent_instructions": node.data.agent_instructions,
+                        "workflow_id": node.data.workflow_id,
+                        "ports": {
+                            "inputs": node.data.ins,
+                            "outputs": node.data.outs
+                        }
                     }
                 }
-            }
             
-            # Add execution metadata if available
-            if execution_metadata_by_node and node.id in execution_metadata_by_node:
-                task_data["execution_metadata"] = execution_metadata_by_node[node.id]
-            
-            # Ensure node_id is in the execution metadata for tool context
-            if "execution_metadata" not in task_data:
-                task_data["execution_metadata"] = {}
-            task_data["execution_metadata"]["node_id"] = node.id
-            task_data["execution_metadata"]["task_id"] = node.id  # Alias for compatibility
-            
-            # Determine agents for this node
-            node_agents = None
-            if agents_by_node and node.id in agents_by_node:
-                node_agents = agents_by_node[node.id]
-                print(f"🔧 Using {len(node_agents)} task-specific agents for node {node.id}")
-            else:
-                node_agents = agents or []
-                if (node.type in ["agent", "decision"]) and len(node_agents) == 0:
-                    # Auto-create agents from WorkflowSpec node data
-                    # Decision nodes are also agents (with routing tools)
-                    hydrated_agents = self._hydrate_agents_from_node(node)
-                    if hydrated_agents:
-                        node_agents = hydrated_agents
-                        print(f"🔧 Auto-created {len(node_agents)} agents for {node.type} node {node.id}")
-                    else:
-                        print(f"⚠️ WARNING: {node.type} node {node.id} has no agents and no agent_instructions!")
-            
-            task_node_class = make_task_node(
-                task=task_data,
-                default_text=objective,
-                default_agents=node_agents,
-                conv_id=conversation_id or "default"
-            )
-            
-            self.nodes[node.id] = DAGNode(
-                node_spec=node,
-                task_node_class=task_node_class,
-                dependencies=set(),
-                dependents=set()
-            )
+                # Add execution metadata if available
+                if execution_metadata_by_node and node.id in execution_metadata_by_node:
+                    task_data["execution_metadata"] = execution_metadata_by_node[node.id]
+                
+                # Ensure node_id is in the execution metadata for tool context
+                if "execution_metadata" not in task_data:
+                    task_data["execution_metadata"] = {}
+                task_data["execution_metadata"]["node_id"] = node.id
+                task_data["execution_metadata"]["task_id"] = node.id  # Alias for compatibility
+                
+                # Determine agents for this node
+                node_agents = None
+                if agents_by_node and node.id in agents_by_node:
+                    node_agents = agents_by_node[node.id]
+                    print(f"🔧 Using {len(node_agents)} task-specific agents for node {node.id}")
+                else:
+                    node_agents = agents or []
+                    if (node.type in ["agent", "decision"]) and len(node_agents) == 0:
+                        # Auto-create agents from WorkflowSpec node data
+                        # Decision nodes are also agents (with routing tools)
+                        hydrated_agents = self._hydrate_agents_from_node(node)
+                        if hydrated_agents:
+                            node_agents = hydrated_agents
+                            print(f"🔧 Auto-created {len(node_agents)} agents for {node.type} node {node.id}")
+                        else:
+                            print(f"⚠️ WARNING: {node.type} node {node.id} has no agents and no agent_instructions!")
+                
+                task_node_class = make_task_node(
+                    task=task_data,
+                    default_text=objective,
+                    default_agents=node_agents,
+                    conv_id=conversation_id or "default"
+                )
+                
+                self.nodes[node.id] = DAGNode(
+                    node_spec=node,
+                    task_node_class=task_node_class,
+                    dependencies=set(),
+                    dependents=set()
+                )
         
-        # Store edges for conditional checking
-        self.edges = edges
-        self.conversation_id = conversation_id
-        self.agents = agents
-        
-        # Build dependency relationships from edges
-        for edge in edges:
-            if edge.source not in self.nodes:
-                logger.warning(f"Edge source '{edge.source}' not found in nodes")
-                continue
-            if edge.target not in self.nodes:
-                logger.warning(f"Edge target '{edge.target}' not found in nodes")
-                continue
+            # Store edges for conditional checking
+            self.edges = edges
+            self.conversation_id = conversation_id
+            self.agents = agents
             
-            # source → target means target depends on source
-            self.nodes[edge.target].dependencies.add(edge.source)
-            self.nodes[edge.source].dependents.add(edge.target)
+            # Build dependency relationships from edges
+            with logger.group("Building Dependencies"):
+                for edge in edges:
+                    if edge.source not in self.nodes:
+                        logger.warning(f"Edge source '{edge.source}' not found in nodes")
+                        continue
+                    if edge.target not in self.nodes:
+                        logger.warning(f"Edge target '{edge.target}' not found in nodes")
+                        continue
+                    
+                    # source → target means target depends on source
+                    self.nodes[edge.target].dependencies.add(edge.source)
+                    self.nodes[edge.source].dependents.add(edge.target)
+                    logger.debug(f"Edge: {edge.source} → {edge.target}")
         
-        # Compute execution order using topological sort
-        self.execution_order = self._topological_sort()
-        
-        logger.info(f"DAG built successfully with {len(self.execution_order)} execution batches")
-        for i, batch in enumerate(self.execution_order):
-            logger.info(f"  Batch {i}: {batch}")
+            # Compute execution order using topological sort
+            self.execution_order = self._topological_sort()
+            
+            logger.success(f"DAG built successfully with {len(self.execution_order)} execution batches")
+            logger.execution_plan("Execution Batches", self.execution_order)
         
         return self.nodes
     
@@ -488,123 +492,121 @@ class DAGExecutor:
                 workflow_spec=self.workflow_spec,
                 user_inputs=initial_state.user_inputs if hasattr(initial_state, 'user_inputs') else {}
             )
-        logger.info("Starting DAG execution")
-        logger.info(f"🎯 Execution Plan: {len(self.execution_order)} batches, max parallelism: {max(len(batch) for batch in self.execution_order)}")
-        for i, batch in enumerate(self.execution_order):
-            if len(batch) > 1:
-                logger.info(f"  📦 Batch {i}: {batch} (parallel)")
-            else:
-                logger.info(f"  📦 Batch {i}: {batch} (sequential)")
-        
-        state = initial_state
-        self._last_state = state  # Ensure _is_decision_gated_skip always has access to latest state
-        
-        for batch_idx, batch in enumerate(self.execution_order):
-            logger.info(f"Executing batch {batch_idx}: {batch}")
+        with logger.group("DAG Execution", execution_id=self.execution_id):
+            logger.info("Starting DAG execution")
+            logger.execution_plan("Execution Plan", self.execution_order, parallelism=max(len(batch) for batch in self.execution_order))
             
-            if len(batch) == 1:
-                # Single node - check if it should execute
-                node_id = batch[0]
-                logger.info(f"  🔍 Evaluating single node: {node_id}")
-                should_execute = self._should_execute_node(node_id, state)
-                logger.info(f"  🎯 Decision for {node_id}: {'EXECUTE' if should_execute else 'SKIP'}")
-                
-                if should_execute:
-                    logger.info(f"  🚀 Executing {node_id}...")
+            state = initial_state
+            self._last_state = state  # Ensure _is_decision_gated_skip always has access to latest state
+            
+            for batch_idx, batch in enumerate(self.execution_order):
+                with logger.group(f"Batch {batch_idx}: {batch}"):
+                    logger.info(f"Executing batch {batch_idx}: {batch}")
                     
-                    # Record node start if feedback tracking is enabled
-                    if self.feedback_collector and self.execution_id:
-                        node = self.nodes[node_id].node_spec
-                        self.feedback_collector.record_node_start(
-                            execution_id=self.execution_id,
-                            node_id=node_id,
-                            node_type=node.type,
-                            node_label=node.label
-                        )
-                    
-                    try:
-                        result = await self._execute_node(node_id, state)
-                        state.results[node_id] = result
-                        logger.info(f"  ✅ {node_id} → COMPLETED")
+                    if len(batch) == 1:
+                        # Single node - check if it should execute
+                        node_id = batch[0]
+                        logger.info(f"🔍 Evaluating single node: {node_id}")
+                        should_execute = self._should_execute_node(node_id, state)
+                        logger.info(f"🎯 Decision for {node_id}: {'EXECUTE' if should_execute else 'SKIP'}")
                         
-                        # Record node completion if feedback tracking is enabled
-                        if self.feedback_collector and self.execution_id:
-                            await self._record_node_completion(node_id, result, success=True)
+                        if should_execute:
+                            with logger.group(f"Node: {node_id}"):
+                                logger.info(f"🚀 Executing {node_id}...")
+                                
+                                # Record node start if feedback tracking is enabled
+                                if self.feedback_collector and self.execution_id:
+                                    node = self.nodes[node_id].node_spec
+                                    self.feedback_collector.record_node_start(
+                                            execution_id=self.execution_id,
+                                            node_id=node_id,
+                                            node_type=node.type,
+                                            node_label=node.label
+                                        )
+                                
+                                try:
+                                    result = await self._execute_node(node_id, state)
+                                    state.results[node_id] = result
+                                    logger.info(f"  ✅ {node_id} → COMPLETED")
+                                    
+                                    # Record node completion if feedback tracking is enabled
+                                    if self.feedback_collector and self.execution_id:
+                                        await self._record_node_completion(node_id, result, success=True)
+                                        
+                                except Exception as e:
+                                    logger.error(f"  ❌ {node_id} → FAILED: {e}")
+                                    
+                                    # Record node failure if feedback tracking is enabled
+                                    if self.feedback_collector and self.execution_id:
+                                        await self._record_node_completion(node_id, None, success=False, error=str(e))
+                                    raise
+                        else:
+                            self.skipped_nodes.add(node_id)
+                            state.results[node_id] = {"status": "skipped", "reason": "decision_gated"}
+                            logger.info(f"  ⏭️  {node_id} → SKIPPED (decision gated)")
                             
-                    except Exception as e:
-                        logger.error(f"  ❌ {node_id} → FAILED: {e}")
-                        
-                        # Record node failure if feedback tracking is enabled
-                        if self.feedback_collector and self.execution_id:
-                            await self._record_node_completion(node_id, None, success=False, error=str(e))
-                        raise
-                        
-                else:
-                    self.skipped_nodes.add(node_id)
-                    state.results[node_id] = {"status": "skipped", "reason": "decision_gated"}
-                    logger.info(f"  ⏭️  {node_id} → SKIPPED (decision gated)")
-                    
-                    # Record node skip if feedback tracking is enabled  
-                    if self.feedback_collector and self.execution_id:
-                        self.feedback_collector.record_node_skipped(self.execution_id, node_id)
-            else:
-                # Multiple nodes - check each and execute those that should run
-                logger.info(f"  🔄 Evaluating {len(batch)} nodes for parallel execution")
-                nodes_to_execute = []
-                for node_id in batch:
-                    should_execute = self._should_execute_node(node_id, state)
-                    logger.info(f"  🎯 Decision for {node_id}: {'EXECUTE' if should_execute else 'SKIP'}")
-                    
-                    if should_execute:
-                        nodes_to_execute.append(node_id)
-                        
-                        # Record node start if feedback tracking is enabled
-                        if self.feedback_collector and self.execution_id:
-                            node = self.nodes[node_id].node_spec
-                            self.feedback_collector.record_node_start(
-                                execution_id=self.execution_id,
-                                node_id=node_id,
-                                node_type=node.type,
-                                node_label=node.label
-                            )
+                            # Record node skip if feedback tracking is enabled  
+                            if self.feedback_collector and self.execution_id:
+                                self.feedback_collector.record_node_skipped(self.execution_id, node_id)
                     else:
-                        self.skipped_nodes.add(node_id)
-                        state.results[node_id] = {"status": "skipped", "reason": "decision_gated"}
-                        logger.info(f"  ⏭️  {node_id} → SKIPPED (decision gated)")
+                        # Multiple nodes - check each and execute those that should run
+                        logger.info(f"  🔄 Evaluating {len(batch)} nodes for parallel execution")
+                        nodes_to_execute = []
+                        for node_id in batch:
+                            should_execute = self._should_execute_node(node_id, state)
+                            logger.info(f"  🎯 Decision for {node_id}: {'EXECUTE' if should_execute else 'SKIP'}")
+                            
+                            if should_execute:
+                                nodes_to_execute.append(node_id)
+                                
+                                # Record node start if feedback tracking is enabled
+                                if self.feedback_collector and self.execution_id:
+                                    node = self.nodes[node_id].node_spec
+                                    self.feedback_collector.record_node_start(
+                                        execution_id=self.execution_id,
+                                        node_id=node_id,
+                                        node_type=node.type,
+                                        node_label=node.label
+                                    )
+                            else:
+                                self.skipped_nodes.add(node_id)
+                                state.results[node_id] = {"status": "skipped", "reason": "decision_gated"}
+                                logger.info(f"  ⏭️  {node_id} → SKIPPED (decision gated)")
+                                
+                                # Record node skip if feedback tracking is enabled
+                                if self.feedback_collector and self.execution_id:
+                                    self.feedback_collector.record_node_skipped(self.execution_id, node_id)
                         
-                        # Record node skip if feedback tracking is enabled
-                        if self.feedback_collector and self.execution_id:
-                            self.feedback_collector.record_node_skipped(self.execution_id, node_id)
-                
-                if nodes_to_execute:
-                    logger.info(f"  🚀 Launching {len(nodes_to_execute)} nodes in parallel: {nodes_to_execute}")
-                    results = await self._execute_batch_parallel(nodes_to_execute, state)
-                    
-                    # Update state with all results
-                    for node_id, result in results.items():
-                        state.results[node_id] = result
-                        logger.info(f"  ✅ {node_id} → COMPLETED")
+                        if nodes_to_execute:
+                            logger.info(f"  🚀 Launching {len(nodes_to_execute)} nodes in parallel: {nodes_to_execute}")
+                            results = await self._execute_batch_parallel(nodes_to_execute, state)
                         
-                        # Record node completion if feedback tracking is enabled
-                        if self.feedback_collector and self.execution_id:
-                            await self._record_node_completion(node_id, result, success=True)
-                else:
-                    logger.info("  ⏭️  All nodes in batch skipped")
-        
-        # Log execution summary
-        executed_nodes = set(state.results.keys()) - self.skipped_nodes
-        logger.info(f"DAG execution completed: {len(executed_nodes)} executed, {len(self.skipped_nodes)} skipped")
-        if self.skipped_nodes:
-            logger.info(f"  Skipped nodes: {list(self.skipped_nodes)}")
-        
-        # Complete feedback tracking if enabled
-        if self.feedback_collector and self.execution_id:
-            summary = self.feedback_collector.complete_execution(
-                execution_id=self.execution_id,
-                final_outputs=state.results
-            )
-            # Store summary in state for workflow server to use
-            state.execution_summary = summary
+                            # Update state with all results
+                            for node_id, result in results.items():
+                                state.results[node_id] = result
+                                logger.info(f"  ✅ {node_id} → COMPLETED")
+                                
+                                # Record node completion if feedback tracking is enabled
+                                if self.feedback_collector and self.execution_id:
+                                    await self._record_node_completion(node_id, result, success=True)
+                        else:
+                            logger.info("  ⏭️  All nodes in batch skipped")
+            
+            # Log execution summary
+            executed_nodes = set(state.results.keys()) - self.skipped_nodes
+            logger.info(f"DAG execution completed: {len(executed_nodes)} executed, {len(self.skipped_nodes)} skipped")
+ 
+            if self.skipped_nodes:
+                logger.info(f"  Skipped nodes: {list(self.skipped_nodes)}")
+            
+            # Complete feedback tracking if enabled
+            if self.feedback_collector and self.execution_id:
+                summary = self.feedback_collector.complete_execution(
+                    execution_id=self.execution_id,
+                    final_outputs=state.results
+                )
+                # Store summary in state for workflow server to use
+                state.execution_summary = summary
         
         return state
     
@@ -615,10 +617,7 @@ class DAGExecutor:
         # Use typed execution if enabled
         if self.use_typed_execution:
             return await self._execute_node_typed(node_id, state)
-        
-        # Extract node data for SLA requirements
-        node_data = dag_node.node_spec.data.model_dump() if hasattr(dag_node.node_spec.data, 'model_dump') else {}
-        
+                
         # Define the actual node execution function
         async def execute_node_core():
             # Create task node instance with required parameters
@@ -713,9 +712,7 @@ class DAGExecutor:
     async def _record_node_completion(self, node_id: str, result: Any, success: bool, error: Optional[str] = None):
         """Record node completion with the feedback collector."""
         from ..agent_methods.data_models.execution_models import AgentExecutionResult, ExecutionStatus
-        
-        node = self.nodes[node_id].node_spec
-        
+                
         # Extract outputs based on result type
         agent_output = None
         result_preview = None
