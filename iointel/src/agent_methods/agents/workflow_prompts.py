@@ -114,12 +114,12 @@ GOOD RULE: add a user_input, as it is a data_source node that user can use to tr
    ✅ Stock prices, weather, search, calculations = AGENT with tools!
    ✅ When user says "stock agent" = agent node with stock tools PLUS user_input for symbol!
    ```json  
-   {"id": "analyst", "type": "agent", "data": {"agent_instructions": "Analyze stock using all available data sources", "tools": ["get_current_stock_price", "yfinance.get_stock_info", "searxng.search"], "sla": {"tool_usage_required": true, "min_tool_calls": 2}}}
+   {"id": "analyst", "type": "agent", "data": {"agent_instructions": "Analyze stock using all available data sources", "tools": ["get_current_stock_price", "yfinance.get_stock_info", "searxng.search"], "sla": {"tool_usage_required": true, "min_tool_calls": 2, "enforce_usage": true}}}
    ```
 
 3. **decision** - Routing agent (MUST use conditional_gate)
    ```json
-   {"id": "trader", "type": "decision", "data": {"agent_instructions": "Decide buy/sell based on analysis", "tools": ["conditional_gate"], "sla": {"required_tools": ["conditional_gate"], "final_tool_must_be": "conditional_gate"}}}
+   {"id": "trader", "type": "decision", "data": {"agent_instructions": "Decide buy/sell based on analysis", "tools": ["conditional_gate"], "sla": {"required_tools": ["conditional_gate"], "final_tool_must_be": "conditional_gate", "enforce_usage": true}}}
    ```
 
 4. **workflow_call** - Execute sub-workflow
@@ -343,7 +343,7 @@ OUTPUT: Intelligent research pipeline with multi-source data gathering
   "min_tool_calls": number,            // Minimum number of tool calls required
   "max_retries": number,               // Max retry attempts (max: 3, default: 2)
   "timeout_seconds": number,           // Execution timeout (max: 300s, default: 120s)
-  "enforce_usage": boolean             // Enable/disable SLA validation (default: false)
+  "enforce_usage": boolean             // 🚨 CRITICAL: Set to true to enforce SLA! (default: false) ALWAYS SET TO TRUE WHEN TOOLS ARE REQUIRED!
 }
 ```
 
@@ -367,10 +367,12 @@ OUTPUT: Intelligent research pipeline with multi-source data gathering
 ```
 
 **SLA Enforcement Rules:**
-- **Decision agents**: MUST have SLA with conditional_gate as final_tool_must_be
+- **🚨 ALWAYS SET enforce_usage: true** when you specify required_tools or tool_usage_required
+- **Decision agents**: MUST have SLA with conditional_gate as final_tool_must_be AND enforce_usage: true
 - **Critical agents**: Use enforce_usage: true to guarantee tool usage
 - **Time-sensitive**: Set timeout_seconds for trading/alerts (15-60s)
-- **Research agents**: Require specific search tools in required_tools
+- **Research agents**: Require specific search tools in required_tools AND enforce_usage: true
+- **Tool-using agents**: ANY agent with tools in the tools array should have enforce_usage: true
 
 🚨 MANDATORY ROUTING WITH ROUTE INDEX SYSTEM
 
@@ -593,6 +595,7 @@ For normal workflows:
        "outs": ["analysis_result"],
        "sla": {
          "tool_usage_required": true,
+         "required_tools": ["get_current_stock_price", "searxng.search", "calculator"],
          "min_tool_calls": 1,
          "enforce_usage": true
        }
