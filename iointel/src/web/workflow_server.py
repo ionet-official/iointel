@@ -782,11 +782,13 @@ async def get_execution_feedback(execution_id: str):
             "success_rate": len([n for n in execution_summary.nodes_executed if n.status.value == "success"]) / max(len(execution_summary.nodes_executed), 1) * 100
         },
         "execution_summary": {
+            "execution_id": execution_summary.execution_id,
             "workflow_title": execution_summary.workflow_title,
             "status": execution_summary.status.value,
             "total_duration_seconds": execution_summary.total_duration_seconds,
             "nodes_executed": [
                 {
+                    "node_id": node.node_id,
                     "node_label": node.node_label,
                     "node_type": node.node_type,
                     "status": node.status.value,
@@ -1154,7 +1156,8 @@ async def execute_workflow_background(
         initial_state = WorkflowState(
             initial_text=workflow_spec.description,
             conversation_id=conversation_id,
-            results={}
+            results={},
+            user_inputs=user_inputs or {}
         )
         
         # Execute the DAG with the same execution_id

@@ -3,6 +3,7 @@ Workflow Helper Utilities
 ========================
 High-level helpers for generating and executing workflows from natural language prompts.
 """
+import os
 from typing import Dict, Any, Optional, List
 from uuid import uuid4
 
@@ -60,7 +61,16 @@ async def plan_and_execute(
     # Step 1: Generate workflow from prompt
     logger.info(f"📋 Generating workflow from prompt: {prompt[:100]}...")
     
+    # Use shared model configuration
+    from .constants import get_model_config
+    
+    helper_model = os.getenv("WORKFLOW_PLANNER_MODEL", "gpt-4o")
+    model_config = get_model_config(model=helper_model)
+    
     planner = WorkflowPlanner(
+        model=model_config["model"],
+        api_key=model_config["api_key"],
+        base_url=model_config["base_url"],
         conversation_id=conversation_id,
         debug=debug
     )
@@ -94,11 +104,19 @@ async def plan_and_execute(
     logger.info(f"🚀 Executing workflow: {workflow_spec.title}")
     
     try:
-        # Create DAG executor
-        executor = DAGExecutor()
+        # Create DAG executor with typed execution
+        executor = DAGExecutor(use_typed_execution=True)
+        
+        # Use first user input as objective if available, otherwise use prompt
+        objective = prompt
+        if initial_state and initial_state.user_inputs:
+            # Get first user input value as the objective
+            first_input = next(iter(initial_state.user_inputs.values()))
+            objective = first_input
+            
         executor.build_execution_graph(
-            nodes=workflow_spec.nodes,
-            edges=workflow_spec.edges,
+            workflow_spec=workflow_spec,
+            objective=objective,
             agents=agents,
             conversation_id=conversation_id
         )
@@ -147,6 +165,7 @@ async def plan_and_execute(
 async def generate_only(
     prompt: str,
     tool_catalog: Optional[Dict[str, Any]] = None,
+    conversation_id: Optional[str] = None,
     max_retries: int = 3,
     debug: bool = False
 ) -> Optional[WorkflowSpec]:
@@ -157,13 +176,28 @@ async def generate_only(
     Args:
         prompt: Natural language description
         tool_catalog: Optional tool catalog
+        conversation_id: Optional conversation ID for tracking
         max_retries: Max generation retries
         debug: Enable debug logging
         
     Returns:
         WorkflowSpec or None if generation failed
     """
-    planner = WorkflowPlanner(debug=debug)
+    conversation_id = conversation_id or str(uuid4())
+    
+    # Use shared model configuration
+    from .constants import get_model_config
+    
+    helper_model = os.getenv("WORKFLOW_PLANNER_MODEL", "gpt-4o")
+    model_config = get_model_config(model=helper_model)
+    
+    planner = WorkflowPlanner(
+        model=model_config["model"],
+        api_key=model_config["api_key"],
+        base_url=model_config["base_url"],
+        conversation_id=conversation_id, 
+        debug=debug
+    )
     
     if tool_catalog is None:
         # Load tools first to ensure registry is populated
