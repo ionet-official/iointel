@@ -3470,13 +3470,43 @@
                     id: workflow.id
                 });
                 
-                // Only clear cached inputs if we're loading a completely different workflow
-                // Don't clear if we're just refreshing the same workflow
+                // Clear execution state and results when loading a different workflow
                 if (previousWorkflow && previousWorkflow.id !== workflow.id) {
+                    console.log('🔄 Loading different workflow - clearing execution state');
+                    
+                    // Clear execution status
+                    clearExecutionStatus();
+                    
+                    // Clear execution results
+                    const resultsContent = document.getElementById('resultsContent');
+                    if (resultsContent) {
+                        resultsContent.innerHTML = '';
+                        console.log('🗑️ Cleared execution results');
+                    }
+                    
+                    // Clear execution logs
+                    const executionLogs = document.getElementById('executionLogs');
+                    if (executionLogs) {
+                        executionLogs.innerHTML = '<div style="text-align: center; color: rgba(255, 130, 40, 0.5); padding: 2rem;">No execution logs available yet. Run a workflow to see detailed logs.</div>';
+                        console.log('🗑️ Cleared execution logs');
+                    }
+                    
+                    // Clear cached inputs
                     clearCachedInputs();
-                    console.log('🔄 Cleared cached inputs for different workflow');
+                    console.log('🗑️ Cleared cached inputs for different workflow');
+                    
+                    // Reset to results tab
+                    switchTab('results');
+                } else if (!previousWorkflow) {
+                    // First workflow load - clear any stale state
+                    console.log('🔄 First workflow load - clearing any stale state');
+                    clearExecutionStatus();
+                    const resultsContent = document.getElementById('resultsContent');
+                    if (resultsContent) {
+                        resultsContent.innerHTML = '';
+                    }
                 } else {
-                    console.log('🔄 Keeping cached inputs for same workflow');
+                    console.log('🔄 Keeping cached inputs and results for same workflow');
                 }
                 console.log('📋 Full workflow data:', workflow);
                 
@@ -3614,6 +3644,7 @@
             }, 1000);
         }
 
+        // Merged clearExecutionStatus function (removed duplicate at line 3817)
         function clearExecutionStatus() {
             currentExecution = null;
             executionTasks = {};
@@ -3626,10 +3657,19 @@
             
             hideExecutionStatus();
             
-            // Hide results section too
+            // Hide/clear UI elements
+            const executionStatusSticky = document.getElementById('executionStatusSticky');
             const resultsScrollArea = document.getElementById('resultsScrollArea');
+            const stopBtn = document.getElementById('stopBtn');
+            
+            if (executionStatusSticky) {
+                executionStatusSticky.style.display = 'none';
+            }
             if (resultsScrollArea) {
                 resultsScrollArea.style.display = 'none';
+            }
+            if (stopBtn) {
+                stopBtn.disabled = true;
             }
             
             setExecutionLoading(false);
@@ -3784,24 +3824,6 @@
             }
         }
         
-        function clearExecutionStatus() {
-            currentExecution = null;
-            executionTasks = {};
-            
-            const executionStatusSticky = document.getElementById('executionStatusSticky');
-            const resultsScrollArea = document.getElementById('resultsScrollArea');
-            const stopBtn = document.getElementById('stopBtn');
-            
-            if (executionStatusSticky) {
-                executionStatusSticky.style.display = 'none';
-            }
-            if (resultsScrollArea) {
-                resultsScrollArea.style.display = 'none';
-            }
-            if (stopBtn) {
-                stopBtn.disabled = true;
-            }
-        }
         
         function updateExecutionInfo() {
             console.log('🚨🚨🚨 updateExecutionInfo called', currentExecution);
@@ -4354,6 +4376,71 @@
                         `;
                     } else {
                         console.log(`❌ Node ${node.id} has no SLA enforcement`);
+                    }
+                } else if (node.type === 'decision') {
+                    // Handle decision nodes - they have agent_instructions, tools, and SLA like agent nodes
+                    if (node.data.agent_instructions) {
+                        const fullInstructions = node.data.agent_instructions;
+                        const preview = fullInstructions.length > 80 ? 
+                            fullInstructions.substring(0, 80) + '...' : 
+                            fullInstructions;
+                        
+                        nodeContent += `
+                            <div class="node-instructions ${fullInstructions.length > 80 ? 'node-instructions-expandable' : ''}" 
+                                 title="${fullInstructions.replace(/"/g, '&quot;')}"
+                                 onclick="toggleInstructions('${node.id}')">
+                                <div class="instructions-preview" id="preview-${node.id}">
+                                    📋 ${preview}
+                                </div>
+                                ${fullInstructions.length > 80 ? `
+                                <div class="instructions-full" id="full-${node.id}" style="display: none;">
+                                    📋 ${fullInstructions}
+                                </div>
+                                ` : ''}
+                            </div>
+                            ${getExecutionModeIndicator(node.data)}
+                        `;
+                    }
+                    
+                    // Add model information for decision nodes
+                    if (node.data.model) {
+                        nodeContent += `
+                            <div class="node-model" style="margin-top: 4px; font-size: 11px; color: #666;">
+                                🤖 ${node.data.model}
+                            </div>
+                        `;
+                    }
+                    
+                    // Add tool pills for decision nodes
+                    if (node.data.tools && node.data.tools.length > 0) {
+                        const toolPills = node.data.tools.map(tool => {
+                            // Highlight routing tools with special styling
+                            const isRoutingTool = ['conditional_gate', 'threshold_gate', 'conditional_multi_gate'].includes(tool);
+                            return `<span class="tool-pill ${isRoutingTool ? 'routing-tool' : ''}">🔧${tool}</span>`;
+                        }).join(' ');
+                        nodeContent += `
+                            <div style="margin-top: 6px;">
+                                ${toolPills}
+                            </div>
+                        `;
+                    }
+                    
+                    // Add enhanced SLA status display for nodes with SLA requirements
+                    console.log(`🔍 Decision Node ${node.id} SLA check:`, node.sla);
+                    if (node.sla && node.sla.enforce_usage) {
+                        const sla = node.sla;
+                        const slaType = getSLAType(sla, node.data.tools);
+                        console.log(`✅ Decision Node ${node.id} has SLA enforcement:`, slaType, sla);
+                        
+                        // Generate enhanced SLA pill with detailed information
+                        const slaPills = generateSLAPills(sla, node.data.tools);
+                        nodeContent += `
+                            <div class="sla-indicators" style="margin-top: 6px; display: flex; flex-wrap: wrap; gap: 4px;">
+                                ${slaPills.join('')}
+                            </div>
+                        `;
+                    } else {
+                        console.log(`❌ Decision Node ${node.id} has no SLA enforcement`);
                     }
                 } else if (node.type === 'data_source' && node.data.source_name) {
                     nodeContent += `
