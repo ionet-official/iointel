@@ -31,7 +31,9 @@ def resolve_user_input_value(user_inputs: Dict[str, Any], node_id: Optional[str]
     
     logger.info("🔍 Runtime user inputs available", data={
         "available_keys": list(user_inputs.keys()),
-        "input_count": len(user_inputs)
+        "input_count": len(user_inputs),
+        "node_id": node_id,
+        "user_inputs_preview": {k: str(v)[:50] + "..." if len(str(v)) > 50 else str(v) for k, v in user_inputs.items()}
     })
     
     # If user provided input, use it. Period.
@@ -65,7 +67,8 @@ def user_input_source(request: DataSourceRequest, **kwargs) -> DataSourceRespons
     """
     logger.info("📝 User input source initiated", data={
         "message": request.message,
-        "has_default": request.default_value is not None
+        "has_default": request.default_value is not None,
+        "default_value": request.default_value
     })
     
     # Check if we have user inputs from execution metadata
