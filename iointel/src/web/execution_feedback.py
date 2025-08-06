@@ -14,9 +14,65 @@ from iointel.src.agent_methods.data_models.datamodels import ToolUsageResult
 from iointel.src.agent_methods.data_models.execution_models import AgentExecutionResult, ExecutionStatus
 
 
+# Prompt templates for feedback generation
+SUCCESS_FEEDBACK_TEMPLATE = """SYSTEM: ✅ **{workflow_title}** completed in {duration:.1f}s
+
+🎯 **AGENT OUTPUTS:**
+{agent_outputs}
+
+🛠️ **TOOLS USED:**
+{tool_results}
+
+RESPONSE FORMAT: This is a results report as a chat message, NOT a workflow generation request.
+Use CHAT-ONLY mode: Set nodes: null, edges: null in your response.
+
+Summarize the KEY RESULTS above - focus on the specific recommendations, decisions, or outcomes the user received."""
+
+NO_RESULTS_FEEDBACK_TEMPLATE = """SYSTEM: ⚠️ **{workflow_title}** executed in {duration:.1f}s but produced no meaningful results.
+
+🔍 **EXECUTION ANALYSIS:**
+- Workflow nodes executed: {nodes_executed}
+- Agent outputs captured: 0
+- Tool results captured: 0
+
+❓ **POTENTIAL ISSUES:**
+- Agents may not be producing output correctly
+- Tool results may not be captured properly
+- The workflow may be missing agent nodes that produce results
+
+RESPONSE FORMAT: This is an execution analysis, NOT a workflow generation request.
+Use CHAT-ONLY mode: Set nodes: null, edges: null in your response.
+
+Please acknowledge that the workflow ran but didn't produce expected outputs, and suggest checking the workflow design."""
+
+FAILURE_FEEDBACK_TEMPLATE = """SYSTEM: Workflow execution failed or had issues. Provide analysis and suggestions.
+
+{workflow_context}📊 EXECUTION RESULTS
+{curated_summary}
+{path_str}
+{exec_summary}
+
+CRITICAL: Compare the EXPECTED EXECUTION PATTERNS in the workflow spec above with actual results:
+- For conditional workflows: verify only the correct path executed based on routing logic
+- For SLA enforcement: verify required tools were used as specified in node SLAs  
+- Skipped nodes are EXPECTED in conditional workflows when routing works correctly
+- Multiple branch execution indicates conditional routing FAILURE (unless using conditional_multi_gate)
+
+RESPONSE FORMAT: This is execution analysis, NOT a workflow generation request.
+Use CHAT-ONLY mode: Set nodes: null, edges: null in your response.
+
+Provide a BRIEF, CONVERSATIONAL analysis in the reasoning field:
+1. What the workflow was SUPPOSED to do (based on spec) vs what it actually did
+2. If conditional routing worked or failed (compare intended topology with execution path)
+3. If SLA enforcement worked (verify tool usage against requirements)
+4. Suggest specific fixes if anything didn't work as designed
+
+Be precise - refer to the workflow specification when analyzing whether execution matched the design."""
+
+
 @dataclass
-class NodeExecutionResult:
-    """Result of executing a single node."""
+class NodeExecutionTracking:
+    """Tracking information for a single node execution."""
     node_id: str
     node_type: str
     node_label: str
@@ -53,7 +109,7 @@ class WorkflowExecutionSummary:
     started_at: str
     finished_at: Optional[str]
     total_duration_seconds: Optional[float]
-    nodes_executed: List[NodeExecutionResult]
+    nodes_executed: List[NodeExecutionTracking]
     nodes_skipped: List[str]
     user_inputs: Dict[str, Any]
     final_outputs: Dict[str, Any]
@@ -79,16 +135,14 @@ class ExecutionResultCurator:
         # This method now uses the single source of truth conversion utilities
     
     @staticmethod
-    def generate_improvement_prompt(summary: WorkflowExecutionSummary, workflow_spec=None) -> str:
-        """Generate a prompt for the WorkflowPlanner to analyze and suggest improvements."""
-        
-        curated_summary = ExecutionResultCurator.curate_execution_summary(summary)
-        
-        # Add readable execution path
+    def extract_execution_path(summary: WorkflowExecutionSummary) -> tuple[str, list[str], list[str]]:
+        """Extract execution path information from summary."""
         perf = summary.performance_metrics or {}
         path_lines = []
         executed_nodes = []
         skipped_nodes = []
+        
+        # First try performance_metrics["execution_path"]
         if "execution_path" in perf:
             path_lines.append("\nEXECUTION PATH:")
             for idx, node in enumerate(perf["execution_path"]):
@@ -101,66 +155,78 @@ class ExecutionResultCurator:
                     executed_nodes.append(label)
                 else:
                     skipped_nodes.append(f"{label} (reason: {node['skip_reason']})")
-        path_str = "\n".join(path_lines)
         
-        # Add explicit summary for agent/planner
-        exec_summary = f"\nEXECUTION SUMMARY:\nExecuted nodes: {', '.join(executed_nodes) if executed_nodes else 'None'}\nSkipped nodes: {', '.join(skipped_nodes) if skipped_nodes else 'None'}\n\nNOTE: Nodes skipped with reason 'decision_gated' indicate correct conditional routing. Only one branch should execute; all others should be skipped. If multiple branches are executed, conditional routing failed unless using a conditional_multi_gate node which allows multiple branches to execute."
+        # Fallback to nodes_executed if no execution_path
+        if not executed_nodes and summary.nodes_executed:
+            path_lines.append("\nEXECUTION PATH:")
+            for idx, node in enumerate(summary.nodes_executed):
+                if node.status == ExecutionStatus.SUCCESS:
+                    executed_nodes.append(node.node_label)
+                    path_lines.append(f"  [{idx+1:02d}] ✓ {node.node_label} [{node.node_type}]")
+                elif node.status == ExecutionStatus.SKIPPED:
+                    skipped_nodes.append(f"{node.node_label} (skipped)")
+                    path_lines.append(f"  [{idx+1:02d}] ⏭️ {node.node_label} [{node.node_type}] (skipped)")
+        
+        # Also check nodes_skipped
+        if summary.nodes_skipped:
+            for node_id in summary.nodes_skipped:
+                if node_id not in [n.split(" ")[0] for n in skipped_nodes]:
+                    skipped_nodes.append(f"{node_id} (routing)")
+        
+        path_str = "\n".join(path_lines) if path_lines else "\nEXECUTION PATH: Not available"
+        
+        return path_str, executed_nodes, skipped_nodes
+
+    @staticmethod
+    def extract_results_from_nodes(nodes: List[NodeExecutionTracking]) -> tuple[list[str], list[str]]:
+        """Extract agent outputs and tool results from executed nodes."""
+        agent_results = []
+        tool_results = []
+        
+        for node in nodes:
+            if node.status == ExecutionStatus.SUCCESS:
+                # Agent outputs - fields are guaranteed to exist with defaults
+                if node.full_agent_output:
+                    agent_results.append(f"• **{node.node_label}**: {node.full_agent_output}")
+                elif node.result_preview:
+                    agent_results.append(f"• **{node.node_label}**: {node.result_preview}")
+                
+                # Tool usage - field is guaranteed to exist with default []
+                if node.tool_usage_results:
+                    for tool_result in node.tool_usage_results:
+                        if isinstance(tool_result, dict):
+                            tool_name = tool_result.get('tool_name', 'unknown')
+                            result = tool_result.get('result', 'No output')
+                        else:
+                            tool_name = tool_result.tool_name
+                            result = tool_result.tool_result
+                        
+                        if result and result != 'None':
+                            result_str = str(result)
+                            if len(result_str) > 300:
+                                result_str = result_str[:300] + "..."
+                            tool_results.append(f"• **{tool_name}**: {result_str}")
+        
+        return agent_results, tool_results
+
+    @staticmethod
+    def generate_improvement_prompt(summary: WorkflowExecutionSummary, workflow_spec=None) -> str:
+        """Generate a prompt for the WorkflowPlanner to analyze and suggest improvements."""
+        
+        curated_summary = ExecutionResultCurator.curate_execution_summary(summary)
+        path_str, executed_nodes, skipped_nodes = ExecutionResultCurator.extract_execution_path(summary)
         
         # Use workflow spec from summary (single source of truth) or fallback to parameter
         active_workflow_spec = summary.workflow_spec or workflow_spec
         workflow_context = ""
         if active_workflow_spec:
-            # Use centralized conversion utility instead of scattered methods
+            # Use centralized conversion utility
             from iointel.src.utilities.conversion_utils import workflow_spec_to_llm_structured
-            workflow_context = f"""
-
-{workflow_spec_to_llm_structured(active_workflow_spec)}
-
-"""
-        
-        # Use unified prompt system for cleaner, more focused feedback
-        try:
-            from iointel.src.utilities.unified_prompt_system import unified_prompt_system, PromptType
-        except ImportError:
-            # Fallback: unified prompt system not available, use simple feedback
-            unified_prompt_system = None
-            PromptType = None
+            workflow_context = f"\n\n{workflow_spec_to_llm_structured(active_workflow_spec)}\n\n"
         
         if summary.status == ExecutionStatus.SUCCESS:
-            # SUCCESS: Build concise results summary
-            
-            # Extract key results from successful nodes
-            agent_results = []
-            tool_results = []
-            
-            for node in summary.nodes_executed:
-                if node.status == ExecutionStatus.SUCCESS:
-                    # Agent outputs (the actual reasoning/responses) - NO TRUNCATION
-                    if hasattr(node, 'full_agent_output') and node.full_agent_output:
-                        agent_results.append(f"• **{node.node_label}**: {node.full_agent_output}")
-                    elif node.result_preview:
-                        agent_results.append(f"• **{node.node_label}**: {node.result_preview}")
-                    
-                    # Tool usage (what tools actually did)
-                    if hasattr(node, 'tool_usage_results') and node.tool_usage_results:
-                        for tool_result in node.tool_usage_results:
-                            # Handle both dict and ToolUsageResult objects
-                            if isinstance(tool_result, dict):
-                                tool_name = tool_result.get('tool_name', 'unknown')
-                                result = tool_result.get('result', 'No output')
-                            else:
-                                # It's a ToolUsageResult object
-                                tool_name = tool_result.tool_name
-                                result = tool_result.tool_result
-                            
-                            if result and result != 'None':
-                                # Show key info but keep reasonable length
-                                result_str = str(result)
-                                if len(result_str) > 300:
-                                    result_str = result_str[:300] + "..."
-                                tool_results.append(f"• **{tool_name}**: {result_str}")
-            
-            # Create concise prompt using unified system
+            # Extract results using helper method
+            agent_results, tool_results = ExecutionResultCurator.extract_results_from_nodes(summary.nodes_executed)
             agent_outputs_text = "\n".join(agent_results) if agent_results else "No agent outputs captured"
             tool_results_text = "\n".join(tool_results) if tool_results else "No tool results captured"
             
@@ -169,98 +235,35 @@ class ExecutionResultCurator:
             
             # If no meaningful results, treat as incomplete execution
             if not has_meaningful_results:
-                return f"""SYSTEM: ⚠️ **{summary.workflow_title}** executed in {summary.total_duration_seconds:.1f}s but produced no meaningful results.
-
-🔍 **EXECUTION ANALYSIS:**
-- Workflow nodes executed: {len(summary.nodes_executed)}
-- Agent outputs captured: 0
-- Tool results captured: 0
-
-❓ **POTENTIAL ISSUES:**
-- Agents may not be producing output correctly
-- Tool results may not be captured properly
-- The workflow may be missing agent nodes that produce results
-
-RESPONSE FORMAT: This is an execution analysis, NOT a workflow generation request.
-Use CHAT-ONLY mode: Set nodes: null, edges: null in your response.
-
-Please acknowledge that the workflow ran but didn't produce expected outputs, and suggest checking the workflow design."""
+                return NO_RESULTS_FEEDBACK_TEMPLATE.format(
+                    workflow_title=summary.workflow_title,
+                    duration=summary.total_duration_seconds,
+                    nodes_executed=len(summary.nodes_executed)
+                )
             
-            # Try to use unified prompt system if available
-            if unified_prompt_system and PromptType:
-                try:
-                    templates = unified_prompt_system.search_templates(
-                        prompt_type=PromptType.EXECUTION_FEEDBACK,
-                        tags=["success"]
-                    )
-                    
-                    if templates:
-                        instance = unified_prompt_system.render_prompt(
-                            templates[0].id,
-                            workflow_title=summary.workflow_title,
-                            duration=f"{summary.total_duration_seconds:.1f}",
-                            agent_outputs=agent_outputs_text,
-                            tool_results=tool_results_text,
-                            value_summary=f"Successfully processed user input through {len(summary.nodes_executed)} workflow steps"
-                        )
-                        
-                        # Record usage for improvement
-                        unified_prompt_system.record_prompt_result(instance.id, success=True)
-                        
-                        return f"""SYSTEM: {instance.content}
-
-RESPONSE FORMAT: This is a results report, NOT a workflow generation request.
-Use CHAT-ONLY mode: Set nodes: null, edges: null in your response.
-
-Focus on celebrating what the workflow accomplished and the value delivered to the user."""
-                    
-                except Exception as e:
-                    print(f"⚠️ Failed to use unified prompt template: {e}")
-            
-            # Fallback to simple success prompt with FULL RESULTS
-            return f"""SYSTEM: ✅ **{summary.workflow_title}** completed in {summary.total_duration_seconds:.1f}s
-
-🎯 **RESULTS:**
-{agent_outputs_text}
-
-🛠️ **TOOLS USED:**
-{tool_results_text}
-
-RESPONSE FORMAT: This is a results report, NOT a workflow generation request.
-Use CHAT-ONLY mode: Set nodes: null, edges: null in your response.
-
-Summarize the KEY RESULTS above - focus on the specific recommendations, decisions, or outcomes the user received."""
+            # Use template for successful execution
+            return SUCCESS_FEEDBACK_TEMPLATE.format(
+                workflow_title=summary.workflow_title,
+                duration=summary.total_duration_seconds,
+                agent_outputs=agent_outputs_text,
+                tool_results=tool_results_text
+            )
         else:
             # FAILURE: Do introspection and analysis
-            return f"""SYSTEM: Workflow execution failed or had issues. Provide analysis and suggestions.
-
-{workflow_context}📊 EXECUTION RESULTS
-{curated_summary}
-{path_str}
-{exec_summary}
-
-CRITICAL: Compare the EXPECTED EXECUTION PATTERNS in the workflow spec above with actual results:
-- For conditional workflows: verify only the correct path executed based on routing logic
-- For SLA enforcement: verify required tools were used as specified in node SLAs  
-- Skipped nodes are EXPECTED in conditional workflows when routing works correctly
-- Multiple branch execution indicates conditional routing FAILURE (unless using conditional_multi_gate)
-
-RESPONSE FORMAT: This is execution analysis, NOT a workflow generation request.
-Use CHAT-ONLY mode: Set nodes: null, edges: null in your response.
-
-Provide a BRIEF, CONVERSATIONAL analysis in the reasoning field:
-1. What the workflow was SUPPOSED to do (based on spec) vs what it actually did
-2. If conditional routing worked or failed (compare intended topology with execution path)
-3. If SLA enforcement worked (verify tool usage against requirements)
-4. Suggest specific fixes if anything didn't work as designed
-
-Be precise - refer to the workflow specification when analyzing whether execution matched the design."""
+            exec_summary = f"\nEXECUTION SUMMARY:\nExecuted nodes: {', '.join(executed_nodes) if executed_nodes else 'None'}\nSkipped nodes: {', '.join(skipped_nodes) if skipped_nodes else 'None'}\n\nNOTE: Nodes skipped with reason 'decision_gated' indicate correct conditional routing."
+            
+            return FAILURE_FEEDBACK_TEMPLATE.format(
+                workflow_context=workflow_context,
+                curated_summary=curated_summary,
+                path_str=path_str,
+                exec_summary=exec_summary
+            )
 
 
 class ExecutionFeedbackCollector:
     """Collects and processes execution results for feedback."""
     
-    def __init__(self):
+    def __init__(self) -> None:
         self.active_executions: Dict[str, Dict[str, Any]] = {}
     
     def start_execution_tracking(
@@ -268,7 +271,7 @@ class ExecutionFeedbackCollector:
         execution_id: str, 
         workflow_spec: WorkflowSpec,
         user_inputs: Dict[str, Any] = None
-    ):
+    ) -> None:
         """Start tracking a workflow execution."""
         self.active_executions[execution_id] = {
             "workflow_spec": workflow_spec,
@@ -279,12 +282,12 @@ class ExecutionFeedbackCollector:
             "status": ExecutionStatus.SUCCESS  # Assume success until failure
         }
     
-    def record_node_start(self, execution_id: str, node_id: str, node_type: str, node_label: str):
+    def record_node_start(self, execution_id: str, node_id: str, node_type: str, node_label: str) -> None:
         """Record that a node has started executing."""
         if execution_id not in self.active_executions:
             return
         
-        self.active_executions[execution_id]["node_results"][node_id] = NodeExecutionResult(
+        self.active_executions[execution_id]["node_results"][node_id] = NodeExecutionTracking(
             node_id=node_id,
             node_type=node_type,
             node_label=node_label,
@@ -305,7 +308,7 @@ class ExecutionFeedbackCollector:
         full_agent_output: str = None,
         tool_usage_results: Union[List[Dict[str, Any]], List[ToolUsageResult]] = None,
         final_result: Union[Any, AgentExecutionResult] = None
-    ):
+    ) -> None:
         """Record that a node has completed executing."""
         if execution_id not in self.active_executions:
             return
@@ -333,7 +336,7 @@ class ExecutionFeedbackCollector:
         if status != ExecutionStatus.SUCCESS:
             self.active_executions[execution_id]["status"] = ExecutionStatus.FAILED
     
-    def record_node_skipped(self, execution_id: str, node_id: str):
+    def record_node_skipped(self, execution_id: str, node_id: str) -> None:
         """Record that a node was skipped (e.g., due to conditional routing)."""
         if execution_id not in self.active_executions:
             return
@@ -345,13 +348,13 @@ class ExecutionFeedbackCollector:
         execution_id: str, 
         final_outputs: Dict[str, Any] = None,
         error_summary: str = None
-    ) -> WorkflowExecutionSummary:
+    ) -> WorkflowExecutionSummary | None:
         """Complete execution tracking and generate summary."""
         if execution_id not in self.active_executions:
             return None
         
         execution_data = self.active_executions[execution_id]
-        workflow_spec = execution_data["workflow_spec"]
+        workflow_spec: WorkflowSpec = execution_data["workflow_spec"]
         
         # Safety check for None workflow_spec
         if workflow_spec is None:
@@ -380,7 +383,7 @@ class ExecutionFeedbackCollector:
             final_status = ExecutionStatus.FAILED
         
         # Calculate decision-gated skips
-        node_results = execution_data["node_results"]
+        node_results: Dict[str, NodeExecutionTracking] = execution_data["node_results"]
         nodes_skipped = execution_data["nodes_skipped"]
         decision_gated_skips = [nid for nid in nodes_skipped if _is_decision_gated_skip(node_results.get(nid))]
         num_decision_gated_skips = len(decision_gated_skips)
@@ -400,10 +403,11 @@ class ExecutionFeedbackCollector:
             result_preview = None
             tool_usage = []
             if node_result:
-                result_preview = getattr(node_result, "result_preview", None) if hasattr(node_result, "result_preview") else node_result.get("result_preview") if isinstance(node_result, dict) else None
-                tool_usage = getattr(node_result, "tool_usage", []) if hasattr(node_result, "tool_usage") else node_result.get("tool_usage", []) if isinstance(node_result, dict) else []
+                # node_result is always NodeExecutionTracking instance
+                result_preview = node_result.result_preview
+                tool_usage = node_result.tool_usage or []
                 if status == "skipped":
-                    skip_reason = getattr(node_result, "error_message", None) if hasattr(node_result, "error_message") else node_result.get("reason") if isinstance(node_result, dict) else None
+                    skip_reason = node_result.error_message
             execution_path.append({
                 "node_id": node_id,
                 "node_label": n.label,
@@ -444,10 +448,11 @@ class ExecutionFeedbackCollector:
         
         return summary
 
-def _is_decision_gated_skip(node_result):
+def _is_decision_gated_skip(node_result: NodeExecutionTracking) -> bool:
     # Returns True if the node was skipped due to decision gating
-    if isinstance(node_result, dict):
-        return node_result.get("status") == "skipped" and node_result.get("reason") == "decision_gated"
+    # node_result is always NodeExecutionTracking instance or None
+    if node_result:
+        return node_result.status == ExecutionStatus.SKIPPED and node_result.error_message == "decision_gated"
     return False
 
 
