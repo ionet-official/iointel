@@ -16,7 +16,7 @@ from dataclasses import dataclass
 
 from ..agent_methods.data_models.workflow_spec import WorkflowSpec, NodeSpec, EdgeSpec
 from .graph_nodes import WorkflowState, TaskNode, make_task_node
-from .node_execution_wrapper import node_execution_wrapper
+from .node_execution_wrapper import sla_validator
 from .io_logger import get_component_logger
 
 logger = get_component_logger("DAG_EXECUTOR", grouped=True)
@@ -44,7 +44,6 @@ class DAGExecutor:
         self.skipped_nodes: Set[str] = set()  # Track nodes skipped due to decision gating
         self.use_typed_execution = use_typed_execution
         self.conversation_id: Optional[str] = None
-        self.agents: Optional[List[Any]] = None
         self.workflow_spec: Optional[WorkflowSpec] = None  # Store the full workflow spec
         self.feedback_collector = feedback_collector  # Optional feedback tracking
         self.execution_id: Optional[str] = None  # Track current execution ID
@@ -53,18 +52,18 @@ class DAGExecutor:
         self, 
         workflow_spec: WorkflowSpec,
         objective: str = "",
-        agents: Optional[List[Any]] = None,
         conversation_id: Optional[str] = None,
-        execution_metadata_by_node: Optional[Dict[str, Dict]] = None,
-        agents_by_node: Optional[Dict[str, List[Any]]] = None
+        execution_metadata_by_node: Optional[Dict[str, Dict]] = None
     ) -> Dict[str, DAGNode]:
         """
         Build a DAG from workflow spec with proper dependency tracking.
         
+        NOTE: Agents are always created from the WorkflowSpec's NodeSpec.data (agent_instructions, tools, model).
+        There is no need to pass agents separately - the WorkflowSpec is the single source of truth.
+        
         Args:
             workflow_spec: Complete workflow specification
             objective: Workflow objective
-            agents: Default agents
             conversation_id: Conversation ID for task nodes
             
         Returns:
@@ -143,22 +142,18 @@ class DAGExecutor:
                 task_data["execution_metadata"]["node_id"] = node.id
                 task_data["execution_metadata"]["task_id"] = node.id  # Alias for compatibility
                 
-                # Determine agents for this node
-                node_agents = None
-                if agents_by_node and node.id in agents_by_node:
-                    node_agents = agents_by_node[node.id]
-                    print(f"🔧 Using {len(node_agents)} task-specific agents for node {node.id}")
-                else:
-                    node_agents = agents or []
-                    if (node.type in ["agent", "decision"]) and len(node_agents) == 0:
-                        # Auto-create agents from WorkflowSpec node data
-                        # Decision nodes are also agents (with routing tools)
-                        hydrated_agents = self._hydrate_agents_from_node(node)
-                        if hydrated_agents:
-                            node_agents = hydrated_agents
-                            print(f"🔧 Auto-created {len(node_agents)} agents for {node.type} node {node.id}")
-                        else:
-                            print(f"⚠️ WARNING: {node.type} node {node.id} has no agents and no agent_instructions!")
+                # For typed execution, agents are ALWAYS created from WorkflowSpec
+                # This ensures consistency and makes WorkflowSpec the single source of truth
+                node_agents = []
+                if node.type in ["agent", "decision"]:
+                    # Decision nodes are also agents (with routing tools)
+                    hydrated_agents = self._hydrate_agents_from_node(node)
+                    if hydrated_agents:
+                        node_agents = hydrated_agents
+                        logger.debug(f"Created {len(node_agents)} agents from WorkflowSpec for {node.type} node {node.id}")
+                    elif node.data.agent_instructions:
+                        logger.warning(f"{node.type} node {node.id} has agent_instructions but agent creation failed")
+                    # Note: It's OK for agent nodes to not have instructions if they're placeholders
                 
                 task_node_class = make_task_node(
                     task=task_data,
@@ -177,7 +172,6 @@ class DAGExecutor:
             # Store edges for conditional checking
             self.edges = edges
             self.conversation_id = conversation_id
-            self.agents = agents
             
             # Build dependency relationships from edges
             with logger.group("Building Dependencies"):
@@ -344,42 +338,60 @@ class DAGExecutor:
                     
                     # Look for route_index in tool_usage_results
                     if tool_usage_results:
+                        # Import the types we need
+                        from ..agent_methods.data_models.datamodels import ToolUsageResult
+                        from ..agent_methods.tools.conditional_gate import GateResult
+                        
                         # Get the LAST (most recent) conditional_gate result
                         conditional_gate_results = []
                         for tool_result in tool_usage_results:
-                            tool_name = None
-                            if hasattr(tool_result, "tool_name"):
-                                tool_name = tool_result.tool_name
-                            elif isinstance(tool_result, dict) and "tool_name" in tool_result:
-                                tool_name = tool_result["tool_name"]
-                            
-                            if tool_name == "conditional_gate":
+                            # Properly handle typed ToolUsageResult
+                            if isinstance(tool_result, ToolUsageResult):
+                                if tool_result.tool_name == "conditional_gate":
+                                    conditional_gate_results.append(tool_result)
+                            elif isinstance(tool_result, dict) and tool_result.get("tool_name") == "conditional_gate":
+                                # Legacy dict support
                                 conditional_gate_results.append(tool_result)
                         
                         # Use the last result (most recent tool call)
                         if conditional_gate_results:
                             tool_result = conditional_gate_results[-1]
-                            gate_result = None
                             
-                            if hasattr(tool_result, "tool_result"):
+                            # Extract the GateResult from ToolUsageResult
+                            if isinstance(tool_result, ToolUsageResult):
                                 gate_result = tool_result.tool_result
-                            elif isinstance(tool_result, dict) and "tool_result" in tool_result:
-                                gate_result = tool_result["tool_result"]
+                            else:
+                                # Legacy dict support
+                                gate_result = tool_result.get("tool_result")
                             
                             if gate_result:
-                                if hasattr(gate_result, "route_index"):
+                                # Handle typed GateResult
+                                if isinstance(gate_result, GateResult):
                                     route_index = gate_result.route_index
-                                    routed_to = getattr(gate_result, "routed_to", "unknown")
+                                    routed_to = gate_result.routed_to
+                                    action = gate_result.action
                                     logger.info(f"🔍 Found routing decision from conditional_gate", data={
                                         "decision_node": dep_id,
                                         "route_index": route_index,
                                         "routed_to": routed_to,
-                                        "confidence": getattr(gate_result, "confidence", 1.0),
-                                        "decision_reason": getattr(gate_result, "decision_reason", ""),
-                                        "result_type": "gate_result_object"
+                                        "action": action,
+                                        "confidence": gate_result.confidence,
+                                        "decision_reason": gate_result.decision_reason,
+                                        "result_type": "typed_gate_result"
                                     })
-                                elif isinstance(gate_result, dict) and "route_index" in gate_result:
-                                    route_index = gate_result["route_index"]
+                                    
+                                    # Handle terminate action
+                                    if route_index < 0 and action == "terminate":
+                                        logger.info(f"🛑 Workflow terminating - no conditions matched", data={
+                                            "decision_node": dep_id,
+                                            "reason": gate_result.decision_reason
+                                        })
+                                        # Skip all downstream nodes from this decision
+                                        return False
+                                        
+                                elif isinstance(gate_result, dict):
+                                    # Legacy dict support
+                                    route_index = gate_result.get("route_index")
                                     routed_to = gate_result.get("routed_to", "unknown")
                                     logger.info(f"🔍 Found routing decision from conditional_gate dict", data={
                                         "decision_node": dep_id,
@@ -455,6 +467,21 @@ class DAGExecutor:
                                 "execution_decision": "SKIP"
                             })
                             return False
+                    
+                    # If no routing info at all from a decision node, skip conditional branches
+                    if route_index is None and routed_to is None:
+                        # Check if this edge has routing requirements
+                        for edge in self.edges:
+                            if edge.source == dep_id and edge.target == node_id:
+                                if edge.data and edge.data.route_index is not None:
+                                    logger.warning(f"⚠️  Decision node {dep_id} provided no routing - skipping conditional branch", data={
+                                        "node_id": node_id,
+                                        "decision_node": dep_id,
+                                        "edge_route_index": edge.data.route_index,
+                                        "edge_route_label": edge.data.route_label,
+                                        "reason": "No routing decision from parent (likely SLA violation)"
+                                    })
+                                    return False
                     
                     # Check for simple boolean result (for boolean_mux, etc.)
                     result_value = None
@@ -672,7 +699,6 @@ class DAGExecutor:
             workflow_spec=self.workflow_spec,
             current_node_id=node_id,
             state=state,
-            agents=dag_node.task_node_class.default_agents,
             conversation_id=self.conversation_id,
             objective=dag_node.task_node_class.task.get("objective")  # Legacy support
         )
@@ -852,7 +878,7 @@ class DAGExecutor:
             agent_tools = []
             if node.data.tools:
                 for tool_name in node.data.tools:
-                    if tool_name in TOOLS_REGISTRY:
+                    if tool_name in TOOLS_REGISTRY or tool_name in DATA_SOURCES_REGISTRY:
                         # Just pass the tool name - resolution happens in create_agent
                         agent_tools.append(tool_name)
                         logger.info(f"Loading tool '{tool_name}' for agent '{node.id}'")
@@ -925,7 +951,6 @@ class DAGExecutor:
 def create_dag_executor_from_spec(
     spec: WorkflowSpec, 
     objective: str = "",
-    agents: Optional[List[Any]] = None,
     conversation_id: Optional[str] = None
 ) -> DAGExecutor:
     """
@@ -934,7 +959,6 @@ def create_dag_executor_from_spec(
     Args:
         spec: Workflow specification
         objective: Workflow objective
-        agents: Default agents
         conversation_id: Conversation ID
         
     Returns:
@@ -944,7 +968,6 @@ def create_dag_executor_from_spec(
     executor.build_execution_graph(
         workflow_spec=spec,
         objective=objective or spec.description,
-        agents=agents,
         conversation_id=conversation_id
     )
     return executor

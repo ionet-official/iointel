@@ -16,10 +16,10 @@ class TypedExecutionContext:
     workflow_spec: WorkflowSpec      # The FUNDAMENTAL object - complete workflow
     current_node_id: str            # Which node we're executing
     state: WorkflowState            # Accumulated results/state
-    agents: Optional[List[Agent]] = None  # Available agents
     conversation_id: Optional[str] = None
     objective: Optional[str] = None  # Legacy support
     execution_metadata: Optional[Dict[str, Any]] = None  # Runtime metadata (user_inputs, etc.)
+    # REMOVED agents field - agents are created from WorkflowSpec on demand
     
     @property
     def node(self) -> NodeSpec:

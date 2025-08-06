@@ -4,8 +4,10 @@ from typing import Any, Optional, List
 from .typed_execution import TypedExecutionContext
 from ..utilities.io_logger import get_component_logger
 from ..agent_methods.data_models.datamodels import AgentResultFormat, AgentParams
+from ..agent_methods.data_models.execution_models import AgentExecutionResult, ExecutionStatus, AgentRunResponse
 from ..agents import Agent
 from ..agent_methods.agents.agents_factory import create_agent
+from ..agent_methods.data_models.agent_pre_prompt_injection import inject_prompts_enforcement_from_sla
 
 logger = get_component_logger("TYPED_EXECUTORS")
 
@@ -17,17 +19,27 @@ async def execute_agent_typed(context: TypedExecutionContext) -> Any:
     This replaces the dict-based execute_agent_task.
     """
     from ..utilities.runners import run_agents
+    from ..utilities.node_execution_wrapper import sla_validator
     
-    # Get or create agents
-    agents = context.agents or []
-    if not agents and context.agent_instructions:
-        # Create agent from node data
+    # Always create agent from the WorkflowSpec
+    agents = []
+    
+    if context.agent_instructions:
+        logger.info(f"Creating agent from WorkflowSpec for node {context.node_id}")
+        logger.info(f"  Instructions: {context.agent_instructions[:100]}...")
+        logger.info(f"  Tools: {context.node_data.tools}")
+        
         agent = await _create_agent_from_context(context)
         if agent:
             agents = [agent]
+            logger.info(f"Successfully created agent: {agent.name}")
+        else:
+            logger.error(f"Failed to create agent from context for node {context.node_id}")
+    else:
+        logger.error(f"Node {context.node_id} has no agent_instructions in WorkflowSpec!")
     
     if not agents:
-        logger.warning(f"No agents available for node {context.node_id}")
+        logger.error(f"No agents available for node {context.node_id}")
         return {"error": "No agents available"}
     
     # Build context from available results using edge information
@@ -100,17 +112,60 @@ async def execute_agent_typed(context: TypedExecutionContext) -> Any:
     logger.debug(f"Objective: {objective[:100] if objective else 'None'}...")
     logger.debug(f"Context keys: {list(agent_context.keys())}")
     
-    # Execute agent
-    response = await run_agents(
-        objective=objective,
-        agents=agents,
-        context=agent_context,
-        conversation_id=context.conversation_id,
-        output_type=str,
-        result_format=result_format
-    ).execute()
+    # Execute agent and return typed result
+    import time
     
-    return response
+    start_time = time.time()
+    
+    # Define the execution function for SLA validation
+    async def execute_fn():
+        try:
+            # Execute the agent
+            response = await run_agents(
+                objective=objective,
+                agents=agents,
+                context=agent_context,
+                conversation_id=context.conversation_id,
+                output_type=str,
+                result_format=result_format
+            ).execute()
+            
+            # Convert dict response to typed AgentRunResponse
+            if isinstance(response, dict):
+                typed_response = AgentRunResponse.from_dict(response)
+            else:
+                # Already typed response
+                typed_response = response
+            
+            # Return typed execution result - this matches what execute_agent_task returns
+            return AgentExecutionResult(
+                status=ExecutionStatus.COMPLETED,
+                agent_response=typed_response,
+                execution_time=time.time() - start_time,
+                node_id=context.node_id
+            )
+            
+        except Exception as e:
+            logger.error(f"Agent execution failed: {e}")
+            # Return typed error result
+            return AgentExecutionResult(
+                status=ExecutionStatus.FAILED,
+                error=str(e),
+                execution_time=time.time() - start_time,
+                node_id=context.node_id
+            )
+    
+    # Execute with SLA validation if this is a decision node or has SLA requirements
+    if context.node_type == "decision" or context.current_node.sla:
+        logger.debug(f"Executing {context.node_type} node {context.node_id} with SLA validation")
+        return await sla_validator.validate_async(
+            execute_fn=execute_fn,
+            node_spec=context.current_node,
+            allow_retry=True
+        )
+    else:
+        # No SLA validation needed
+        return await execute_fn()
 
 
 async def execute_data_source_typed(context: TypedExecutionContext) -> Any:
@@ -218,20 +273,37 @@ async def _create_agent_from_context(context: TypedExecutionContext) -> Optional
         agent_params = AgentParams(
             name=f"agent_{context.node_id}",
             instructions=context.agent_instructions,  # Static instructions, no variable resolution
-            model=config["model_config"]["model"],
+            model=config["model"],
             tools=context.node_data.tools or [],
-            api_key=config["api_config"]["api_key"] if "api_key" in config.get("api_config", {}) else None,
-            api_type=config["api_config"]["api_type"],
-            api_base=config["api_config"].get("api_base"),
-            model_kwargs=config["model_config"]["model_kwargs"]
+            api_key=config.get("api_key")
+            # Don't pass api_type, api_base, or model_kwargs - they cause issues with OpenAIModel
+            # These are determined internally based on the model
         )
         
-        # Create agent
+        # Pass node type and SLA to agent factory through a custom creation function
+        # that can inject the proper pre-prompts based on node type
+        
+        # Get SLA requirements from NodeSpec
+        sla_requirements = context.current_node.sla
+        
+        # If this is a decision node or has SLA requirements, enhance instructions
+        if context.node_type == "decision" or (sla_requirements and sla_requirements.tool_usage_required):
+            # Use inject_pre_prompts_from_sla which handles None sla_requirements gracefully
+            enhanced_instructions = inject_prompts_enforcement_from_sla(
+                original_instructions=context.agent_instructions,
+                sla_requirements=sla_requirements
+            )
+            agent_params.instructions = enhanced_instructions
+            logger.info(f"Enhanced agent instructions for {context.node_type} node {context.node_id} with SLA enforcement")
+        
+        # Create agent with enhanced instructions
         agent = create_agent(agent_params)
-        logger.info(f"Created agent for node {context.node_id} with static instructions")
+        logger.info(f"Created agent for node {context.node_id} (type: {context.node_type})")
         
         return agent
         
     except Exception as e:
+        import traceback
         logger.error(f"Failed to create agent for node {context.node_id}: {e}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
         return None
