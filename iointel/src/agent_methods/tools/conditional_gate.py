@@ -181,7 +181,7 @@ class ConditionalGateConfig(BaseModel):
 class GateResult(BaseModel):
     """Result from conditional gate evaluation. Will match the route name if the condition is met."""
     routed_to: str = Field(..., description="Route name for DAG executor")
-    route_index: int = Field(..., description="Route index (0, 1, 2...) for DAG executor matching")
+    route_index: int = Field(..., description="Route index (0, 1, 2...) for DAG executor matching that maps to edge where information flows")
     action: RouteActionLiteral = Field(..., description="Action taken: 'continue', 'terminate', or 'branch'")
     matched_route: Optional[str] = None
     evaluated_conditions: List[Dict[str, Any]] = Field(default_factory=list)

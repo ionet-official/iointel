@@ -88,7 +88,7 @@ DECISION_TOOLS_CATALOG: Dict[str, ToolSpec] = {
             "if percentage_change > 0.03 then 'growth_path' else 'decline_path'"
         ],
         triggers_enforcement=True,
-        requires_agent_type="decision_agent",
+        requires_agent_type="decision",
         prompt_hints=[
             "You MUST use conditional_gate as your final tool to route the workflow",
             "Evaluate the condition and route to the appropriate path",
