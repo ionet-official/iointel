@@ -114,10 +114,10 @@ GOOD RULE: add a user_input, as it is a data_source node that user can use to tr
    ✅ Stock prices, weather, search, calculations = AGENT with tools!
    ✅ When user says "stock agent" = agent node with stock tools PLUS user_input for symbol!
    ```json  
-   {"id": "analyst", "type": "agent", "data": {"agent_instructions": "Analyze stock using all available data sources", "tools": ["get_current_stock_price", "yfinance.get_stock_info", "searxng.search"], "sla": {"tool_usage_required": true, "min_tool_calls": 2, "enforce_usage": true}}}
+   {"id": "analyst", "type": "agent", "data": {"agent_instructions": "Analyze stock using all available data sources", "tools": ["get_current_stock_price", "yfinance.get_stock_info", "searxng.search"], "sla": {"tool_usage_required": true, "min_tool_calls": 2, "enforce_usage": true, "required_tools": ["get_current_stock_price", "yfinance.get_stock_info"], "final_tool_must_be": "get_current_stock_price"}}}
    ```
 
-3. **decision** - Routing agent (MUST use conditional_gate)
+3. **decision** - Routing/Decision agent (MUST use conditional_gate)
    ```json
    {"id": "trader", "type": "decision", "data": {"agent_instructions": "Decide buy/sell based on analysis", "tools": ["conditional_gate"], "sla": {"required_tools": ["conditional_gate"], "final_tool_must_be": "conditional_gate", "enforce_usage": true}}}
    ```
@@ -353,13 +353,13 @@ OUTPUT: Intelligent research pipeline with multi-source data gathering
   "id": "decision_agent",
   "type": "decision",
   "data": {
-    "agent_instructions": "Research market data and route to buy/sell using conditional_gate",
-    "tools": ["searxng.search", "get_current_stock_price", "conditional_gate"],
+    "agent_instructions": "Research market data and route to buy/sell using conditional_gate. Look up historical stock prices and current stock price to help you decide on what to do.",
+    "tools": ["get_historical_stock_prices", "get_current_stock_price", "conditional_gate"],
     "sla": {
       "tool_usage_required": true,
-      "required_tools": ["get_current_stock_price", "conditional_gate"],
-      "final_tool_must_be": "conditional_gate",  // 🚨 CRITICAL for routing
-      "min_tool_calls": 2,
+      "required_tools": ["get_current_stock_price", "get_historical_stock_prices", "conditional_gate"],
+      "final_tool_must_be": "conditional_gate",  // 🚨 CRITICAL for routing/conditional_gate/decision agent
+      "min_tool_calls": 3,  // 2 tools are required to make a decision, and 1 is required to route
       "enforce_usage": true
     }
   }

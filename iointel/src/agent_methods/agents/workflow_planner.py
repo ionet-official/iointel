@@ -5,7 +5,7 @@ from iointel.src.agents import Agent
 from iointel.src.memory import AsyncMemory
 from iointel.src.agent_methods.data_models.workflow_spec import WorkflowSpec, WorkflowSpecLLM, ROUTING_TOOLS
 from datetime import datetime
-from iointel.src.utilities.io_logger import log_prompt
+from iointel.src.utilities.io_logger import log_prompt, get_component_logger
 from iointel.src.utilities.unified_prompt_system import unified_prompt_system, PromptType
 from iointel.src.utilities.conversion_utils import (
     validation_errors_to_llm_prompt,
@@ -76,10 +76,10 @@ class WorkflowPromptBuilder:
             "Every data_source node MUST have config with ALL required parameters.",
             "",
             "COPY THESE EXACT TEMPLATES:",
-            "user_input: {\"type\": \"data_source\", \"label\": \"Your Label\", \"data\": {\"source_name\": \"user_input\", \"config\": {\"prompt\": \"Your prompt\", \"default_value\": \"Your default\"}}}",
-            "prompt_tool: {\"type\": \"data_source\", \"label\": \"Your Label\", \"data\": {\"source_name\": \"prompt_tool\", \"config\": {\"prompt\": \"Your prompt\", \"default_value\": \"Your default\"}}}",
+            "user_input: {\"type\": \"data_source\", \"label\": \"Your Label\", \"data\": {\"source_name\": \"user_input\", \"config\": {\"message\": \"Your message\", \"default_value\": \"Your default\"}}}",
+            "prompt_tool: {\"type\": \"data_source\", \"label\": \"Your Label\", \"data\": {\"source_name\": \"prompt_tool\", \"config\": {\"message\": \"Your message\", \"default_value\": \"Your default\"}}}",
             "",
-            "🚨 NEVER use config: null or config: {} - ALWAYS include prompt and default_value",
+            "🚨 NEVER use config: null or config: {} - ALWAYS include message and default_value",
             "=" * 80,
             "",
             self._build_error_feedback(),
@@ -129,47 +129,10 @@ Previous workflow: {self.previous_workflow.title}
     
     def _split_tools_and_data_sources(self, tool_catalog: Dict[str, Any]) -> tuple[str, str]:
         """Split into tools (for agents) and data sources (completely separate)."""
-        from ..data_models.data_source_registry import get_valid_data_source_names, get_data_source_description
+        from ...utilities.tool_registry_utils import create_data_source_catalog
         
-        # Data sources are completely separate - build from registry
-        data_sources = {}
-        for source_name in get_valid_data_source_names():
-            if source_name == "user_input":
-                data_sources[source_name] = {
-                    "name": source_name,
-                    "description": get_data_source_description(source_name),
-                    "parameters": {
-                        "prompt": {
-                            "type": "string",
-                            "description": "The prompt to show to the user when collecting input",
-                            "required": True
-                        },
-                        "default_value": {
-                            "type": "string",
-                            "description": "The default value to use if the user doesn't provide one",
-                            "required": True
-                        }
-                    },
-                    "required_parameters": ["prompt", "default_value"]
-                }
-            elif source_name == "prompt_tool":
-                data_sources[source_name] = {
-                    "name": source_name,
-                    "description": get_data_source_description(source_name),
-                    "parameters": {
-                        "prompt": {
-                            "type": "string",
-                            "description": "The prompt to show for this contextual input",
-                            "required": True
-                        },
-                        "default_value": {
-                            "type": "string",
-                            "description": "The default value to use for this contextual input",
-                            "required": True
-                        }
-                    },
-                    "required_parameters": ["prompt", "default_value"]
-                }
+        # Data sources are completely separate - build from centralized registry
+        data_sources = create_data_source_catalog()
         
         # Format sections
         tools_section = self._format_catalog_section("🔧 AVAILABLE TOOLS (for agent nodes)", tool_catalog, "Use these in agent/decision nodes' tools array")
@@ -207,7 +170,7 @@ user_input template:
   "data": {{
     "source_name": "user_input",
     "config": {{
-      "prompt": "Your specific prompt text here",
+      "message": "Your specific message text here",
       "default_value": "Your default value here"
     }}
   }}
@@ -220,13 +183,13 @@ prompt_tool template:
   "data": {{
     "source_name": "prompt_tool", 
     "config": {{
-      "prompt": "Your specific prompt text here",
+      "message": "Your specific message text here",
       "default_value": "Your default value here"
     }}
   }}
 }}
 
-🚨 NEVER use config: null or config: {{}} - ALWAYS include prompt and default_value
+🚨 NEVER use config: null or config: {{}} - ALWAYS include message and default_value
 {suffix}"""
         
         return f"{catalog_prompt}{suffix}"
@@ -334,6 +297,8 @@ class WorkflowPlanner:
     from user requirements.
     """
     
+    logger = get_component_logger("WORKFLOW_PLANNER", grouped=True)
+    
     def __init__(
         self,
         memory: Optional[AsyncMemory] = None,
@@ -420,212 +385,273 @@ class WorkflowPlanner:
 
         uuid_for_workflow = uuid.uuid4()
         
-        while attempt <= max_retries:
-            attempt += 1
-            
-            try:
-                print(f"🔄 Workflow generation attempt {attempt}/{max_retries + 1}")
+        with self.logger.group(f"Workflow Generation: {query[:100]}{'...' if len(query) > 100 else ''}"):
+            while attempt <= max_retries:
+                attempt += 1
                 
-                # Build context information containing schema, tools, etc.
-                context_info = prompt_builder.set_validation_errors(validation_errors).build()
-                
-                # Set the context on the agent before running
-                self.agent.set_context(context_info)
-                
-                # Filter out conversation_id from kwargs to prevent duplicate parameter error
-                filtered_kwargs = {k: v for k, v in kwargs.items() if k != 'conversation_id'}
-                
-                # Centralized logging
-                log_full_prompt_and_response(
-                    prompt=f"Query: {query}\n\n==Context==\n{context_info}",  # Log full prompt for debugging
-                    metadata={
-                        "attempt": attempt,
-                        "max_retries": max_retries,
-                        "conversation_id": self.conversation_id,
-                        "tool_catalog_size": len(tool_catalog or {}),
-                        "has_validation_feedback": bool(validation_errors),
-                        "query_length": len(query),
-                        "context_info_length": len(context_info),
-                        "instructions_length": len(get_workflow_planner_instructions())
-                    },
-                    attempt=attempt
-                )
-                
-                # Log the full prompt to UI for transaction visibility
-                from ...utilities.io_logger import log_prompt
-                
-                full_prompt = f"CONTEXT:\n{context_info}\n\nUSER QUERY:\n{query}"
-                log_prompt(
-                    prompt_type=f"workflow_generation_attempt_{attempt}",
-                    prompt=full_prompt,
-                    metadata={
-                        "attempt": attempt,
-                        "max_retries": max_retries,
-                        "query": query,
-                        "conversation_id": self.conversation_id,
-                        "tool_count": len(tool_catalog) if tool_catalog else 0,
-                        "context_size": len(context_info)
-                    }
-                )
-                
-                # Execute the LLM call with just the user's query
-                result = await self.agent.run(
-                    query,  # Just pass the user's simple request like "stock agent"
-                    conversation_id=self.conversation_id,
-                    message_history_limit=message_history_limit,  # Limit to prevent context overflow
-                    **filtered_kwargs
-                )
-                
-                # Log the response with full context information
-                log_full_prompt_and_response(
-                    prompt=f"Query: {query}",  # Log full prompt for debugging
-                    response=str(result),
-                    metadata={
-                        "attempt": attempt,
-                        "conversation_id": self.conversation_id,
-                        "result_type": type(result.get("result")).__name__ if result else "None",
-                        "response_length": len(str(result)) if result else 0,
-                        "query": query,
-                        "context_length": len(context_info)
-                    },
-                    attempt=attempt
-                )
-                
-                # Extract the structured output
-                workflow_spec_llm = result.get("result")
-                if not isinstance(workflow_spec_llm, WorkflowSpecLLM):
-                    raise ValueError(f"Expected WorkflowSpecLLM, got {type(workflow_spec_llm)}")
-                
-                # Use standardized workflow generation reporting for mission-critical debugging
-                if workflow_spec_llm.nodes:
-                    # Convert to WorkflowSpec for standardized reporting using single source of truth
-                    temp_workflow = WorkflowSpec.from_llm_spec(workflow_spec_llm, uuid_for_workflow, rev=attempt)
-                    
-                    # Generate standardized workflow generation report
-                    generation_report = self._create_workflow_generation_report(
-                        query=query, 
-                        attempt=attempt, 
-                        max_retries=max_retries,
-                        workflow_spec=temp_workflow
-                    )
-                    
-                    # Log using our standardized reporting system
-                    from ...utilities.io_logger import system_logger
-                    system_logger.info(
-                        "WorkflowPlanner generation analysis", 
-                        data={"generation_report": generation_report}
-                    )
-                    
-                    # Also print the full report to console for visibility
-                    print("\n" + "="*70)
-                    print("📊 FULL WORKFLOW GENERATION REPORT")
-                    print("="*70)
-                    print(generation_report)
-                    print("="*70 + "\n")
-                
-                # Check if this is a chat-only response (nodes/edges are null)
-                if workflow_spec_llm.nodes is None or workflow_spec_llm.edges is None:
-                    print(f"💬 Chat-only response detected: nodes={workflow_spec_llm.nodes}, edges={workflow_spec_llm.edges}")
-                    # Return the WorkflowSpecLLM directly - no conversion needed
-                    return workflow_spec_llm
-                
-                # Convert LLM spec to final spec with deterministic IDs
-                workflow_spec = WorkflowSpec.from_llm_spec(workflow_spec_llm, uuid_for_workflow, rev=attempt)
-                
-                # 🚨 CRITICAL VALIDATION: Check for tool hallucination and structural issues
-                # Build combined catalog for validation (tools + data sources)
-                from ..data_models.data_source_registry import get_valid_data_source_names, get_data_source_description
-                
-                validation_catalog = (tool_catalog or {}).copy()
-                
-                # Add data sources for validation
-                for source_name in get_valid_data_source_names():
-                    if source_name == "user_input":
-                        validation_catalog[source_name] = {
-                            "name": source_name,
-                            "description": get_data_source_description(source_name),
-                            "parameters": {
-                                "prompt": {
-                                    "type": "string",
-                                    "description": "The prompt to show to the user when collecting input",
-                                    "required": True
-                                }
-                            },
-                            "required_parameters": ["prompt"]
-                        }
-                    elif source_name == "prompt_tool":
-                        validation_catalog[source_name] = {
-                            "name": source_name,
-                            "description": get_data_source_description(source_name),
-                            "parameters": {
-                                "prompt": {
-                                    "type": "string",
-                                    "description": "The prompt to show for this contextual input",
-                                    "required": True
-                                },
-                                "default_value": {
-                                    "type": "string",
-                                    "description": "The default value to use for this contextual input",
-                                    "required": True
-                                }
-                            },
-                            "required_parameters": ["prompt", "default_value"]
-                        }
-                
-                # Check validation bypass
-                if getattr(self, 'validation_bypass', False):
-                    print("⚠️ VALIDATION BYPASSED - Returning unvalidated workflow")
-                    self.last_workflow = workflow_spec
-                    return workflow_spec
-                
-                structural_issues = workflow_spec.validate_structure(validation_catalog)
-                if structural_issues:
-                    if attempt <= max_retries:
-                        print(f"⚠️ Validation failed on attempt {attempt}, retrying with feedback...")
-                        print("📋 VALIDATION FEEDBACK REPORT:")
-                        print("─" * 60)
-                        for i, issue in enumerate(structural_issues, 1):
-                            print(f"  {i}. {issue}")
-                        print("─" * 60)
+                with self.logger.group(f"Attempt {attempt}/{max_retries + 1}"):
+                    try:
+                        self.logger.info(f"Starting generation attempt {attempt}")
                         
-                        # Log validation issues to UI for transaction visibility
-                        validation_feedback = "VALIDATION ISSUES:\n" + "\n".join(f"{i}. {issue}" for i, issue in enumerate(structural_issues, 1))
-                        validation_feedback += f"\n\nGENERATED WORKFLOW:\n{workflow_spec.to_llm_prompt()}"
+                        # Build context information containing schema, tools, etc.
+                        context_info = prompt_builder.set_validation_errors(validation_errors).build()
                         
-                        log_prompt(
-                            prompt_type=f"validation_failure_attempt_{attempt}",
-                            prompt=validation_feedback,
+                        # Log context info summary
+                        self.logger.info("Context prepared", data={
+                            "query_length": len(query),
+                            "tool_count": len(tool_catalog or {}),
+                            "has_validation_feedback": bool(validation_errors),
+                            "context_length": len(context_info)
+                        })
+                        
+                        # Log validation errors if any
+                        if validation_errors:
+                            with self.logger.group("Previous Validation Errors"):
+                                for attempt_idx, errors in enumerate(validation_errors, 1):
+                                    self.logger.warning(f"Attempt {attempt_idx} errors:", data={
+                                        "error_count": len(errors),
+                                        "errors": errors
+                                    })
+                        
+                        # Set the context on the agent before running
+                        self.agent.set_context(context_info)
+                        
+                        # Filter out conversation_id from kwargs to prevent duplicate parameter error
+                        filtered_kwargs = {k: v for k, v in kwargs.items() if k != 'conversation_id'}
+                        
+                        # Log the full prompt context
+                        with self.logger.group("Prompt Context"):
+                            # Log summary of what's in the prompt
+                            self.logger.info("Full prompt context built", data={
+                                "context_length": len(context_info),
+                                "has_critical_datasource_warning": "🚨🚨🚨 CRITICAL: READ THIS FIRST" in context_info,
+                                "has_error_feedback": bool(validation_errors),
+                                "has_previous_workflow": prompt_builder.previous_workflow is not None,
+                                "previous_workflow_title": prompt_builder.previous_workflow.title if prompt_builder.previous_workflow else None
+                            })
+                            
+                            # If we have validation errors, show what specific feedback we're giving
+                            if validation_errors:
+                                feedback_summary = []
+                                for errors in validation_errors:
+                                    for error in errors:
+                                        if "MISSING PARAMETERS" in error:
+                                            feedback_summary.append("Missing required parameters in data source")
+                                        elif "EMPTY CONFIG" in error:
+                                            feedback_summary.append("Empty config in data source")
+                                        elif "HALLUCINATION" in error:
+                                            feedback_summary.append("Using non-existent tools/sources")
+                                
+                                self.logger.info("Validation feedback being provided", data={
+                                    "feedback_types": list(set(feedback_summary))
+                                })
+                        
+                        # Centralized logging
+                        log_full_prompt_and_response(
+                            prompt=f"Query: {query}\n\n==Context==\n{context_info}",  # Log full prompt for debugging
                             metadata={
                                 "attempt": attempt,
-                                "issues_count": len(structural_issues),
-                                "workflow_title": workflow_spec.title,
+                                "max_retries": max_retries,
                                 "conversation_id": self.conversation_id,
-                                "retry_planned": True
+                                "tool_catalog_size": len(tool_catalog or {}),
+                                "has_validation_feedback": bool(validation_errors),
+                                "query_length": len(query),
+                                "context_info_length": len(context_info),
+                                "instructions_length": len(get_workflow_planner_instructions())
+                            },
+                            attempt=attempt
+                        )
+                        
+                        # Log the full prompt to UI for transaction visibility
+                        from ...utilities.io_logger import log_prompt
+                        
+                        full_prompt = f"CONTEXT:\n{context_info}\n\nUSER QUERY:\n{query}"
+                        log_prompt(
+                            prompt_type=f"workflow_generation_attempt_{attempt}",
+                            prompt=full_prompt,
+                            metadata={
+                                "attempt": attempt,
+                                "max_retries": max_retries,
+                                "query": query,
+                                "conversation_id": self.conversation_id,
+                                "tool_count": len(tool_catalog) if tool_catalog else 0,
+                                "context_size": len(context_info)
                             }
                         )
                         
-                        validation_errors.append(structural_issues)
-                        continue
-                    else:
-                        error_msg = f"🚨 WORKFLOW VALIDATION FAILED AFTER {max_retries + 1} ATTEMPTS:\n" + "\n".join(structural_issues)
-                        error_msg += f"\n\nWorkflow reasoning: {workflow_spec.reasoning}"
-                        raise ValueError(error_msg)
+                        # Execute the LLM call with just the user's query
+                        with self.logger.group("LLM Generation"):
+                            self.logger.info("Calling LLM with query", data={"query": query})
+                            
+                            result = await self.agent.run(
+                                query,  # Just pass the user's simple request like "stock agent"
+                                conversation_id=self.conversation_id,
+                                message_history_limit=message_history_limit,  # Limit to prevent context overflow
+                                **filtered_kwargs
+                            )
+                            
+                            self.logger.info("LLM responded", data={
+                                "result_type": type(result.get("result")).__name__ if result else "None",
+                                "has_nodes": bool(result.get("result") and getattr(result.get("result"), "nodes", None)),
+                                "has_edges": bool(result.get("result") and getattr(result.get("result"), "edges", None))
+                            })
+                        
+                        # Log the response with full context information
+                        log_full_prompt_and_response(
+                            prompt=f"Query: {query}",  # Log full prompt for debugging
+                            response=str(result),
+                            metadata={
+                                "attempt": attempt,
+                                "conversation_id": self.conversation_id,
+                                "result_type": type(result.get("result")).__name__ if result else "None",
+                                "response_length": len(str(result)) if result else 0,
+                                "query": query,
+                                "context_length": len(context_info)
+                            },
+                            attempt=attempt
+                        )
                 
-                # Success! Store as last workflow for future context
-                print(f"✅ Workflow validated successfully on attempt {attempt}")
-                self.last_workflow = workflow_spec
-                return workflow_spec
+                        # Extract the structured output
+                        workflow_spec_llm = result.get("result")
+                        if not isinstance(workflow_spec_llm, WorkflowSpecLLM):
+                            raise ValueError(f"Expected WorkflowSpecLLM, got {type(workflow_spec_llm)}")
                 
-            except ValueError:
-                raise  # Re-raise validation errors
-            except Exception as e:
-                # Handle other errors
-                if attempt <= max_retries:
-                    print(f"❌ Error on attempt {attempt}: {str(e)}, retrying...")
-                    validation_errors.append([f"Generation error: {str(e)}"])
-                    continue
-                else:
-                    raise
+                        # Log the LLM response structure
+                        with self.logger.group("LLM Response Analysis"):
+                            self.logger.info("Received WorkflowSpecLLM", data={
+                                "reasoning_length": len(workflow_spec_llm.reasoning or ""),
+                                "title": workflow_spec_llm.title,
+                                "nodes_count": len(workflow_spec_llm.nodes) if workflow_spec_llm.nodes else 0,
+                                "edges_count": len(workflow_spec_llm.edges) if workflow_spec_llm.edges else 0
+                            })
+                            
+                            # Log data source nodes specifically
+                            if workflow_spec_llm.nodes:
+                                data_source_nodes = [n for n in workflow_spec_llm.nodes if n.type == "data_source"]
+                                if data_source_nodes:
+                                    self.logger.info("Data source nodes generated:", data={
+                                        "count": len(data_source_nodes),
+                                        "nodes": [{
+                                            "label": n.label,
+                                            "source_name": n.data.source_name,
+                                            "has_config": bool(n.data.config),
+                                            "config": n.data.config
+                                        } for n in data_source_nodes]
+                                    })
+                
+                        # Check if this is a chat-only response (nodes/edges are null)
+                        if workflow_spec_llm.nodes is None or workflow_spec_llm.edges is None:
+                            self.logger.info("Chat-only response detected", data={
+                                "nodes": workflow_spec_llm.nodes,
+                                "edges": workflow_spec_llm.edges,
+                                "reasoning": workflow_spec_llm.reasoning if workflow_spec_llm.reasoning else None
+                            })
+                            # Return the WorkflowSpecLLM directly - no conversion needed
+                            return workflow_spec_llm
+                
+                        # Convert LLM spec to final spec with deterministic IDs
+                        workflow_spec = WorkflowSpec.from_llm_spec(workflow_spec_llm, uuid_for_workflow, rev=attempt)
+                
+                        # 🚨 CRITICAL VALIDATION: Check for tool hallucination and structural issues
+                        with self.logger.group("Workflow Validation"):
+                            # Build unified validation catalog (tools + data sources)
+                            from ...utilities.tool_registry_utils import create_validation_catalog
+                            
+                            # Use the unified validation catalog function
+                            validation_catalog = create_validation_catalog(
+                                include_tools=bool(tool_catalog),
+                                include_data_sources=True,
+                                filter_broken=True,
+                                verbose_format=False  # Use concise format for validation
+                            )
+                        
+                            # Count data sources in the unified catalog
+                            data_source_count = sum(1 for k, v in validation_catalog.items() 
+                                                  if k in ['user_input', 'prompt_tool'])
+                            
+                            self.logger.info("Validation catalog prepared", data={
+                                "tool_count": len(tool_catalog or {}) if tool_catalog else 0,
+                                "data_source_count": data_source_count,
+                                "total_catalog_size": len(validation_catalog)
+                            })
+                        
+                            # Check validation bypass
+                            if getattr(self, 'validation_bypass', False):
+                                self.logger.warning("VALIDATION BYPASSED - Returning unvalidated workflow")
+                                self.last_workflow = workflow_spec
+                                return workflow_spec
+                    
+                            # Run validation
+                            self.logger.info("Running structural validation")
+                            structural_issues = workflow_spec.validate_structure(validation_catalog)
+                        
+                            if structural_issues:
+                                self.logger.error(f"Validation failed with {len(structural_issues)} issues")
+                                
+                                # Log each issue
+                                with self.logger.group("Validation Issues"):
+                                    for i, issue in enumerate(structural_issues, 1):
+                                        # Categorize the issue
+                                        if "MISSING PARAMETERS" in issue:
+                                            self.logger.critical(f"Issue {i}: {issue}")
+                                        elif "EMPTY CONFIG" in issue:
+                                            self.logger.critical(f"Issue {i}: {issue}")
+                                        elif "HALLUCINATION" in issue:
+                                            self.logger.error(f"Issue {i}: {issue}")
+                                        else:
+                                            self.logger.warning(f"Issue {i}: {issue}")
+                                
+                                if attempt <= max_retries:
+                                    self.logger.info(f"Will retry with validation feedback (attempt {attempt + 1}/{max_retries + 1})")
+                                    
+                                    # Log the generated workflow for debugging
+                                    self.logger.debug("Generated workflow that failed validation:", data={
+                                        "workflow_prompt": workflow_spec.to_llm_prompt()
+                                    })
+                                    
+                                    # Log validation issues to UI for transaction visibility
+                                    validation_feedback = "VALIDATION ISSUES:\n" + "\n".join(f"{i}. {issue}" for i, issue in enumerate(structural_issues, 1))
+                                    validation_feedback += f"\n\nGENERATED WORKFLOW:\n{workflow_spec.to_llm_prompt()}"
+                                    
+                                    log_prompt(
+                                        prompt_type=f"validation_failure_attempt_{attempt}",
+                                        prompt=validation_feedback,
+                                        metadata={
+                                            "attempt": attempt,
+                                            "issues_count": len(structural_issues),
+                                            "workflow_title": workflow_spec.title,
+                                            "conversation_id": self.conversation_id,
+                                            "retry_planned": True
+                                        }
+                                    )
+                                    
+                                    validation_errors.append(structural_issues)
+                                    # CRITICAL: Pass the failed workflow to the prompt builder for next attempt
+                                    prompt_builder.set_previous_workflow(workflow_spec)
+                                    continue
+                                else:
+                                    error_msg = f"🚨 WORKFLOW VALIDATION FAILED AFTER {max_retries + 1} ATTEMPTS:\n" + "\n".join(structural_issues)
+                                    error_msg += f"\n\nWorkflow reasoning: {workflow_spec.reasoning}"
+                                    raise ValueError(error_msg)
+                            else:
+                                self.logger.success("Validation passed - workflow is structurally sound")
+                
+                        # Success! Store as last workflow for future context
+                        self.logger.success(f"Workflow validated successfully on attempt {attempt}")
+                        self.last_workflow = workflow_spec
+                        return workflow_spec
+                        
+                    except ValueError:
+                        raise  # Re-raise validation errors
+                    except Exception as e:
+                        # Handle other errors
+                        self.logger.error(f"Error on attempt {attempt}: {str(e)}")
+                        if attempt <= max_retries:
+                            self.logger.info("Will retry after error")
+                            validation_errors.append([f"Generation error: {str(e)}"])
+                            continue
+                        else:
+                            raise
         
         # Should not reach here
         raise ValueError(f"Failed to generate valid workflow after {max_retries + 1} attempts")
