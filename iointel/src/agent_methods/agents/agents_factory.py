@@ -1,12 +1,13 @@
 from pydantic import BaseModel
 from ...agents import Agent
+from ..data_models.workflow_spec import SLARequirements
 from ..data_models.datamodels import AgentParams, Tool, AgentSwarm
 from typing import Callable, Sequence
 from .tool_factory import instantiate_stateful_tool, resolve_tools
-from ..data_models.agent_pre_prompt_injection import inject_pre_prompts_from_sla
-from ...utilities.helpers import make_logger
+from ..data_models.agent_pre_prompt_injection import inject_prompts_enforcement_from_sla
+from ...utilities.io_logger import get_component_logger
 
-logger = make_logger(__name__)
+logger = get_component_logger("AGENTS-FACTORY")
 
 
 def instantiate_agent_default(params: AgentParams) -> Agent:
@@ -40,6 +41,7 @@ def create_agent(
     params: AgentParams,
     instantiate_agent: Callable[[AgentParams], Agent] | None = None,
     instantiate_tool: Callable[[Tool, dict | None], BaseModel | None] | None = None,
+    sla_requirements: SLARequirements | None = None,
 ) -> Agent:
     """
     Create an Agent instance from the given AgentParams.
@@ -57,6 +59,10 @@ def create_agent(
 
     The `instantiate_agent` is called to create `Agent` from `AgentParams`,
     and its purpose is to allow to customize the process of Agent instantiation.
+
+    The `sla_requirements` is a `SLARequirements` object,
+    and it is used to inject pre-prompts into the agent's instructions.
+    It is also used to validate the agent's tool usage.
     """
     # Dump the rest of the agent data (excluding tools) then reinsert our resolved tools.
     tools = resolve_tools(
@@ -76,20 +82,16 @@ def create_agent(
         elif isinstance(tool, dict) and 'name' in tool:
             tool_names.append(tool['name'])
     
-    # AgentParams no longer has sla_requirements - use None to let inject_pre_prompts handle it
-    effective_sla = None
     
     # Apply pre-prompt injection based on SLA requirements (single source of truth)
     # TODO: Get SLA from NodeSpec when available, for now use legacy classification
-    enhanced_instructions = inject_pre_prompts_from_sla(
+    enhanced_instructions = inject_prompts_enforcement_from_sla(
         original_instructions=params.instructions,
-        sla_requirements=effective_sla,  # Will be None for now, updated when NodeSpec available
-        agent_name=params.name,
-        tools=tool_names
+        sla_requirements=sla_requirements,
     )
     
     logger.info(f"🤖 Agent '{params.name}' instructions enhanced")
-    if effective_sla:
+    if sla_requirements:
         logger.info("   🔒 SLA enforcement enabled")
     
     output_type = params.output_type
@@ -103,7 +105,7 @@ def create_agent(
         "tools": tools, 
         "output_type": output_type,
         "instructions": enhanced_instructions,
-        "sla_requirements": effective_sla  # Keep in AgentParams for SLA system
+        "sla_requirements": sla_requirements  # Keep in AgentParams for SLA system
     })
     
     return (
@@ -140,7 +142,8 @@ def agent_or_swarm(
             instructions=agent.instructions,
             persona=agent.persona,
             tools=[
-                Tool.from_function(t).model_dump(exclude={"fn", "fn_metadata"})
+                # agent.tools already contains Tool objects, not functions
+                t.model_dump(exclude={"fn", "fn_metadata"}) if isinstance(t, Tool) else t
                 for t in agent.tools
             ],
             model=getattr(agent.model, "model_name", None),

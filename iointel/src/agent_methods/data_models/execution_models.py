@@ -23,9 +23,12 @@ class ExecutionStatus(str, Enum):
     PENDING = "pending"
     RUNNING = "running"
     COMPLETED = "completed"
+    SUCCESS = "success"  # Alias for COMPLETED
     FAILED = "failed"
     SKIPPED = "skipped"
     PARTIAL = "partial"
+    TIMEOUT = "timeout"
+    CANCELLED = "cancelled"
     AWAITING_INPUT = "awaiting_input"  # For user input nodes
 
 

@@ -271,6 +271,16 @@ class Agent(BaseModel):
         Handles multiple tool calls/returns per message.
         Returns a list of ToolUsageResult.
         """
+        # Debug logging to understand message structure
+        if hasattr(self, 'debug') and self.debug:
+            print(f"🔍 DEBUG: Extracting tool usage from {len(messages)} messages")
+            for i, msg in enumerate(messages):
+                print(f"  Message {i}: {type(msg)} - has parts: {hasattr(msg, 'parts')}")
+                if hasattr(msg, "parts") and msg.parts:
+                    for j, part in enumerate(msg.parts):
+                        part_kind = getattr(part, "part_kind", None)
+                        print(f"    Part {j}: {type(part)} - part_kind: {part_kind}")
+        
         # Collect all tool-calls and tool-returns by tool_call_id
         tool_calls = {}
         tool_returns = {}
@@ -289,6 +299,9 @@ class Agent(BaseModel):
                         tool_returns[tool_call_id] = part
 
         tool_usage_results: list[ToolUsageResult] = []
+        
+        # Basic logging to understand what we found
+        print(f"🔍 Found {len(tool_calls)} tool calls and {len(tool_returns)} tool returns")
 
         # Pair tool-calls with their returns
         for tool_call_id, call_part in tool_calls.items():
