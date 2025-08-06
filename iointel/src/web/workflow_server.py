@@ -42,8 +42,8 @@ from .execution_feedback import (
     WorkflowExecutionSummary
 )
 from ..utilities.io_logger import workflow_logger, execution_logger, system_logger
-from iointel.src.chainables import execute_tool_task, execute_data_source_task, execute_agent_task
 from iointel.src.agent_methods.data_models.execution_models import DataSourceResult, ExecutionStatus
+from iointel.src.utilities.workflow_helpers import execute_workflow_with_metadata
 from iointel.src.agent_methods.tools.collection_manager import search_collections, create_collection
 from .test_analytics_api import test_analytics_router
 from .workflow_rag_router import workflow_rag_router
@@ -51,8 +51,9 @@ from .unified_search_service import UnifiedSearchService
 
 
 # Register executors for web interface
-@register_custom_task("data_source")
-@register_custom_task("tool")  # Backward compatibility
+# REMOVED task registration - using typed execution instead
+# @register_custom_task("data_source")
+# @register_custom_task("tool")  # Backward compatibility
 async def web_tool_executor(task_metadata, objective, agents, execution_metadata):
     """Tool executor for web interface with real-time updates, delegates to backend executor."""
     execution_id = execution_metadata.get("execution_id")
@@ -60,7 +61,10 @@ async def web_tool_executor(task_metadata, objective, agents, execution_metadata
     source_name = task_metadata.get("source_name")
     task_name = source_name or tool_name
     task_type = "data_source" if source_name else "tool"
-    print(f"🔧 [WEB] Executing {task_type}: {task_name} (execution: {execution_id})")
+    workflow_logger.info(
+        f"Executing {task_type}: {task_name}",
+        data={"task_type": task_type, "task_name": task_name, "execution_id": execution_id}
+    )
     # Broadcast task start if we have connections available
     if execution_id and 'connections' in globals() and len(connections) > 0:
         try:
@@ -70,7 +74,7 @@ async def web_tool_executor(task_metadata, objective, agents, execution_metadata
                 results={"current_task": tool_name, "status": "started"}
             )
         except Exception as e:
-            print(f"⚠️ Failed to broadcast task start: {e}")
+            workflow_logger.warning(f"Failed to broadcast task start: {e}")
     try:
         # Record node start in feedback collector
         if execution_id:
@@ -91,7 +95,7 @@ async def web_tool_executor(task_metadata, objective, agents, execution_metadata
         else:
             # This is a tool task - use tool executor
             result: DataSourceResult = await execute_tool_task(task_metadata, objective, agents, execution_metadata)
-        print(f"✅ {task_type.title()} '{task_name}' completed successfully")
+        workflow_logger.success(f"{task_type.title()} '{task_name}' completed successfully")
         
         # Record node completion in feedback collector
         if execution_id:
@@ -123,11 +127,11 @@ async def web_tool_executor(task_metadata, objective, agents, execution_metadata
                     results={"current_task": tool_name, "status": "completed", "result": result.result}
                 )
             except Exception as e:
-                print(f"⚠️ Failed to broadcast completion: {e}")
+                workflow_logger.warning(f"Failed to broadcast completion: {e}")
         return result.result if result.status.value == "completed" else None
     except Exception as e:
         error_msg = f"Tool '{tool_name}' failed: {str(e)}"
-        print(f"❌ {error_msg}")
+        workflow_logger.error(error_msg)
         
         # Record node failure in feedback collector
         if execution_id:
@@ -143,16 +147,17 @@ async def web_tool_executor(task_metadata, objective, agents, execution_metadata
             try:
                 await broadcast_execution_update(execution_id, "failed", error=error_msg)
             except Exception as e:
-                print(f"⚠️ Failed to broadcast tool error: {e}")
+                workflow_logger.warning(f"Failed to broadcast tool error: {e}")
         raise
 
 
-@register_custom_task("agent")
+# REMOVED task registration - using typed execution instead
+# @register_custom_task("agent")
 async def web_agent_executor(task_metadata, objective, agents, execution_metadata):
     """Agent executor for web interface with real-time updates."""
     execution_id = execution_metadata.get("execution_id")
     
-    print(f"🤖 [WEB] Executing agent task (execution: {execution_id})")
+    workflow_logger.info(f"Executing agent task", data={"execution_id": execution_id})
     
     # Use the chainables agent executor to avoid duplication
     # from iointel.src.chainables import execute_agent_task # This line is removed as per the edit hint
@@ -166,7 +171,7 @@ async def web_agent_executor(task_metadata, objective, agents, execution_metadat
                 results={"current_task": "agent", "status": "started"}
             )
         except Exception as e:
-            print(f"⚠️ Failed to broadcast agent start: {e}")
+            workflow_logger.warning(f"Failed to broadcast agent start: {e}")
     
     try:
         # Record node start in feedback collector
@@ -182,7 +187,7 @@ async def web_agent_executor(task_metadata, objective, agents, execution_metadat
             )
         
         result = await execute_agent_task(task_metadata, objective, agents, execution_metadata)
-        print(f"✅ Agent task completed: {result}")
+        workflow_logger.success(f"Agent task completed", data={"result_preview": str(result)[:200]})
         
         # Record node completion in feedback collector
         if execution_id:
@@ -227,12 +232,12 @@ async def web_agent_executor(task_metadata, objective, agents, execution_metadat
                     results={"agent_completed": True, **serialized_result}
                 )
             except Exception as e:
-                print(f"⚠️ Failed to broadcast agent completion: {e}")
+                workflow_logger.warning(f"Failed to broadcast agent completion: {e}")
         
         return result
     except Exception as e:
         error_msg = f"Agent task failed: {str(e)}"
-        print(f"❌ {error_msg}")
+        workflow_logger.error(error_msg)
         
         # Record node failure in feedback collector
         if execution_id:
@@ -247,21 +252,25 @@ async def web_agent_executor(task_metadata, objective, agents, execution_metadat
             try:
                 await broadcast_execution_update(execution_id, "failed", error=error_msg)
             except Exception as e:
-                print(f"⚠️ Failed to broadcast agent error: {e}")
+                workflow_logger.warning(f"Failed to broadcast agent error: {e}")
         raise
 
 
-@register_custom_task("decision")
+# REMOVED task registration - using typed execution instead
+# @register_custom_task("decision")
 async def web_decision_executor(task_metadata, objective, agents, execution_metadata):
     """Decision executor for web interface - delegates to tool executor or agent."""
     execution_id = execution_metadata.get("execution_id")
     tool_name = task_metadata.get('tool_name')
     
-    print(f"🤔 [WEB] Executing decision task: {tool_name or 'agent-based'} (execution: {execution_id})")
+    workflow_logger.info(
+        f"Executing decision task",
+        data={"tool_name": tool_name or 'agent-based', "execution_id": execution_id}
+    )
     
     # If no tool_name specified, treat as agent-based decision
     if not tool_name:
-        print("   📝 No tool_name specified, treating as agent-based decision")
+        workflow_logger.info("No tool_name specified, treating as agent-based decision")
         
         # Create a simple agent-based decision that returns a boolean result
         # This is a fallback for workflows with null tool_name in decision nodes
@@ -283,31 +292,35 @@ async def web_decision_executor(task_metadata, objective, agents, execution_meta
                         results={"decision_completed": True, "result": result}
                     )
                 except Exception as e:
-                    print(f"⚠️ Failed to broadcast decision completion: {e}")
+                    workflow_logger.warning(f"Failed to broadcast decision completion: {e}")
             
             return result
             
         except Exception as e:
             error_msg = f"Agent-based decision failed: {str(e)}"
-            print(f"❌ {error_msg}")
+            workflow_logger.error(error_msg)
             if execution_id and len(connections) > 0:
                 try:
                     await broadcast_execution_update(execution_id, "failed", error=error_msg)
                 except Exception as e:
-                    print(f"⚠️ Failed to broadcast decision error: {e}")
+                    workflow_logger.warning(f"Failed to broadcast decision error: {e}")
             raise
     
     # If tool_name is specified, use tool-based decision
     return await web_tool_executor(task_metadata, objective, agents, execution_metadata)
 
 
-@register_custom_task("workflow_call")
+# REMOVED task registration - using typed execution instead
+# @register_custom_task("workflow_call")
 async def web_workflow_call_executor(task_metadata, objective, agents, execution_metadata):
     """Workflow call executor for web interface."""
     execution_id = execution_metadata.get("execution_id")
     workflow_id = task_metadata.get("workflow_id", "unknown")
     
-    print(f"📞 [WEB] Executing workflow call: {workflow_id} (execution: {execution_id})")
+    workflow_logger.info(
+        f"Executing workflow call",
+        data={"workflow_id": workflow_id, "execution_id": execution_id}
+    )
     
     # Broadcast task start
     if execution_id and len(connections) > 0:
@@ -318,7 +331,7 @@ async def web_workflow_call_executor(task_metadata, objective, agents, execution
                 results={"current_task": f"workflow_call:{workflow_id}", "status": "started"}
             )
         except Exception as e:
-            print(f"⚠️ Failed to broadcast workflow_call start: {e}")
+            workflow_logger.warning(f"Failed to broadcast workflow_call start: {e}")
     
     try:
         # For now, return a success message (implement actual workflow calling later)
@@ -333,17 +346,17 @@ async def web_workflow_call_executor(task_metadata, objective, agents, execution
                     results={"workflow_call_completed": True, "result": result}
                 )
             except Exception as e:
-                print(f"⚠️ Failed to broadcast workflow_call completion: {e}")
+                workflow_logger.warning(f"Failed to broadcast workflow_call completion: {e}")
         
         return result
     except Exception as e:
         error_msg = f"Workflow call '{workflow_id}' failed: {str(e)}"
-        print(f"❌ {error_msg}")
+        workflow_logger.error(error_msg)
         if execution_id and len(connections) > 0:
             try:
                 await broadcast_execution_update(execution_id, "failed", error=error_msg)
             except Exception as e:
-                print(f"⚠️ Failed to broadcast workflow_call error: {e}")
+                workflow_logger.warning(f"Failed to broadcast workflow_call error: {e}")
         raise
 
 
@@ -464,8 +477,45 @@ def serialize_execution_results(results: Optional[Dict] = None) -> Optional[Dict
         
     def serialize_value(value):
         """Recursively serialize a value for JSON transmission."""
-        # Handle BaseModel objects (Pydantic models like ToolUsageResult, GateResult)
-        if hasattr(value, 'model_dump'):
+        # Import here to avoid circular imports
+        from iointel.src.agent_methods.data_models.execution_models import (
+            AgentExecutionResult, AgentRunResponse, DataSourceResult
+        )
+        
+        # Handle AgentExecutionResult specifically (from typed execution)
+        if isinstance(value, AgentExecutionResult):
+            # Extract the inner agent response for frontend compatibility
+            if value.agent_response and isinstance(value.agent_response, AgentRunResponse):
+                return {
+                    "result": value.agent_response.result,
+                    "tool_usage_results": [serialize_value(tur) for tur in value.agent_response.tool_usage_results],
+                    "conversation_id": value.agent_response.conversation_id,
+                    "status": value.status.value,
+                    "execution_time": value.execution_time,
+                    "node_id": value.node_id,
+                    "type": "AgentExecutionResult"
+                }
+            else:
+                # No agent response, return minimal structure
+                return {
+                    "result": None,
+                    "tool_usage_results": [],
+                    "status": value.status.value,
+                    "error": value.error,
+                    "type": "AgentExecutionResult"
+                }
+        
+        # Handle DataSourceResult specifically
+        elif isinstance(value, DataSourceResult):
+            return {
+                "result": value.result,
+                "status": value.status.value,
+                "source": value.source,
+                "type": "DataSourceResult"
+            }
+        
+        # Handle other BaseModel objects (Pydantic models like ToolUsageResult, GateResult)
+        elif hasattr(value, 'model_dump'):
             try:
                 # Use Pydantic's model_dump for clean serialization
                 return value.model_dump()
@@ -473,7 +523,7 @@ def serialize_execution_results(results: Optional[Dict] = None) -> Optional[Dict
                 # Fallback to dict conversion
                 return dict(value)
         
-        # Handle AgentRunResult objects specifically
+        # Handle AgentRunResult objects specifically (legacy, shouldn't exist anymore)
         elif hasattr(value, '__class__') and 'AgentRunResult' in str(value.__class__):
             return {
                 "result": getattr(value, 'output', None) or getattr(value, 'result', None),
@@ -481,6 +531,10 @@ def serialize_execution_results(results: Optional[Dict] = None) -> Optional[Dict
                 "conversation_id": getattr(value, 'conversation_id', None),
                 "type": "AgentRunResult"
             }
+        
+        # Handle datetime objects
+        elif isinstance(value, datetime):
+            return value.isoformat()
         
         # Handle lists
         elif isinstance(value, list):
@@ -519,6 +573,31 @@ def serialize_execution_results(results: Optional[Dict] = None) -> Optional[Dict
     serialized = {}
     for key, value in results.items():
         serialized[key] = serialize_value(value)
+    
+    # Debug logging for serialization
+    if 'results' in serialized:
+        workflow_logger.info(
+            "🔍 Serialized results structure",
+            data={
+                "top_level_keys": list(serialized.keys()),
+                "results_keys": list(serialized.get('results', {}).keys()) if isinstance(serialized.get('results'), dict) else "not a dict",
+                "sample_node": next(iter(serialized.get('results', {}).keys())) if serialized.get('results') else None
+            }
+        )
+        # Log a sample node result structure
+        if serialized.get('results') and isinstance(serialized.get('results'), dict):
+            sample_key = next(iter(serialized['results'].keys()))
+            sample_value = serialized['results'][sample_key]
+            workflow_logger.info(
+                f"🔍 Sample node result structure for {sample_key}",
+                data={
+                    "type": sample_value.get('type') if isinstance(sample_value, dict) else type(sample_value).__name__,
+                    "has_result": 'result' in sample_value if isinstance(sample_value, dict) else False,
+                    "has_tool_usage": 'tool_usage_results' in sample_value if isinstance(sample_value, dict) else False,
+                    "keys": list(sample_value.keys()) if isinstance(sample_value, dict) else None
+                }
+            )
+    
     return serialized
 
 
@@ -556,19 +635,21 @@ async def broadcast_message(message: Dict):
                 await connection.send_json(message)
                 sent_count += 1
             except Exception as e:
-                print(f"❌ Failed to send to connection: {e}")
+                workflow_logger.error(f"Failed to send to connection: {e}")
                 disconnected.append(connection)
         
         # Only log meaningful updates
         if message['type'] == 'execution_update' and message.get('status') in ['started', 'completed', 'failed']:
-            print(f"📡 Broadcast {message['type']} ({message['status']}) to {sent_count} clients")
+            workflow_logger.info(
+                f"Broadcast {message['type']} ({message['status']}) to {sent_count} clients"
+            )
         elif message['type'] == 'workflow_update':
-            print(f"📡 Broadcast workflow update to {sent_count} clients")
+            workflow_logger.info(f"Broadcast workflow update to {sent_count} clients")
         
         # Remove disconnected clients
         for conn in disconnected:
             connections.remove(conn)
-            print("🗑️ Removed disconnected client")
+            workflow_logger.info("Removed disconnected client")
 
 
 
@@ -578,7 +659,7 @@ async def startup_event():
     """Initialize the application on startup."""
     global planner, tool_catalog, workflow_storage, unified_search_service
     
-    print("🚀 Starting WorkflowPlanner web server...")
+    system_logger.info("Starting WorkflowPlanner web server...")
     
     # Initialize memory (SQLite)
     try:
@@ -614,7 +695,10 @@ async def startup_event():
         # Use shared model configuration for main planner
         main_model = os.getenv("WORKFLOW_PLANNER_MODEL", "gpt-4o")
         model_config = get_model_config(model=main_model)
-        print(f"🤖 [MAIN] Using model config: {model_config['model']} @ {model_config['base_url']}")
+        system_logger.info(
+            f"Using main model config",
+            data={"model": model_config['model'], "base_url": model_config['base_url']}
+        )
         
         planner = WorkflowPlanner(
             model=model_config["model"],
@@ -632,9 +716,9 @@ async def startup_event():
     # Initialize WorkflowStorage
     try:
         workflow_storage = WorkflowStorage()
-        print("✅ WorkflowStorage initialized")
+        system_logger.success("WorkflowStorage initialized")
     except Exception as e:
-        print(f"❌ WorkflowStorage initialization failed: {e}")
+        system_logger.error(f"WorkflowStorage initialization failed: {e}")
         raise
     
     # Initialize UnifiedSearchService
@@ -649,40 +733,26 @@ async def startup_event():
         )
         
         search_mode = "fast hash encoding" if use_fast_search else "real semantic vectors"
-        print(f"✅ UnifiedSearchService initialized with {search_mode}")
-        print(f"   (Set FAST_SEARCH_MODE=false for real semantic vectors)")
+        system_logger.success(
+            f"UnifiedSearchService initialized with {search_mode}",
+            data={"search_mode": search_mode, "tip": "Set FAST_SEARCH_MODE=false for real semantic vectors"}
+        )
     except Exception as e:
-        print(f"❌ UnifiedSearchService initialization failed: {e}")
+        system_logger.warning(f"UnifiedSearchService initialization failed: {e}")
         # Don't raise - fallback to simple search
     
-    # Register task executors for semantic node types
-    try:
-        from ..utilities.registries import TASK_EXECUTOR_REGISTRY
-        
-        # Map semantic node types to appropriate executors
-        TASK_EXECUTOR_REGISTRY["tool"] = web_tool_executor
-        TASK_EXECUTOR_REGISTRY["data_source"] = web_tool_executor      # Data source nodes use same executor as tools
-        TASK_EXECUTOR_REGISTRY["workflow_call"] = web_workflow_call_executor
-        TASK_EXECUTOR_REGISTRY["decision"] = web_agent_executor        # Decision nodes are agents with tools
-        TASK_EXECUTOR_REGISTRY["data_fetcher"] = web_agent_executor    # Data fetcher nodes are agents with tools
-        TASK_EXECUTOR_REGISTRY["analyzer"] = web_agent_executor        # Analyzer nodes are agents
-        TASK_EXECUTOR_REGISTRY["executor"] = web_agent_executor        # Executor nodes are agents with tools
-        TASK_EXECUTOR_REGISTRY["conversational"] = web_agent_executor  # Conversational nodes are agents
-        TASK_EXECUTOR_REGISTRY["agent"] = web_agent_executor           # Legacy agent type
-        
-        system_logger.success(
-            "Task executors registered for semantic node types",
-            data={
-                "registered_types": list(TASK_EXECUTOR_REGISTRY.keys()),
-                "semantic_types": ["decision", "data_fetcher", "analyzer", "executor", "conversational"]
-            }
-        )
-        
-    except Exception as e:
-        system_logger.error("Task executor registration failed", data={"error": str(e), "error_type": type(e).__name__})
-        raise
+    # REMOVED: Task executor registration - no longer needed with typed execution
+    # DAGExecutor with use_typed_execution=True handles all node types through typed_executors.py
+    # This eliminates the need for chainables imports and duplicate execution paths
+    system_logger.success(
+        "Using typed execution system - no custom task executors needed",
+        data={
+            "execution_mode": "typed_execution",
+            "handled_by": "DAGExecutor + typed_executors.py"
+        }
+    )
     
-    print("🎉 WorkflowPlanner web server initialized successfully!")
+    system_logger.success("WorkflowPlanner web server initialized successfully!")
 
 
 @app.websocket("/ws")
@@ -694,7 +764,7 @@ async def websocket_endpoint(websocket: WebSocket):
     
     # Don't automatically send current workflow - let client request it
     # This prevents session bleed between different users/tabs
-    print("📡 New WebSocket connection established - waiting for client requests")
+    workflow_logger.info("New WebSocket connection established - waiting for client requests")
     
     try:
         while True:
@@ -702,7 +772,7 @@ async def websocket_endpoint(websocket: WebSocket):
             try:
                 message = await asyncio.wait_for(websocket.receive_text(), timeout=1.0)
                 # Echo back any received messages for debugging
-                print(f"📩 Received WebSocket message: {message}")
+                workflow_logger.debug(f"Received WebSocket message: {message}")
             except asyncio.TimeoutError:
                 # No message received, send a keepalive ping
                 await websocket.send_json({"type": "ping", "timestamp": datetime.now().isoformat()})
@@ -831,27 +901,42 @@ async def generate_workflow(workflow_request: WorkflowRequest, request: Request)
     """Generate or refine a workflow."""
     global current_workflow
     
-    print(f"🔥 Generate workflow request: query='{workflow_request.query}', refine={workflow_request.refine}")
+    workflow_logger.info(
+        "Generate workflow request",
+        data={
+            "query": workflow_request.query,
+            "refine": workflow_request.refine
+        }
+    )
     
     # Get or create faux user for session management
     session_id = request.session.get("workflow_session_id")
     faux_user = get_or_create_faux_user(session_id) if session_id else None
     
     if not planner:
-        print("❌ WorkflowPlanner not initialized")
+        workflow_logger.error("WorkflowPlanner not initialized")
         raise HTTPException(status_code=500, detail="WorkflowPlanner not initialized")
     
     try:
-        print(f"✨ Generating workflow with {len(tool_catalog)} tools available")
+        workflow_logger.info(
+            "Generating workflow",
+            data={"tool_count": len(tool_catalog)}
+        )
         
         # Set current workflow context so planner can reference it
         if current_workflow:
             from iointel.src.agent_methods.data_models.workflow_spec import WorkflowSpec
             if isinstance(current_workflow, WorkflowSpec):
-                print(f"🔧 Building upon existing workflow (rev {current_workflow.rev}): '{current_workflow.title}'")
+                workflow_logger.info(
+                    "Building upon existing workflow",
+                    data={
+                        "revision": current_workflow.rev,
+                        "title": current_workflow.title
+                    }
+                )
                 planner.set_current_workflow(current_workflow)
             else:
-                print(f"🔧 Building upon existing chat context: '{getattr(current_workflow, 'title', 'Chat')}'")
+                workflow_logger.info(f"Building upon existing chat context: '{getattr(current_workflow, 'title', 'Chat')}'")
                 # Don't set current workflow for chat-only responses
             
         # Generate workflow (could be new workflow or chat-only response)
@@ -880,7 +965,10 @@ async def generate_workflow(workflow_request: WorkflowRequest, request: Request)
         from iointel.src.agent_methods.data_models.workflow_spec import WorkflowSpecLLM
         if isinstance(result, WorkflowSpecLLM):
             if result.nodes is None or result.edges is None:
-                print(f"💬 Chat-only response: {result.reasoning}")
+                workflow_logger.info(
+                    "Chat-only response detected",
+                    data={"reasoning_preview": result.reasoning[:100] + "..." if len(result.reasoning) > 100 else result.reasoning}
+                )
                 
                 # Return chat response without updating current workflow
                 return WorkflowResponse(
@@ -916,27 +1004,30 @@ async def generate_workflow(workflow_request: WorkflowRequest, request: Request)
             # Register workflow revision with faux user for stable conversation tracking
             if faux_user:
                 faux_user.register_workflow_revision(current_workflow, "default")
-                print(f"📝 Registered workflow revision with user {faux_user.user_id}")
+                workflow_logger.info(f"Registered workflow revision with user {faux_user.user_id}")
             
-            # Debug: Print the actual workflow structure
-            print("🔍 Generated workflow details:")
-            print(f"   Title: {current_workflow.title}")
-            print(f"   Description: {current_workflow.description}")
-            print(f"   ID: {current_workflow.id}")
-            print(f"   Rev: {current_workflow.rev}")
-            print(f"   Nodes ({len(current_workflow.nodes)}):")
-            for i, node in enumerate(current_workflow.nodes):
-                print(f"     {i+1}. {node.id} ({node.type}): {node.label}")
-                print(f"        Config: {node.data.config}")
-                print(f"        Ins: {node.data.ins}")
-                print(f"        Outs: {node.data.outs}")
-                if hasattr(node, 'sla') and node.sla is not None:
-                    print(f"        SLA: {node.sla.model_dump_json(indent=2) if hasattr(node.sla, 'model_dump_json') else node.sla}")
-            print(f"   Edges ({len(current_workflow.edges)}):")
-            for i, edge in enumerate(current_workflow.edges):
-                print(f"     {i+1}. {edge.source} -> {edge.target}")
-                print(f"        Condition: {edge.data.condition}")
-                print(f"        Handles: {edge.sourceHandle} -> {edge.targetHandle}")
+            # Debug: Log the actual workflow structure
+            workflow_logger.debug(
+                "Generated workflow details",
+                data={
+                    "title": current_workflow.title,
+                    "description": current_workflow.description,
+                    "reasoning": current_workflow.reasoning[:200] + "..." if len(current_workflow.reasoning) > 200 else current_workflow.reasoning,
+                    "id": str(current_workflow.id),
+                    "rev": current_workflow.rev,
+                    "node_count": len(current_workflow.nodes),
+                    "edge_count": len(current_workflow.edges),
+                    "nodes": [
+                        {
+                            "id": node.id,
+                            "type": node.type,
+                            "label": node.label,
+                            "has_sla": hasattr(node, 'sla') and node.sla is not None
+                        }
+                        for node in current_workflow.nodes
+                    ]
+                }
+            )
 
             # Build a pretty-printed workflow spec for the agent/planner, including SLA
             dag_pretty = f"\n---\nWORKFLOW DAG (full spec, including SLA):\nTitle: {current_workflow.title}\nDescription: {current_workflow.description}\nID: {current_workflow.id}\nRev: {current_workflow.rev}\nNodes ({len(current_workflow.nodes)}):\n"
@@ -955,14 +1046,14 @@ async def generate_workflow(workflow_request: WorkflowRequest, request: Request)
             dag_pretty += "---\n"
 
             # Broadcast update to connected clients
-            print(f"📡 Broadcasting workflow update to {len(connections)} connections")
+            workflow_logger.info(f"Broadcasting workflow update to {len(connections)} connections")
             await broadcast_workflow_update(current_workflow)
             
             workflow_data = current_workflow.model_dump()
             # Convert UUID to string for JSON serialization
             if 'id' in workflow_data:
                 workflow_data['id'] = str(workflow_data['id'])
-            print(f"📦 Returning workflow data: {len(str(workflow_data))} characters")
+            workflow_logger.debug(f"Returning workflow data: {len(str(workflow_data))} characters")
             
             return WorkflowResponse(
                 success=True,
@@ -974,7 +1065,7 @@ async def generate_workflow(workflow_request: WorkflowRequest, request: Request)
             # Check if this was a WorkflowSpecLLM that we already handled above
             if isinstance(result, WorkflowSpecLLM) and (result.nodes is None or result.edges is None):
                 # This case should have been handled above, but just in case
-                print("⚠️ Chat-only response reached else block")
+                workflow_logger.warning("Chat-only response reached else block")
                 return WorkflowResponse(
                     success=True,
                     workflow=None,
@@ -982,16 +1073,17 @@ async def generate_workflow(workflow_request: WorkflowRequest, request: Request)
                 )
             else:
                 # This shouldn't happen with current implementation, but handle gracefully
-                print("❌ Unexpected result format from planner.generate_workflow")
+                workflow_logger.error("Unexpected result format from planner.generate_workflow")
                 return WorkflowResponse(
                     success=False,
                     error="Unexpected result format from workflow planner"
                 )
         
     except Exception as e:
-        print(f"❌ Error generating workflow: {type(e).__name__}: {e}")
-        import traceback
-        print(f"🔍 Traceback: {traceback.format_exc()}")
+        workflow_logger.error(
+            f"Error generating workflow: {type(e).__name__}: {e}",
+            data={"error_type": type(e).__name__, "traceback": traceback.format_exc()}
+        )
         return WorkflowResponse(
             success=False,
             error=str(e)
@@ -1126,56 +1218,110 @@ async def execute_workflow_background(
             conversation_id = f"web_execution_{execution_id}"
             print(f"🔄 Using single-serve mode with execution conversation_id: {conversation_id}")
         
-        # DAGExecutor now handles execution_metadata propagation internally
-        print(f"🔍 User inputs will be handled by DAGExecutor: {user_inputs}")
+        # Use the standardized workflow execution helper
+        print(f"🔍 User inputs will be handled by execute_workflow_with_metadata: {user_inputs}")
         
-        # Execute the workflow using DAGExecutor for proper user input handling
-        from ..utilities.dag_executor import DAGExecutor
-        
-        # Create DAG executor with typed execution and feedback tracking
-        dag_executor = DAGExecutor(use_typed_execution=True, feedback_collector=feedback_collector)
-        
-        # Build execution graph with user inputs in metadata
-        dag_executor.build_execution_graph(
+        # Execute using the standard helper that matches test execution
+        result = await execute_workflow_with_metadata(
             workflow_spec=workflow_spec,
-            objective=workflow_spec.description,
+            execution_id=execution_id,
+            user_inputs=user_inputs,
+            form_id=form_id,
             conversation_id=conversation_id,
-            execution_metadata_by_node={
-                node.id: {
-                    "execution_id": execution_id,
-                    "user_inputs": user_inputs or {},
-                    "form_id": form_id,
-                    "client_mode": True
-                }
-                for node in workflow_spec.nodes
-            }
+            feedback_collector=feedback_collector,
+            client_mode=True,
+            debug=True
         )
         
-        # Create initial state for DAG execution
-        from ..utilities.graph_nodes import WorkflowState
-        initial_state = WorkflowState(
-            initial_text=workflow_spec.description,
-            conversation_id=conversation_id,
-            results={},
-            user_inputs=user_inputs or {}
-        )
+        # Extract results in the expected format
+        dag_results = result["results"]
         
-        # Execute the DAG with the same execution_id
-        final_state = await dag_executor.execute_dag(initial_state, execution_id=execution_id)
-        
-        # Extract results from the final state
-        dag_results = final_state.results
-        
-        # Convert DAG results to workflow format for compatibility
+        # Convert results to expected format
         results = {
             'results': dag_results,
-            'status': 'completed'
+            'status': result.get('status', 'completed')
         }
         
-        # Get execution summary from DAG executor (if available) or complete it here
-        execution_summary = getattr(final_state, 'execution_summary', None)
-        if not execution_summary:
-            # Fallback: complete execution tracking if DAG didn't do it
+        # Get execution stats from result (not summary)
+        execution_stats = result.get('execution_stats')
+        
+        # Create execution summary for feedback if we have stats
+        execution_summary = None
+        if execution_stats:
+            # Create a summary-like object from stats for compatibility
+            from iointel.src.web.execution_feedback import WorkflowExecutionSummary, NodeExecutionTracking
+            from iointel.src.agent_methods.data_models.execution_models import (
+                ExecutionStatus, 
+                AgentExecutionResult,
+                DataSourceResult
+            )
+            from datetime import datetime
+            
+            # Build list of executed nodes from results (nodes that actually ran)
+            executed_node_results = []
+            
+            # Create lookups from workflow_spec
+            node_type_lookup = {node.id: node.type for node in workflow_spec.nodes}
+            node_label_lookup = {node.id: node.label for node in workflow_spec.nodes}
+            
+            for node_id in dag_results.keys():
+                if node_id not in execution_stats.get('skipped_node_ids', []):
+                    node_result = dag_results.get(node_id)
+                    node_type = node_type_lookup.get(node_id, "agent")
+                    node_label = node_label_lookup.get(node_id, node_id)
+                    
+                    # Extract result preview based on type
+                    result_preview = None
+                    tool_usage = []
+                    
+                    if isinstance(node_result, AgentExecutionResult):
+                        if node_result.agent_response and node_result.agent_response.result:
+                            result_preview = str(node_result.agent_response.result)[:200]
+                        if node_result.agent_response and node_result.agent_response.tool_usage_results:
+                            tool_usage = [t.tool_name for t in node_result.agent_response.tool_usage_results]
+                    elif isinstance(node_result, dict) and "result" in node_result:
+                        result_preview = str(node_result["result"])[:200]
+                    else:
+                        result_preview = str(node_result)[:200]
+                    
+                    executed_node_results.append(NodeExecutionTracking(
+                        node_id=node_id,
+                        node_type=node_type,
+                        node_label=node_label,
+                        status=ExecutionStatus.COMPLETED,
+                        started_at=datetime.now().isoformat(),
+                        finished_at=datetime.now().isoformat(),
+                        duration_seconds=0,  # We don't have individual node timings from stats
+                        result_preview=result_preview,
+                        error_message=None,
+                        tool_usage=tool_usage
+                    ))
+            
+            execution_summary = WorkflowExecutionSummary(
+                execution_id=execution_id,
+                workflow_id=str(workflow_spec.id),
+                workflow_title=workflow_spec.title,
+                status=ExecutionStatus.COMPLETED if result.get('success') else ExecutionStatus.FAILED,
+                started_at=datetime.now().isoformat(),
+                finished_at=datetime.now().isoformat(),
+                total_duration_seconds=execution_stats.get('total_duration', 0),
+                nodes_executed=executed_node_results,
+                nodes_skipped=execution_stats.get('skipped_node_ids', []),
+                user_inputs=user_inputs or {},
+                final_outputs=dag_results,
+                workflow_spec=workflow_spec,
+                error_summary=None,
+                performance_metrics={
+                    'node_durations': execution_stats.get('node_durations', {}),
+                    'execution_order': execution_stats.get('execution_order', []),
+                    'total_nodes': execution_stats.get('total_nodes', 0),
+                    'executed_nodes_count': execution_stats.get('executed_nodes', 0),
+                    'skipped_nodes_count': execution_stats.get('skipped_nodes', 0),
+                    'failed_nodes': execution_stats.get('failed_nodes', 0)
+                }
+            )
+        elif feedback_collector:
+            # Fallback: complete execution tracking if not done
             final_outputs = dag_results if dag_results else {}
             execution_summary = feedback_collector.complete_execution(
                 execution_id=execution_id,
@@ -1183,26 +1329,54 @@ async def execute_workflow_background(
             )
         
         # Update execution info with serialized results
+        serialized_results = serialize_execution_results(results)
+        
+        # Debug logging
+        if serialized_results:
+            workflow_logger.info(
+                "Serialized results for broadcast",
+                data={
+                    "execution_id": execution_id[:8],
+                    "num_task_results": len(serialized_results.get('results', {})),
+                    "result_keys": list(serialized_results.get('results', {}).keys()) if serialized_results.get('results') else []
+                }
+            )
+        
         active_executions[execution_id].update({
             "status": "completed",
             "end_time": datetime.now().isoformat(),
-            "results": serialize_execution_results(results),
+            "results": serialized_results,
             "error": None,
             "execution_summary": execution_summary
         })
         
         # Log execution completion
+        log_data = {
+            "execution_id": execution_id,
+            "workflow_title": workflow_spec.title,
+            "total_results": len(results.get('results', {}))
+        }
+        
+        # Add execution summary data if available
+        if execution_summary:
+            log_data.update({
+                "execution_time": execution_summary.total_duration_seconds,
+                "nodes_executed": len(execution_summary.nodes_executed) if execution_summary.nodes_executed else 0,
+                "nodes_skipped": len(execution_summary.nodes_skipped) if execution_summary.nodes_skipped else 0,
+                "status": execution_summary.status.value if hasattr(execution_summary.status, 'value') else str(execution_summary.status)
+            })
+        elif execution_stats:
+            # Use stats directly if no summary
+            log_data.update({
+                "execution_time": execution_stats.get('total_duration', 0),
+                "nodes_executed": execution_stats.get('executed_nodes', 0),
+                "nodes_skipped": execution_stats.get('skipped_nodes', 0),
+                "status": "completed" if result.get('success') else "failed"
+            })
+        
         execution_logger.success(
             "Workflow execution completed",
-            data={
-                "execution_id": execution_id,
-                "workflow_title": workflow_spec.title,
-                "total_results": len(results.get('results', {})),
-                "execution_time": execution_summary.total_duration_seconds,
-                "nodes_executed": len(execution_summary.nodes_executed),
-                "nodes_skipped": len(execution_summary.nodes_skipped),
-                "status": execution_summary.status.value if hasattr(execution_summary.status, 'value') else str(execution_summary.status)
-            },
+            data=log_data,
             execution_id=execution_id
         )
         
@@ -1212,13 +1386,15 @@ async def execute_workflow_background(
             faux_user = get_or_create_faux_user(session_id)
             interface_conversation_id = faux_user.interface_conversation_id
         
-        await send_execution_feedback_to_planner(execution_summary, interface_conversation_id, workflow_spec)
+        # Only send feedback if we have an execution summary
+        if execution_summary:
+            await send_execution_feedback_to_planner(execution_summary, interface_conversation_id, workflow_spec)
         
-        # Broadcast completion
+        # Broadcast completion with serialized results
         await broadcast_execution_update(
             execution_id, 
             "completed", 
-            results=results
+            results=serialized_results
         )
         
     except Exception as e:
@@ -1235,11 +1411,13 @@ async def execute_workflow_background(
         import traceback
         print(f"🔍 Traceback: {traceback.format_exc()}")
         
-        # Complete execution feedback tracking with error
-        execution_summary = feedback_collector.complete_execution(
-            execution_id=execution_id,
-            error_summary=error_msg
-        )
+        # Complete execution feedback tracking with error if collector exists
+        execution_summary = None
+        if feedback_collector:
+            execution_summary = feedback_collector.complete_execution(
+                execution_id=execution_id,
+                error_summary=error_msg
+            )
         
         # Update execution info
         active_executions[execution_id].update({
@@ -1260,10 +1438,13 @@ async def execute_workflow_background(
             faux_user = get_or_create_faux_user(session_id)
             interface_conversation_id = faux_user.interface_conversation_id
         
-        await send_execution_feedback_to_planner(execution_summary, interface_conversation_id, workflow_spec)
+        # Only send feedback if we have an execution summary
+        if execution_summary:
+            await send_execution_feedback_to_planner(execution_summary, interface_conversation_id, workflow_spec)
         
         # Broadcast failure
         await broadcast_execution_update(execution_id, "failed", error=error_msg)
+
 
 
 async def send_execution_feedback_to_planner(execution_summary: WorkflowExecutionSummary, interface_conversation_id: Optional[str] = None, workflow_spec: Optional[WorkflowSpec] = None):
@@ -1334,14 +1515,7 @@ async def send_execution_feedback_to_planner(execution_summary: WorkflowExecutio
                 "workflow_title": execution_summary.workflow_title
             }
         )
-        print(f"🔍 [FEEDBACK] Received response from planner")
-        print(f"🔍 [FEEDBACK] Response type: {type(response)}")
-        print(f"🔍 [FEEDBACK] Response attrs: {dir(response) if response else 'None'}")
-        print(f"🔍 [FEEDBACK] Has reasoning attr: {hasattr(response, 'reasoning')}")
-        if hasattr(response, 'reasoning'):
-            print(f"🔍 [FEEDBACK] Reasoning type: {type(response.reasoning)}")
-            print(f"🔍 [FEEDBACK] Reasoning value: {response.reasoning[:100] if response.reasoning else 'None/Empty'}...")
-        
+
         # Log the analysis response
         if hasattr(response, 'reasoning') and response.reasoning:
             execution_logger.success(
@@ -1358,8 +1532,6 @@ async def send_execution_feedback_to_planner(execution_summary: WorkflowExecutio
             # Store feedback for potential display to user
             if execution_summary.execution_id in active_executions:
                 active_executions[execution_summary.execution_id]["planner_feedback"] = response.reasoning
-                print(f"💾 [FEEDBACK] Stored planner feedback for execution {execution_summary.execution_id[:8]}: {len(response.reasoning)} chars")
-                print(f"💾 [FEEDBACK] Feedback will be available at /api/executions/{execution_summary.execution_id}/feedback")
                 
                 # CRITICAL: Send the feedback as a chat message via WebSocket
                 # This uses the same pattern as chat-only responses
