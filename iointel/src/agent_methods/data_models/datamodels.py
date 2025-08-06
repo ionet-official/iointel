@@ -317,6 +317,9 @@ TOOL_SELF_INSTANCES: dict[int, BaseModel] = weakref.WeakValueDictionary()
 
 
 class Tool(BaseModel):
+    model_config = ConfigDict(
+        arbitrary_types_allowed=True
+    )
     name: str = Field(description="Name of the tool")
     description: str = Field(description="Description of what the tool does")
     parameters: dict = Field(description="JSON schema for tool parameters")
@@ -328,9 +331,6 @@ class Tool(BaseModel):
     fn_self: Optional[tuple[str, str, int]] = Field(
         None, description="Serialised `self` if `fn` is an instance method"
     )
-
-    class Config:
-        arbitrary_types_allowed = True
 
     @staticmethod
     def _instance_tool_key(tool_self: BaseModel) -> str:
@@ -489,6 +489,7 @@ class Tool(BaseModel):
 class AgentParams(BaseModel):
     model_config = ConfigDict(
         arbitrary_types_allowed=True,
+        extra="allow"  # Allows extra fields not defined in the model
     )
     name: Optional[str] = None
     instructions: str = Field(..., description="Instructions for the agent")

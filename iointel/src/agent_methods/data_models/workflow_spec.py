@@ -67,18 +67,18 @@ class SLARequirements(BaseModel):
     SLA requirements for an agent based on its available tools.
     Using BaseModel for consistency with node_execution_wrapper.
     """
-    tool_usage_required: bool = Field(default=False, description="Whether the agent must use at least one tool")
+    tool_usage_required: bool = Field(default=True, description="Whether the agent must use at least one tool")
     required_tools: List[str] = Field(default_factory=list, description="List of tools that must be used by the agent")
     final_tool_must_be: Optional[str] = Field(default=None, description="Tool that must be called last, if any")
-    min_tool_calls: int = Field(default=0, description="Minimum number of tool calls required")
+    min_tool_calls: int = Field(default=1, description="Minimum number of tool calls required")
     max_retries: int = Field(default=2, description="Maximum number of retries for the node. No greater than 3.")
     timeout_seconds: int = Field(default=120, description="Timeout for the node. No greater than 300.")
-    enforce_usage: bool = Field(default=False, description="Whether SLA enforcement should be applied. If true, the node must use at least one tool.")
+    enforce_usage: bool = Field(default=True, description="Whether SLA enforcement should be applied. If true, the node must use at least one tool.")
 
 class NodeData(BaseModel):
     """Data structure for React Flow node configuration - LLM generated only."""
     # Core configuration that LLM understands
-    config: Optional[Dict] = Field(None, description="Tool/agent parameters (e.g., query, format). Required for data_source nodes.")
+    config: Optional[Dict] = Field(None, description="Tool/agent parameters (e.g., args). Required for data_source and most agent nodes.")
     
     # Data flow ports
     ins: List[str] = Field(default_factory=list, description="Input port names (e.g., 'data', 'query', 'config')")
@@ -97,7 +97,7 @@ class NodeData(BaseModel):
     agent_instructions: Optional[str] = Field(None, description="Instructions for agent (for agent nodes)")
     tools: Optional[List[str]] = Field(None, description="List of tool names available to agent (for agent nodes)")
     workflow_id: Optional[str] = Field(None, description="ID of workflow to call (for workflow_call nodes)")
-    model: Optional[Literal["gpt-4o", "meta-llama/Llama-3.3-70B-Instruct", "meta-llama/Llama-3.1-8B-Instruct", "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8"]] = Field("gpt-4o", description="Model to use for agent nodes")
+    model: Optional[Literal["gpt-4o", "meta-llama/Llama-3.3-70B-Instruct", "meta-llama/Llama-3.1-8B-Instruct", "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8", "Qwen/Qwen3-Coder-480B-A35B-Instruct-FP8"]] = Field("gpt-4o", description="Model to use for agent nodes")
     sla: Optional[SLARequirements] = None
 
 
@@ -108,10 +108,7 @@ class NodeSpecLLM(BaseModel):
     data: NodeData
     position: Optional[Dict[str, float]] = None  # FE inserts {x,y}
     runtime: Dict = Field(default_factory=dict)  # e.g. {"timeout":30,"retries":1}
-    sla: Optional[SLARequirements] = Field(
-        None, 
-        description="SLA requirements for this node. Use null for type-based defaults: decision nodes require routing tools as final tool, agents are lax by default."
-    )
+    sla: Optional[SLARequirements] = Field(None, description="SLA requirements for this node from WorkflowPlanner")
 
 
 class NodeSpec(BaseModel):
@@ -157,17 +154,17 @@ class WorkflowSpecLLM(BaseModel):
     Workflow specification for LLM generation - no IDs, system generates them.
     For chat-only responses, set nodes and edges to null.
     """
-    reasoning: str = Field(default="", description="""Your engaging response to the user! For refinements: acknowledge SPECIFIC changes requested and explain how you're implementing them. 
+    reasoning: str = Field(default="", description="""Your engaging thought process about workflow design and/or response to the user! For refinements: acknowledge SPECIFIC changes requested and explain how you're implementing them. 
 For tool listings: organize by category with emojis, highlight capabilities, suggest use cases. 
-For workflows: explain your design decisions. Be enthusiastic about IO.net's capabilities!
-
+For workflows: explain your design decisions. Think in the super set, then break down into nodes and wire it up with edges.
+                                
 REFINEMENT EXAMPLES:
 - "Change tools to X" → "I've updated the agent to use only X tools as requested"
 - "Remove Y tool" → "I've removed Y tool from the agent's available tools"
 - "Add SLA for Z" → "I've added SLA enforcement requiring Z tool usage"
 - Always be SPECIFIC about what you changed!""")
     title: Optional[str] = Field(None, description="Workflow title. Use null for chat-only responses.")
-    description: str = Field(default="", description="Workflow description or chat response message.")
+    description: Optional[str] = Field(None, description="Workflow description. Use null for chat-only responses.")
     nodes: Optional[List[NodeSpecLLM]] = Field(None, description="Workflow nodes. Use null for chat-only responses to preserve previous DAG.")
     edges: Optional[List[EdgeSpecLLM]] = Field(None, description="Workflow edges. Use null for chat-only responses to preserve previous DAG.")
 
@@ -182,17 +179,9 @@ class WorkflowSpec(BaseModel):
     """
     id: UUID
     rev: int
-    reasoning: str = Field(default="", description="""Your engaging response to the user! For refinements: acknowledge SPECIFIC changes requested and explain how you're implementing them. 
-For tool listings: organize by category with emojis, highlight capabilities, suggest use cases. 
-For workflows: explain your design decisions. Be enthusiastic about IO.net's capabilities!
-
-REFINEMENT EXAMPLES:
-- "Change tools to X" → "I've updated the agent to use only X tools as requested"
-- "Remove Y tool" → "I've removed Y tool from the agent's available tools"
-- "Add SLA for Z" → "I've added SLA enforcement requiring Z tool usage"
-- Always be SPECIFIC about what you changed!""")
+    reasoning: str
     title: str
-    description: str = ""
+    description: str
     nodes: List[NodeSpec]
     edges: List[EdgeSpec]
     metadata: Dict = Field(default_factory=dict)  # tags, owner, created_at
@@ -285,6 +274,7 @@ REFINEMENT EXAMPLES:
         lines.append("=" * 50)
         lines.append(f"Title: {self.title}")
         lines.append(f"Description: {self.description}")
+        lines.append(f"Reasoning: {self.reasoning}")
         lines.append(f"ID: {self.id}")
         lines.append(f"Version: {self.rev}")
         lines.append("")
@@ -348,7 +338,7 @@ REFINEMENT EXAMPLES:
                 if hasattr(node.sla, 'required_tools') and node.sla.required_tools:
                     lines.append(f"    Required Tools: {node.sla.required_tools}")
                 if hasattr(node.sla, 'final_tool_must_be') and node.sla.final_tool_must_be:
-                    lines.append(f"    Final Tool Must Be: {node.sla.final_tool_must_be}")
+                    lines.append(f"    Final Tool Call *Must Be*: {node.sla.final_tool_must_be}")
             
             lines.append("")
         
@@ -394,11 +384,12 @@ REFINEMENT EXAMPLES:
         
         # Check all nodes have unique IDs
         node_ids = [node.id for node in self.nodes]
-        if len(node_ids) != len(set(node_ids)):
-            issues.append("Duplicate node IDs found")
+        node_id_set = set(node_ids)
+
+        if len(node_id_set) != len(node_ids):
+            issues.append("Duplicate node IDs found; they must be unique")
         
         # Check all edges reference existing nodes
-        node_id_set = set(node_ids)
         for edge in self.edges:
             if edge.source not in node_id_set:
                 issues.append(f"Edge references unknown source: {edge.source}")
@@ -422,58 +413,81 @@ REFINEMENT EXAMPLES:
         # Validate node-type specific requirements
         for node in self.nodes:
             # Validate SLA configuration if present
-            if hasattr(node, 'sla') and node.sla:
-                sla = node.sla
-                # Validate SLA references actual tools available to the node
-                if sla.required_tools:
-                    available_tools = set(node.data.tools or [])
-                    missing_sla_tools = set(sla.required_tools) - available_tools
-                    if missing_sla_tools:
-                        issues.append(f"🚨 SLA MISCONFIGURATION: Node '{node.id}' SLA requires tools not available to node: {sorted(missing_sla_tools)}. Available: {sorted(available_tools)}")
-                
-                # Validate final tool requirement
-                if sla.final_tool_must_be and sla.final_tool_must_be not in (node.data.tools or []):
-                    issues.append(f"🚨 SLA MISCONFIGURATION: Node '{node.id}' SLA requires final tool '{sla.final_tool_must_be}' not available to node")
-                
-                # Validate logical consistency
-                if sla.enforce_usage and not sla.tool_usage_required and not sla.required_tools:
-                    issues.append(f"⚠️ SLA WARNING: Node '{node.id}' has enforce_usage=True but no tool requirements specified")
+            self._validate_sla_configuration(node, issues)
             
             if node.type == "data_source":
-                if not node.data.source_name:
-                    issues.append(f"Data source node '{node.id}' ({node.label}) missing required 'source_name'")
-                elif tool_catalog and node.data.source_name not in tool_catalog:
-                    issues.append(f"🚨 SOURCE HALLUCINATION: Node '{node.id}' uses non-existent source '{node.data.source_name}'. Available sources: {sorted(tool_catalog.keys())}")
-                elif tool_catalog and node.data.source_name in tool_catalog:
-                    # Validate source parameters
-                    tool_info = tool_catalog[node.data.source_name]
-                    required_params = tool_info.get("required_parameters", [])
-                    tool_info.get("parameters", {})
-                    config_params = set(node.data.config.keys()) if node.data.config else set()
-                    
-                    # Check for missing required parameters - NO AUTO-HEALING, FAIL FAST
-                    missing_params = set(required_params) - config_params
-                    if missing_params:
-                        issues.append(f"🚨 MISSING PARAMETERS: Data source node '{node.id}' ({node.data.source_name}) missing required parameters: {sorted(missing_params)}. Config has: {sorted(config_params)}")
-                    
-                    # Check for None/empty config - NO AUTO-HEALING, FAIL FAST  
-                    if required_params and (not node.data.config):
-                        issues.append(f"🚨 EMPTY CONFIG: Data source node '{node.id}' ({node.data.source_name}) has None/empty config but requires parameters: {sorted(required_params)}")
+                self._validate_data_source_node(node, issues, tool_catalog)
             
             elif node.type == "agent":
-                if not node.data.agent_instructions:
-                    issues.append(f"Agent node '{node.id}' ({node.label}) missing required 'agent_instructions'")
+                self._validate_agent_node(node, issues)
             
             elif node.type == "workflow_call":
-                if not node.data.workflow_id:
-                    issues.append(f"Workflow call node '{node.id}' ({node.label}) missing required 'workflow_id'")
+                self._validate_workflow_call_node(node, issues)
             
-            elif node.type == "decision" and hasattr(node.data, 'tools') and node.data.tools:
-                # Check if decision node tools exist in catalog
-                for tool in node.data.tools:
-                    if tool_catalog and tool not in tool_catalog:
-                        issues.append(f"🚨 TOOL HALLUCINATION: Decision node '{node.id}' uses non-existent tool '{tool}'. Available tools: {sorted(tool_catalog.keys())}")
+            elif node.type == "decision":
+                self._validate_decision_node(node, issues, tool_catalog)
         return issues
+
+    def _validate_sla_configuration(self, node, issues):
+        """Validate SLA configuration for a specific node."""
+        if not hasattr(node, 'sla') or not node.sla:
+            return
+        
+        sla = node.sla
+        # Validate SLA references actual tools available to the node
+        if sla.required_tools:
+            available_tools = set(node.data.tools or [])
+            missing_sla_tools = set(sla.required_tools) - available_tools
+            if missing_sla_tools:
+                issues.append(f"🚨 SLA MISCONFIGURATION: Node '{node.id}' SLA requires tools not available to node: {sorted(missing_sla_tools)}. Available: {sorted(available_tools)}")
+        
+        # Validate final tool requirement
+        if sla.final_tool_must_be and sla.final_tool_must_be not in (node.data.tools or []):
+            issues.append(f"🚨 SLA MISCONFIGURATION: Node '{node.id}' SLA requires final tool '{sla.final_tool_must_be}' not available to node")
+        
+        # Validate logical consistency
+        if sla.enforce_usage and not sla.tool_usage_required and not sla.required_tools:
+            issues.append(f"⚠️ SLA WARNING: Node '{node.id}' has enforce_usage=True but no tool requirements specified")
+
+    def _validate_data_source_node(self, node, issues, tool_catalog):
+        """Validate data source node configuration."""
+        if not node.data.source_name:
+            issues.append(f"Data source node '{node.id}' ({node.label}) missing required 'source_name'")
+        elif tool_catalog and node.data.source_name not in tool_catalog:
+            issues.append(f"🚨 SOURCE HALLUCINATION: Node '{node.id}' uses non-existent source '{node.data.source_name}'. Available sources: {sorted(tool_catalog.keys())}")
+        elif tool_catalog and node.data.source_name in tool_catalog:
+            # Validate source parameters
+            tool_info = tool_catalog[node.data.source_name]
+            required_params = tool_info.get("required_parameters", [])
+            tool_info.get("parameters", {})
+            config_params = set(node.data.config.keys()) if node.data.config else set()
+            
+            # Check for missing required parameters - NO AUTO-HEALING, FAIL FAST
+            missing_params = set(required_params) - config_params
+            if missing_params:
+                issues.append(f"🚨 MISSING PARAMETERS: Data source node '{node.id}' ({node.data.source_name}) missing required parameters: {sorted(missing_params)}. Config has: {sorted(config_params)}")
+            
+            # Check for None/empty config - NO AUTO-HEALING, FAIL FAST  
+            if required_params and (not node.data.config):
+                issues.append(f"🚨 EMPTY CONFIG: Data source node '{node.id}' ({node.data.source_name}) has None/empty config but requires parameters: {sorted(required_params)}")
+
+    def _validate_agent_node(self, node, issues):
+        """Validate agent node configuration."""
+        if not node.data.agent_instructions:
+            issues.append(f"Agent node '{node.id}' ({node.label}) missing required 'agent_instructions'")
+
+    def _validate_workflow_call_node(self, node, issues):
+        """Validate workflow call node configuration."""
+        if not node.data.workflow_id:
+            issues.append(f"Workflow call node '{node.id}' ({node.label}) missing required 'workflow_id'")
+
+    def _validate_decision_node(self, node, issues, tool_catalog):
+        """Validate decision node configuration."""
+        if hasattr(node.data, 'tools') and node.data.tools:
+            # Check if decision node tools exist in catalog
+            for tool in node.data.tools:
+                if tool_catalog and tool not in tool_catalog:
+                    issues.append(f"🚨 TOOL HALLUCINATION: Decision node '{node.id}' uses non-existent tool '{tool}'. Available tools: {sorted(tool_catalog.keys())}")
 
     def validate_routing_consistency(self, mode: str = "strict") -> List[str]:
         """
@@ -515,7 +529,7 @@ REFINEMENT EXAMPLES:
                 
                 # Check for routing vs unconditional edges (using route_index)
                 routing_edges = [e for e in node_edges if e.data and e.data.route_index is not None]
-                [e for e in node_edges if not (e.data and e.data.route_index is not None)]
+                #[e for e in node_edges if not (e.data and e.data.route_index is not None)]
                 
                 if not routing_edges:
                     issues.append(f"🚨 MISSING ROUTE_INDEX: Routing node '{node.id}' ({node.label}) has outgoing edges but none have route_index set")

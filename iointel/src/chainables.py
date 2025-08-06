@@ -1,4 +1,5 @@
 from typing import List, Optional, Dict
+import logging
 
 # from .task import CUSTOM_WORKFLOW_REGISTRY
 from .utilities.runners import run_agents
@@ -8,6 +9,10 @@ from .utilities.registries import CHAINABLE_METHODS, CUSTOM_WORKFLOW_REGISTRY
 from .agents import Agent
 from .agent_methods.agents.agents_factory import create_agent
 from .agent_methods.data_models.datamodels import AgentParams, AgentResultFormat
+from .agent_methods.data_models.execution_models import AgentExecutionResult, AgentRunResponse, ExecutionStatus
+import time
+
+logger = logging.getLogger(__name__)
 
 ##############################################
 # Example Executor Functions
@@ -284,7 +289,7 @@ def execute_custom(
 @register_custom_task("agent")  # Core agent executor
 async def execute_agent_task(
     task_metadata: dict, objective: str, agents: List[Agent], execution_metadata: dict
-):
+) -> "AgentExecutionResult":
     """
     Generic agent task executor that handles type='agent' tasks from WorkflowSpec.
     This executor:
@@ -343,7 +348,7 @@ async def execute_agent_task(
         agents_to_use = [create_agent(ap) for ap in agents]
         # Log what was created
         for i, agent in enumerate(agents_to_use):
-            print(f"   Agent {i}: model={getattr(agent.model, 'model_name', 'unknown')}, tools={len(agent.tools)}, name={agent.name}")
+            print(f"========== Agent {i}: model={getattr(agent.model, 'model_name', 'unknown')}, tools={len(agent.tools)}, name={agent.name}")
     else:
         # Already Agent instances
         agents_to_use = agents
@@ -366,7 +371,30 @@ async def execute_agent_task(
         context.update(processed_results)
     
     # Build task objective that includes both instructions and data context
-    if agent_instructions:
+    # Check which inputs this node expects (from edges/ports)
+    expected_inputs = task_metadata.get("ports", {}).get("inputs", [])
+    
+    # CRITICAL: For agents that expect input, check if we have direct input data
+    # This respects the edge topology - only use inputs we're actually connected to
+    primary_input_value = None
+    if expected_inputs:
+        # Look for the first expected input in our results
+        for input_name in expected_inputs:
+            # Check if any result key matches this input
+            for key, value in processed_results.items():
+                # Direct match or the key is the expected input source
+                if key == input_name or (input_name == "user_message" and key.startswith("user_input")):
+                    primary_input_value = value
+                    logger.info(f"🎯 Found expected input '{input_name}' from '{key}': {primary_input_value}")
+                    break
+            if primary_input_value:
+                break
+    
+    # Determine task objective
+    if primary_input_value:
+        # Use the primary input as the objective
+        task_objective = primary_input_value
+    elif agent_instructions:
         if processed_results:
             # Include information about available data in the objective
             available_data_info = ", ".join([f"{k}: {v}" for k, v in processed_results.items()])
@@ -374,7 +402,7 @@ async def execute_agent_task(
         else:
             task_objective = agent_instructions
     else:
-        task_objective = objective or "Process the available data"
+        task_objective = objective
     
     # Agent execution - SLA enforcement handled at DAG level
     agent_name = agents_to_use[0].name if agents_to_use else "unknown"
@@ -402,32 +430,132 @@ async def execute_agent_task(
     
     # Execute the agent normally - SLA enforcement now handled at DAG level
     print(f"ℹ️ Executing agent '{agent_name}' (SLA enforcement handled at DAG level)")
-    response = await execute_agent()
+    start_time = time.time()
     
-    # AgentResultFormat should have already filtered the response appropriately
-    print(f"🔧 execute_agent_task: final response type = {type(response)}")
-    print(f"🔧 execute_agent_task: final response keys = {list(response.keys()) if isinstance(response, dict) else 'not a dict'}")
-    return response
+    try:
+        response = await execute_agent()
+        
+        # Convert dict response to typed AgentRunResponse
+        typed_response = AgentRunResponse.from_dict(response)
+        
+        # Return typed execution result
+        return AgentExecutionResult(
+            status=ExecutionStatus.COMPLETED,
+            agent_response=typed_response,
+            execution_time=time.time() - start_time,
+            node_id=task_metadata.get("node_id") or task_metadata.get("task_id")
+        )
+        
+    except Exception as e:
+        # Return typed error result
+        return AgentExecutionResult(
+            status=ExecutionStatus.FAILED,
+            error=str(e),
+            execution_time=time.time() - start_time,
+            node_id=task_metadata.get("node_id") or task_metadata.get("task_id")
+        )
 
 
-@register_custom_task("data_source")  # Core data_source executor  
-@register_custom_task("tool")  # Backward compatibility
-async def execute_tool_task(task_metadata, objective, agents, execution_metadata):
+@register_custom_task("data_source")  # Core data_source executor
+async def execute_data_source_task(task_metadata, objective, agents, execution_metadata) -> "DataSourceResult":
+    """Clean data source executor using standardized Pydantic models."""
+    from .agent_methods.data_sources import get_data_source
+    from .agent_methods.data_sources.models import DataSourceRequest, DataSourceResponse
+    from .agent_methods.data_models.execution_models import DataSourceResult, ExecutionStatus
+    import time
+    import logging
+    
+    logger = logging.getLogger("iointel.chainables.data_source_executor")
+    start_time = time.time()
+    
+    # Get source_name (new) or tool_name (legacy compatibility)
+    source_name = task_metadata.get("source_name") or task_metadata.get("tool_name")
+    config = task_metadata.get("config", {})
+    
+    logger.info(f"[CHAINABLES] Executing data source: {source_name}")
+    logger.debug(f"    Config: {config}")
+    
+    try:
+        # Get data source implementation
+        data_source_func = get_data_source(source_name)
+        
+        # Create standardized request
+        # Only include fields that exist in DataSourceRequest model
+        request_kwargs = {
+            "message": config.get("message", "")
+        }
+        
+        # Only add optional fields if they have values
+        if "default_value" in config and config["default_value"] is not None:
+            request_kwargs["default_value"] = config["default_value"]
+            
+        request = DataSourceRequest(**request_kwargs)
+        
+        # Execute data source
+        response: DataSourceResponse = data_source_func(request, execution_metadata=execution_metadata)
+        
+        logger.info(f"[CHAINABLES] Data source '{source_name}' completed: {response.status}")
+        
+        # Convert to legacy DataSourceResult format for compatibility
+        return DataSourceResult(
+            tool_type=source_name,
+            status=ExecutionStatus.COMPLETED if response.status == "completed" else ExecutionStatus.PENDING,
+            result=response.message if response.status == "completed" else response.model_dump(),
+            message=f"Data source '{source_name}' executed successfully",
+            metadata={
+                "execution_time": time.time() - start_time,
+                "response": response.model_dump()
+            }
+        )
+        
+    except ValueError as e:
+        error_msg = f"Data source '{source_name}' not found: {str(e)}"
+        logger.error(error_msg)
+        return DataSourceResult(
+            tool_type=source_name or "unknown",
+            status=ExecutionStatus.FAILED,
+            error=error_msg,
+            metadata={"execution_time": time.time() - start_time}
+        )
+    except Exception as e:
+        error_msg = f"Data source '{source_name}' failed: {str(e)}"
+        logger.error(error_msg)
+        return DataSourceResult(
+            tool_type=source_name or "unknown",
+            status=ExecutionStatus.FAILED,
+            error=error_msg,
+            metadata={"execution_time": time.time() - start_time}
+        )
+
+
+@register_custom_task("tool")  # Backward compatibility for actual tools
+async def execute_tool_task(task_metadata, objective, agents, execution_metadata) -> "DataSourceResult":
     """Portable, backend-agnostic tool executor for 'tool' nodes."""
     from .utilities.registries import TOOLS_REGISTRY
+    from .agent_methods.data_models.execution_models import DataSourceResult, ExecutionStatus
     import inspect
     import logging
+    import time
+    
     logger = logging.getLogger("iointel.chainables.tool_executor")
-
+    start_time = time.time()
+    
     tool_name = task_metadata.get("tool_name")
     config = task_metadata.get("config", {})
     logger.info(f"[CHAINABLES] Executing tool: {tool_name}")
     logger.debug(f"    Config: {config}")
+    
     tool = TOOLS_REGISTRY.get(tool_name)
     if not tool:
         error_msg = f"Tool '{tool_name}' not found in TOOLS_REGISTRY"
         logger.error(error_msg)
-        raise ValueError(error_msg)
+        return DataSourceResult(
+            tool_type=tool_name or "unknown",
+            status=ExecutionStatus.FAILED,
+            error=error_msg,
+            metadata={"execution_time": time.time() - start_time}
+        )
+    
     try:
         # Pass execution_metadata inside the arguments dict - Tool.run() expects it there
         # The Tool class will extract it and pass it as additional_args to the actual function
@@ -436,16 +564,30 @@ async def execute_tool_task(task_metadata, objective, agents, execution_metadata
         result = tool.run(config_with_metadata)
         if inspect.isawaitable(result):
             result = await result
+        
         logger.info(f"[CHAINABLES] Tool '{tool_name}' completed: {result}")
-        return result
+        
+        return DataSourceResult(
+            tool_type=tool_name,
+            status=ExecutionStatus.COMPLETED,
+            result=result,
+            message=f"Tool '{tool_name}' executed successfully",
+            metadata={"execution_time": time.time() - start_time}
+        )
+        
     except Exception as e:
         error_msg = f"Tool '{tool_name}' failed: {str(e)}"
         logger.error(error_msg)
-        raise
+        return DataSourceResult(
+            tool_type=tool_name,
+            status=ExecutionStatus.FAILED,
+            error=error_msg,
+            metadata={"execution_time": time.time() - start_time}
+        )
 
 
 @register_custom_task("decision")  # Core decision executor
-async def execute_decision_task(task_metadata, objective, agents, execution_metadata):
+async def execute_decision_task(task_metadata, objective, agents, execution_metadata) -> "AgentExecutionResult":
     """Core decision executor - delegates to agent executor for decision agents."""
     # Decision nodes are just agents with routing tools, so delegate to agent executor
     return await execute_agent_task(task_metadata, objective, agents, execution_metadata)
