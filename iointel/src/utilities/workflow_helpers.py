@@ -138,7 +138,8 @@ async def plan_and_execute(
             initial_state = WorkflowState(
                 initial_text=prompt,
                 conversation_id=conversation_id,
-                results={}
+                results={},
+                execution_id=str(uuid4())  # Generate execution ID here
             )
         
         # Execute the DAG
@@ -325,6 +326,7 @@ async def execute_workflow(
     user_inputs: Optional[Dict[str, Any]] = None,
     objective: Optional[str] = None,
     conversation_id: Optional[str] = None,
+    execution_id: Optional[str] = None,
     feedback_collector: Optional[ExecutionFeedbackCollector] = None,
     debug: bool = False
 ) -> "WorkflowExecutionResult":
@@ -352,17 +354,19 @@ async def execute_workflow(
             print("Success!")
     """
     conversation_id = conversation_id or str(uuid4())
+    execution_id = execution_id or str(uuid4())  # Generate if not provided
     start_time = datetime.now()
     
     # Use workflow description as objective if not provided
     if objective is None:
         objective = workflow_spec.description or workflow_spec.title
     
-    # Create initial state with user inputs
+    # Create initial state with user inputs AND execution_id
     initial_state = WorkflowState(
         initial_text=objective,
         conversation_id=conversation_id,
-        user_inputs=user_inputs or {}
+        user_inputs=user_inputs or {},
+        execution_id=execution_id  # Set it in state!
     )
     
     if debug:
@@ -390,7 +394,7 @@ async def execute_workflow(
         if dag_issues and debug:
             logger.warning(f"DAG validation issues: {dag_issues}")
         
-        # Execute workflow
+        # Execute workflow - execution_id flows through state now
         final_state = await executor.execute_dag(initial_state)
         
         # Get execution statistics
@@ -438,6 +442,11 @@ async def execute_workflow(
         failed_count = stats.get("failed_nodes", 0)
         overall_status = ExecutionStatus.COMPLETED if failed_count == 0 else ExecutionStatus.PARTIAL
         
+        # Extract execution summary if available from state
+        execution_summary_data = final_state.execution_summary if final_state.execution_summary else None
+        if execution_summary_data:
+            logger.info(f"📊 Got execution summary with {len(execution_summary_data.nodes_executed)} nodes")
+        
         return WorkflowExecutionResult(
             workflow_id=str(workflow_spec.id),
             workflow_name=workflow_spec.title,
@@ -447,7 +456,8 @@ async def execute_workflow(
             execution_time=(datetime.now() - start_time).total_seconds(),
             metadata={
                 "stats": stats,
-                "conversation_id": conversation_id
+                "conversation_id": conversation_id,
+                "execution_summary": execution_summary_data  # Include in metadata
             }
         )
         
@@ -566,14 +576,6 @@ async def execute_workflow_with_metadata(
             logger.info(f"📝 User inputs provided: {list(user_inputs.keys())}")
         logger.info(f"📋 Executing workflow with {len(workflow_spec.nodes)} nodes")
     
-    # Start feedback tracking if collector provided
-    if feedback_collector:
-        feedback_collector.start_execution_tracking(
-            execution_id=execution_id,
-            workflow_spec=workflow_spec,
-            user_inputs=user_inputs or {}
-        )
-    
     try:
         # Create DAG executor with typed execution and feedback tracking
         executor = DAGExecutor(
@@ -597,16 +599,17 @@ async def execute_workflow_with_metadata(
             }
         )
         
-        # Create initial state for DAG execution
+        # Create initial state for DAG execution with execution_id
         initial_state = WorkflowState(
             initial_text=workflow_spec.description,
             conversation_id=conversation_id,
             results={},
-            user_inputs=user_inputs or {}
+            user_inputs=user_inputs or {},
+            execution_id=execution_id  # Set it in state!
         )
         
-        # Execute the DAG with the execution_id
-        final_state = await executor.execute_dag(initial_state, execution_id=execution_id)
+        # Execute the DAG - execution_id flows through state
+        final_state = await executor.execute_dag(initial_state)
         
         # Get execution statistics
         stats = executor.get_execution_statistics()
@@ -614,10 +617,16 @@ async def execute_workflow_with_metadata(
         if debug:
             logger.info(f"✅ Execution completed: {stats['executed_nodes']}/{stats['total_nodes']} nodes")
         
+        # Get execution summary from state (set by DAG executor)
+        execution_summary = final_state.execution_summary if final_state.execution_summary else None
+        if execution_summary:
+            logger.info(f"📊 Returning execution_summary with {len(execution_summary.nodes_executed)} nodes")
+        
         return {
             "conversation_id": conversation_id,
             "results": final_state.results,
             "execution_stats": stats,
+            "execution_summary": execution_summary,  # Include execution summary!
             "success": True,
             "status": "completed"
         }

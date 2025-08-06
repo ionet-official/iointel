@@ -184,7 +184,8 @@ class ExecutionResultCurator:
         tool_results = []
         
         for node in nodes:
-            if node.status == ExecutionStatus.SUCCESS:
+            # Check for both SUCCESS and COMPLETED (typed execution uses COMPLETED)
+            if node.status in [ExecutionStatus.SUCCESS, ExecutionStatus.COMPLETED]:
                 # Agent outputs - fields are guaranteed to exist with defaults
                 if node.full_agent_output:
                     agent_results.append(f"• **{node.node_label}**: {node.full_agent_output}")
@@ -224,7 +225,8 @@ class ExecutionResultCurator:
             from iointel.src.utilities.conversion_utils import workflow_spec_to_llm_structured
             workflow_context = f"\n\n{workflow_spec_to_llm_structured(active_workflow_spec)}\n\n"
         
-        if summary.status == ExecutionStatus.SUCCESS:
+        # Check for both SUCCESS and COMPLETED status (typed execution uses COMPLETED)
+        if summary.status in [ExecutionStatus.SUCCESS, ExecutionStatus.COMPLETED]:
             # Extract results using helper method
             agent_results, tool_results = ExecutionResultCurator.extract_results_from_nodes(summary.nodes_executed)
             agent_outputs_text = "\n".join(agent_results) if agent_results else "No agent outputs captured"
@@ -391,6 +393,14 @@ class ExecutionFeedbackCollector:
         effective_total_nodes = total_nodes - num_decision_gated_skips
         executed_nodes = len(node_results)
         efficiency = (executed_nodes / effective_total_nodes) if effective_total_nodes > 0 else 1.0
+        
+        # Build node_durations dict for performance metrics
+        node_durations = {}
+        for node_id, node_tracking in node_results.items():
+            if node_tracking.duration_seconds is not None:
+                node_durations[node_id] = round(node_tracking.duration_seconds, 3)
+            else:
+                node_durations[node_id] = 0.0
 
         # Build ordered execution path (executed + skipped, in workflow order)
         {n.id: n for n in workflow_spec.nodes}
@@ -439,7 +449,12 @@ class ExecutionFeedbackCollector:
                 "nodes_skipped": len(nodes_skipped),
                 "decision_gated_skips": decision_gated_skips,
                 "execution_efficiency": f"{executed_nodes}/{effective_total_nodes} ({100*efficiency:.1f}%)" if effective_total_nodes > 0 else "N/A (all skips decision-gated)",
-                "execution_path": execution_path
+                "execution_path": execution_path,
+                "node_durations": node_durations,
+                "total_nodes": total_nodes,
+                "executed_nodes_count": executed_nodes,
+                "skipped_nodes_count": len(nodes_skipped),
+                "failed_nodes": 0  # Track failed nodes separately if needed
             }
         )
         

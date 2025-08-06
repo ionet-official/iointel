@@ -498,27 +498,37 @@ class DAGExecutor:
         # No routing logic applies
         return None
     
-    async def execute_dag(self, initial_state: WorkflowState, execution_id: Optional[str] = None) -> WorkflowState:
+    async def execute_dag(self, initial_state: WorkflowState) -> WorkflowState:
         """
         Execute the DAG respecting dependencies and enabling parallel execution.
         
         Args:
-            initial_state: Initial workflow state
-            execution_id: Optional execution ID to use for tracking (if not provided, generates one)
+            initial_state: Initial workflow state (should contain execution_id)
             
         Returns:
             Final workflow state with all results
         """
-        # If feedback collector is provided, start tracking
-        if self.feedback_collector and self.workflow_spec:
-            import uuid
-            # Use provided execution_id or generate one
-            self.execution_id = execution_id or f"dag_{uuid.uuid4().hex[:8]}"
-            self.feedback_collector.start_execution_tracking(
-                execution_id=self.execution_id,
-                workflow_spec=self.workflow_spec,
-                user_inputs=initial_state.user_inputs if hasattr(initial_state, 'user_inputs') else {}
-            )
+        # Get execution_id from state or generate one
+        import uuid
+        if hasattr(initial_state, 'execution_id') and initial_state.execution_id:
+            self.execution_id = initial_state.execution_id
+        else:
+            self.execution_id = f"dag_{uuid.uuid4().hex[:8]}"
+            # Set it in state so it flows through
+            initial_state.execution_id = self.execution_id
+        
+        # Set up feedback tracking if collector is available
+        if self.feedback_collector:
+            # Only start tracking if not already started by caller
+            if self.execution_id not in self.feedback_collector.active_executions:
+                logger.debug(f"Starting execution tracking for {self.execution_id}")
+                self.feedback_collector.start_execution_tracking(
+                    execution_id=self.execution_id,
+                    workflow_spec=self.workflow_spec,
+                    user_inputs=initial_state.user_inputs if hasattr(initial_state, 'user_inputs') else {}
+                )
+            else:
+                logger.debug(f"Execution {self.execution_id} already being tracked by caller")
         with logger.group("DAG Execution", execution_id=self.execution_id):
             logger.info("Starting DAG execution")
             logger.execution_plan("Execution Plan", self.execution_order, parallelism=max(len(batch) for batch in self.execution_order))
