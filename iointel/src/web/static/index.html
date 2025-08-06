@@ -3739,7 +3739,22 @@
             
             // Show results if completed
             if (data.status === 'completed' && data.results) {
-                showExecutionResults(data.results);
+                console.log('📊 Completion data.results keys:', Object.keys(data.results));
+                console.log('📊 Has execution_summary?', 'execution_summary' in data.results);
+                
+                // Handle both typed and legacy result formats
+                // Typed execution returns results directly, legacy wraps in results.results
+                const resultsToShow = data.results.results ? data.results : { results: data.results };
+                showExecutionResults(resultsToShow);
+                
+                // Update execution logs immediately if available
+                if (data.results.execution_summary) {
+                    console.log('📊 Execution summary available, updating logs immediately');
+                    executionLogs = data.results.execution_summary;
+                    updateExecutionLogs(data.results.execution_summary);
+                } else {
+                    console.log('⚠️ No execution_summary in results');
+                }
                 
                 // Don't re-render after completion to preserve user input in textareas
                 // The re-render was causing user input to be cleared
@@ -4048,6 +4063,10 @@
                     if (results.tool_usage && results.tool_usage[taskKey]) {
                         actualToolUsage = results.tool_usage[taskKey];
                         console.log('🛠️ Found tool usage in results.tool_usage[taskKey]:', actualToolUsage);
+                    } else if (taskResult && taskResult.agent_response && taskResult.agent_response.tool_usage_results) {
+                        // Typed AgentExecutionResult format
+                        actualToolUsage = taskResult.agent_response.tool_usage_results;
+                        console.log('🛠️ Found tool usage in typed format taskResult.agent_response.tool_usage_results:', actualToolUsage);
                     } else if (taskResult && taskResult.tool_usage_results) {
                         actualToolUsage = taskResult.tool_usage_results;
                         console.log('🛠️ Found tool usage in taskResult.tool_usage_results:', actualToolUsage);
@@ -4160,8 +4179,16 @@
                     // Format result content with data science styling
                     let resultText = '';
                     if (typeof taskResult === 'object' && taskResult !== null) {
-                        // Handle structured result
-                        const mainResult = taskResult.result || taskResult.output || taskResult;
+                        // Handle typed execution results (AgentExecutionResult with nested agent_response.result)
+                        let mainResult;
+                        if (taskResult.agent_response && taskResult.agent_response.result !== undefined) {
+                            // Typed AgentExecutionResult format
+                            mainResult = taskResult.agent_response.result;
+                        } else {
+                            // Legacy format or direct result
+                            mainResult = taskResult.result || taskResult.output || taskResult;
+                        }
+                        
                         if (typeof mainResult === 'string') {
                             resultText = mainResult;
                         } else {
@@ -7055,11 +7082,14 @@ ${result.snippet ? `**Matching Content**: ${result.snippet}` : ''}`;
             }
             
             console.log('📊 Updating execution logs with summary:', summary);
+            console.log('📊 nodes_executed detail:', summary.nodes_executed);
+            console.log('📊 performance_metrics:', summary.performance_metrics);
             
             const lines = [];
             const nodesExecuted = summary.nodes_executed || [];
             const nodesSkipped = summary.nodes_skipped || [];
-            const successCount = nodesExecuted.filter(n => n.status === 'success').length;
+            // Count both 'success' and 'completed' as successful
+            const successCount = nodesExecuted.filter(n => n.status === 'success' || n.status === 'completed').length;
             const totalNodes = nodesExecuted.length;
             const skipCount = nodesSkipped.length;
             
@@ -7075,9 +7105,11 @@ ${result.snippet ? `**Matching Content**: ${result.snippet}` : ''}`;
             
             // Node execution trace with safe field access and tool usage tracking
             nodesExecuted.forEach((node, idx) => {
-                const statusChar = node.status === 'success' ? '✓' : '✗';
-                const statusClass = node.status === 'success' ? 'log-success' : 'log-error';
-                const duration = node.duration_seconds ? `${node.duration_seconds.toFixed(1)}s` : '---';
+                // Check for both 'success' and 'completed' status
+                const isSuccess = node.status === 'success' || node.status === 'completed';
+                const statusChar = isSuccess ? '✓' : '✗';
+                const statusClass = isSuccess ? 'log-success' : 'log-error';
+                const duration = (node.duration_seconds !== null && node.duration_seconds !== undefined) ? `${node.duration_seconds.toFixed(1)}s` : '---';
                 const nodeId = node.node_id || node.node_label || `node_${idx + 1}`;
                 const nodeType = node.node_type || 'unknown';
                 
@@ -7199,9 +7231,44 @@ ${result.snippet ? `**Matching Content**: ${result.snippet}` : ''}`;
             // Performance metrics on one line
             if (summary.performance_metrics) {
                 lines.push('');
-                const metrics = Object.entries(summary.performance_metrics)
-                    .map(([k, v]) => `${k}:${v}`)
-                    .join(' ');
+                // Format metrics properly, handling objects
+                const formattedMetrics = [];
+                for (const [k, v] of Object.entries(summary.performance_metrics)) {
+                    if (typeof v === 'object') {
+                        // Format objects specially based on key
+                        if (k === 'execution_path') {
+                            formattedMetrics.push(`execution_order:${v.length}`);
+                        } else if (k === 'node_durations') {
+                            // Format node durations as a compact string
+                            if (v && Object.keys(v).length > 0) {
+                                const durations = Object.entries(v).map(([nid, dur]) => `${nid}:${dur}s`).join(',');
+                                formattedMetrics.push(`node_durations:[${durations}]`);
+                            } else {
+                                // If no durations, show empty array
+                                formattedMetrics.push(`node_durations:[]`);
+                            }
+                        } else if (k === 'decision_gated_skips' && Array.isArray(v)) {
+                            // Skip array of skip IDs
+                            continue;
+                        }
+                        // Skip other complex objects
+                    } else {
+                        // Format simple values based on key
+                        if (k === 'total_nodes') {
+                            formattedMetrics.push(`total_nodes:${v}`);
+                        } else if (k === 'executed_nodes_count') {
+                            formattedMetrics.push(`executed_nodes_count:${v}`);
+                        } else if (k === 'skipped_nodes_count') {
+                            formattedMetrics.push(`skipped_nodes_count:${v}`);
+                        } else if (k === 'failed_nodes') {
+                            formattedMetrics.push(`failed_nodes:${v}`);
+                        } else if (k !== 'nodes_total' && k !== 'nodes_executed' && k !== 'nodes_skipped') {
+                            // Skip duplicate metrics
+                            formattedMetrics.push(`${k}:${v}`);
+                        }
+                    }
+                }
+                const metrics = formattedMetrics.join(' ');
                 lines.push(`<span class="log-metric">perf:</span> <span class="log-dim">${metrics}</span>`);
             }
             
