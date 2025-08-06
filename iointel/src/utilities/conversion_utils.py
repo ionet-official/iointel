@@ -27,7 +27,7 @@ from pydantic import BaseModel
 import dataclasses
 
 from iointel.src.agent_methods.data_models.workflow_spec import WorkflowSpec, NodeSpec, EdgeSpec
-from iointel.src.web.execution_feedback import WorkflowExecutionSummary, NodeExecutionResult, ExecutionStatus
+from iointel.src.web.execution_feedback import WorkflowExecutionSummary, NodeExecutionTracking, ExecutionStatus
 
 
 class ConversionUtils:
@@ -350,16 +350,18 @@ class ConversionUtils:
         if not tool_results:
             return "No tools used."
         
+        from ..agent_methods.data_models.datamodels import ToolUsageResult
+        
         sections = []
         for i, result in enumerate(tool_results, 1):
-            # Handle both objects and dicts gracefully
-            if hasattr(result, 'tool_name'):
-                # Object with attributes
-                tool_name = getattr(result, 'tool_name', 'unknown_tool')
-                tool_result = getattr(result, 'result', getattr(result, 'tool_result', 'No result'))
-                tool_args = getattr(result, 'tool_args', getattr(result, 'input', {}))
+            # Handle both ToolUsageResult objects and dicts for backward compatibility
+            if isinstance(result, ToolUsageResult):
+                # Pydantic model with guaranteed fields
+                tool_name = result.tool_name
+                tool_result = result.tool_result or 'No result'
+                tool_args = result.tool_args
             elif isinstance(result, dict):
-                # Dict with keys
+                # Dict with keys (backward compatibility)
                 tool_name = result.get('tool_name', 'unknown_tool')
                 tool_result = result.get('result', result.get('tool_result', 'No result'))
                 tool_args = result.get('tool_args', result.get('input', {}))
@@ -389,16 +391,18 @@ class ConversionUtils:
         if not tool_results:
             return "<p>No tools used.</p>"
         
+        from ..agent_methods.data_models.datamodels import ToolUsageResult
+        
         html_parts = []
         for result in tool_results:
-            # Handle both objects and dicts gracefully
-            if hasattr(result, 'tool_name'):
-                # Object with attributes
-                tool_name = getattr(result, 'tool_name', 'unknown_tool')
-                tool_args = getattr(result, 'tool_args', getattr(result, 'input', {}))
-                tool_result = getattr(result, 'tool_result', getattr(result, 'result', ''))
+            # Handle both ToolUsageResult objects and dicts for backward compatibility
+            if isinstance(result, ToolUsageResult):
+                # Pydantic model with guaranteed fields
+                tool_name = result.tool_name
+                tool_args = result.tool_args
+                tool_result = result.tool_result or ''
             elif isinstance(result, dict):
-                # Dict with keys
+                # Dict with keys (backward compatibility)
                 tool_name = result.get('tool_name', 'unknown_tool')
                 tool_args = result.get('tool_args', result.get('input', {}))
                 tool_result = result.get('tool_result', result.get('result', ''))
@@ -448,7 +452,7 @@ class ConversionUtils:
         if summary.nodes_executed:
             sections.append("## Executed Nodes:")
             for node in summary.nodes_executed:
-                status_icon = "✅" if node.status == ExecutionStatus.SUCCESS else "❌"
+                status_icon = "✅" if node.status in [ExecutionStatus.SUCCESS, ExecutionStatus.COMPLETED] else "❌"
                 sections.append(f"{status_icon} {node.node_label} ({node.node_type})")
                 if node.tool_usage:
                     sections.append(f"   Tools: {', '.join(node.tool_usage)}")
@@ -479,7 +483,7 @@ class ConversionUtils:
         if summary.nodes_executed:
             html += "<h4>Executed Nodes:</h4><ul>"
             for node in summary.nodes_executed:
-                status_icon = "✅" if node.status == ExecutionStatus.SUCCESS else "❌"
+                status_icon = "✅" if node.status in [ExecutionStatus.SUCCESS, ExecutionStatus.COMPLETED] else "❌"
                 html += f"<li>{status_icon} <strong>{node.node_label}</strong> ({node.node_type})"
                 if node.tool_usage:
                     html += f"<br>Tools: {', '.join(node.tool_usage)}"
