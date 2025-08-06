@@ -503,19 +503,51 @@ class ConversionUtils:
         if not errors:
             return "No validation errors."
         
-        sections = ["# Validation Errors Found:", ""]
+        sections = [
+            "🚨🚨🚨 CRITICAL VALIDATION FAILURES - YOUR PREVIOUS ATTEMPTS FAILED 🚨🚨🚨",
+            "YOU KEEP MAKING THE SAME MISTAKES! READ AND FIX THESE ERRORS:",
+            ""
+        ]
+        
+        # Check for user_input config errors specifically
+        has_user_input_error = any(
+            "user_input" in error and ("missing required parameters" in error.lower() or "empty config" in error.lower())
+            for error_group in errors for error in error_group
+        )
+        
+        if has_user_input_error:
+            sections.extend([
+                "⚠️⚠️⚠️ USER_INPUT CONFIG ERROR DETECTED ⚠️⚠️⚠️",
+                "YOU ARE GENERATING INVALID user_input NODES!",
+                "",
+                "❌ WRONG (what you keep doing):",
+                '{"type": "data_source", "data": {"source_name": "user_input", "config": null}}',
+                '{"type": "data_source", "data": {"source_name": "user_input", "config": {}}}',
+                "",
+                "✅ CORRECT (what you MUST do):",
+                '{"type": "data_source", "data": {"source_name": "user_input", "config": {"message": "Enter your input", "default_value": ""}}}',
+                "",
+                "EVERY user_input MUST have config with BOTH message AND default_value!",
+                "DO NOT generate config: null or config: {} - THIS WILL FAIL!",
+                "="*80,
+                ""
+            ])
         
         for i, error_group in enumerate(errors, 1):
-            sections.append(f"## Error Group {i}:")
+            sections.append(f"## Attempt {i} FAILED with these errors:")
             for error in error_group:
-                sections.append(f"• {error}")
+                sections.append(f"❌ {error}")
             sections.append("")
         
         sections.extend([
-            "## Required Fixes:",
-            "Please analyze these errors and provide specific fixes for each issue.",
-            "Focus on structural problems, missing required fields, and data flow issues."
-            "\n--------\n"
+            "## YOU MUST FIX THESE ERRORS:",
+            "1. If error says 'missing required parameters' - ADD THOSE PARAMETERS TO CONFIG",
+            "2. If error says 'empty config' - ADD A CONFIG OBJECT WITH ALL REQUIRED FIELDS",
+            "3. If error mentions 'user_input' - USE THE TEMPLATE ABOVE",
+            "",
+            "THIS IS YOUR LAST CHANCE - FIX THESE ERRORS OR THE WORKFLOW WILL FAIL!",
+            "="*80,
+            ""
         ])
         
         return "\n".join(sections)
