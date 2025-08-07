@@ -37,6 +37,10 @@ def mock_tool_catalog():
         "user_input": {
             "description": "Collect user input",
             "parameters": {"prompt": {"type": "string"}}
+        },
+        "prompt_tool": {
+            "description": "Provide static prompt message",
+            "parameters": {"message": {"type": "string"}}
         }
     }
 
@@ -47,11 +51,11 @@ def agent_conditional_gate_workflow():
     nodes = [
         NodeSpec(
             id="sentiment_source",
-            type="tool",
+            type="data_source",
             label="Get Market Sentiment",
             data=NodeData(
-                tool_name="get_market_sentiment",
-                config={},
+                source_name="user_input",
+                config={"prompt": "Enter market sentiment data (bullish/bearish with confidence)"},
                 ins=[],
                 outs=["sentiment_data"]
             )
@@ -142,6 +146,7 @@ def agent_conditional_gate_workflow():
     return WorkflowSpec(
         id=uuid4(),
         rev=1,
+        reasoning="Test fixture for validating agent-based conditional routing using conditional_gate tool",
         title="Agent Conditional Gate Test",
         description="Test agent using conditional_gate tool for routing decisions",
         nodes=nodes,
@@ -156,11 +161,11 @@ def bitcoin_trading_workflow():
     nodes = [
         NodeSpec(
             id="btc_price_source",
-            type="tool",
+            type="data_source",
             label="Get Bitcoin Price",
             data=NodeData(
-                tool_name="get_coin_quotes",
-                config={"symbol": ["BTC"]},
+                source_name="prompt_tool",
+                config={"message": "BTC price data: $50000, change: +5%"},
                 ins=[],
                 outs=["price_data"]
             )
@@ -234,6 +239,7 @@ def bitcoin_trading_workflow():
     return WorkflowSpec(
         id=uuid4(),
         rev=1,
+        reasoning="Test fixture for Bitcoin trading workflow with buy/sell/hold conditional routing based on market sentiment",
         title="Bitcoin Conditional Trading",
         description="Bitcoin trading with conditional routing",
         nodes=nodes,
@@ -297,10 +303,10 @@ class TestConditionalRouting:
         assert len(workflow.nodes) == 5  # price source + decision + 3 trading agents
         assert len(workflow.edges) == 4
         
-        # Validate price source uses real tool
+        # Validate price source uses valid data source
         price_source = next(n for n in workflow.nodes if n.id == "btc_price_source")
-        assert price_source.data.tool_name == "get_coin_quotes"
-        assert price_source.data.config["symbol"] == ["BTC"]
+        assert price_source.data.source_name == "prompt_tool"
+        assert "BTC" in price_source.data.config["message"]
         
         # Validate trading routes
         trading_edges = [e for e in workflow.edges if e.data.condition]
@@ -334,9 +340,9 @@ class TestConditionalRouting:
         # Validate tools used in workflow exist in catalog
         tools_in_workflow = set()
         for node in workflow.nodes:
-            if node.data.tool_name:
-                tools_in_workflow.add(node.data.tool_name)
-            if node.data.tools:
+            if hasattr(node.data, 'source_name') and node.data.source_name:
+                tools_in_workflow.add(node.data.source_name)
+            if hasattr(node.data, 'tools') and node.data.tools:
                 tools_in_workflow.update(node.data.tools)
         
         # Check that all tools exist in catalog
@@ -392,11 +398,11 @@ class TestConditionalWorkflowExecution:
         workflow = agent_conditional_gate_workflow
         
         # Create DAG executor
-        executor = DAGExecutor()
+        executor = DAGExecutor(use_typed_execution=True)
         executor.build_execution_graph(
-            nodes=workflow.nodes,
-            edges=workflow.edges,
-            objective="Test conditional routing"
+            workflow_spec=workflow,
+            objective="Test conditional routing",
+            conversation_id="test_conversation"
         )
         
         # Validate executor setup
