@@ -4,28 +4,393 @@ Workflow Helper Utilities
 High-level helpers for generating and executing workflows from natural language prompts.
 """
 import os
-from typing import Dict, Any, Optional, List, Tuple
+import sys
+from typing import Dict, Any, Optional
 from uuid import uuid4
 from datetime import datetime
 
-from ..agent_methods.agents.workflow_planner import WorkflowPlanner
-from ..agent_methods.data_models.workflow_spec import WorkflowSpec
-from ..agent_methods.data_models.execution_models import (
-    WorkflowExecutionResult, 
-    ExecutionStatus,
-    NodeExecutionResult,
-    AgentExecutionResult,
-    DataSourceResult
-)
-from ..agent_methods.tools.tool_loader import load_tools_from_env
-from ..utilities.tool_registry_utils import create_tool_catalog
-from ..utilities.dag_executor import DAGExecutor
-from ..utilities.graph_nodes import WorkflowState
-from ..agent_methods.data_models.datamodels import AgentParams
-from ..utilities.io_logger import get_component_logger
-from ..web.execution_feedback import ExecutionFeedbackCollector
+# Add the project root to the path for imports
+if __name__ == "__main__":
+    # Add the project root to sys.path for imports
+    import os
+    import sys
+    # Get the project root (two levels up from this file)
+    project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+    sys.path.insert(0, project_root)
+
+# Use conditional imports to avoid circular import issues when running directly
+try:
+    from iointel.src.agent_methods.agents.workflow_planner import WorkflowPlanner
+    from iointel.src.agent_methods.data_models.workflow_spec import WorkflowSpec
+    from iointel.src.agent_methods.data_models.execution_models import (
+        WorkflowExecutionResult, 
+        ExecutionStatus,
+        NodeExecutionResult,
+        AgentExecutionResult,
+        DataSourceResult
+    )
+    from iointel.src.agent_methods.tools.tool_loader import load_tools_from_env
+    from iointel.src.utilities.tool_registry_utils import create_tool_catalog
+    from iointel.src.utilities.dag_executor import DAGExecutor
+    from iointel.src.utilities.graph_nodes import WorkflowState
+    from iointel.src.agent_methods.data_models.datamodels import AgentParams
+    from iointel.src.utilities.io_logger import get_component_logger
+    from iointel.src.web.execution_feedback import ExecutionFeedbackCollector
+except ImportError as e:
+    if __name__ == "__main__":
+        print(f"❌ Import error: {e}")
+        print("This file should be run from the project root with: uv run python iointel/src/utilities/workflow_helpers.py")
+        sys.exit(1)
+    else:
+        raise
 
 logger = get_component_logger('workflow_helpers')
+
+
+def _get_model_config() -> Dict[str, Any]:
+    """Get shared model configuration."""
+    from iointel.src.utilities.constants import get_model_config
+    
+    helper_model = os.getenv("WORKFLOW_PLANNER_MODEL", "gpt-4o")
+    return get_model_config(model=helper_model)
+
+
+def _get_default_tool_catalog() -> Dict[str, Any]:
+    """Get default tool catalog with standard settings."""
+    # Load tools first to ensure registry is populated
+    load_tools_from_env()
+    # Use the same pattern as the web app
+    return create_tool_catalog(filter_broken=True, verbose_format=False, use_working_filter=True)
+
+
+def _create_workflow_planner(conversation_id: str, debug: bool = False) -> WorkflowPlanner:
+    """Create a configured WorkflowPlanner instance."""
+    model_config = _get_model_config()
+    
+    return WorkflowPlanner(
+        model=model_config["model"],
+        api_key=model_config["api_key"],
+        base_url=model_config["base_url"],
+        conversation_id=conversation_id,
+        debug=debug
+    )
+
+
+def _create_dag_executor(feedback_collector: Optional[ExecutionFeedbackCollector] = None) -> DAGExecutor:
+    """Create a configured DAGExecutor instance."""
+    return DAGExecutor(
+        use_typed_execution=True,
+        feedback_collector=feedback_collector
+    )
+
+
+def _create_initial_state(
+    objective: str,
+    conversation_id: str,
+    user_inputs: Optional[Dict[str, Any]] = None,
+    execution_id: Optional[str] = None
+) -> WorkflowState:
+    """Create initial workflow state with proper configuration."""
+    return WorkflowState(
+        initial_text=objective,
+        conversation_id=conversation_id,
+        user_inputs=user_inputs or {},
+        results={},
+        execution_id=execution_id or str(uuid4())
+    )
+
+
+def _build_node_results(final_state: WorkflowState, workflow_spec: WorkflowSpec) -> Dict[str, NodeExecutionResult]:
+    """Build typed node results from final state."""
+    node_results = {}
+    
+    # Create a lookup for node types from the workflow spec
+    node_type_lookup = {node.id: node.type for node in workflow_spec.nodes}
+    
+    for node_id, result in final_state.results.items():
+        # Get actual node type from workflow spec
+        actual_node_type = node_type_lookup.get(node_id, "agent")
+        
+        # Map to execution model node types
+        if actual_node_type == "data_source":
+            node_type = "data_source"
+        elif actual_node_type == "decision":
+            node_type = "decision"
+        else:
+            node_type = "agent"
+        
+        # The result itself could be typed or not
+        if isinstance(result, (AgentExecutionResult, DataSourceResult)):
+            node_result = result
+        else:
+            # Legacy result - just wrap it
+            node_result = {"result": result}
+        
+        node_results[node_id] = NodeExecutionResult(
+            node_id=node_id,
+            node_type=node_type,
+            status=ExecutionStatus.COMPLETED,
+            result=node_result
+        )
+    
+    return node_results
+
+
+def _determine_execution_status(stats: Dict[str, Any]) -> ExecutionStatus:
+    """Determine overall execution status based on statistics."""
+    failed_count = stats.get("failed_nodes", 0)
+    return ExecutionStatus.COMPLETED if failed_count == 0 else ExecutionStatus.PARTIAL
+
+
+async def execute_workflow(
+    workflow_spec: WorkflowSpec,
+    user_inputs: Optional[Dict[str, Any]] = None,
+    objective: Optional[str] = None,
+    conversation_id: Optional[str] = None,
+    execution_id: Optional[str] = None,
+    feedback_collector: Optional[ExecutionFeedbackCollector] = None,
+    debug: bool = False
+) -> WorkflowExecutionResult:
+    """Execute a workflow spec and return results.
+    
+    This is the main execution function used by both tests and web app for consistent execution.
+    
+    Args:
+        workflow_spec: The workflow spec to execute
+        user_inputs: Optional user inputs for data source nodes
+        objective: Optional objective override, defaults to workflow description
+        conversation_id: Optional conversation ID, will generate if not provided
+        execution_id: Optional execution ID, will generate if not provided
+        feedback_collector: Optional feedback collector for web app
+        debug: Enable debug logging
+        
+    Returns:
+        WorkflowExecutionResult with typed execution results
+        
+    Example:
+        result = await execute_workflow(
+            workflow_spec=my_spec,
+            user_inputs={"stock_symbol": "AAPL"}
+        )
+        if result.status == ExecutionStatus.COMPLETED:
+            print("Success!")
+    """
+    conversation_id = conversation_id or str(uuid4())
+    execution_id = execution_id or str(uuid4())
+    start_time = datetime.now()
+    
+    # Use workflow description as objective if not provided
+    if objective is None:
+        objective = workflow_spec.description or workflow_spec.title
+    
+    # Create initial state
+    initial_state = _create_initial_state(
+        objective=objective,
+        conversation_id=conversation_id,
+        user_inputs=user_inputs,
+        execution_id=execution_id
+    )
+    
+    if debug:
+        logger.info(f"🚀 Executing workflow: {workflow_spec.title}")
+        logger.info(f"   Objective: {objective}")
+        if user_inputs:
+            logger.info(f"   User inputs: {list(user_inputs.keys())}")
+    
+    try:
+        # Create DAG executor
+        executor = _create_dag_executor(feedback_collector)
+        
+        # Build execution graph
+        executor.build_execution_graph(
+            workflow_spec=workflow_spec,
+            objective=objective,
+            conversation_id=conversation_id
+        )
+        
+        # Validate DAG
+        dag_issues = executor.validate_dag()
+        if dag_issues and debug:
+            logger.warning(f"DAG validation issues: {dag_issues}")
+        
+        # Execute workflow
+        final_state = await executor.execute_dag(initial_state)
+        
+        # Get execution statistics
+        stats = executor.get_execution_statistics()
+        
+        if debug:
+            logger.info(f"✅ Execution completed: {stats['executed_nodes']}/{stats['total_nodes']} nodes")
+            logger.info(f"   Efficiency: {stats['execution_efficiency']}")
+        
+        # Build typed node results from state results
+        node_results = _build_node_results(final_state, workflow_spec)
+        
+        # Determine overall status
+        overall_status = _determine_execution_status(stats)
+        
+        # Extract execution summary if available from state
+        execution_summary_data = final_state.execution_summary if final_state.execution_summary else None
+        if execution_summary_data:
+            logger.info(f"📊 Got execution summary with {len(execution_summary_data.nodes_executed)} nodes")
+        
+        return WorkflowExecutionResult(
+            workflow_id=str(workflow_spec.id),
+            workflow_name=workflow_spec.title,
+            status=overall_status,
+            node_results=node_results,
+            final_output=final_state.results,
+            execution_time=(datetime.now() - start_time).total_seconds(),
+            metadata={
+                "stats": stats,
+                "conversation_id": conversation_id,
+                "execution_summary": execution_summary_data
+            }
+        )
+        
+    except Exception as e:
+        logger.error(f"❌ Failed to execute workflow: {e}")
+        
+        return WorkflowExecutionResult(
+            workflow_id=str(workflow_spec.id),
+            workflow_name=workflow_spec.title,
+            status=ExecutionStatus.FAILED,
+            node_results={},
+            final_output=None,
+            execution_time=(datetime.now() - start_time).total_seconds(),
+            error=str(e),
+            metadata={
+                "conversation_id": conversation_id
+            }
+        )
+
+
+async def execute_workflow_with_metadata(
+    workflow_spec: WorkflowSpec,
+    execution_id: str,
+    user_inputs: Optional[Dict[str, Any]] = None,
+    form_id: Optional[str] = None,
+    conversation_id: Optional[str] = None,
+    feedback_collector: Optional[ExecutionFeedbackCollector] = None,
+    client_mode: bool = True,
+    debug: bool = False
+) -> WorkflowExecutionResult:
+    """Execute a workflow with full metadata support, matching web app behavior.
+    
+    This function matches the execution pattern used by the web app's
+    execute_workflow_background function, ensuring consistent behavior.
+    
+    Args:
+        workflow_spec: The workflow spec to execute
+        execution_id: Unique execution ID for tracking
+        user_inputs: Optional user inputs for data source nodes
+        form_id: Optional form ID for tracking
+        conversation_id: Optional conversation ID, will generate if not provided
+        feedback_collector: Optional feedback collector for real-time updates
+        client_mode: Whether to run in client mode (default True)
+        debug: Enable debug logging
+        
+    Returns:
+        WorkflowExecutionResult with typed execution results
+    """
+    conversation_id = conversation_id or f"execution_{execution_id}"
+    start_time = datetime.now()
+    
+    if debug:
+        logger.info(f"🛠️ Starting execution: {execution_id}")
+        if user_inputs:
+            logger.info(f"📝 User inputs provided: {list(user_inputs.keys())}")
+        logger.info(f"📋 Executing workflow with {len(workflow_spec.nodes)} nodes")
+    
+    try:
+        # Create DAG executor with typed execution and feedback tracking
+        executor = _create_dag_executor(feedback_collector)
+        
+        # Build execution graph with user inputs in metadata (matching web app)
+        executor.build_execution_graph(
+            workflow_spec=workflow_spec,
+            objective=workflow_spec.description,
+            conversation_id=conversation_id,
+            execution_metadata_by_node={
+                node.id: {
+                    "execution_id": execution_id,
+                    "user_inputs": user_inputs or {},
+                    "form_id": form_id,
+                    "client_mode": client_mode
+                }
+                for node in workflow_spec.nodes
+            }
+        )
+        
+        # Create initial state for DAG execution with execution_id
+        initial_state = _create_initial_state(
+            objective=workflow_spec.description,
+            conversation_id=conversation_id,
+            user_inputs=user_inputs,
+            execution_id=execution_id
+        )
+        
+        # Execute the DAG - execution_id flows through state
+        final_state = await executor.execute_dag(initial_state)
+        
+        # Get execution statistics
+        stats = executor.get_execution_statistics()
+        
+        if debug:
+            logger.info(f"✅ Execution completed: {stats['executed_nodes']}/{stats['total_nodes']} nodes")
+        
+        # Get execution summary from state (set by DAG executor)
+        execution_summary = final_state.execution_summary if final_state.execution_summary else None
+        if execution_summary:
+            logger.info(f"📊 Returning execution_summary with {len(execution_summary.nodes_executed)} nodes")
+        
+        # Build typed node results from state results
+        node_results = _build_node_results(final_state, workflow_spec)
+        
+        # Determine overall status
+        overall_status = _determine_execution_status(stats)
+        
+        return WorkflowExecutionResult(
+            workflow_id=str(workflow_spec.id),
+            workflow_name=workflow_spec.title,
+            status=overall_status,
+            node_results=node_results,
+            final_output=final_state.results,
+            execution_time=(datetime.now() - start_time).total_seconds(),
+            metadata={
+                "stats": stats,
+                "conversation_id": conversation_id,
+                "execution_summary": execution_summary,
+                "form_id": form_id,
+                "client_mode": client_mode
+            }
+        )
+        
+    except Exception as e:
+        logger.error(f"❌ Failed to execute workflow: {e}")
+        
+        # Complete feedback tracking with error if collector provided
+        if feedback_collector:
+            feedback_collector.complete_execution_tracking(
+                execution_id=execution_id,
+                final_outputs={},
+                execution_summary={"error": str(e), "status": "failed"}
+            )
+        
+        return WorkflowExecutionResult(
+            workflow_id=str(workflow_spec.id),
+            workflow_name=workflow_spec.title,
+            status=ExecutionStatus.FAILED,
+            node_results={},
+            final_output=None,
+            execution_time=(datetime.now() - start_time).total_seconds(),
+            error=str(e),
+            metadata={
+                "conversation_id": conversation_id,
+                "form_id": form_id,
+                "client_mode": client_mode
+            }
+        )
 
 
 async def plan_and_execute(
@@ -35,7 +400,7 @@ async def plan_and_execute(
     conversation_id: Optional[str] = None,
     max_retries: int = 3,
     debug: bool = False
-) -> Dict[str, Any]:
+) -> WorkflowExecutionResult:
     """
     Generate a workflow from natural language and execute it immediately.
     
@@ -52,11 +417,17 @@ async def plan_and_execute(
         debug: Enable debug logging
         
     Returns:
-        Dict containing:
-        - workflow_spec: The generated WorkflowSpec
-        - execution_result: Final WorkflowState after execution
-        - execution_stats: Execution statistics
-        - success: Boolean indicating overall success
+        WorkflowExecutionResult containing:
+        - workflow_id: The workflow ID
+        - workflow_name: The workflow name
+        - status: ExecutionStatus (COMPLETED or FAILED)
+        - node_results: Dict of node results
+        - final_output: Final workflow state results dict
+        - execution_time: Time taken to execute workflow
+        - metadata: Dict containing:
+            - stats: Execution statistics
+            - conversation_id: The conversation ID used
+            - execution_summary: Execution summary if available
         
     Example:
         result = await plan_and_execute(
@@ -64,29 +435,15 @@ async def plan_and_execute(
         )
     """
     conversation_id = conversation_id or str(uuid4())
+    start_time = datetime.now()
     
     # Step 1: Generate workflow from prompt
     logger.info(f"📋 Generating workflow from prompt: {prompt[:100]}...")
     
-    # Use shared model configuration
-    from .constants import get_model_config
-    
-    helper_model = os.getenv("WORKFLOW_PLANNER_MODEL", "gpt-4o")
-    model_config = get_model_config(model=helper_model)
-    
-    planner = WorkflowPlanner(
-        model=model_config["model"],
-        api_key=model_config["api_key"],
-        base_url=model_config["base_url"],
-        conversation_id=conversation_id,
-        debug=debug
-    )
+    planner = _create_workflow_planner(conversation_id, debug)
     
     if tool_catalog is None:
-        # Load tools first to ensure registry is populated
-        load_tools_from_env()
-        # Use the same pattern as the web app
-        tool_catalog = create_tool_catalog(filter_broken=True, verbose_format=False, use_working_filter=True)
+        tool_catalog = _get_default_tool_catalog()
     
     try:
         workflow_spec = await planner.generate_workflow(
@@ -100,74 +457,63 @@ async def plan_and_execute(
         
     except Exception as e:
         logger.error(f"❌ Failed to generate workflow: {e}")
-        return {
-            "workflow_spec": None,
-            "execution_result": None,
-            "execution_stats": None,
-            "success": False,
-            "error": str(e)
-        }
+        return WorkflowExecutionResult(
+            workflow_id="generated_workflow",
+            workflow_name="Generated Workflow",
+            status=ExecutionStatus.FAILED,
+            node_results={},
+            final_output=None,
+            execution_time=(datetime.now() - start_time).total_seconds(),
+            error=f"Failed to generate workflow: {str(e)}",
+            metadata={
+                "conversation_id": conversation_id,
+                "generation_failed": True
+            }
+        )
     
-    # Step 2: Execute the generated workflow
+    # Step 2: Execute the generated workflow using the main execution function
     logger.info(f"🚀 Executing workflow: {workflow_spec.title}")
     
     try:
-        # Create DAG executor with typed execution
-        executor = DAGExecutor(use_typed_execution=True)
-        
         # Use first user input as objective if available, otherwise use prompt
         objective = prompt
         if initial_state and initial_state.user_inputs:
             # Get first user input value as the objective
             first_input = next(iter(initial_state.user_inputs.values()))
             objective = first_input
-            
-        executor.build_execution_graph(
+        
+        # Use the main execute_workflow function
+        execution_result = await execute_workflow(
             workflow_spec=workflow_spec,
+            user_inputs=initial_state.user_inputs if initial_state else None,
             objective=objective,
-            conversation_id=conversation_id
+            conversation_id=conversation_id,
+            debug=debug
         )
         
-        # Validate the DAG
-        issues = executor.validate_dag()
-        if issues:
-            logger.warning(f"⚠️  DAG validation issues: {issues}")
+        # Add generation metadata to the result
+        execution_result.metadata["generation_prompt"] = prompt
+        execution_result.metadata["generation_successful"] = True
         
-        # Create initial state if not provided
-        if initial_state is None:
-            initial_state = WorkflowState(
-                initial_text=prompt,
-                conversation_id=conversation_id,
-                results={},
-                execution_id=str(uuid4())  # Generate execution ID here
-            )
-        
-        # Execute the DAG
-        final_state = await executor.execute_dag(initial_state)
-        
-        # Get execution statistics
-        stats = executor.get_execution_statistics()
-        
-        logger.info("✅ Workflow execution complete!")
-        logger.info(f"   Executed: {stats['executed_nodes']}/{stats['total_nodes']} nodes")
-        logger.info(f"   Efficiency: {stats['execution_efficiency']}")
-        
-        return {
-            "workflow_spec": workflow_spec,
-            "execution_result": final_state,
-            "execution_stats": stats,
-            "success": True
-        }
+        return execution_result
         
     except Exception as e:
         logger.error(f"❌ Failed to execute workflow: {e}")
-        return {
-            "workflow_spec": workflow_spec,
-            "execution_result": None,
-            "execution_stats": None,
-            "success": False,
-            "error": str(e)
-        }
+        return WorkflowExecutionResult(
+            workflow_id=str(workflow_spec.id),
+            workflow_name=workflow_spec.title,
+            status=ExecutionStatus.FAILED,
+            node_results={},
+            final_output=None,
+            execution_time=(datetime.now() - start_time).total_seconds(),
+            error=f"Failed to execute workflow: {str(e)}",
+            metadata={
+                "conversation_id": conversation_id,
+                "generation_successful": True,
+                "execution_failed": True,
+                "generation_prompt": prompt
+            }
+        )
 
 
 async def generate_only(
@@ -193,25 +539,10 @@ async def generate_only(
     """
     conversation_id = conversation_id or str(uuid4())
     
-    # Use shared model configuration
-    from .constants import get_model_config
-    
-    helper_model = os.getenv("WORKFLOW_PLANNER_MODEL", "gpt-4o")
-    model_config = get_model_config(model=helper_model)
-    
-    planner = WorkflowPlanner(
-        model=model_config["model"],
-        api_key=model_config["api_key"],
-        base_url=model_config["base_url"],
-        conversation_id=conversation_id, 
-        debug=debug
-    )
+    planner = _create_workflow_planner(conversation_id, debug)
     
     if tool_catalog is None:
-        # Load tools first to ensure registry is populated
-        load_tools_from_env()
-        # Use the same pattern as the web app
-        tool_catalog = create_tool_catalog(filter_broken=True, verbose_format=False, use_working_filter=True)
+        tool_catalog = _get_default_tool_catalog()
     
     try:
         return await planner.generate_workflow(
@@ -222,288 +553,6 @@ async def generate_only(
     except Exception as e:
         logger.error(f"Failed to generate workflow: {e}")
         return None
-
-
-# def analyze_workflow_spec(spec: WorkflowSpec) -> Dict[str, Any]:
-#     """
-#     Analyze a workflow spec for key features like execution modes, SLA, etc.
-    
-#     Args:
-#         spec: WorkflowSpec to analyze
-        
-#     Returns:
-#         Dict with analysis results
-#     """
-#     analysis = {
-#         "total_nodes": len(spec.nodes),
-#         "total_edges": len(spec.edges),
-#         "node_types": {},
-#         "execution_modes": {"consolidate": [], "for_each": []},
-#         "sla_nodes": [],
-#         "agents_with_tools": [],
-#         "conditional_edges": [],
-#         "decision_gates": []
-#     }
-    
-#     for node in spec.nodes:
-#         # Count node types
-#         node_type = node.type
-#         analysis["node_types"][node_type] = analysis["node_types"].get(node_type, 0) + 1
-        
-#         # Check execution mode
-#         if hasattr(node.data, 'execution_mode'):
-#             mode = node.data.execution_mode
-#             analysis["execution_modes"][mode].append(node.label)
-        
-#         # Check for SLA
-#         if hasattr(node, 'sla') and node.sla:
-#             analysis["sla_nodes"].append({
-#                 "node": node.label,
-#                 "enforce_usage": getattr(node.sla, 'enforce_usage', False),
-#                 "required_tools": getattr(node.sla, 'required_tools', []),
-#                 "final_tool_must_be": getattr(node.sla, 'final_tool_must_be', None),
-#                 "min_tool_calls": getattr(node.sla, 'min_tool_calls', 0)
-#             })
-        
-#         # Check for agents with tools
-#         if node.type == "agent" and hasattr(node.data, 'tools') and node.data.tools:
-#             analysis["agents_with_tools"].append({
-#                 "node": node.label,
-#                 "tools": node.data.tools
-#             })
-            
-#             # Check for conditional_gate
-#             if "conditional_gate" in node.data.tools:
-#                 analysis["decision_gates"].append(node.label)
-    
-#     # Check for conditional edges
-#     for edge in spec.edges:
-#         if edge.data and hasattr(edge.data, 'condition') and edge.data.condition:
-#             analysis["conditional_edges"].append({
-#                 "source": edge.source,
-#                 "target": edge.target,
-#                 "condition": edge.data.condition
-#             })
-    
-#     return analysis
-
-
-# # Convenience function for quick testing
-# async def quick_test(prompt: str) -> None:
-#     """
-#     Quick test function that generates, executes, and prints results.
-    
-#     Args:
-#         prompt: Natural language workflow description
-#     """
-#     print(f"\n🧪 Testing: {prompt}")
-#     print("=" * 60)
-    
-#     result = await plan_and_execute(prompt, debug=True)
-    
-#     if result["success"]:
-#         spec = result["workflow_spec"]
-#         stats = result["execution_stats"]
-        
-#         print("\n✅ SUCCESS!")
-#         print(f"📋 Workflow: {spec.title}")
-#         print(f"📊 Execution: {stats['executed_nodes']}/{stats['total_nodes']} nodes")
-        
-#         # Analyze the workflow
-#         analysis = analyze_workflow_spec(spec)
-#         print("\n🔍 Analysis:")
-#         print(f"  - Node types: {analysis['node_types']}")
-#         print(f"  - For-each nodes: {analysis['execution_modes']['for_each']}")
-#         print(f"  - SLA-enforced nodes: {len(analysis['sla_nodes'])}")
-#         print(f"  - Decision gates: {analysis['decision_gates']}")
-        
-#     else:
-#         print(f"\n❌ FAILED: {result.get('error', 'Unknown error')}")
-
-
-async def execute_workflow(
-    workflow_spec: WorkflowSpec,
-    user_inputs: Optional[Dict[str, Any]] = None,
-    objective: Optional[str] = None,
-    conversation_id: Optional[str] = None,
-    execution_id: Optional[str] = None,
-    feedback_collector: Optional[ExecutionFeedbackCollector] = None,
-    debug: bool = False
-) -> "WorkflowExecutionResult":
-    """Execute a workflow spec and return results.
-    
-    This is the shared function used by both tests and web app for consistent execution.
-    
-    Args:
-        workflow_spec: The workflow spec to execute
-        user_inputs: Optional user inputs for data source nodes
-        objective: Optional objective override, defaults to workflow description
-        conversation_id: Optional conversation ID, will generate if not provided
-        feedback_collector: Optional feedback collector for web app
-        debug: Enable debug logging
-        
-    Returns:
-        WorkflowExecutionResult with typed execution results
-        
-    Example:
-        result = await execute_workflow(
-            workflow_spec=my_spec,
-            user_inputs={"stock_symbol": "AAPL"}
-        )
-        if result.status == ExecutionStatus.COMPLETED:
-            print("Success!")
-    """
-    conversation_id = conversation_id or str(uuid4())
-    execution_id = execution_id or str(uuid4())  # Generate if not provided
-    start_time = datetime.now()
-    
-    # Use workflow description as objective if not provided
-    if objective is None:
-        objective = workflow_spec.description or workflow_spec.title
-    
-    # Create initial state with user inputs AND execution_id
-    initial_state = WorkflowState(
-        initial_text=objective,
-        conversation_id=conversation_id,
-        user_inputs=user_inputs or {},
-        execution_id=execution_id  # Set it in state!
-    )
-    
-    if debug:
-        logger.info(f"🚀 Executing workflow: {workflow_spec.title}")
-        logger.info(f"   Objective: {objective}")
-        if user_inputs:
-            logger.info(f"   User inputs: {list(user_inputs.keys())}")
-    
-    try:
-        # Create DAG executor with typed execution
-        executor = DAGExecutor(
-            use_typed_execution=True,
-            feedback_collector=feedback_collector
-        )
-        
-        # Build execution graph
-        executor.build_execution_graph(
-            workflow_spec=workflow_spec,
-            objective=objective,
-            conversation_id=conversation_id
-        )
-        
-        # Validate DAG
-        dag_issues = executor.validate_dag()
-        if dag_issues and debug:
-            logger.warning(f"DAG validation issues: {dag_issues}")
-        
-        # Execute workflow - execution_id flows through state now
-        final_state = await executor.execute_dag(initial_state)
-        
-        # Get execution statistics
-        stats = executor.get_execution_statistics()
-        
-        if debug:
-            logger.info(f"✅ Execution completed: {stats['executed_nodes']}/{stats['total_nodes']} nodes")
-            logger.info(f"   Efficiency: {stats['execution_efficiency']}")
-        
-        # Build typed node results from state results
-        node_results = {}
-        
-        # Create a lookup for node types from the workflow spec
-        node_type_lookup = {}
-        for node in workflow_spec.nodes:
-            node_type_lookup[node.id] = node.type
-        
-        for node_id, result in final_state.results.items():
-            # Get actual node type from workflow spec
-            actual_node_type = node_type_lookup.get(node_id, "agent")
-            
-            # Map to execution model node types
-            if actual_node_type == "data_source":
-                node_type = "data_source"
-            elif actual_node_type == "decision":
-                node_type = "decision"
-            else:
-                node_type = "agent"
-            
-            # The result itself could be typed or not
-            if isinstance(result, (AgentExecutionResult, DataSourceResult)):
-                node_result = result
-            else:
-                # Legacy result - just wrap it
-                node_result = {"result": result}
-            
-            node_results[node_id] = NodeExecutionResult(
-                node_id=node_id,
-                node_type=node_type,
-                status=ExecutionStatus.COMPLETED,
-                result=node_result
-            )
-        
-        # Determine overall status - success means no failures, NOT all nodes executed!
-        failed_count = stats.get("failed_nodes", 0)
-        overall_status = ExecutionStatus.COMPLETED if failed_count == 0 else ExecutionStatus.PARTIAL
-        
-        # Extract execution summary if available from state
-        execution_summary_data = final_state.execution_summary if final_state.execution_summary else None
-        if execution_summary_data:
-            logger.info(f"📊 Got execution summary with {len(execution_summary_data.nodes_executed)} nodes")
-        
-        return WorkflowExecutionResult(
-            workflow_id=str(workflow_spec.id),
-            workflow_name=workflow_spec.title,
-            status=overall_status,
-            node_results=node_results,
-            final_output=final_state.results,
-            execution_time=(datetime.now() - start_time).total_seconds(),
-            metadata={
-                "stats": stats,
-                "conversation_id": conversation_id,
-                "execution_summary": execution_summary_data  # Include in metadata
-            }
-        )
-        
-    except Exception as e:
-        logger.error(f"❌ Failed to execute workflow: {e}")
-        
-        return WorkflowExecutionResult(
-            workflow_id=str(workflow_spec.id),
-            workflow_name=workflow_spec.title,
-            status=ExecutionStatus.FAILED,
-            node_results={},
-            final_output=None,
-            execution_time=(datetime.now() - start_time).total_seconds(),
-            error=str(e),
-            metadata={
-                "conversation_id": conversation_id
-            }
-        )
-
-
-def create_default_tool_catalog(
-    filter_broken: bool = True,
-    verbose_format: bool = False, 
-    use_working_filter: bool = True
-) -> str:
-    """Create the default tool catalog with standard settings.
-    
-    This ensures tests and web app use the same tool catalog configuration.
-    
-    Args:
-        filter_broken: Filter out broken tools
-        verbose_format: Use verbose format
-        use_working_filter: Use working tools filter
-        
-    Returns:
-        Tool catalog string
-    """
-    # Load tools first to ensure registry is populated
-    load_tools_from_env()
-    
-    # Create catalog with same settings as web app
-    return create_tool_catalog(
-        filter_broken=filter_broken,
-        verbose_format=verbose_format,
-        use_working_filter=use_working_filter
-    )
 
 
 def get_execution_summary(executor: DAGExecutor) -> Dict[str, Any]:
@@ -534,119 +583,32 @@ def get_execution_summary(executor: DAGExecutor) -> Dict[str, Any]:
     }
 
 
-async def execute_workflow_with_metadata(
-    workflow_spec: WorkflowSpec,
-    execution_id: str,
-    user_inputs: Optional[Dict[str, Any]] = None,
-    form_id: Optional[str] = None,
-    conversation_id: Optional[str] = None,
-    feedback_collector: Optional[ExecutionFeedbackCollector] = None,
-    client_mode: bool = True,
-    debug: bool = False
-) -> Dict[str, Any]:
-    """Execute a workflow with full metadata support, matching web app behavior.
+if __name__ == "__main__":
+    import asyncio
     
-    This function matches the execution pattern used by the web app's
-    execute_workflow_background function, ensuring consistent behavior.
-    
-    Args:
-        workflow_spec: The workflow spec to execute
-        execution_id: Unique execution ID for tracking
-        user_inputs: Optional user inputs for data source nodes
-        form_id: Optional form ID for tracking
-        conversation_id: Optional conversation ID, will generate if not provided
-        feedback_collector: Optional feedback collector for real-time updates
-        client_mode: Whether to run in client mode (default True)
-        debug: Enable debug logging
+    async def test_workflow_helpers():
+        """Test the workflow helpers functionality."""
+        print("🧪 Testing workflow helpers...")
         
-    Returns:
-        Dict containing:
-        - conversation_id: The conversation ID used
-        - results: Final workflow state results dict
-        - execution_stats: Execution statistics
-        - success: Boolean indicating overall success
-        - status: 'completed' or 'failed'
-        - error: Optional error message if failed
-    """
-    conversation_id = conversation_id or f"execution_{execution_id}"
-    
-    if debug:
-        logger.info(f"🛠️ Starting execution: {execution_id}")
-        if user_inputs:
-            logger.info(f"📝 User inputs provided: {list(user_inputs.keys())}")
-        logger.info(f"📋 Executing workflow with {len(workflow_spec.nodes)} nodes")
-    
-    try:
-        # Create DAG executor with typed execution and feedback tracking
-        executor = DAGExecutor(
-            use_typed_execution=True,
-            feedback_collector=feedback_collector
-        )
-        
-        # Build execution graph with user inputs in metadata (matching web app)
-        executor.build_execution_graph(
-            workflow_spec=workflow_spec,
-            objective=workflow_spec.description,
-            conversation_id=conversation_id,
-            execution_metadata_by_node={
-                node.id: {
-                    "execution_id": execution_id,
-                    "user_inputs": user_inputs or {},
-                    "form_id": form_id,
-                    "client_mode": client_mode
-                }
-                for node in workflow_spec.nodes
-            }
-        )
-        
-        # Create initial state for DAG execution with execution_id
-        initial_state = WorkflowState(
-            initial_text=workflow_spec.description,
-            conversation_id=conversation_id,
-            results={},
-            user_inputs=user_inputs or {},
-            execution_id=execution_id  # Set it in state!
-        )
-        
-        # Execute the DAG - execution_id flows through state
-        final_state = await executor.execute_dag(initial_state)
-        
-        # Get execution statistics
-        stats = executor.get_execution_statistics()
-        
-        if debug:
-            logger.info(f"✅ Execution completed: {stats['executed_nodes']}/{stats['total_nodes']} nodes")
-        
-        # Get execution summary from state (set by DAG executor)
-        execution_summary = final_state.execution_summary if final_state.execution_summary else None
-        if execution_summary:
-            logger.info(f"📊 Returning execution_summary with {len(execution_summary.nodes_executed)} nodes")
-        
-        return {
-            "conversation_id": conversation_id,
-            "results": final_state.results,
-            "execution_stats": stats,
-            "execution_summary": execution_summary,  # Include execution summary!
-            "success": True,
-            "status": "completed"
-        }
-        
-    except Exception as e:
-        logger.error(f"❌ Failed to execute workflow: {e}")
-        
-        # Complete feedback tracking with error if collector provided
-        if feedback_collector:
-            feedback_collector.complete_execution_tracking(
-                execution_id=execution_id,
-                final_outputs={},
-                execution_summary={"error": str(e), "status": "failed"}
+        # Test plan_and_execute with a simple math query
+        try:
+            result = await plan_and_execute(
+                prompt="create a simple calculator agent with user input. YOU MUST USE CALCULATOR TOOLS TO SOLVE THE PROBLEM",
+                conversation_id=str(uuid4()),
+                debug=True
             )
-        
-        return {
-            "conversation_id": conversation_id,
-            "results": {},
-            "execution_stats": None,
-            "success": False,
-            "status": "failed",
-            "error": str(e)
-        }
+            
+            print(f"✅ Test completed!")
+            print(f"   Status: {result.status}")
+            print(f"   Workflow: {result.workflow_name}")
+            print(f"   Execution time: {result.execution_time:.2f}s")
+            print(f"   Nodes executed: {len(result.node_results)}")
+            
+            if result.final_output:
+                print(f"   Final output keys: {list(result.final_output.keys())}")
+            
+        except Exception as e:
+            print(f"❌ Test failed: {e}")
+    
+    # Run the test
+    asyncio.run(test_workflow_helpers())
