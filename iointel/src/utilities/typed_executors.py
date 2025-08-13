@@ -2,7 +2,7 @@
 
 from typing import Any, Optional, List
 from .typed_execution import TypedExecutionContext
-from ..utilities.io_logger import get_component_logger
+from ..utilities.io_logger import get_component_logger, log_prompt
 from ..agent_methods.data_models.datamodels import AgentResultFormat, AgentParams
 from ..agent_methods.data_models.execution_models import AgentExecutionResult, ExecutionStatus, AgentRunResponse
 from ..agents import Agent
@@ -117,6 +117,20 @@ async def execute_agent_typed(context: TypedExecutionContext) -> Any:
     
     start_time = time.time()
     
+    # Log the prompt before execution
+    prompt_id = log_prompt(
+        prompt_type="agent_instruction",
+        prompt=objective,
+        metadata={
+            "node_id": context.current_node_id,
+            "agent_name": agents[0].name if agents else "unknown",
+            "node_label": context.current_node.label,
+            "node_type": context.node_type,
+            "context_keys": list(agent_context.keys()),
+            "sla_requirements": context.current_node.sla
+        }
+    )
+    
     # Define the execution function for SLA validation
     async def execute_fn():
         try:
@@ -136,6 +150,21 @@ async def execute_agent_typed(context: TypedExecutionContext) -> Any:
             else:
                 # Already typed response
                 typed_response = response
+            
+            # Log the response after execution
+            if typed_response and typed_response.result:
+                log_prompt(
+                    prompt_type="agent_response",
+                    prompt=objective,
+                    response=str(typed_response.result)[:2000],  # Limit response length
+                    metadata={
+                        "node_id": context.current_node_id,
+                        "agent_name": agents[0].name if agents else "unknown",
+                        "prompt_id": prompt_id,  # Link to original prompt
+                        "tool_usage": [t.tool_name for t in typed_response.tool_usage_results] if typed_response.tool_usage_results else [],
+                        "execution_time": time.time() - start_time
+                    }
+                )
             
             # Return typed execution result - this matches what execute_agent_task returns
             return AgentExecutionResult(
@@ -180,8 +209,9 @@ async def execute_data_source_typed(context: TypedExecutionContext) -> Any:
         logger.error(f"No source_name for data source node {context.node_id}")
         return {"error": "No source_name specified"}
     
-    # Resolve variables in config
-    config = context.resolve_config()
+    # Get config - it's now a DataSourceConfig Pydantic model for data_source nodes
+    from ..agent_methods.data_models.workflow_spec import DataSourceConfig
+    config = context.node_data.config
     
     logger.info(f"Executing data source '{source_name}'")
     logger.debug(f"Config: {config}")
@@ -195,10 +225,18 @@ async def execute_data_source_typed(context: TypedExecutionContext) -> Any:
     
     # Create request based on source type
     if source_name == "user_input":
-        request = DataSourceRequest(
-            message=config.get("message", ""),
-            default_value=config.get("default_value")
-        )
+        # Config is a DataSourceConfig with message and default_value fields
+        if isinstance(config, DataSourceConfig):
+            request = DataSourceRequest(
+                message=config.message,
+                default_value=config.default_value
+            )
+        else:
+            # Fallback for legacy dict config
+            request = DataSourceRequest(
+                message=config.get("message", "") if isinstance(config, dict) else "",
+                default_value=config.get("default_value") if isinstance(config, dict) else None
+            )
     else:
         # For other data sources, pass config directly
         request = config
@@ -288,9 +326,26 @@ async def _create_agent_from_context(context: TypedExecutionContext) -> Optional
         
         # If this is a decision node or has SLA requirements, enhance instructions
         if context.node_type == "decision" or (sla_requirements and sla_requirements.tool_usage_required):
+            # For decision nodes, add route mapping information
+            instructions_to_enhance = context.agent_instructions
+            if context.node_type == "decision":
+                # Get outgoing edges to understand route mappings
+                outgoing_edges = context.outgoing_edges
+                if outgoing_edges:
+                    route_info = ["\n### ROUTING CONFIGURATION ###"]
+                    route_info.append("When calling conditional_gate, use these exact route configurations:")
+                    for edge in outgoing_edges:
+                        if edge.data.route_index is not None:
+                            target_node = next((n for n in context.workflow_spec.nodes if n.id == edge.target), None)
+                            target_label = target_node.label if target_node else edge.target
+                            route_info.append(f"  - route_index: {edge.data.route_index} → '{edge.data.route_label or target_label}' (goes to {target_label})")
+                    route_info.append("IMPORTANT: Call conditional_gate ONLY ONCE with the appropriate route_index based on your analysis.")
+                    route_info.append("### END ROUTING CONFIGURATION ###\n")
+                    instructions_to_enhance = context.agent_instructions + "\n" + "\n".join(route_info)
+            
             # Use inject_pre_prompts_from_sla which handles None sla_requirements gracefully
             enhanced_instructions = inject_prompts_enforcement_from_sla(
-                original_instructions=context.agent_instructions,
+                original_instructions=instructions_to_enhance,
                 sla_requirements=sla_requirements
             )
             agent_params.instructions = enhanced_instructions

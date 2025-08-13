@@ -4,6 +4,7 @@ FastAPI server for serving WorkflowSpecs to the web interface.
 
 import os
 import sys
+import traceback
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect, Request
@@ -1186,16 +1187,28 @@ async def generate_workflow(workflow_request: WorkflowRequest, request: Request)
             dag_pretty = f"\n---\nWORKFLOW DAG (full spec, including SLA):\nTitle: {current_workflow.title}\nDescription: {current_workflow.description}\nID: {current_workflow.id}\nRev: {current_workflow.rev}\nNodes ({len(current_workflow.nodes)}):\n"
             for i, node in enumerate(current_workflow.nodes):
                 dag_pretty += f"  {i+1}. {node.id} ({node.type}): {node.label}\n"
-                dag_pretty += f"     Config: {node.data.config}\n"
-                dag_pretty += f"     Ins: {node.data.ins}\n"
-                dag_pretty += f"     Outs: {node.data.outs}\n"
+                # Handle different node types properly
+                if node.type == "data_source":
+                    dag_pretty += f"     Source: {node.data.source_name}\n"
+                    dag_pretty += f"     Config: {node.data.config}\n"
+                elif node.type in ["agent", "decision"]:
+                    dag_pretty += f"     Instructions: {node.data.agent_instructions[:100]}...\n" if node.data.agent_instructions else ""
+                    dag_pretty += f"     Tools: {node.data.tools}\n"
+                    dag_pretty += f"     Model: {node.data.model}\n"
+                elif node.type == "workflow_call":
+                    dag_pretty += f"     Workflow ID: {node.data.workflow_id}\n"
+                    dag_pretty += f"     Config: {node.data.config}\n"
                 if hasattr(node, 'sla') and node.sla is not None:
                     dag_pretty += f"     SLA: {node.sla.model_dump_json(indent=2) if hasattr(node.sla, 'model_dump_json') else node.sla}\n"
             dag_pretty += f"Edges ({len(current_workflow.edges)}):\n"
             for i, edge in enumerate(current_workflow.edges):
                 dag_pretty += f"  {i+1}. {edge.source} -> {edge.target}\n"
-                dag_pretty += f"     Condition: {edge.data.condition}\n"
-                dag_pretty += f"     Handles: {edge.sourceHandle} -> {edge.targetHandle}\n"
+                if edge.data.route_index is not None:
+                    dag_pretty += f"     Route Index: {edge.data.route_index}\n"
+                    if edge.data.route_label:
+                        dag_pretty += f"     Route Label: {edge.data.route_label}\n"
+                if edge.sourceHandle or edge.targetHandle:
+                    dag_pretty += f"     Handles: {edge.sourceHandle} -> {edge.targetHandle}\n"
             dag_pretty += "---\n"
 
             # Broadcast update to connected clients

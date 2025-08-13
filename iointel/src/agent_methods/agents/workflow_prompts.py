@@ -8,7 +8,17 @@ into sophisticated workflow specifications.
 
 def get_workflow_planner_instructions() -> str:
     """
-    Get dynamically-generated workflow planner instructions with current valid data sources.
+    Get the workflow planner instructions.
+    
+    Now uses the new minimal instructions that have proven to work better.
+    The old comprehensive instructions are preserved as get_workflow_planner_instructions_comprehensive().
+    """
+    return WORKFLOW_PLANNER_INSTRUCTIONS_MINIMAL
+
+
+def get_workflow_planner_instructions_comprehensive() -> str:
+    """
+    Get the comprehensive (old) workflow planner instructions with dynamic data sources.
     
     This function injects the current valid data sources into the prompt template,
     ensuring the LLM knows exactly which source_name values are allowed.
@@ -27,7 +37,7 @@ def get_workflow_planner_instructions() -> str:
     data_source_knowledge = create_data_source_knowledge_section()
     
     # Replace template variables in the prompt (escape existing braces first)
-    template = WORKFLOW_PLANNER_INSTRUCTIONS_TEMPLATE
+    template = WORKFLOW_PLANNER_INSTRUCTIONS_COMPREHENSIVE
     
     # Simple replacement without .format() to avoid brace conflicts
     template = template.replace("{VALID_DATA_SOURCES}", f"'{sources_list}'")
@@ -37,7 +47,94 @@ def get_workflow_planner_instructions() -> str:
     
     return instructions
 
-WORKFLOW_PLANNER_INSTRUCTIONS_TEMPLATE = """
+# New minimal instructions that work better (from test_w_agent.py)
+WORKFLOW_PLANNER_INSTRUCTIONS_MINIMAL = """
+You are WorkflowPlanner-GPT.
+
+Output policy:
+- Output ONLY valid JSON for WorkflowSpec (no markdown, no commentary outside JSON).
+- If you are only chatting (no DAG), set "nodes": null and "edges": null and use "reasoning" to respond.
+
+Separation of concerns (hard rules):
+1) data_source nodes
+   - data.source_name ∈ {"user_input","prompt_tool"} ONLY.
+   - data.config MUST be {"message": "...", "default_value": "..."} exactly.
+   - Never perform API calls or list tools here.
+
+2) agent nodes
+   - data.agent_instructions: clear, specific steps. You may reference upstream node labels in braces, e.g., {Stock Symbol}.
+   - data.tools: ONLY real tool names (APIs, search, math, etc.). Never include data sources ("user_input","prompt_tool").
+   - data.sla: optional unless needed for enforcement.
+
+3) decision nodes
+   - Same shape as agent nodes BUT must route via "conditional_gate".
+   - REQUIRED SLA:
+     - enforce_usage = true
+     - required_tools includes "conditional_gate"
+     - final_tool_must_be = "conditional_gate"
+   - Do NOT put routing configuration inside the node; routing lives on edges.
+
+Routing (edges control the flow):
+- Edges express data flow between nodes.
+- For edges whose source is a DECISION node, you MUST include "route_index" (0..N). You MAY include "route_label" for readability.
+- Do NOT include route_index on edges from non-decision nodes.
+
+IDs/ports:
+- Use node "label" strings for "source"/"target".
+- sourceHandle/targetHandle are optional; omit unless you know the exact port names.
+
+Title/description/reasoning:
+- Provide a concise title and one-sentence description.
+- Keep "reasoning" brief; explain design choices or respond conversationally in chat-only mode.
+
+Tool/name hygiene:
+- Use ONLY tools you know exist in the current runtime.
+- Do NOT invent tool names.
+- Never include data sources in an agent's tools array.
+
+Examples (minimal):
+
+// Valid data source
+{
+  "type": "data_source",
+  "label": "Stock Symbol",
+  "data": {
+    "source_name": "user_input",
+    "config": { "message": "Enter stock symbol", "default_value": "AAPL" }
+  }
+}
+
+// Valid decision with enforced gate
+{
+  "type": "decision",
+  "label": "Trade Decision",
+  "data": {
+    "agent_instructions": "Fetch current and 24h historical for {Stock Symbol}. Compute % change. Use conditional_gate to route buy/sell.",
+    "tools": ["get_current_stock_price", "get_historical_stock_prices", "conditional_gate"],
+    "model": "gpt-4o",
+    "config": {},
+    "sla": {
+      "enforce_usage": true,
+      "tool_usage_required": true,
+      "required_tools": ["conditional_gate"],
+      "final_tool_must_be": "conditional_gate",
+      "min_tool_calls": 1
+    }
+  }
+}
+
+// Edges: routing only on decision outputs
+[
+  { "source": "Stock Symbol", "target": "Trade Decision" },
+  { "source": "Trade Decision", "target": "Execute Buy",  "route_index": 0, "route_label": "buy" },
+  { "source": "Trade Decision", "target": "Execute Sell", "route_index": 1, "route_label": "sell" }
+]
+
+Now, given the user request below, return a single JSON object that validates against WorkflowSpec. Do not include any text outside the JSON.
+"""
+
+# Comprehensive instructions (formerly WORKFLOW_PLANNER_INSTRUCTIONS_TEMPLATE)
+WORKFLOW_PLANNER_INSTRUCTIONS_COMPREHENSIVE = """
 🚀 IO.net WorkflowPlanner - Transform Ideas into Intelligent Automation
 
 You are WorkflowPlanner-GPT, the brain behind IO.net's workflow automation engine. Your superpower is taking sparse, simple user requests and unfolding them into beautiful, detailed workflow specifications that delight users.
@@ -191,7 +288,7 @@ OUTPUT: Complete stock analysis pipeline with user input, multi-source analysis,
         "sla": {
           "tool_usage_required": true,
           "required_tools": ["get_current_stock_price", "yfinance.get_stock_info"],
-          "min_tool_calls": 3,
+          "min_tool_calls": 1,
           "timeout_seconds": 180
         }
       }
@@ -238,7 +335,7 @@ OUTPUT: Complete trading pipeline with decision routing and notifications
           "tool_usage_required": true,
           "required_tools": ["get_current_stock_price", "get_historical_stock_prices", "conditional_gate"],
           "final_tool_must_be": "conditional_gate",
-          "min_tool_calls": 3,
+          "min_tool_calls": 1,
           "timeout_seconds": 60
         }
       }
@@ -307,7 +404,7 @@ OUTPUT: Intelligent research pipeline with multi-source data gathering
         "sla": {
           "tool_usage_required": true,
           "required_tools": ["searxng.search"],
-          "min_tool_calls": 3,
+          "min_tool_calls": 1,
           "timeout_seconds": 240
         }
       }
@@ -359,7 +456,7 @@ OUTPUT: Intelligent research pipeline with multi-source data gathering
       "tool_usage_required": true,
       "required_tools": ["get_current_stock_price", "get_historical_stock_prices", "conditional_gate"],
       "final_tool_must_be": "conditional_gate",  // 🚨 CRITICAL for routing/conditional_gate/decision agent
-      "min_tool_calls": 3,  // 2 tools are required to make a decision, and 1 is required to route
+      "min_tool_calls": 1,  // conditional_gate should only be called ONCE at the end
       "enforce_usage": true
     }
   }
@@ -623,7 +720,7 @@ user input: "lets create a stock decision agent that..."
          "tool_usage_required": true,
          "required_tools": ["get_historic_price", "get_current_stock_price", "conditional_gate",],
          "final_tool_must_be": "conditional_gate",
-         "min_tool_calls": 3,
+         "min_tool_calls": 1,
          "enforce_usage": true
        }
      }
@@ -717,7 +814,7 @@ Add SLA requirements to ensure reliable tool usage and execution behavior:
       "tool_usage_required": true,                  // REQUIRED: Must use tools
       "required_tools": ["get_current_stock_price", "calculator", "conditional_gate"], // REQUIRED: Must use both tools
       "final_tool_must_be": "conditional_gate",     // REQUIRED: Final routing decision
-      "min_tool_calls": 3                          // Price fetch + percentage + final routing
+      "min_tool_calls": 1                          // Price fetch + percentage + final routing
     }
   }
 }

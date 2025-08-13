@@ -97,8 +97,8 @@ class DAGExecutor:
                         node_objective = config["default_value"]
                     logger.info(f"📝 User input node '{node.id}' has value: {node_objective}")
                 
-                # For agent nodes that depend on user input, we'll resolve this dynamically
-                elif node.type == "agent" and node.data.ins:
+                # For agent/decision nodes that depend on user input, we'll resolve this dynamically
+                elif node.type in ["agent", "decision"] and getattr(node.data, 'ins', None):
                     # Check if this agent depends on a user_input node
                     for edge in edges:
                         if edge.target == node.id:
@@ -115,21 +115,33 @@ class DAGExecutor:
                                 logger.info(f"🎯 Agent node '{node.id}' will receive user input as objective: {node_objective}")
                                 break 
                 
+                # Build task metadata based on node type
+                task_metadata = {
+                    "config": getattr(node.data, 'config', {})
+                }
+                
+                # Add type-specific fields
+                if node.type == "data_source":
+                    task_metadata["source_name"] = node.data.source_name
+                elif node.type in ["agent", "decision"]:
+                    task_metadata["agent_instructions"] = node.data.agent_instructions
+                    task_metadata["tools"] = getattr(node.data, 'tools', [])
+                    task_metadata["model"] = getattr(node.data, 'model', 'gpt-4o')
+                elif node.type == "workflow_call":
+                    task_metadata["workflow_id"] = node.data.get('workflow_id')
+                
+                # Add legacy port info if available
+                task_metadata["ports"] = {
+                    "inputs": getattr(node.data, 'ins', []),
+                    "outputs": getattr(node.data, 'outs', [])
+                }
+                
                 task_data = {
                     "task_id": node.id,
                     "name": node.label,
                     "type": node.type,
                     "objective": node_objective,
-                    "task_metadata": {
-                        "config": node.data.config,
-                        "tool_name": getattr(node.data, 'source_name', None) or getattr(node.data, 'tool_name', None),
-                        "agent_instructions": node.data.agent_instructions,
-                        "workflow_id": node.data.workflow_id,
-                        "ports": {
-                            "inputs": node.data.ins,
-                            "outputs": node.data.outs
-                        }
-                    }
+                    "task_metadata": task_metadata
                 }
             
                 # Add execution metadata if available
@@ -151,7 +163,7 @@ class DAGExecutor:
                     if hydrated_agents:
                         node_agents = hydrated_agents
                         logger.debug(f"Created {len(node_agents)} agents from WorkflowSpec for {node.type} node {node.id}")
-                    elif node.data.agent_instructions:
+                    elif hasattr(node.data, 'agent_instructions') and node.data.agent_instructions:
                         logger.warning(f"{node.type} node {node.id} has agent_instructions but agent creation failed")
                     # Note: It's OK for agent nodes to not have instructions if they're placeholders
                 
@@ -875,7 +887,11 @@ class DAGExecutor:
         Returns:
             List of AgentParams if successful, None otherwise
         """
-        if node.type not in ["agent", "decision"] or not node.data.agent_instructions:
+        if node.type not in ["agent", "decision"]:
+            return None
+        
+        # Check if node has agent_instructions (it should for agent/decision nodes)
+        if not hasattr(node.data, 'agent_instructions') or not node.data.agent_instructions:
             return None
             
         try:

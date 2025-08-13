@@ -121,10 +121,15 @@ class ConversionUtils:
         
         for node in spec.nodes:
             sections.append(f"- {node.id} ({node.type}): {node.label}")
-            if node.data.tools:
+            # Only agent and decision nodes have tools
+            if node.type in ["agent", "decision"] and hasattr(node.data, 'tools') and node.data.tools:
                 sections.append(f"  Tools: {', '.join(node.data.tools)}")
-            if node.data.agent_instructions:
+            # Only agent and decision nodes have agent_instructions
+            if node.type in ["agent", "decision"] and hasattr(node.data, 'agent_instructions') and node.data.agent_instructions:
                 sections.append(f"  Instructions: {node.data.agent_instructions[:100]}...")
+            # Data source nodes have source_name
+            if node.type == "data_source" and hasattr(node.data, 'source_name'):
+                sections.append(f"  Source: {node.data.source_name}")
         
         sections.extend(["", "## Edges:"])
         for edge in spec.edges:
