@@ -309,6 +309,34 @@ async def main():
 
 asyncio.run(main())
 ```
+
+### Multimodal Support
+
+```python
+from iointel import Agent, ImageUrl, BinaryContent
+
+agent = Agent(
+    name="VisionAgent",
+    instructions="You are a helpful vision assistant.",
+    model="gpt-4o",
+    api_key="sk-...",
+)
+
+# Analyze images from URLs
+result = await agent.run([
+    "What's in this image?",
+    ImageUrl(url="https://example.com/image.png")
+])
+
+# Or use local images
+with open("local_image.png", "rb") as f:
+    image_data = f.read()
+
+result = await agent.run([
+    "Describe this image",
+    BinaryContent(data=image_data, media_type="image/png")
+])
+```
 ![Screenshot 2025-06-02 at 5 46 15 PM](https://github.com/user-attachments/assets/b563a937-bb06-4856-9ff2-d3f1ddda5a1a)
 
 ![Screenshot 2025-06-02 at 5 46 55 PM](https://github.com/user-attachments/assets/c52ca18b-375a-4406-9a5f-02bac598a6cf)
