@@ -16,7 +16,6 @@ from dataclasses import dataclass
 
 from ..agent_methods.data_models.workflow_spec import WorkflowSpec, NodeSpec, EdgeSpec
 from .graph_nodes import WorkflowState, TaskNode, make_task_node
-from .node_execution_wrapper import sla_validator
 from .io_logger import get_component_logger
 
 logger = get_component_logger("DAG_EXECUTOR", grouped=True)
@@ -74,7 +73,7 @@ class DAGExecutor:
         nodes = workflow_spec.nodes
         edges = workflow_spec.edges
         
-        with logger.group(f"Building DAG", execution_id=self.execution_id):
+        with logger.group("Building DAG", execution_id=self.execution_id):
             logger.info(f"Building DAG with {len(nodes)} nodes and {len(edges)} edges")
             
             # Initialize nodes
@@ -382,7 +381,7 @@ class DAGExecutor:
                                     route_index = gate_result.route_index
                                     routed_to = gate_result.routed_to
                                     action = gate_result.action
-                                    logger.info(f"🔍 Found routing decision from conditional_gate", data={
+                                    logger.info("🔍 Found routing decision from conditional_gate", data={
                                         "decision_node": dep_id,
                                         "route_index": route_index,
                                         "routed_to": routed_to,
@@ -394,7 +393,7 @@ class DAGExecutor:
                                     
                                     # Handle terminate action
                                     if route_index < 0 and action == "terminate":
-                                        logger.info(f"🛑 Workflow terminating - no conditions matched", data={
+                                        logger.info("🛑 Workflow terminating - no conditions matched", data={
                                             "decision_node": dep_id,
                                             "reason": gate_result.decision_reason
                                         })
@@ -405,7 +404,7 @@ class DAGExecutor:
                                     # Legacy dict support
                                     route_index = gate_result.get("route_index")
                                     routed_to = gate_result.get("routed_to", "unknown")
-                                    logger.info(f"🔍 Found routing decision from conditional_gate dict", data={
+                                    logger.info("🔍 Found routing decision from conditional_gate dict", data={
                                         "decision_node": dep_id,
                                         "route_index": route_index,
                                         "routed_to": routed_to,
@@ -430,7 +429,7 @@ class DAGExecutor:
                                 if edge.data and edge.data.route_index is not None:
                                     # Direct integer comparison - no regex needed!
                                     if edge.data.route_index == route_index:
-                                        logger.success(f"🎯 Node will execute - route index match", data={
+                                        logger.success("🎯 Node will execute - route index match", data={
                                             "node_id": node_id,
                                             "route_index": route_index,
                                             "routed_to": routed_to,
@@ -453,7 +452,7 @@ class DAGExecutor:
                                             if (actual_route == expected_route or 
                                                 actual_route == expected_route + "_path" or
                                                 actual_route.replace("_path", "") == expected_route):
-                                                logger.info(f"🎯 Node will execute - legacy condition match", data={
+                                                logger.info("🎯 Node will execute - legacy condition match", data={
                                                     "node_id": node_id,
                                                     "actual_route": actual_route,
                                                     "expected_route": expected_route,
@@ -470,7 +469,7 @@ class DAGExecutor:
                                     return True
                             
                             # No matching edge found - this node should be skipped
-                            logger.warning(f"⏭️ Node will be skipped - no matching route", data={
+                            logger.warning("⏭️ Node will be skipped - no matching route", data={
                                 "node_id": node_id,
                                 "route_index": route_index,
                                 "routed_to": routed_to,

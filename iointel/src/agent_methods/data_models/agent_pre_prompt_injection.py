@@ -9,9 +9,6 @@ Instead of retrofitting SLA enforcement, we modify the agent's core instructions
 at construction time based on its detected type.
 """
 
-from typing import List
-from enum import Enum
-from dataclasses import dataclass
 
 from iointel.src.agent_methods.data_models.workflow_spec import SLARequirements
 
@@ -52,7 +49,7 @@ def inject_prompts_enforcement_from_sla(
         # Has final tool requirement - likely a decision agent
         final_tool = sla_requirements.final_tool_must_be
         pre_prompts.extend([
-            f"🎯 You are a DECISION AGENT with MANDATORY tool usage requirements.",
+            "🎯 You are a DECISION AGENT with MANDATORY tool usage requirements.",
             f"⚡ CRITICAL: '{final_tool}' must be your FINAL tool call",
             "🚫 TOOL USAGE IS MANDATORY - Do not provide analysis without using your required tools"
         ])

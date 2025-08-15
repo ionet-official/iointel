@@ -11,7 +11,6 @@ The catalog makes tool→SLA relationships first-class knowledge for LLM plannin
 
 from typing import Dict, List, Optional
 from pydantic import BaseModel, Field
-from dataclasses import dataclass, field
 from enum import Enum
 from .workflow_spec import SLARequirements
 

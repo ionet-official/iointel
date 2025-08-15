@@ -7,8 +7,7 @@ Provides semantic search endpoints for saved workflows.
 """
 
 from fastapi import APIRouter, HTTPException, Query
-from pydantic import BaseModel
-from typing import List, Optional, Dict, Any
+from typing import Optional
 
 from .workflow_rag_service import WorkflowRAGService, WorkflowSearchRequest, WorkflowSearchResponse
 from ..agent_methods.data_models.workflow_spec import WorkflowSpec

@@ -1,4 +1,3 @@
-
 """
 Interactive CLI for WorkflowPlanner with ASCII React Flow visualization.
 
@@ -290,7 +289,7 @@ Or describe a workflow in natural language to create/refine it!
             elif user_input.lower().startswith("load "):
                 filename = user_input[5:].strip()
                 try:
-                    with open(filename, 'r') as f:
+                    with open(filename) as f:
                         workflow_data = json.load(f)
                     
                     current_workflow = WorkflowSpec.model_validate(workflow_data)

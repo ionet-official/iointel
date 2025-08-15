@@ -172,7 +172,7 @@ def create_tool_catalog(filter_broken: bool = True, verbose_format: bool = True,
             parameters, required_params = _extract_parameters_from_schema(func_schema.json_schema)
             catalog[tool_name] = _format_catalog_entry(tool, parameters, required_params, verbose_format, func_schema)
             
-        except Exception as e:
+        except Exception:
             # Fallback to original method if pydantic-ai schema generation fails
             parameters, required_params = _extract_parameters_from_tool(tool)
             catalog[tool_name] = _format_catalog_entry(tool, parameters, required_params, verbose_format)

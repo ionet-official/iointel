@@ -6,7 +6,7 @@ references in task configurations using results from previous task executions.
 """
 
 import re
-from typing import Any, Dict, Optional, List
+from typing import Optional, Any, Dict
 from .io_logger import get_component_logger
 
 logger = get_component_logger("DATA_FLOW", grouped=True)
@@ -101,7 +101,7 @@ class DataFlowResolver:
         node_id = parts[0]
         
         with logger.group(f"Reference: {reference}"):
-            logger.debug(f"Parsing reference", {
+            logger.debug("Parsing reference", {
                 "full_reference": reference,
                 "node_id": node_id,
                 "field_path": parts[1:] if len(parts) > 1 else None,
@@ -194,7 +194,7 @@ class DataFlowResolver:
                 
                 return current_value
     
-    def validate_references(self, config: Dict[str, Any], available_nodes: set = None) -> list[str]:
+    def validate_references(self, config: Dict[str, Any], available_nodes: Optional[set] = None) -> list[str]:
         """
         Validate that all references in config can potentially be resolved.
         

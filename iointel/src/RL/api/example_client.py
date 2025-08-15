@@ -28,7 +28,7 @@ class RLEvaluationClient:
         response = requests.get(f"{self.base_url}/models", headers=self.headers)
         return response.json()
     
-    def evaluate_sync(self, models: list, num_tasks: int = 3, timeout: int = 120, api_key: str = None, base_url: str = None):
+    def evaluate_sync(self, models: list, num_tasks: int = 3, timeout: int = 120, api_key: Optional[str] = None, base_url: Optional[str] = None):
         """Run synchronous evaluation"""
         payload = {
             "models": models,
@@ -48,7 +48,7 @@ class RLEvaluationClient:
         response.raise_for_status()
         return response.json()
     
-    def evaluate_async(self, models: list, num_tasks: int = 3, timeout: int = 120, api_key: str = None, base_url: str = None):
+    def evaluate_async(self, models: list, num_tasks: int = 3, timeout: int = 120, api_key: Optional[str] = None, base_url: Optional[str] = None):
         """Start asynchronous evaluation"""
         payload = {
             "models": models,

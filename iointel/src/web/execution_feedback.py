@@ -272,7 +272,7 @@ class ExecutionFeedbackCollector:
         self, 
         execution_id: str, 
         workflow_spec: WorkflowSpec,
-        user_inputs: Dict[str, Any] = None
+        user_inputs: Optional[Dict[str, Any]] = None
     ) -> None:
         """Start tracking a workflow execution."""
         self.active_executions[execution_id] = {
@@ -304,12 +304,12 @@ class ExecutionFeedbackCollector:
         execution_id: str, 
         node_id: str, 
         status: ExecutionStatus,
-        result_preview: str = None,
-        error_message: str = None,
-        tool_usage: List[str] = None,
-        full_agent_output: str = None,
-        tool_usage_results: Union[List[Dict[str, Any]], List[ToolUsageResult]] = None,
-        final_result: Union[Any, AgentExecutionResult] = None
+        result_preview: Optional[str] = None,
+        error_message: Optional[str] = None,
+        tool_usage: Optional[List[str]] = None,
+        full_agent_output: Optional[str] = None,
+        tool_usage_results: Optional[Union[List[Dict[str, Any]], List[ToolUsageResult]]] = None,
+        final_result: Optional[Union[Any, AgentExecutionResult]] = None
     ) -> None:
         """Record that a node has completed executing."""
         if execution_id not in self.active_executions:
@@ -348,8 +348,8 @@ class ExecutionFeedbackCollector:
     def complete_execution(
         self, 
         execution_id: str, 
-        final_outputs: Dict[str, Any] = None,
-        error_summary: str = None
+        final_outputs: Optional[Dict[str, Any]] = None,
+        error_summary: Optional[str] = None
     ) -> WorkflowExecutionSummary | None:
         """Complete execution tracking and generate summary."""
         if execution_id not in self.active_executions:

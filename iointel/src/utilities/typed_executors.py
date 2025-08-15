@@ -1,6 +1,6 @@
 """Typed executors for different node types."""
 
-from typing import Any, Optional, List
+from typing import Any, Optional
 from .typed_execution import TypedExecutionContext
 from ..utilities.io_logger import get_component_logger, log_prompt
 from ..agent_methods.data_models.datamodels import AgentResultFormat, AgentParams
@@ -81,7 +81,7 @@ async def execute_agent_typed(context: TypedExecutionContext) -> Any:
         elif len(string_inputs) > 1:
             # Multiple string inputs - create a descriptive objective
             objective = f"Process the values in your context: {', '.join(input_data.keys())}"
-            logger.info(f"Multiple inputs, creating descriptive objective for processing")
+            logger.info("Multiple inputs, creating descriptive objective for processing")
         
         # ALL input data goes into context (including the objective)
         # Merge with any existing context from backward compatibility

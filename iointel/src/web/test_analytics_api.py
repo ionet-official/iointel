@@ -11,10 +11,7 @@ from typing import List, Optional, Dict, Any
 from pydantic import BaseModel
 
 from ..utilities.test_analytics_service import (
-    TestAnalyticsService, 
-    TestCoverageMetrics, 
-    WorkflowQualityScore,
-    TestSearchResult
+    TestAnalyticsService
 )
 from ..utilities.helpers import make_logger
 
@@ -219,7 +216,7 @@ async def get_available_categories():
     """Get list of available test categories for filtering."""
     try:
         all_tests = analytics_service.repo.get_all_tests()
-        categories = sorted(set(test.category for test in all_tests))
+        categories = sorted({test.category for test in all_tests})
         
         # Add descriptions for common categories
         category_descriptions = {

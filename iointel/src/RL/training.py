@@ -10,7 +10,6 @@ import asyncio
 import os
 from dotenv import load_dotenv
 # Import our curated working tools filter
-from iointel.src.utilities.working_tools_filter import get_curated_tool_list
 from iointel.src.utilities.working_tools_filter import filter_available_tools
 from iointel.src.utilities.constants import get_model_config
 from iointel.src.agent_methods.tools.tool_loader import load_tools_from_env
@@ -130,7 +129,7 @@ class RLEnvironment:
                 print("=" * 60)
         return self.task_manager.tasks
 
-    def reset(self, task: Task = None, difficulty: Optional[float] = None) -> RLState:
+    def reset(self, task: Optional[Task] = None, difficulty: Optional[float] = None) -> RLState:
         if task is None:
             task = self.task_manager.get_task(difficulty)
         print("-" * 30)
@@ -140,7 +139,7 @@ class RLEnvironment:
 
     async def run_episode(
         self,
-        task: Task = None,
+        task: Optional[Task] = None,
         difficulty: Optional[float] = None,
         verbose=True,
         use_chat_history=False,
@@ -306,7 +305,6 @@ You are a tool-using assistant."""
         tools = all_tool_names
         
         # Use centralized model config function
-        others = "Qwen/Qwen3-Coder-480B-A35B-Instruct-FP8"  # works
         agent_model = os.getenv("RL_MODEL", "gpt-4o")  # Model for main agent execution
         evaluation_model = "gpt-4o"  # Always use GPT for Oracle/Critic (needs structured output)
         

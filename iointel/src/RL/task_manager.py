@@ -34,8 +34,8 @@ class TaskGeneratorAgent:
     def __init__(
         self,
         model: str,
-        api_key: str = None,
-        base_url: str = None,
+        api_key: Optional[str] = None,
+        base_url: Optional[str] = None,
         verbose: bool = True,
     ):
         self.Task = Task
@@ -53,7 +53,7 @@ class TaskGeneratorAgent:
         self,
         tools: List[Callable],
         num_tasks: int = 5,
-        context: str = None,
+        context: Optional[str] = None,
         goal_seek: bool = False,
     ) -> List[Task]:
         tool_descriptions = []
@@ -118,7 +118,7 @@ class TaskManager:
 
     def load_tasks(self, file_path: str):
         """Load tasks from a file"""
-        with open(file_path, "r") as f:
+        with open(file_path) as f:
             self.tasks = [Task(**t) for t in json.load(f)]
 
     def get_tasks_by_difficulty(
@@ -133,7 +133,7 @@ class TaskManager:
         self,
         tools: List[Callable],
         num_tasks: int = 5,
-        context: str = None,
+        context: Optional[str] = None,
         goal_seek: bool = False,
     ) -> List[Task]:
         tasks = await self.generator.generate_tasks(

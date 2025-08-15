@@ -1,4 +1,4 @@
-from typing import Callable, List, Dict, Any
+from typing import Optional, Callable, List, Dict, Any
 
 from pydantic import BaseModel
 
@@ -14,7 +14,7 @@ class Task:
     It can store a set of agents and provide methods to run them with given instructions and context.
     """
 
-    def __init__(self, agents: List[Agent] = None):
+    def __init__(self, agents: Optional[List[Agent]] = None):
         """
         :param agents: Optional list of Agent instances that this runner can orchestrate.
         """

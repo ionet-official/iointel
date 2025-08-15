@@ -16,13 +16,12 @@ for different test scenarios, eliminating the need for scattered test patterns.
 
 import json
 from pathlib import Path
-from typing import Dict, List, Optional, Any, Literal, Union
+from typing import Dict, List, Optional, Any
 from datetime import datetime
 import uuid
 from dataclasses import dataclass, asdict
 from enum import Enum
 
-from ..agent_methods.data_models.workflow_spec import WorkflowSpec, NodeSpec, EdgeSpec
 from ..web.workflow_storage import WorkflowStorage
 
 
@@ -121,7 +120,7 @@ class WorkflowTestRepository:
             if layer_dir.is_dir() and layer_dir.name in [l.value for l in TestLayer]:
                 for test_file in layer_dir.glob("*.json"):
                     try:
-                        with open(test_file, 'r') as f:
+                        with open(test_file) as f:
                             data = json.load(f)
                         
                         if data.get('type') == 'test_case':

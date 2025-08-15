@@ -141,7 +141,7 @@ class TaskNode(BaseNode[WorkflowState]):
             else:
                 # No tool results, fall back to storing the full result object
                 core_value = result
-                print(f"   ⚠️  No tool results found, storing full AgentExecutionResult")
+                print("   ⚠️  No tool results found, storing full AgentExecutionResult")
         elif isinstance(result, dict):
             # Extract the main value from different result formats
             if "result" in result:

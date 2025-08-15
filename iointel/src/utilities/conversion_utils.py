@@ -26,8 +26,8 @@ import datetime
 from pydantic import BaseModel
 import dataclasses
 
-from iointel.src.agent_methods.data_models.workflow_spec import WorkflowSpec, NodeSpec, EdgeSpec
-from iointel.src.web.execution_feedback import WorkflowExecutionSummary, NodeExecutionTracking, ExecutionStatus
+from iointel.src.agent_methods.data_models.workflow_spec import WorkflowSpec, NodeSpec
+from iointel.src.web.execution_feedback import WorkflowExecutionSummary, ExecutionStatus
 
 
 class ConversionUtils:
@@ -468,7 +468,7 @@ class ConversionUtils:
                     sections.append(f"   Error: {node.error_message[:100]}...")
         
         if summary.error_summary:
-            sections.extend(["", f"## Error Summary:", summary.error_summary])
+            sections.extend(["", "## Error Summary:", summary.error_summary])
         
         return "\n".join(sections)
     

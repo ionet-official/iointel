@@ -73,7 +73,7 @@ class WorkflowStorage:
             "original_title": workflow_spec.title,
             "node_count": len(workflow_spec.nodes),
             "edge_count": len(workflow_spec.edges),
-            "node_types": list(set(node.type for node in workflow_spec.nodes)),
+            "node_types": list({node.type for node in workflow_spec.nodes}),
             "complexity": self._calculate_complexity(workflow_spec)
         }
         
@@ -297,7 +297,7 @@ class WorkflowStorage:
             "original_title": workflow_spec.title,
             "node_count": len(workflow_spec.nodes),
             "edge_count": len(workflow_spec.edges),
-            "node_types": list(set(node.type for node in workflow_spec.nodes)),
+            "node_types": list({node.type for node in workflow_spec.nodes}),
             "complexity": self._calculate_complexity(workflow_spec)
         }
         

@@ -1,5 +1,6 @@
 import os
 from functools import cache
+from typing import Optional
 
 _IO_INTEL_API = "https://api.intelligence-dev.io.solutions/api/v1"
 _IO_INTEL_BASE_MODEL = "meta-llama/Llama-3.3-70B-Instruct"
@@ -27,7 +28,7 @@ def get_api_key() -> str:
     return _get_env_var("KEY")
 
 
-def get_model_config(model: str = None, api_key: str = None, base_url: str = None) -> dict:
+def get_model_config(model: Optional[str] = None, api_key: Optional[str] = None, base_url: Optional[str] = None) -> dict:
     """
     Centralized function to get the correct API configuration for any model.
     

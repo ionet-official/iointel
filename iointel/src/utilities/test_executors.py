@@ -15,12 +15,9 @@ Architecture:
 
 from abc import ABC, abstractmethod
 import json
-from typing import Dict, Any, Optional, Callable, List
-import importlib
+from typing import Dict, Any, Optional, List
 import inspect
-from pathlib import Path
 from pydantic import BaseModel, Field
-from enum import Enum
 
 
 class TestHandlerSpec(BaseModel):
@@ -375,7 +372,6 @@ class ConversionUtilsExecutor(TestExecutor):
     async def execute_test(self, test_case: 'WorkflowTestCase', context: Dict[str, Any]) -> Dict[str, Any]:
         """Execute conversion utilities test using factory pattern."""
         try:
-            from ..utilities.conversion_utils import get, ConversionUtils
             
             # Find the right handler for this test
             handler_spec = self.factory.find_handler(test_case.name)
@@ -478,8 +474,7 @@ class WorkflowExecutionExecutor(TestExecutor):
     async def execute_test(self, test_case: 'WorkflowTestCase', context: Dict[str, Any]) -> Dict[str, Any]:
         """Execute full workflow execution test."""
         try:
-            from ..utilities.workflow_helpers import plan_and_execute, generate_only
-            from ..agent_methods.data_models.workflow_spec import WorkflowSpec
+            from ..utilities.workflow_helpers import plan_and_execute
             
             if not test_case.user_prompt:
                 return {

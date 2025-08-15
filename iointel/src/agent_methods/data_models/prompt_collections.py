@@ -116,7 +116,7 @@ class PromptCollectionManager:
             return None
         
         try:
-            with open(filepath, 'r') as f:
+            with open(filepath) as f:
                 data = json.load(f)
             
             collection = ListRecords(**data)

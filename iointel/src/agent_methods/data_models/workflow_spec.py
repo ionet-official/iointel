@@ -22,7 +22,7 @@ from .data_source_registry import ValidDataSourceName
 # -----------------------------
 
 # Data sources are NOT tools - they're input mechanisms
-_DATA_SOURCE_NAMES: Set[str] = {"user_input", "prompt_tool"}
+_DATA_SOURCE_NAMES: set[str] = {"user_input", "prompt_tool"}
 
 # Centralized routing tools definition
 ROUTING_TOOLS = ['conditional_gate', 'threshold_gate', 'conditional_multi_gate']
@@ -38,15 +38,15 @@ class TestResult(BaseModel):
     test_name: str
     passed: bool
     executed_at: datetime
-    execution_details: Optional[Dict] = None
-    error_message: Optional[str] = None
+    execution_details: dict | None = None
+    error_message: str | None = None
 
 
 class TestAlignment(BaseModel):
     """Test alignment metadata for workflows."""
-    test_ids: Set[str] = Field(default_factory=set, description="Test IDs that validate this workflow")
-    test_results: List[TestResult] = Field(default_factory=list, description="Historical test results")
-    last_validated: Optional[datetime] = None
+    test_ids: set[str] = Field(default_factory=set, description="Test IDs that validate this workflow")
+    test_results: list[TestResult] = Field(default_factory=list, description="Historical test results")
+    last_validated: datetime | None = None
     validation_status: Literal["untested", "passing", "failing", "mixed"] = "untested"
     production_ready: bool = Field(default=False, description="True if all critical tests pass")
     
@@ -99,11 +99,11 @@ class SLARequirements(BaseModel):
         default=True,
         description="If true, the node MUST call at least one tool during execution."
     )
-    required_tools: List[str] = Field(
+    required_tools: list[str] = Field(
         default_factory=list,
         description="Exact tool names that MUST be called at least once."
     )
-    final_tool_must_be: Optional[str] = Field(
+    final_tool_must_be: str | None = Field(
         default=None,
         description="Exact tool name that MUST be the LAST call (e.g., 'conditional_gate' for decision routing)."
     )
@@ -177,19 +177,19 @@ class AgentConfig(BaseModel):
     agent_instructions: str = Field(
         description="Clear, actionable instructions for the agent. Reference upstream labels as needed."
     )
-    tools: List[str] = Field(
+    tools: list[str] = Field(
         default_factory=list,
         description="Exact tool names the agent MAY call. NEVER include data sources here."
     )
-    model: Optional[str] = Field(
+    model: str | None = Field(
         default="gpt-4o",
         description="Model to use for the agent (if applicable)."
     )
-    config: Dict = Field(
+    config: dict = Field(
         default_factory=dict,
         description="Optional agent parameters (hyperparameters, constants, etc.)."
     )
-    sla: Optional[SLARequirements] = Field(
+    sla: SLARequirements | None = Field(
         default=None,
         description="Optional SLA to enforce tool usage/ordering/timeouts for this agent."
     )
@@ -207,7 +207,7 @@ class DecisionConfig(AgentConfig):
     - sla.final_tool_must_be MUST equal 'conditional_gate'
     """
     @model_validator(mode="after")
-    def _decision_requirements(self) -> "DecisionConfig":
+    def _decision_requirements(self) -> DecisionConfig:
         tools_set = set(self.tools or [])
         if "conditional_gate" not in tools_set:
             raise ValueError("DecisionConfig.tools MUST include 'conditional_gate'.")
@@ -275,7 +275,7 @@ class WorkflowCallNodeLLM(BaseModel):
     """
     type: Literal["workflow_call"] = Field("workflow_call", description="Discriminator: 'workflow_call'.")
     label: str = Field(description="Human-readable node label.")
-    data: Dict[str, str] = Field(
+    data: dict[str, str] = Field(
         description="MUST include {'workflow_id': '<id>'}. Additional static config is allowed."
     )
 
@@ -296,9 +296,9 @@ class DataSourceNode(BaseModel):
     type: Literal["data_source"] = "data_source"
     label: str
     data: DataSourceData
-    position: Optional[Dict[str, float]] = None
-    runtime: Dict = Field(default_factory=dict)
-    sla: Optional[SLARequirements] = None
+    position: dict[str, float] | None = None
+    runtime: dict = Field(default_factory=dict)
+    sla: SLARequirements | None = None
 
 
 class AgentNode(BaseModel):
@@ -307,9 +307,9 @@ class AgentNode(BaseModel):
     type: Literal["agent"] = "agent"
     label: str
     data: AgentConfig
-    position: Optional[Dict[str, float]] = None
-    runtime: Dict = Field(default_factory=dict)
-    sla: Optional[SLARequirements] = None
+    position: dict[str, float] | None = None
+    runtime: dict = Field(default_factory=dict)
+    sla: SLARequirements | None = None
 
 
 class DecisionNode(BaseModel):
@@ -318,9 +318,9 @@ class DecisionNode(BaseModel):
     type: Literal["decision"] = "decision"
     label: str
     data: DecisionConfig
-    position: Optional[Dict[str, float]] = None
-    runtime: Dict = Field(default_factory=dict)
-    sla: Optional[SLARequirements] = None
+    position: dict[str, float] | None = None
+    runtime: dict = Field(default_factory=dict)
+    sla: SLARequirements | None = None
 
 
 class WorkflowCallNode(BaseModel):
@@ -328,10 +328,10 @@ class WorkflowCallNode(BaseModel):
     id: str
     type: Literal["workflow_call"] = "workflow_call"
     label: str
-    data: Dict[str, str]
-    position: Optional[Dict[str, float]] = None
-    runtime: Dict = Field(default_factory=dict)
-    sla: Optional[SLARequirements] = None
+    data: dict[str, str]
+    position: dict[str, float] | None = None
+    runtime: dict = Field(default_factory=dict)
+    sla: SLARequirements | None = None
 
 
 NodeSpec = Annotated[
@@ -352,17 +352,17 @@ class EdgeData(BaseModel):
     - route_index: Required for edges from decision nodes (0, 1, 2...)
     - route_label: Optional human-readable label
     """
-    route_index: Optional[int] = Field(
+    route_index: int | None = Field(
         None, 
         ge=0,
         description="REQUIRED only when source is a DECISION node. Index of the routed branch (0..N)."
     )
-    route_label: Optional[str] = Field(
+    route_label: str | None = Field(
         None,
         description="OPTIONAL human-friendly name for the branch (e.g., 'buy', 'sell')."
     )
     # Legacy support - will be deprecated
-    condition: Optional[str] = Field(None, description="Legacy condition string - use route_index instead")
+    condition: str | None = Field(None, description="Legacy condition string - use route_index instead")
 
 
 class EdgeSpecLLM(BaseModel):
@@ -375,20 +375,20 @@ class EdgeSpecLLM(BaseModel):
     """
     source: str = Field(description="Label of the source node.")
     target: str = Field(description="Label of the target node.")
-    sourceHandle: Optional[str] = Field(
+    sourceHandle: str | None = Field(
         default=None,
         description="Optional named output port on the source (if your executor uses ports)."
     )
-    targetHandle: Optional[str] = Field(
+    targetHandle: str | None = Field(
         default=None,
         description="Optional named input port on the target (if your executor uses ports)."
     )
-    route_index: Optional[int] = Field(
+    route_index: int | None = Field(
         default=None,
         ge=0,
         description="REQUIRED only when 'source' is a DECISION node. Index of the routed branch (0..N)."
     )
-    route_label: Optional[str] = Field(
+    route_label: str | None = Field(
         default=None,
         description="OPTIONAL human-friendly name for the branch (e.g., 'buy', 'sell')."
     )
@@ -399,8 +399,8 @@ class EdgeSpec(BaseModel):
     id: str
     source: str
     target: str
-    sourceHandle: Optional[str] = None
-    targetHandle: Optional[str] = None
+    sourceHandle: str | None = None
+    targetHandle: str | None = None
     data: EdgeData = Field(default_factory=EdgeData)
 
 
@@ -425,25 +425,25 @@ class WorkflowSpecLLM(BaseModel):
         default="",
         description="Explain design decisions briefly (or chat response when nodes/edges are null)."
     )
-    title: Optional[str] = Field(
+    title: str | None = Field(
         default=None,
         description="Short workflow title. Use null for chat-only responses."
     )
-    description: Optional[str] = Field(
+    description: str | None = Field(
         default=None,
         description="One-sentence workflow description. Use null for chat-only responses."
     )
-    nodes: Optional[List[NodeSpecLLM]] = Field(
+    nodes: list[NodeSpecLLM] | None = Field(
         default=None,
         description="Workflow nodes. Use null for chat-only responses."
     )
-    edges: Optional[List[EdgeSpecLLM]] = Field(
+    edges: list[EdgeSpecLLM] | None = Field(
         default=None,
         description="Workflow edges. Use null for chat-only responses."
     )
     
     @model_validator(mode="after")
-    def _global_invariants(self) -> "WorkflowSpecLLM":
+    def _global_invariants(self) -> WorkflowSpecLLM:
         # chat-only is allowed
         if self.nodes is None and self.edges is None:
             return self
@@ -453,7 +453,7 @@ class WorkflowSpecLLM(BaseModel):
             raise ValueError("WorkflowSpecLLM.nodes is required when creating a workflow.")
         
         # Build node-type lookup by label
-        label_to_type: Dict[str, str] = {}
+        label_to_type: dict[str, str] = {}
         for n in self.nodes:
             label_to_type[n.label] = n.type  # type: ignore[attr-defined]
         
@@ -488,12 +488,12 @@ class WorkflowSpec(BaseModel):
     reasoning: str
     title: str
     description: str
-    nodes: List[NodeSpec]
-    edges: List[EdgeSpec]
-    metadata: Dict = Field(default_factory=dict)  # tags, owner, created_at
+    nodes: list[NodeSpec]
+    edges: list[EdgeSpec]
+    metadata: dict = Field(default_factory=dict)  # tags, owner, created_at
     
     @classmethod
-    def from_llm_spec(cls, llm_spec: WorkflowSpecLLM, workflow_id: UUID = None, rev: int = 1) -> "WorkflowSpec":
+    def from_llm_spec(cls, llm_spec: WorkflowSpecLLM, workflow_id: UUID | None = None, rev: int = 1) -> WorkflowSpec:
         """Convert LLM-generated spec to final spec with deterministic IDs."""
         # Generate deterministic node IDs based on type and order
         nodes = []
@@ -614,7 +614,7 @@ class WorkflowSpec(BaseModel):
         }
         return yaml.dump(data, default_flow_style=False)
     
-    def to_workflow_definition(self) -> Dict:
+    def to_workflow_definition(self) -> dict:
         """Convert to executable workflow definition format."""
         from iointel.src.ui.formatting import to_jsonable
         
@@ -629,7 +629,7 @@ class WorkflowSpec(BaseModel):
             'metadata': self.metadata
         }
     
-    def validate_structure(self, validation_catalog: Dict[str, Any] = None) -> List[str]:
+    def validate_structure(self, validation_catalog: dict[str, Any] | None = None) -> list[str]:
         """Validate the workflow structure and return any issues."""
         issues = []
         
@@ -669,7 +669,7 @@ class WorkflowSpec(BaseModel):
         
         return issues
     
-    def _validate_node(self, node: NodeSpec, validation_catalog: Dict[str, Any]) -> List[str]:
+    def _validate_node(self, node: NodeSpec, validation_catalog: dict[str, Any]) -> list[str]:
         """Validate a single node against the validation catalog."""
         issues = []
         
@@ -700,7 +700,7 @@ class WorkflowSpec(BaseModel):
         
         return issues
     
-    def _validate_routing_consistency(self) -> List[str]:
+    def _validate_routing_consistency(self) -> list[str]:
         """Validate routing consistency for decision nodes."""
         issues = []
         
@@ -750,9 +750,9 @@ class NodeRunSummary(BaseModel):
     status: Literal["success", "failed", "skipped"]
     started_at: str
     finished_at: str
-    result_preview: Optional[str] = Field(None, description="first 200 chars / head of CSV")
-    artifacts: List[ArtifactRef] = Field(default_factory=list)
-    error_message: Optional[str] = None
+    result_preview: str | None = Field(None, description="first 200 chars / head of CSV")
+    artifacts: list[ArtifactRef] = Field(default_factory=list)
+    error_message: str | None = None
 
 
 class WorkflowRunSummary(BaseModel):
@@ -762,9 +762,9 @@ class WorkflowRunSummary(BaseModel):
     status: Literal["success", "failed", "partial"]
     started_at: str
     finished_at: str
-    node_summaries: List[NodeRunSummary]
-    total_duration_seconds: Optional[float] = None
-    metadata: Dict = Field(default_factory=dict)
+    node_summaries: list[NodeRunSummary]
+    total_duration_seconds: float | None = None
+    metadata: dict = Field(default_factory=dict)
 
 
 # -----------------------------

@@ -17,12 +17,10 @@ Key features:
 import os
 import json
 import uuid
-from typing import List, Dict, Any, Union, Optional, Callable, Set
+from typing import List, Dict, Any, Union, Optional, Callable
 from dataclasses import dataclass, field
-from pathlib import Path
 import pandas as pd
 from pydantic import BaseModel
-from collections import defaultdict, Counter
 
 try:
     from usearch.index import Index as UsearchIndex, MetricKind
@@ -346,7 +344,7 @@ class SemanticRAGCollection:
             
         return sorted(results, key=lambda x: x["final_score"], reverse=True)
     
-    def switch_to_semantic_mode(self, encoder_model: str = None):
+    def switch_to_semantic_mode(self, encoder_model: Optional[str] = None):
         """Switch from fast hash mode to semantic embeddings. Requires rebuilding indices."""
         if not self.fast_mode:
             print("Already in semantic mode")

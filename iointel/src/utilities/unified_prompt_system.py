@@ -12,7 +12,7 @@ A consolidated prompt management system that provides:
 This replaces scattered prompt building logic across the codebase.
 """
 
-from typing import Dict, Any, List, Optional, Union, Protocol
+from typing import Dict, Any, List, Optional, Protocol
 from dataclasses import dataclass, field
 from pathlib import Path
 from enum import Enum
@@ -116,9 +116,9 @@ class UnifiedPromptSystem:
         name: str,
         prompt_type: PromptType,
         template: str,
-        variables: List[str] = None,
+        variables: Optional[List[str]] = None,
         description: str = "",
-        tags: List[str] = None
+        tags: Optional[List[str]] = None
     ) -> PromptTemplate:
         """Create a new prompt template."""
         template_id = self._generate_id(f"{prompt_type}_{name}")
@@ -144,7 +144,7 @@ class UnifiedPromptSystem:
     def render_prompt(
         self,
         template_id: str,
-        context: Dict[str, Any] = None,
+        context: Optional[Dict[str, Any]] = None,
         **variables
     ) -> PromptInstance:
         """Render a prompt from a template."""
@@ -172,7 +172,7 @@ class UnifiedPromptSystem:
         self,
         prompt_type: PromptType,
         content: str,
-        context: Dict[str, Any] = None
+        context: Optional[Dict[str, Any]] = None
     ) -> PromptInstance:
         """Create a prompt directly without a template."""
         instance_id = self._generate_id(f"{prompt_type}_{datetime.now().isoformat()}")
@@ -190,9 +190,9 @@ class UnifiedPromptSystem:
     
     def search_templates(
         self,
-        query: str = None,
-        prompt_type: PromptType = None,
-        tags: List[str] = None
+        query: Optional[str] = None,
+        prompt_type: Optional[PromptType] = None,
+        tags: Optional[List[str]] = None
     ) -> List[PromptTemplate]:
         """Search templates by query, type, or tags."""
         results = list(self.templates.values())
@@ -218,9 +218,9 @@ class UnifiedPromptSystem:
     
     def search_instances(
         self,
-        query: str = None,
-        prompt_type: PromptType = None,
-        success: bool = None
+        query: Optional[str] = None,
+        prompt_type: Optional[PromptType] = None,
+        success: Optional[bool] = None
     ) -> List[PromptInstance]:
         """Search prompt instances."""
         results = list(self.instances.values())
@@ -246,7 +246,7 @@ class UnifiedPromptSystem:
         self,
         instance_id: str,
         success: bool,
-        response_preview: str = None
+        response_preview: Optional[str] = None
     ):
         """Record the result of using a prompt."""
         if instance_id in self.instances:
@@ -384,7 +384,7 @@ def render_prompt(template_id: str, **kwargs) -> PromptInstance:
     return unified_prompt_system.render_prompt(template_id, **kwargs)
 
 
-def search_prompts(query: str = None, prompt_type: PromptType = None, **kwargs) -> List[PromptTemplate]:
+def search_prompts(query: Optional[str] = None, prompt_type: Optional[PromptType] = None, **kwargs) -> List[PromptTemplate]:
     """Convenience function to search prompts."""
     return unified_prompt_system.search_templates(query, prompt_type, **kwargs)
 

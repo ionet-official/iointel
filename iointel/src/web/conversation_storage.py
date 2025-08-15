@@ -50,7 +50,7 @@ class ConversationStorage:
         """Load conversation metadata from disk."""
         if self.metadata_file.exists():
             try:
-                with open(self.metadata_file, 'r') as f:
+                with open(self.metadata_file) as f:
                     data = json.load(f)
                     self.conversations = {
                         conv_id: ConversationMetadata(**conv_data)

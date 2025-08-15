@@ -7,8 +7,7 @@ from ..agent_methods.data_models.workflow_spec import (
     WorkflowSpec,
     AgentNode,
     DataSourceNode,
-    DecisionNode,
-    WorkflowCallNode
+    DecisionNode
 )
 from ..agent_methods.data_models.datamodels import AgentParams
 from ..agent_methods.data_sources import get_data_source

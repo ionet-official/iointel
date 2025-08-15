@@ -93,7 +93,7 @@ def select_model():
     for i, (model_name, description) in enumerate(available_models, 1):
         console.print(f"  {i}. {description}")
     
-    console.print(f"  6. Custom (enter your own model name)")
+    console.print("  6. Custom (enter your own model name)")
     console.print(f"  7. Use environment MODEL_NAME ({os.getenv('MODEL_NAME', 'not set')})")
     
     
@@ -210,7 +210,7 @@ async def main():
                 console.print()
                 continue
             elif input_text.lower() == "model":
-                console.print(f"\n[green]🤖 Current model configuration:[/green]")
+                console.print("\n[green]🤖 Current model configuration:[/green]")
                 console.print(f"  Model: {model_config['model']}")
                 console.print(f"  API endpoint: {model_config['base_url']}")
                 console.print(f"  API key: {'✓ Set' if model_config['api_key'] else '✗ Missing'}")

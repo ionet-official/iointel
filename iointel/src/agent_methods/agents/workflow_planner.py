@@ -3,7 +3,7 @@ import uuid
 from typing import Dict, Any, Optional
 from iointel.src.agents import Agent
 from iointel.src.memory import AsyncMemory
-from iointel.src.agent_methods.data_models.workflow_spec import WorkflowSpec, WorkflowSpecLLM, ROUTING_TOOLS
+from iointel.src.agent_methods.data_models.workflow_spec import WorkflowSpec, WorkflowSpecLLM
 from datetime import datetime
 from iointel.src.utilities.io_logger import log_prompt, get_component_logger
 from iointel.src.utilities.unified_prompt_system import unified_prompt_system, PromptType
@@ -106,7 +106,6 @@ class WorkflowPromptBuilder:
         if not self.validation_errors:
             return ""
         
-        from iointel.src.utilities.conversion_utils import validation_errors_to_llm_prompt
         return validation_errors_to_llm_prompt(self.validation_errors)
     
     def _build_refinement_guidance(self) -> str:

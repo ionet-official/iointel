@@ -163,7 +163,7 @@ class Agent(BaseModel):
         else:
             # HACK: More debug for Llama models
             if isinstance(model, str) and "llama" in model.lower():
-                print(f"🔧 Creating OpenAIModel:")
+                print("🔧 Creating OpenAIModel:")
                 print(f"   model_name: {model}")
                 print(f"   base_url: {resolved_base_url}")
                 print(f"   api_key length: {len(resolved_api_key.get_secret_value())}")
@@ -414,7 +414,7 @@ class Agent(BaseModel):
         self,
         query: str,
         conversation_id: Optional[str] = None,
-        pretty: bool = None,
+        pretty: Optional[bool] = None,
         message_history_limit=100,
         result_format: Optional[Union[AgentResultFormat, List[str]]] = None,
         **kwargs,
@@ -498,7 +498,7 @@ class Agent(BaseModel):
         conversation_id: Optional[str] = None,
         return_markdown=False,
         message_history_limit=100,
-        pretty: bool = None,
+        pretty: Optional[bool] = None,
         result_format: Optional[Union[AgentResultFormat, List[str]]] = None,
         **kwargs,
     ) -> dict[str, Any]:
@@ -568,7 +568,7 @@ class Agent(BaseModel):
         return []
 
     async def launch_chat_ui(
-        self, interface_title: str = None, share: bool = False, conversation_id: str = None
+        self, interface_title: Optional[str] = None, share: bool = False, conversation_id: Optional[str] = None
     ) -> None:
         """
         Launches a Gradio UI for interacting with the agent as a chat interface.

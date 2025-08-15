@@ -24,8 +24,6 @@ from iointel.src.agent_methods.data_models.workflow_spec import WorkflowSpec
 from iointel.src.agent_methods.tools.tool_loader import load_tools_from_env
 from iointel.src.utilities.tool_registry_utils import create_tool_catalog
 from iointel.src.memory import AsyncMemory
-from iointel.src.workflow import Workflow
-from iointel.src.utilities.decorators import register_custom_task
 from iointel.src.web.conversation_storage import get_conversation_storage
 from iointel.src.utilities.constants import get_model_config
 # Add missing imports for execution functions
@@ -34,18 +32,16 @@ from iointel.src.agent_methods.data_models.execution_models import (
     DataSourceResult, ExecutionStatus, WorkflowExecutionResult
 )
 # WorkflowExecutionSummary is defined in execution_feedback module - MOVE THIS IMPORT UP
-from .execution_feedback import WorkflowExecutionSummary, NodeExecutionTracking
+from .execution_feedback import WorkflowExecutionSummary
 import uuid
 import asyncio
 # Import workflow storage
 from .workflow_storage import WorkflowStorage
 from .execution_feedback import (
     feedback_collector, 
-    create_execution_feedback_prompt,
-    WorkflowExecutionSummary
+    create_execution_feedback_prompt
 )
 from ..utilities.io_logger import workflow_logger, execution_logger, system_logger
-from iointel.src.agent_methods.data_models.execution_models import DataSourceResult, ExecutionStatus
 from iointel.src.utilities.workflow_helpers import execute_workflow_with_metadata
 from iointel.src.agent_methods.tools.collection_manager import search_collections, create_collection
 from .test_analytics_api import test_analytics_router
@@ -178,7 +174,7 @@ async def web_agent_executor(task_metadata, objective, agents, execution_metadat
     """Agent executor for web interface with real-time updates."""
     execution_id = execution_metadata.get("execution_id")
     
-    workflow_logger.info(f"Executing agent task", data={"execution_id": execution_id})
+    workflow_logger.info("Executing agent task", data={"execution_id": execution_id})
     
     # Use the chainables agent executor to avoid duplication
     # from iointel.src.chainables import execute_agent_task # This line is removed as per the edit hint
@@ -208,7 +204,7 @@ async def web_agent_executor(task_metadata, objective, agents, execution_metadat
             )
         
         result = await execute_agent_task(task_metadata, objective, agents, execution_metadata)
-        workflow_logger.success(f"Agent task completed", data={"result_preview": str(result)[:200]})
+        workflow_logger.success("Agent task completed", data={"result_preview": str(result)[:200]})
         
         # Record node completion in feedback collector
         if execution_id:
@@ -285,7 +281,7 @@ async def web_decision_executor(task_metadata, objective, agents, execution_meta
     tool_name = task_metadata.get('tool_name')
     
     workflow_logger.info(
-        f"Executing decision task",
+        "Executing decision task",
         data={"tool_name": tool_name or 'agent-based', "execution_id": execution_id}
     )
     
@@ -339,7 +335,7 @@ async def web_workflow_call_executor(task_metadata, objective, agents, execution
     workflow_id = task_metadata.get("workflow_id", "unknown")
     
     workflow_logger.info(
-        f"Executing workflow call",
+        "Executing workflow call",
         data={"workflow_id": workflow_id, "execution_id": execution_id}
     )
     
@@ -416,7 +412,7 @@ def serialize_value_for_json(value):
     
     # Import here to avoid circular imports
     from iointel.src.agent_methods.data_models.execution_models import (
-        AgentExecutionResult, AgentRunResponse, DataSourceResult, ExecutionStatus
+        AgentExecutionResult, AgentRunResponse, DataSourceResult
     )
     from iointel.src.web.execution_feedback import WorkflowExecutionSummary
     
@@ -426,7 +422,7 @@ def serialize_value_for_json(value):
     
     # Handle WorkflowExecutionSummary specifically - DON'T serialize the workflow_spec!
     if isinstance(value, WorkflowExecutionSummary):
-        print(f"🔍 [SERIALIZE_VALUE] Handling WorkflowExecutionSummary", flush=True)
+        print("🔍 [SERIALIZE_VALUE] Handling WorkflowExecutionSummary", flush=True)
         return {
             "execution_id": value.execution_id,
             "workflow_id": value.workflow_id,
@@ -640,7 +636,7 @@ async def broadcast_workflow_update(workflow: WorkflowSpec):
 
 def serialize_workflow_execution_result(result: WorkflowExecutionResult) -> Dict[str, Any]:
     """Serialize a WorkflowExecutionResult for JSON transmission."""
-    print(f"🔍 [SERIALIZE] Starting serialization of WorkflowExecutionResult", flush=True)
+    print("🔍 [SERIALIZE] Starting serialization of WorkflowExecutionResult", flush=True)
     print(f"🔍 [SERIALIZE] Result type: {type(result)}", flush=True)
     
     serialized = {
@@ -653,7 +649,7 @@ def serialize_workflow_execution_result(result: WorkflowExecutionResult) -> Dict
         "node_results": {}
     }
     
-    print(f"🔍 [SERIALIZE] Basic fields serialized, now doing node_results...", flush=True)
+    print("🔍 [SERIALIZE] Basic fields serialized, now doing node_results...", flush=True)
     # Serialize node results
     for node_id, node_result in result.node_results.items():
         print(f"🔍 [SERIALIZE] Processing node {node_id}", flush=True)
@@ -664,7 +660,7 @@ def serialize_workflow_execution_result(result: WorkflowExecutionResult) -> Dict
             "result": serialize_value_for_json(node_result.result)
         }
     
-    print(f"🔍 [SERIALIZE] Node results done, checking metadata...", flush=True)
+    print("🔍 [SERIALIZE] Node results done, checking metadata...", flush=True)
     # Add metadata if available
     if result.metadata:
         print(f"🔍 [SERIALIZE] Has metadata, keys: {list(result.metadata.keys())}", flush=True)
@@ -673,14 +669,14 @@ def serialize_workflow_execution_result(result: WorkflowExecutionResult) -> Dict
         processed_metadata = {}
         for key, value in result.metadata.items():
             if key == "execution_summary":
-                print(f"🔍 [SERIALIZE] Found execution_summary in metadata", flush=True)
+                print("🔍 [SERIALIZE] Found execution_summary in metadata", flush=True)
                 print(f"🔍 [SERIALIZE] execution_summary type: {type(value).__name__ if value else 'None'}", flush=True)
                 
                 if value is not None:
                     # Handle WorkflowExecutionSummary specially
                     from iointel.src.web.execution_feedback import WorkflowExecutionSummary
                     if isinstance(value, WorkflowExecutionSummary):
-                        print(f"🔍 [SERIALIZE] It's a WorkflowExecutionSummary, serializing manually...", flush=True)
+                        print("🔍 [SERIALIZE] It's a WorkflowExecutionSummary, serializing manually...", flush=True)
                         # Manually serialize without workflow_spec to avoid hang
                         serialized["execution_summary"] = {
                             "execution_id": value.execution_id,
@@ -698,12 +694,12 @@ def serialize_workflow_execution_result(result: WorkflowExecutionResult) -> Dict
                             "error_summary": value.error_summary,
                             "performance_metrics": value.performance_metrics
                         }
-                        print(f"🔍 [SERIALIZE] execution_summary serialized successfully!", flush=True)
+                        print("🔍 [SERIALIZE] execution_summary serialized successfully!", flush=True)
                     else:
-                        print(f"🔍 [SERIALIZE] execution_summary is not WorkflowExecutionSummary, using standard serialization", flush=True)
+                        print("🔍 [SERIALIZE] execution_summary is not WorkflowExecutionSummary, using standard serialization", flush=True)
                         serialized["execution_summary"] = serialize_value_for_json(value)
                 else:
-                    print(f"🔍 [SERIALIZE] execution_summary is None", flush=True)
+                    print("🔍 [SERIALIZE] execution_summary is None", flush=True)
                     serialized["execution_summary"] = None
             else:
                 # Add other metadata fields normally
@@ -715,7 +711,7 @@ def serialize_workflow_execution_result(result: WorkflowExecutionResult) -> Dict
     # Also include results in legacy format for backward compatibility
     serialized["results"] = result.final_output if result.final_output else {}
     
-    print(f"🔍 [SERIALIZE] Serialization complete, returning...", flush=True)
+    print("🔍 [SERIALIZE] Serialization complete, returning...", flush=True)
     return serialized
 
 
@@ -853,7 +849,7 @@ async def startup_event():
         main_model = os.getenv("WORKFLOW_PLANNER_MODEL", "gpt-4o")
         model_config = get_model_config(model=main_model)
         system_logger.info(
-            f"Using main model config",
+            "Using main model config",
             data={"model": model_config['model'], "base_url": model_config['base_url']}
         )
         
@@ -1449,15 +1445,15 @@ async def execute_workflow_background(
         
         # Only send feedback if we have an execution summary
         if execution_summary:
-            print(f"🔔 [BROADCAST] About to send feedback...", flush=True)
+            print("🔔 [BROADCAST] About to send feedback...", flush=True)
             await send_execution_feedback_to_planner(execution_summary, interface_conversation_id, workflow_spec)
-            print(f"🔔 [BROADCAST] Feedback sent, continuing to broadcast...", flush=True)
+            print("🔔 [BROADCAST] Feedback sent, continuing to broadcast...", flush=True)
         
         # Broadcast completion with the typed WorkflowExecutionResult
-        print(f"🔔 [BROADCAST] About to serialize result...", flush=True)
+        print("🔔 [BROADCAST] About to serialize result...", flush=True)
         try:
             serialized_result = serialize_workflow_execution_result(result)
-            print(f"🔔 [BROADCAST] Serialization complete!", flush=True)
+            print("🔔 [BROADCAST] Serialization complete!", flush=True)
         except Exception as e:
             print(f"🔔 [BROADCAST] ERROR serializing result: {e}", flush=True)
             import traceback
@@ -1562,7 +1558,7 @@ async def send_execution_feedback_to_planner(execution_summary: WorkflowExecutio
         conversation_storage = get_conversation_storage()
         feedback_conversation_id = conversation_storage.get_active_web_conversation()
         print(f"🗣️ Using SAME conversation_id as main planner for feedback: {feedback_conversation_id}")
-        print(f"🔗 This ensures feedback planner sees its own workflow generation context")
+        print("🔗 This ensures feedback planner sees its own workflow generation context")
         
         # Use shared model configuration - can be overridden via WORKFLOW_PLANNER_MODEL env var
         feedback_model = os.getenv("WORKFLOW_PLANNER_MODEL", "gpt-4o")  # Use lightweight model for feedback
@@ -1584,7 +1580,7 @@ async def send_execution_feedback_to_planner(execution_summary: WorkflowExecutio
             feedback_tool_catalog = {}
         
         # Send feedback as system input to planner with proper tool catalog
-        print(f"🔍 [FEEDBACK] Sending feedback to planner.generate_workflow")
+        print("🔍 [FEEDBACK] Sending feedback to planner.generate_workflow")
         response = await planner.generate_workflow(
             query=feedback_prompt,
             tool_catalog=feedback_tool_catalog,  # Use actual tool catalog for analysis context
@@ -1625,11 +1621,11 @@ async def send_execution_feedback_to_planner(execution_summary: WorkflowExecutio
                     },
                     "timestamp": datetime.now().isoformat()
                 })
-                print(f"📡 [FEEDBACK] Broadcast planner feedback as chat message")
+                print("📡 [FEEDBACK] Broadcast planner feedback as chat message")
         else:
-            print(f"⚠️ [FEEDBACK] No reasoning in response or response.reasoning is empty")
+            print("⚠️ [FEEDBACK] No reasoning in response or response.reasoning is empty")
             if execution_summary.execution_id in active_executions:
-                print(f"⚠️ [FEEDBACK] Not storing planner_feedback (would be None/empty)")
+                print("⚠️ [FEEDBACK] Not storing planner_feedback (would be None/empty)")
         
         execution_logger.success("Execution feedback processing completed", execution_id=execution_summary.execution_id)
         print(f"✅ [FEEDBACK] Successfully sent execution feedback to planner for {execution_summary.execution_id}")

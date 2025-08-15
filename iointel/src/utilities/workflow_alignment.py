@@ -13,11 +13,10 @@ Key Features:
 - Validation status tracking
 """
 
-from typing import List, Dict, Optional, Set
-from datetime import datetime
-from ..agent_methods.data_models.workflow_spec import WorkflowSpec, TestResult, TestAlignment
+from typing import List, Dict, Optional
+from ..agent_methods.data_models.workflow_spec import WorkflowSpec, TestResult
 from ..web.workflow_storage import WorkflowStorage
-from ..utilities.workflow_test_repository import WorkflowTestRepository, WorkflowTestCase
+from ..utilities.workflow_test_repository import WorkflowTestRepository
 
 
 class WorkflowAlignmentService:
@@ -78,7 +77,7 @@ class WorkflowAlignmentService:
         
         return failing_summary
     
-    def auto_link_workflows_to_tests(self, workflow_pattern: str = None) -> Dict[str, int]:
+    def auto_link_workflows_to_tests(self, workflow_pattern: Optional[str] = None) -> Dict[str, int]:
         """Automatically link workflows to tests based on patterns."""
         # Get all workflows
         workflows = self.workflow_storage.list_workflows()

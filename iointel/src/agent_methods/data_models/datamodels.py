@@ -21,7 +21,6 @@ from typing import (
     Any,
     Literal,
 )
-from .data_source_registry import ValidDataSourceName
 from pydantic_ai.models.openai import OpenAIModel
 import weakref
 

@@ -5,7 +5,7 @@ Data Source Registry
 Registry for data source implementations, separate from the tools registry.
 """
 
-from typing import Dict, Callable, Any, List
+from typing import Dict, Callable, List
 from .models import DataSourceRequest, DataSourceResponse
 
 # Global registry for data sources

@@ -11,7 +11,6 @@ We reuse existing models where possible:
 
 from typing import Dict, List, Optional, Any, Union, Literal
 from pydantic import BaseModel, Field
-from datetime import datetime
 from enum import Enum
 
 # Import existing models instead of redefining

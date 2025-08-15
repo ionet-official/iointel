@@ -1,7 +1,7 @@
 """Typed execution interfaces to replace dict-based task system."""
 
 from dataclasses import dataclass
-from typing import Optional, List, Dict, Any, Union
+from typing import Optional, List, Dict, Any
 from ..agent_methods.data_models.workflow_spec import NodeSpec, WorkflowSpec, EdgeSpec
 from ..agents import Agent
 from .graph_nodes import WorkflowState

@@ -15,10 +15,9 @@ Key features:
 
 from typing import List, Optional, Tuple, Any, Callable
 from enum import Enum
-import time
 from ..agent_methods.data_models.datamodels import ToolUsageResult
 from ..agent_methods.data_models.workflow_spec import SLARequirements, NodeSpec
-from ..agent_methods.data_models.execution_models import AgentExecutionResult, ExecutionStatus
+from ..agent_methods.data_models.execution_models import AgentExecutionResult
 from ..utilities.io_logger import system_logger
 
 logger = system_logger
@@ -58,7 +57,7 @@ class SLAValidator:
             return node_spec.sla
         
         # NO ENFORCEMENT - WorkflowPlanner is responsible for setting SLA
-        logger.debug(f"No SLA found in NodeSpec - no enforcement")
+        logger.debug("No SLA found in NodeSpec - no enforcement")
         return None
     
     def validate_sla_compliance(

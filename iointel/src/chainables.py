@@ -311,7 +311,7 @@ async def execute_agent_task(
     node_type = task_metadata.get("node_type", task_metadata.get("type", ""))
     if node_type == "decision" and agent_result_format_str == "full":
         agent_result_format_str = "workflow"
-        print(f"🔧 execute_agent_task: Override decision agent to workflow format for routing")
+        print("🔧 execute_agent_task: Override decision agent to workflow format for routing")
     
     # print(f"🔧 execute_agent_task: agent_result_format = {agent_result_format_str}")
     

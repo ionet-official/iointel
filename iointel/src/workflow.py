@@ -199,7 +199,7 @@ class Workflow:
         
         # Debug: Check task structure for agent tasks
         if task.get("type") == "agent":
-            workflow_logger.info(f"🔍 Agent task analysis", data={
+            workflow_logger.info("🔍 Agent task analysis", data={
                 "task_name": task.get('name', 'unnamed'),
                 "agent_count": len(agents_for_task),
                 "has_agents_key": 'agents' in task,
@@ -207,7 +207,7 @@ class Workflow:
                 "task_type": "agent"
             })
             if agents_for_task and hasattr(agents_for_task[0], 'tools'):
-                workflow_logger.debug(f"Agent tools configuration", data={
+                workflow_logger.debug("Agent tools configuration", data={
                     "tool_count": len(agents_for_task[0].tools),
                     "tools": [str(tool) for tool in agents_for_task[0].tools]
                 })
@@ -760,8 +760,8 @@ class Workflow:
     @classmethod
     def from_yaml(
         cls,
-        yaml_str: str = None,
-        file_path: str = None,
+        yaml_str: Optional[str] = None,
+        file_path: Optional[str] = None,
         instantiate_agent: Callable[[AgentParams], Agent] | None = None,
         instantiate_tool: Callable[[Tool, dict | None], BaseModel | None] | None = None,
     ) -> "Workflow":

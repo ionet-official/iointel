@@ -25,8 +25,7 @@ def get_workflow_planner_instructions_comprehensive() -> str:
     """
     from ..data_models.data_source_registry import (
         get_valid_data_source_names, 
-        create_data_source_knowledge_section,
-        get_data_source_description
+        create_data_source_knowledge_section
     )
     
     # Get current valid data sources

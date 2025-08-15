@@ -8,7 +8,7 @@ issues or other compatibility problems.
 Based on testing with Llama models, these tools have been verified to work.
 """
 
-from typing import List, Set
+from typing import List
 
 # Tools that are confirmed working from Llama testing
 WORKING_TOOLS = {

@@ -14,7 +14,7 @@ class GoogleCalendar(DisableAgnoRegistryMixin, AgnoGoogleCalendarTools):
 
     @register_tool(name="google_calendar_list_events")
     @wraps(AgnoGoogleCalendarTools.list_events)
-    def list_events(self, limit: int = 10, date_from: str = None) -> str:
+    def list_events(self, limit: int = 10, date_from: Optional[str] = None) -> str:
         # return self._tools.list_events(limit=limit, date_from=date_from)
         return super().list_events(limit=limit, date_from=date_from)
 

@@ -314,7 +314,7 @@ def get_example_metadata() -> Dict[str, Dict[str, Any]]:
             "description": workflow.description,
             "node_count": len(workflow.nodes),
             "edge_count": len(workflow.edges),
-            "types": list(set(node.type for node in workflow.nodes)),
+            "types": list({node.type for node in workflow.nodes}),
             "complexity": _calculate_complexity(workflow)
         }
     

@@ -171,7 +171,7 @@ class ContextTree(BaseModel):
     def summary(
         self,
         start_node_id: str = "root",
-        max_depth: int = None,
+        max_depth: Optional[int] = None,
         show_content: bool = False,
         return_type: Literal["str", "dict"] = "str",
     ) -> Union[str, dict]:
@@ -236,7 +236,7 @@ class ContextTree(BaseModel):
         Returns:
             A confirmation message indicating successful loading
         """
-        with open(file_path, "r") as f:
+        with open(file_path) as f:
             self.root = ContextNode.model_validate(json.load(f))
         self._rebuild_index()
         return f"Loaded tree from {file_path}"
@@ -286,7 +286,7 @@ use checkboxes for TODO lists.
 """
 
 
-def get_tree_agent(model_name: str, api_key: str, base_url: str, conversation_id: str, id_length: int = 7, memory: AsyncMemory = None) -> Agent:
+def get_tree_agent(model_name: str, api_key: str, base_url: str, conversation_id: str, id_length: int = 7, memory: Optional[AsyncMemory] = None) -> Agent:
     tree = ContextTree(id_length=id_length)
     agent = Agent(
     name="Context Tree Agent",

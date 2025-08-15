@@ -16,11 +16,10 @@ User inputs become query parameters or request body fields automatically.
 import sys
 import asyncio
 import uuid
-from typing import Dict, Any, List, Optional, Union
+from typing import Dict, Any, List, Optional
 from datetime import datetime
 from pathlib import Path
-from fastapi import FastAPI, HTTPException, Request, Depends, BackgroundTasks
-from fastapi.responses import JSONResponse
+from fastapi import FastAPI, HTTPException, Request, BackgroundTasks
 from pydantic import BaseModel, Field
 from contextlib import asynccontextmanager
 
@@ -92,7 +91,7 @@ class WorkflowAPIRegistry:
             "updated_at": datetime.now()
         }
         
-        logger.info(f"Registered workflow API endpoint", data={
+        logger.info("Registered workflow API endpoint", data={
             "workflow_key": workflow_key,
             "title": workflow_spec.title,
             "user_inputs": len(user_input_params),
@@ -160,7 +159,7 @@ class WorkflowAPIRegistry:
             workflow_info["user_input_params"]
         )
         
-        logger.info(f"Starting workflow execution via API", data={
+        logger.info("Starting workflow execution via API", data={
             "run_id": run_id,
             "workflow_key": workflow_key,
             "user_inputs": user_inputs,
@@ -192,7 +191,7 @@ class WorkflowAPIRegistry:
                 return run_response
                 
         except Exception as e:
-            logger.error(f"Workflow execution failed", data={
+            logger.error("Workflow execution failed", data={
                 "run_id": run_id,
                 "workflow_key": workflow_key,
                 "error": str(e)
@@ -353,7 +352,7 @@ async def register_workflow_endpoint(
         )
         return {
             "success": True,
-            "message": f"Workflow registered successfully",
+            "message": "Workflow registered successfully",
             "endpoints": result
         }
     except Exception as e:

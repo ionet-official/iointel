@@ -7,15 +7,14 @@ Supports RAG-based test search and comprehensive coverage reporting.
 """
 
 import json
-import os
 from typing import Dict, List, Any, Optional, Tuple
 from pathlib import Path
-from datetime import datetime, timedelta
+from datetime import datetime
 from dataclasses import dataclass
-from collections import defaultdict, Counter
+from collections import Counter
 
-from ..agent_methods.data_models.workflow_spec import WorkflowSpec, TestResult
-from .workflow_test_repository import WorkflowTestRepository, WorkflowTestCase, TestLayer
+from ..agent_methods.data_models.workflow_spec import WorkflowSpec
+from .workflow_test_repository import WorkflowTestRepository, WorkflowTestCase
 
 
 @dataclass
@@ -93,8 +92,8 @@ class TestAnalyticsService:
         
         # Calculate meaningful coverage for current test structure
         # Since tests aren't yet linked to specific workflows, calculate based on test patterns
-        unique_categories = set(test.category for test in all_tests)
-        unique_layers = set(test.layer.value for test in all_tests)
+        unique_categories = {test.category for test in all_tests}
+        {test.layer.value for test in all_tests}
         
         # Use test categories as proxy for "workflow types" covered
         tested_workflows = len(unique_categories)
@@ -113,7 +112,7 @@ class TestAnalyticsService:
             success_rate=success_rate
         )
     
-    def get_workflow_quality_scores(self, workflows: List[WorkflowSpec] = None) -> List[WorkflowQualityScore]:
+    def get_workflow_quality_scores(self, workflows: Optional[List[WorkflowSpec]] = None) -> List[WorkflowQualityScore]:
         """
         Calculate quality scores for workflows based on test coverage and results.
         
@@ -162,7 +161,7 @@ class TestAnalyticsService:
         coverage_score = min(test_count * 10, 100)  # 10 points per test, max 100
         
         # Bonus for covering multiple layers
-        layers_covered = set(test.layer.value for test in workflow_tests)
+        layers_covered = {test.layer.value for test in workflow_tests}
         layer_bonus = len(layers_covered) * 5  # 5 points per layer
         coverage_score = min(coverage_score + layer_bonus, 100)
         
@@ -449,8 +448,8 @@ class TestAnalyticsService:
             "gaps_analysis": self.get_test_gaps_analysis(),
             "test_summary": {
                 "total_tests": len(self.repo.get_all_tests()),
-                "layers": list(set(test.layer.value for test in self.repo.get_all_tests())),
-                "categories": list(set(test.category for test in self.repo.get_all_tests())),
+                "layers": list({test.layer.value for test in self.repo.get_all_tests()}),
+                "categories": list({test.category for test in self.repo.get_all_tests()}),
             }
         }
         
