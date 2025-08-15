@@ -35,12 +35,12 @@ def mock_tool_catalog():
             }
         },
         "user_input": {
-            "description": "Collect user input",
-            "parameters": {"prompt": {"type": "string"}}
+            "message": "Enter market sentiment data (bullish/bearish with confidence",
+            "default_prompt": "Enter market sentiment data (bullish/bearish with confidence)"
         },
         "prompt_tool": {
-            "description": "Provide static prompt message",
-            "parameters": {"message": {"type": "string"}}
+            "message": "Provide static prompt message",
+            "default_prompt": "Enter market sentiment data (bullish/bearish with confidence)"
         }
     }
 

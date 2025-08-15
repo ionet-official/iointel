@@ -9,14 +9,65 @@ Architecture:
 - Base TestExecutor interface
 - Concrete executors for different test types
 - Registry system for plugging in new executors
+- Factory pattern using Pydantic models for extensible test handlers
 - Backward compatibility with existing workflow tests
 """
 
 from abc import ABC, abstractmethod
-from typing import Dict, Any, Optional
+import json
+from typing import Dict, Any, Optional, Callable, List
 import importlib
 import inspect
 from pathlib import Path
+from pydantic import BaseModel, Field
+from enum import Enum
+
+
+class TestHandlerSpec(BaseModel):
+    """Specification for a test handler function."""
+    name: str = Field(..., description="Human-readable name for this test handler")
+    keywords: List[str] = Field(..., description="Keywords that trigger this handler")
+    handler_func: str = Field(..., description="Name of the method to call")
+    description: str = Field("", description="Description of what this handler does")
+    
+    class Config:
+        arbitrary_types_allowed = True
+
+
+class TestExecutorFactory:
+    """Factory for creating test handlers using Pydantic specifications."""
+    
+    def __init__(self):
+        self.handlers: Dict[str, TestHandlerSpec] = {}
+        
+    def register_handler(self, spec: TestHandlerSpec) -> None:
+        """Register a test handler specification."""
+        self.handlers[spec.name] = spec
+        
+    def find_handler(self, test_name: str) -> Optional[TestHandlerSpec]:
+        """Find the best matching handler for a test name."""
+        test_name_lower = test_name.lower()
+        
+        # Score each handler based on keyword matches
+        best_match = None
+        best_score = 0
+        
+        for handler in self.handlers.values():
+            score = 0
+            for keyword in handler.keywords:
+                if keyword.lower() in test_name_lower:
+                    score += 1
+            
+            # Require at least one keyword match
+            if score > 0 and score > best_score:
+                best_score = score
+                best_match = handler
+                
+        return best_match
+    
+    def get_all_handlers(self) -> List[TestHandlerSpec]:
+        """Get all registered handlers."""
+        return list(self.handlers.values())
 
 
 class TestExecutor(ABC):
@@ -148,20 +199,277 @@ class PythonFunctionExecutor(TestExecutor):
     
     def _validate_result(self, actual: Dict[str, Any], expected: Dict[str, Any]) -> bool:
         """Validate actual result against expected."""
+        print("\n=== Validating Test Results ===")
+        print(f"Actual result: {json.dumps(actual, indent=2)}")
+        print(f"Expected result: {json.dumps(expected, indent=2)}")
+
         if not expected:
-            return True  # No expectations means any result is ok
+            print("✓ No expectations specified - any result is valid")
+            return True
             
+        print("\nChecking each expected key/value pair:")
         for key, expected_value in expected.items():
+            print(f"\nChecking key: '{key}'")
+            
             if key not in actual:
-                return False
-            if actual[key] != expected_value:
+                print(f"✗ Key '{key}' missing from actual result")
+                print("Validation failed - missing expected key")
                 return False
                 
+            print(f"Expected value: {expected_value}")
+            print(f"Actual value: {actual[key]}")
+            
+            if actual[key] != expected_value:
+                print(f"✗ Values don't match for key '{key}'")
+                print("Validation failed - value mismatch") 
+                return False
+            else:
+                print(f"✓ Values match for key '{key}'")
+                
+        print("\n✓ All validations passed successfully!")
         return True
     
     def can_handle(self, test_type: str) -> bool:
         """Handle Python function tests."""
         return test_type == "python_function"
+
+
+class AgenticTestExecutor(TestExecutor):
+    """Executor for agentic layer tests (LLM workflow generation)."""
+    
+    async def execute_test(self, test_case: 'WorkflowTestCase', context: Dict[str, Any]) -> Dict[str, Any]:
+        """Execute agentic test by generating workflow from prompt then validating."""
+        from ..utilities.workflow_helpers import generate_only
+        
+        if not test_case.user_prompt:
+            return {
+                'success': False,
+                'error': 'Agentic test requires user_prompt'
+            }
+        
+        try:
+            # Generate workflow from prompt with conversation isolation
+            from uuid import uuid4
+            test_conversation_id = f"test_agentic_{test_case.id}_{uuid4()}"
+            
+            tool_catalog = context.get('tool_catalog', {})
+            spec = await generate_only(
+                test_case.user_prompt, 
+                tool_catalog,
+                conversation_id=test_conversation_id
+            )
+            
+            if not spec:
+                return {
+                    'success': False,
+                    'error': 'Failed to generate workflow from prompt'
+                }
+            
+            # Now validate the generated workflow against expectations
+            expected = test_case.expected_result or {}
+            validation_passed = self._validate_generated_workflow(spec, expected, tool_catalog)
+            
+            return {
+                'success': validation_passed,
+                'generated_workflow': spec.title if spec else None,
+                'nodes_generated': len(spec.nodes) if spec else 0,
+                'edges_generated': len(spec.edges) if spec else 0,
+                'spec_generated': True
+            }
+            
+        except Exception as e:
+            return {
+                'success': False,
+                'error': f'Agentic test error: {str(e)}'
+            }
+    
+    def _validate_generated_workflow(self, spec: 'WorkflowSpec', expected: Dict[str, Any], tool_catalog: Dict[str, Any]) -> bool:
+        """Validate generated workflow against expected results."""
+        if not expected:
+            return True  # No expectations = success
+        
+        # Basic workflow validation
+        if "workflow_generated" in expected:
+            if not expected["workflow_generated"]:
+                return False  # Expected no workflow but got one
+        
+        # Check for decision nodes
+        if "has_decision_nodes" in expected:
+            decision_nodes = [n for n in spec.nodes if n.type == "decision" or 
+                            (hasattr(n.data, 'tools') and n.data.tools and 'conditional_gate' in n.data.tools)]
+            actual = len(decision_nodes) > 0
+            expected_val = expected["has_decision_nodes"]
+            if actual != expected_val:
+                print(f"   ❌ has_decision_nodes: expected={expected_val}, actual={actual}")
+                return False
+            print(f"   ✅ has_decision_nodes: {actual}")
+        
+        # Check decision edges have route_index
+        if "decision_edges_have_route_index" in expected:
+            decision_nodes = [n for n in spec.nodes if n.type == "decision" or 
+                            (hasattr(n.data, 'tools') and n.data.tools and 'conditional_gate' in n.data.tools)]
+            edges_with_route_index = 0
+            total_decision_edges = 0
+            
+            for decision_node in decision_nodes:
+                node_edges = [e for e in spec.edges if e.source == decision_node.id]
+                total_decision_edges += len(node_edges)
+                
+                for edge in node_edges:
+                    if edge.data and hasattr(edge.data, 'route_index') and edge.data.route_index is not None:
+                        edges_with_route_index += 1
+            
+            actual = edges_with_route_index > 0
+            expected_val = expected["decision_edges_have_route_index"]
+            if actual != expected_val:
+                print(f"   ❌ decision_edges_have_route_index: expected={expected_val}, actual={actual}")
+                return False
+            print(f"   ✅ decision_edges_have_route_index: {actual}")
+        
+        return True
+    
+    def can_handle(self, test_type: str) -> bool:
+        """Handle agentic workflow generation tests."""
+        return test_type == "agentic_generation"
+
+
+class ConversionUtilsExecutor(TestExecutor):
+    """Executor for testing conversion utilities using factory pattern."""
+    
+    def __init__(self):
+        self.factory = TestExecutorFactory()
+        self._register_handlers()
+    
+    def _register_handlers(self):
+        """Register all conversion test handlers."""
+        handlers = [
+            TestHandlerSpec(
+                name="auto_detection",
+                keywords=["auto", "detection"],
+                handler_func="_test_auto_detection",
+                description="Test automatic data type detection and conversion"
+            ),
+            TestHandlerSpec(
+                name="tool_catalog",
+                keywords=["tool", "catalog"],
+                handler_func="_test_tool_catalog_conversion", 
+                description="Test tool catalog to LLM prompt conversion"
+            ),
+            TestHandlerSpec(
+                name="validation_errors",
+                keywords=["validation", "error"],
+                handler_func="_test_validation_errors_conversion",
+                description="Test validation errors to LLM prompt conversion"
+            ),
+            TestHandlerSpec(
+                name="tool_results",
+                keywords=["tool", "result"],
+                handler_func="_test_tool_results_conversion",
+                description="Test tool usage results to LLM prompt conversion"
+            )
+        ]
+        
+        for handler in handlers:
+            self.factory.register_handler(handler)
+    
+    async def execute_test(self, test_case: 'WorkflowTestCase', context: Dict[str, Any]) -> Dict[str, Any]:
+        """Execute conversion utilities test using factory pattern."""
+        try:
+            from ..utilities.conversion_utils import get, ConversionUtils
+            
+            # Find the right handler for this test
+            handler_spec = self.factory.find_handler(test_case.name)
+            
+            if not handler_spec:
+                available_handlers = [h.name for h in self.factory.get_all_handlers()]
+                return {
+                    'success': False,
+                    'error': f'No handler found for test: {test_case.name}. Available handlers: {available_handlers}'
+                }
+            
+            # Get the handler method and execute it
+            handler_method = getattr(self, handler_spec.handler_func, None)
+            if not handler_method:
+                return {
+                    'success': False,
+                    'error': f'Handler method {handler_spec.handler_func} not found'
+                }
+            
+            # Execute the handler
+            result = await handler_method()
+            result['handler_used'] = handler_spec.name
+            result['handler_description'] = handler_spec.description
+            return result
+                
+        except Exception as e:
+            return {
+                'success': False,
+                'error': f'Conversion test failed: {str(e)}'
+            }
+    
+    async def _test_auto_detection(self) -> Dict[str, Any]:
+        """Test auto-detection functionality."""
+        from ..utilities.conversion_utils import get
+        
+        # Test tool catalog detection
+        tool_catalog = {
+            "searxng_search": {"description": "Search the web"},
+            "calculator": {"description": "Perform calculations"}
+        }
+        prompt = get(tool_catalog)
+        if "searxng_search" not in prompt or "calculator" not in prompt:
+            return {'success': False, 'error': 'Tool catalog auto-detection failed'}
+        
+        # Test validation errors detection
+        validation_errors = [["Missing field"], ["Invalid type"]]
+        prompt = get(validation_errors)
+        if "Validation Errors" not in prompt or "Missing field" not in prompt:
+            return {'success': False, 'error': 'Validation errors auto-detection failed'}
+        
+        return {
+            'success': True,
+            'message': 'Auto-detection working correctly for all data types'
+        }
+    
+    async def _test_tool_catalog_conversion(self) -> Dict[str, Any]:
+        """Test tool catalog conversion."""
+        from ..utilities.conversion_utils import ConversionUtils
+        
+        catalog = {"test_tool": {"description": "Test tool"}}
+        prompt = ConversionUtils.tool_catalog_to_llm_prompt(catalog)
+        
+        if "test_tool" not in prompt or "Test tool" not in prompt:
+            return {'success': False, 'error': 'Tool catalog conversion failed'}
+        
+        return {'success': True, 'message': 'Tool catalog conversion working'}
+    
+    async def _test_validation_errors_conversion(self) -> Dict[str, Any]:
+        """Test validation errors conversion."""
+        from ..utilities.conversion_utils import ConversionUtils
+        
+        errors = [["Error 1"], ["Error 2"]]
+        prompt = ConversionUtils.validation_errors_to_llm_prompt(errors)
+        
+        if "Error 1" not in prompt or "Error 2" not in prompt:
+            return {'success': False, 'error': 'Validation errors conversion failed'}
+        
+        return {'success': True, 'message': 'Validation errors conversion working'}
+    
+    async def _test_tool_results_conversion(self) -> Dict[str, Any]:
+        """Test tool results conversion."""
+        from ..utilities.conversion_utils import ConversionUtils
+        
+        results = [{"tool_name": "test", "result": "success", "tool_args": {"param": "value"}}]
+        prompt = ConversionUtils.tool_usage_results_to_llm(results)
+        
+        if "test" not in prompt or "success" not in prompt:
+            return {'success': False, 'error': 'Tool results conversion failed'}
+        
+        return {'success': True, 'message': 'Tool results conversion working'}
+    
+    def can_handle(self, test_type: str) -> bool:
+        """Handle conversion utilities tests."""
+        return test_type == "conversion_utils"
 
 
 class WorkflowExecutionExecutor(TestExecutor):
@@ -306,6 +614,9 @@ class TestExecutorRegistry:
         # Register default executors
         self.register(WorkflowValidationExecutor())
         self.register(PythonFunctionExecutor())
+        self.register(AgenticTestExecutor())
+        self.register(ConversionUtilsExecutor())
+        self.register(WorkflowExecutionExecutor())
     
     def register(self, executor: TestExecutor):
         """Register a test executor."""
@@ -321,14 +632,22 @@ class TestExecutorRegistry:
     def list_supported_types(self) -> Dict[str, str]:
         """List all supported test types."""
         types = {}
+        test_types_to_check = [
+            'workflow_validation', 
+            'python_function', 
+            'agentic_generation',
+            'conversion_utils',
+            'workflow_execution',
+            'database_test',
+            'api_test'
+        ]
+        
         for executor in self.executors:
             executor_name = executor.__class__.__name__
-            # This is a simplified check - in reality you'd want better introspection
             if hasattr(executor, 'can_handle'):
-                if executor.can_handle('workflow_validation'):
-                    types['workflow_validation'] = executor_name
-                if executor.can_handle('python_function'):
-                    types['python_function'] = executor_name
+                for test_type in test_types_to_check:
+                    if executor.can_handle(test_type):
+                        types[test_type] = executor_name
         return types
 
 
@@ -378,6 +697,9 @@ class APITestExecutor(TestExecutor):
 
 
 # Auto-register executors
+register_test_executor(WorkflowValidationExecutor())
+register_test_executor(PythonFunctionExecutor())
+register_test_executor(AgenticTestExecutor())
 register_test_executor(WorkflowExecutionExecutor())
 register_test_executor(DatabaseTestExecutor())
 register_test_executor(APITestExecutor())

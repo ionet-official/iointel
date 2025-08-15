@@ -10,77 +10,86 @@ from uuid import UUID
 from iointel.src.agent_methods.data_models.workflow_spec import (
     WorkflowSpec,
     NodeSpec,
-    NodeData,
+    AgentConfig,
+    DataSourceData,
+    DataSourceConfig,
     EdgeSpec,
     EdgeData,
     WorkflowRunSummary,
     NodeRunSummary,
-    ArtifactRef
+    ArtifactRef,
+    DataSourceNode,
+    AgentNode,
+    DecisionNode
 )
 
 
-class TestNodeData:
-    """Test cases for NodeData model."""
+class TestAgentConfig:
+    """Test cases for AgentConfig model."""
 
-    def test_node_data_creation(self):
-        """Test basic NodeData creation."""
-        node_data = NodeData(
-            config={"param1": "value1", "param2": 42},
-            ins=["input1", "input2"],
-            outs=["output1"],
-            tool_name="test_tool"
+    def test_agent_config_creation(self):
+        """Test basic AgentConfig creation."""
+        agent_config = AgentConfig(
+            agent_instructions="Process the input data",
+            tools=["calculator_add", "calculator_multiply"],
+            config={"param1": "value1", "param2": 42}
         )
         
-        assert node_data.config == {"param1": "value1", "param2": 42}
-        assert node_data.ins == ["input1", "input2"]
-        assert node_data.outs == ["output1"]
-        assert node_data.tool_name == "test_tool"
+        assert agent_config.agent_instructions == "Process the input data"
+        assert agent_config.tools == ["calculator_add", "calculator_multiply"]
+        assert agent_config.config == {"param1": "value1", "param2": 42}
+        assert agent_config.model == "gpt-4o"  # default
 
-    def test_node_data_defaults(self):
-        """Test NodeData with default values."""
-        node_data = NodeData()
-        
-        assert node_data.config == {}
-        assert node_data.ins == []
-        assert node_data.outs == []
-        assert node_data.tool_name is None
-        assert node_data.agent_instructions is None
-        assert node_data.workflow_id is None
-
-    def test_node_data_serialization(self):
-        """Test NodeData JSON serialization."""
-        node_data = NodeData(
-            config={"test": True},
-            ins=["data"],
-            outs=["result"],
-            tool_name="example_tool"
+    def test_data_source_creation(self):
+        """Test DataSourceData creation."""
+        data_source = DataSourceData(
+            source_name="user_input",
+            config=DataSourceConfig(
+                message="Enter a value",
+                default_value="default"
+            )
         )
         
-        json_data = node_data.model_dump()
+        assert data_source.source_name == "user_input"
+        assert data_source.config.message == "Enter a value"
+        assert data_source.config.default_value == "default"
+
+    def test_agent_config_serialization(self):
+        """Test AgentConfig JSON serialization."""
+        agent_config = AgentConfig(
+            agent_instructions="Test instructions",
+            tools=["test_tool"],
+            config={"test": True}
+        )
+        
+        json_data = agent_config.model_dump()
         expected = {
+            "agent_instructions": "Test instructions",
+            "tools": ["test_tool"],
+            "model": "gpt-4o",
             "config": {"test": True},
-            "ins": ["data"],
-            "outs": ["result"],
-            "tool_name": "example_tool",
-            "agent_instructions": None,
-            "tools": None,
-            "workflow_id": None
+            "sla": None
         }
         
         assert json_data == expected
 
-    def test_node_data_agent_instructions(self):
-        """Test NodeData with agent instructions."""
-        instructions = "Process the input data and extract key insights"
-        node_data = NodeData(
-            agent_instructions=instructions,
-            config={"model": "gpt-4"},
-            ins=["data"],
-            outs=["insights"]
+    def test_agent_config_with_sla(self):
+        """Test AgentConfig with SLA requirements."""
+        from iointel.src.agent_methods.data_models.workflow_spec import SLARequirements
+        
+        agent_config = AgentConfig(
+            agent_instructions="Process data with tools",
+            tools=["tool1", "tool2"],
+            sla=SLARequirements(
+                tool_usage_required=True,
+                required_tools=["tool1"],
+                min_tool_calls=2
+            )
         )
         
-        assert node_data.agent_instructions == instructions
-        assert node_data.tool_name is None
+        assert agent_config.sla.tool_usage_required is True
+        assert agent_config.sla.required_tools == ["tool1"]
+        assert agent_config.sla.min_tool_calls == 2
 
 
 class TestNodeSpec:
@@ -88,22 +97,25 @@ class TestNodeSpec:
 
     def test_node_spec_creation(self):
         """Test basic NodeSpec creation."""
-        node_spec = NodeSpec(
+        node_spec = AgentNode(
             id="test_node",
             type="agent",
             label="Test Node",
-            data=NodeData(
-                    agent_instructions="Use the test_tool tool to complete this task",tools=["test_tool"])
+            data=AgentConfig(
+                agent_instructions="Add two numbers together using the calculator_add tool",
+                tools=["calculator_add"]
+            )
         )
         
         assert node_spec.id == "test_node"
-        assert node_spec.type == "tool"
+        assert node_spec.type == "agent"
         assert node_spec.label == "Test Node"
-        assert node_spec.data.tool_name == "test_tool"
+        assert node_spec.data.agent_instructions == "Add two numbers together using the calculator_add tool"
+        assert node_spec.data.tools == ["calculator_add"]
 
     def test_node_spec_types(self):
         """Test all valid node types."""
-        valid_types = ["tool", "agent", "workflow_call"]
+        valid_types = ["data_source", "agent", "decision", "workflow_call"]
         
         for node_type in valid_types:
             node_spec = NodeSpec(
@@ -300,7 +312,7 @@ class TestWorkflowSpec:
                         "config": {"param": "value"},
                         "ins": ["input"],
                         "outs": ["output"],
-                        "tool_name": None,
+                        "source_name": None,
                         "agent_instructions": "Do something",
                         "workflow_id": None
                     }

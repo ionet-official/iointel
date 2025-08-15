@@ -24,7 +24,8 @@ sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '.'))
 from iointel.src.utilities.workflow_test_repository import (
     WorkflowTestRepository, 
     TestLayer, 
-    WorkflowTestCase
+    WorkflowTestCase,
+    get_test_repository
 )
 from iointel.src.utilities.workflow_helpers import generate_only, plan_and_execute
 from iointel.src.agent_methods.tools.tool_loader import load_tools_from_env
@@ -32,12 +33,16 @@ from iointel.src.utilities.tool_registry_utils import create_tool_catalog
 from iointel.src.agent_methods.data_models.workflow_spec import WorkflowSpec, TestResult
 from iointel.src.utilities.test_executors import get_test_executor, list_test_types
 from iointel.src.utilities.workflow_alignment import WorkflowAlignmentService
+from iointel.src.web.conversation_storage import ConversationStorage
+import subprocess
+from uuid import uuid4
 
 class UnifiedTestRunner:
     """Runs tests from the unified smart test repository."""
     
     def __init__(self):
-        self.repo = WorkflowTestRepository(storage_dir="smart_test_repository")
+        self.repo = get_test_repository()
+        self.conversation_storage = ConversationStorage()
         self.tool_catalog = None
         self.results = {
             "passed": 0,
@@ -45,10 +50,71 @@ class UnifiedTestRunner:
             "errors": 0,
             "total": 0
         }
+        self.git_state = self._get_git_state()
+    
+    def _get_git_state(self) -> dict:
+        """Get current git state for test context tracking."""
+        try:
+            # Get current branch
+            branch = subprocess.check_output(
+                ["git", "rev-parse", "--abbrev-ref", "HEAD"], 
+                cwd=os.getcwd(), 
+                text=True
+            ).strip()
+            
+            # Get current commit hash
+            commit = subprocess.check_output(
+                ["git", "rev-parse", "HEAD"], 
+                cwd=os.getcwd(), 
+                text=True
+            ).strip()[:8]
+            
+            # Get short status
+            status = subprocess.check_output(
+                ["git", "status", "--porcelain"], 
+                cwd=os.getcwd(), 
+                text=True
+            ).strip()
+            
+            return {
+                "branch": branch,
+                "commit": commit,
+                "has_changes": bool(status),
+                "status_lines": len(status.split('\n')) if status else 0
+            }
+        except Exception as e:
+            return {"error": str(e)}
+    
+    def _create_test_conversation(self, test: WorkflowTestCase, layer: str) -> str:
+        """Create a conversation for test isolation with git context."""
+        git_context = f"{self.git_state['branch']}_{self.git_state['commit']}"
+        if self.git_state.get('has_changes'):
+            git_context += f"_dirty{self.git_state['status_lines']}"
+        
+        conversation_id = self.conversation_storage.create_conversation(
+            session_type=f"test_{layer}",
+            notes=f"Test: {test.name} | Git: {git_context} | Category: {test.category}",
+            version=f"git_{git_context}"
+        )
+        
+        return conversation_id
     
     async def setup(self):
         """Setup test environment."""
         print("🔧 Setting up test environment...")
+        
+        # Display git state for context
+        if 'error' not in self.git_state:
+            print(f"📋 Git Context: {self.git_state['branch']}@{self.git_state['commit']}")
+            if self.git_state['has_changes']:
+                print(f"   ⚠️  {self.git_state['status_lines']} uncommitted changes")
+            else:
+                print("   ✅ Clean working tree")
+        else:
+            print(f"   ⚠️  Git state error: {self.git_state['error']}")
+        
+        # AgenticTestExecutor now auto-registered in TestExecutorRegistry
+        
         load_tools_from_env()
         self.tool_catalog = create_tool_catalog()
         print(f"✅ Loaded {len(self.tool_catalog)} tools")
@@ -103,8 +169,16 @@ class UnifiedTestRunner:
         print(f"   User prompt: {test.user_prompt}")
         
         try:
+            # Create conversation with git context tracking
+            test_conversation_id = self._create_test_conversation(test, "agentic")
+            print(f"   📞 Conversation: {test_conversation_id}")
+            
             # Generate workflow from prompt
-            spec = await generate_only(test.user_prompt, self.tool_catalog)
+            spec = await generate_only(
+                test.user_prompt, 
+                self.tool_catalog,
+                conversation_id=test_conversation_id
+            )
             
             if not spec:
                 print("   ❌ Failed to generate workflow")
@@ -130,8 +204,16 @@ class UnifiedTestRunner:
         print(f"   User prompt: {test.user_prompt}")
         
         try:
+            # Create conversation with git context tracking
+            test_conversation_id = self._create_test_conversation(test, "orchestration")
+            print(f"   📞 Conversation: {test_conversation_id}")
+            
             # Execute full workflow
-            result = await plan_and_execute(test.user_prompt)
+            result = await plan_and_execute(
+                test.user_prompt,
+                conversation_id=test_conversation_id,
+                tool_catalog=self.tool_catalog
+            )
             
             if not result["success"]:
                 print(f"   ❌ Workflow execution failed: {result.get('error')}")
@@ -264,10 +346,30 @@ class UnifiedTestRunner:
         self.results["total"] += 1
         
         try:
+            # Fix test type classification based on test structure
+            test_type = test.test_type
+            
+            # Auto-correct misclassified tests in agentic layer
+            if test.layer == "agentic":
+                if test.user_prompt and not test.workflow_spec:
+                    # This is workflow generation testing - should be agentic_generation
+                    if test_type != "agentic_generation":
+                        print(f"   🔧 Correcting test_type: '{test_type}' → 'agentic_generation' (has user_prompt)")
+                        test_type = "agentic_generation"
+                elif test.workflow_spec:
+                    # This is pre-built workflow validation - should be workflow_validation
+                    if test_type != "workflow_validation":
+                        print(f"   🔧 Correcting test_type: '{test_type}' → 'workflow_validation' (has workflow_spec)")
+                        test_type = "workflow_validation"
+                elif not test_type:
+                    # No test_type specified - infer from structure
+                    test_type = "agentic_generation"  # default for agentic layer
+                    print(f"   🔍 Defaulting to: agentic_generation")
+            
             # Get test executor based on test type
-            executor = get_test_executor(test.test_type)
+            executor = get_test_executor(test_type)
             if not executor:
-                print(f"   ⚠️ No executor found for test type: {test.test_type}")
+                print(f"   ⚠️ No executor found for test type: {test_type}")
                 print(f"   Available types: {list(list_test_types().keys())}")
                 success = False
             else:
@@ -307,7 +409,8 @@ class UnifiedTestRunner:
     async def run_tests(self, 
                        layer: Optional[str] = None,
                        category: Optional[str] = None, 
-                       tags: Optional[List[str]] = None) -> dict:
+                       tags: Optional[List[str]] = None,
+                       test_numbers: Optional[List[int]] = None) -> dict:
         """Run tests based on filters."""
         
         print("🚀 UNIFIED TEST RUNNER")
@@ -339,11 +442,34 @@ class UnifiedTestRunner:
             print("⚠️ No tests found matching criteria")
             return self.results
         
-        # Run tests
-        for i, test in enumerate(tests, 1):
-            print(f"\n{'='*60}")
-            print(f"🧪 TEST {i}/{len(tests)}")
-            await self.run_test(test)
+        # Filter by test numbers if specified
+        if test_numbers:
+            original_count = len(tests)
+            # Convert 1-based indices to 0-based and filter
+            filtered_tests = []
+            for test_num in test_numbers:
+                if 1 <= test_num <= len(tests):
+                    filtered_tests.append((test_num, tests[test_num - 1]))
+                else:
+                    print(f"⚠️ Test number {test_num} is out of range (1-{len(tests)})")
+            
+            if not filtered_tests:
+                print("⚠️ No valid test numbers specified")
+                return self.results
+                
+            print(f"🎯 Running {len(filtered_tests)} specific tests from {original_count} total")
+            
+            # Run specific tests
+            for test_num, test in filtered_tests:
+                print(f"\n{'='*60}")
+                print(f"🧪 TEST {test_num}/{original_count}")
+                await self.run_test(test)
+        else:
+            # Run all tests
+            for i, test in enumerate(tests, 1):
+                print(f"\n{'='*60}")
+                print(f"🧪 TEST {i}/{len(tests)}")
+                await self.run_test(test)
         
         # Show summary
         print(f"\n{'='*60}")
@@ -364,11 +490,15 @@ class UnifiedTestRunner:
         return self.results
 
 async def main():
+    # Set testing mode to suppress non-test output
+    os.environ["TESTING_MODE"] = "true"
+    
     parser = argparse.ArgumentParser(description="Run unified tests for the whole fucking stack")
     parser.add_argument("--layer", choices=["logical", "agentic", "orchestration", "feedback"],
                        help="Run tests from specific layer only")
     parser.add_argument("--category", help="Run tests from specific category only")
     parser.add_argument("--tags", nargs="+", help="Run tests with specific tags only")
+    parser.add_argument("-n", "--test-numbers", type=int, nargs="+", help="Run specific test numbers (1-based index), e.g. -n 5 12 19")
     
     args = parser.parse_args()
     
@@ -376,7 +506,8 @@ async def main():
     results = await runner.run_tests(
         layer=args.layer,
         category=args.category,
-        tags=args.tags
+        tags=args.tags,
+        test_numbers=args.test_numbers
     )
     
     # Exit with appropriate code

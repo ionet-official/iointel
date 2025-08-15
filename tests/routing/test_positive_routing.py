@@ -56,10 +56,10 @@ async def test_positive_routing():
             # Prompt tool with positive sentiment text
             NodeSpec(
                 id="data_input", 
-                type="tool",
+                type="data_source",
                 label="Data Input",
                 data=NodeData(
-                    tool_name="prompt_tool",
+                    source_name="prompt_tool",
                     config={"message": "buy 1000 shares of TSLA now, great opportunity!"}
                 )
             ),

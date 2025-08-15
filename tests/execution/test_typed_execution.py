@@ -75,8 +75,7 @@ async def test_typed_execution():
         
         # Build execution graph
         executor.build_execution_graph(
-            nodes=workflow_spec.nodes,
-            edges=workflow_spec.edges,
+            workflow_spec=workflow_spec,
             objective="Test workflow",
             agents=[],  # Will be auto-created from node data
             conversation_id=f"test-typed-{use_typed}"
