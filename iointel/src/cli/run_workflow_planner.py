@@ -1,3 +1,4 @@
+
 """
 Interactive CLI for WorkflowPlanner with ASCII React Flow visualization.
 
@@ -182,8 +183,18 @@ async def interactive_workflow_planner():
     console.print(f"[green]Loaded {len(available_tools)} credential-based tools[/green]")
     console.print(f"[yellow]Total tools available: {len(tool_catalog)}[/yellow]")
     
-    # Create the WorkflowPlanner
+    # Create the WorkflowPlanner with shared model configuration
+    from iointel.src.utilities.constants import get_model_config
+    import os
+    
+    cli_model = os.getenv("WORKFLOW_PLANNER_MODEL", "gpt-4o")
+    model_config = get_model_config(model=cli_model)
+    console.print(f"[blue]🤖 Using model config: {model_config['model']} @ {model_config['base_url']}[/blue]")
+    
     planner = WorkflowPlanner(
+        model=model_config["model"],
+        api_key=model_config["api_key"],
+        base_url=model_config["base_url"],
         memory=memory,
         conversation_id=CONVERSATION_ID,
         debug=False
@@ -237,7 +248,7 @@ Or describe a workflow in natural language to create/refine it!
                 for tool_name, tool_info in list(tool_catalog.items())[:20]:  # Show first 20
                     tools_table.add_row(
                         tool_name,
-                        tool_info["description"][:60] + "..." if len(tool_info["description"]) > 60 else tool_info["description"],
+                        tool_info["description"],
                         "async" if tool_info["is_async"] else "sync"
                     )
                 
