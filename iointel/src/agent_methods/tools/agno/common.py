@@ -132,12 +132,20 @@ def make_base(agno_tool_cls: type[Toolkit]):
                     # Skip attributes that can't be accessed (like __signature__)
                     continue
                 except Exception as e:
-                    if logger:
-                        logger.error(f"Failed to register {attr_name}: {e}")
+                    # Special handling for Pydantic CallableSchema errors - these are known issues
+                    if "CallableSchema" in str(e):
+                        if logger:
+                            logger.error(f"Failed to register {attr_name}: Cannot generate a JsonSchema for core_schema.CallableSchema")
+                        else:
+                            print(f"❌ Failed to register {attr_name}: Cannot generate a JsonSchema for core_schema.CallableSchema")
+                        # Don't print full traceback for known CallableSchema issues
                     else:
-                        print(f"❌ Failed to register {attr_name}: {e}")
-                    import traceback
-                    traceback.print_exc()
+                        if logger:
+                            logger.error(f"Failed to register {attr_name}: {e}")
+                        else:
+                            print(f"❌ Failed to register {attr_name}: {e}")
+                        import traceback
+                        traceback.print_exc()
             
             # Log summary if not in verbose mode and tools were registered
             if not verbose_mode and registered_tools and logger:

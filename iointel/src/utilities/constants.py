@@ -1,7 +1,7 @@
 import os
 from functools import cache
 
-_IO_INTEL_API = "https://api.intelligence.io.solutions/api/v1"
+_IO_INTEL_API = "https://api.intelligence-dev.io.solutions/api/v1"
 _IO_INTEL_BASE_MODEL = "meta-llama/Llama-3.3-70B-Instruct"
 
 

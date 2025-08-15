@@ -87,33 +87,70 @@ def check_env_requirements(tool_name: str, requirements: List[str]) -> bool:
 
 def _init_coinmarketcap():
     """Initialize CoinMarketCap tools."""
-    # The functions are already registered via @register_tool
+    try:
+        from .coinmarketcap import CoinMarketCap
+        
+        CoinMarketCap()
+        # CoinMarketCap should register its own tools
+        return []  # Return empty, tools are auto-registered
+    except ImportError as e:
+        logger.warning(f"CoinMarketCap tools not available: {e}")
+        return []
 
 
 def _init_context_tree():
     """Initialize Context Tree agent."""
-    # The tree instance already has @register_tool methods
+    try:
+        from ..tools.context_tree import ContextTree
+        
+        ContextTree()
+        # ContextTree should register its own tools
+        return []  # Return empty, tools are auto-registered
+    except ImportError as e:
+        logger.warning(f"Context Tree not available: {e}")
+        return []
 
 
 def _init_duckduckgo():
     """Initialize DuckDuckGo search."""
-    # Functions are registered via @register_tool
+    try:
+        from .duckduckgo import DuckDuckGoSearchAPIWrapper  
+        
+        DuckDuckGoSearchAPIWrapper()
+        # DuckDuckGo should register its own tools
+        return []  # Return empty, tools are auto-registered
+    except ImportError as e:
+        logger.warning(f"DuckDuckGo search not available: {e}")
+        return []
 
 
 def _init_firecrawl():
     """Initialize Firecrawl crawler."""
-    os.getenv("FIRECRAWL_API_KEY")
-    
-    # Create instance - auto-registers its @register_tool methods
+    try:
+        from .firecrawl import Crawler
+        api_key = os.getenv("FIRECRAWL_API_KEY")
+        
+        Crawler(api_key=api_key)
+        # FirecrawlClient should register its own tools
+        return []  # Return empty, tools are auto-registered
+    except ImportError as e:
+        logger.warning(f"Firecrawl not available: {e}")
+        return []
 
 
 def _init_retrieval_engine():
     """Initialize Retrieval Engine."""
-    os.getenv("RETRIEVAL_ENGINE_URL")
-    os.getenv("RETRIEVAL_ENGINE_API_KEY")
-    
-    # RetrievalEngine has tools already registered via @register_tool on its methods
-    # We just need to instantiate it to make those tools available
+    try:
+        from .retrieval_engine import RetrievalEngine
+        url = os.getenv("RETRIEVAL_ENGINE_URL")
+        api_key = os.getenv("RETRIEVAL_ENGINE_API_KEY")
+        
+        RetrievalEngine(url=url, api_key=api_key)
+        # RetrievalEngine should register its own tools
+        return []  # Return empty, tools are auto-registered
+    except ImportError as e:
+        logger.warning(f"Retrieval Engine not available: {e}")
+        return []
 
 
 def _init_searxng():
@@ -163,9 +200,11 @@ def _init_agentql():
 def _init_calculator():
     """Initialize Calculator."""
     try:
-        from .agno.calculator import Calculator
+        # Import the calculator module which registers tools via @register_tool
+        from . import agno
+        from .agno import calculator
         
-        Calculator()
+        # Tools are auto-registered when module is imported
         # Return the actual registered tool names
         return ["calculator_add", "calculator_subtract", "calculator_multiply", "calculator_divide", 
                 "calculator_exponentiate", "calculator_square_root", "calculator_factorial", 
@@ -188,15 +227,11 @@ def _init_conditional_gate():
 
 
 def _init_user_input():
-    """Initialize User Input tools."""
-    try:
-        # Import the module to register the tools
-        from . import user_input
-        # Tools are auto-registered via @register_tool decorators
-        return ["user_input", "prompt_tool"]
-    except ImportError as e:
-        logger.warning(f"User Input not available: {e}")
-        return []
+    """Initialize User Input tools - DEPRECATED: moved to data_sources.""" 
+    # user_input and prompt_tool are now data sources, not tools
+    # They are registered in the data_sources module
+    logger.info("user_input and prompt_tool moved to data_sources module")
+    return []
 
 
 def _init_yfinance():
