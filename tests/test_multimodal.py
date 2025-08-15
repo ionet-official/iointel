@@ -1,7 +1,8 @@
 """Test multimodal support for iointel agents."""
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
+import httpx
 from iointel import Agent, ImageUrl, BinaryContent, DocumentUrl
 from pydantic_ai.models.openai import OpenAIModel
 
@@ -192,3 +193,134 @@ async def test_stream_with_multimodal():
 
     # Verify the result contains expected output
     assert result.result == "Streamed response"
+
+
+@pytest.mark.asyncio
+async def test_missing_required_fields():
+    """Test that missing required fields raise TypeError."""
+    with pytest.raises(TypeError):
+        ImageUrl()  # Missing required 'url' field
+
+
+@pytest.mark.asyncio
+async def test_invalid_binary_content_field():
+    """Test that missing required fields in BinaryContent raise TypeError."""
+    with pytest.raises(TypeError):
+        BinaryContent(data=b"test")  # Missing required 'media_type' field
+
+
+@pytest.mark.asyncio
+async def test_agent_with_malformed_multimodal():
+    """Test that agent handles runtime errors with multimodal content."""
+    mock_model = MagicMock(spec=OpenAIModel)
+
+    agent = Agent(
+        name="TestAgent",
+        instructions="Test instructions",
+        model=mock_model,
+        api_key="test-key",
+    )
+
+    # Mock the underlying runner to simulate a runtime error
+    agent._runner.run = AsyncMock(
+        side_effect=RuntimeError("Failed to process multimodal content")
+    )
+
+    # Test with valid multimodal content that causes runtime error
+    with pytest.raises(RuntimeError, match="Failed to process multimodal content"):
+        content = [
+            "Analyze this:",
+            ImageUrl(url="https://example.com/nonexistent.png"),
+        ]
+        await agent.run(content)
+
+
+@pytest.mark.asyncio
+async def test_unreachable_image_url():
+    """Test that unreachable URLs cause appropriate errors."""
+    mock_model = MagicMock(spec=OpenAIModel)
+
+    agent = Agent(
+        name="TestAgent",
+        instructions="Test instructions",
+        model=mock_model,
+        api_key="test-key",
+    )
+
+    # Mock httpx to simulate 404 error
+    with patch("httpx.get") as mock_get:
+        mock_get.side_effect = httpx.HTTPStatusError(
+            "404 Not Found", request=MagicMock(), response=MagicMock(status_code=404)
+        )
+
+        # Mock the runner to simulate the error propagating
+        agent._runner.run = AsyncMock(
+            side_effect=httpx.HTTPStatusError(
+                "404 Not Found",
+                request=MagicMock(),
+                response=MagicMock(status_code=404),
+            )
+        )
+
+        with pytest.raises(httpx.HTTPStatusError):
+            content = [
+                "What's in this image?",
+                ImageUrl(url="https://example.com/nonexistent.png"),
+            ]
+            await agent.run(content)
+
+
+@pytest.mark.asyncio
+async def test_unsupported_media_type():
+    """Test that unsupported media types cause appropriate errors."""
+    mock_model = MagicMock(spec=OpenAIModel)
+
+    agent = Agent(
+        name="TestAgent",
+        instructions="Test instructions",
+        model=mock_model,
+        api_key="test-key",
+    )
+
+    # Mock the runner to simulate unsupported media type error
+    agent._runner.run = AsyncMock(
+        side_effect=ValueError("Unsupported media type: application/x-malware")
+    )
+
+    with pytest.raises(ValueError, match="Unsupported media type"):
+        content = [
+            "Analyze this file:",
+            BinaryContent(
+                data=b"malicious content", media_type="application/x-malware"
+            ),
+        ]
+        await agent.run(content)
+
+
+@pytest.mark.asyncio
+async def test_network_timeout():
+    """Test that network timeouts are handled appropriately."""
+    mock_model = MagicMock(spec=OpenAIModel)
+
+    agent = Agent(
+        name="TestAgent",
+        instructions="Test instructions",
+        model=mock_model,
+        api_key="test-key",
+    )
+
+    # Mock httpx to simulate timeout
+    with patch("httpx.get") as mock_get:
+        mock_get.side_effect = httpx.TimeoutException("Request timed out")
+
+        # Mock the runner to simulate the timeout propagating
+        agent._runner.run = AsyncMock(
+            side_effect=httpx.TimeoutException("Request timed out")
+        )
+
+        with pytest.raises(httpx.TimeoutException):
+            content = [
+                "What's in this image?",
+                ImageUrl(url="https://slowsite.example.com/image.png"),
+            ]
+            await agent.run(content)
