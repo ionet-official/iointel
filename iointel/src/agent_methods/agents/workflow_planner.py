@@ -490,10 +490,13 @@ class WorkflowPlanner:
                                 **filtered_kwargs
                             )
                             
+                            # result is a dict with 'result' key containing WorkflowSpecLLM
+                            workflow_result = result['result'] if result else None
+                            
                             self.logger.info("LLM responded", data={
-                                "result_type": type(result.get("result")).__name__ if result else "None",
-                                "has_nodes": bool(result.get("result") and getattr(result.get("result"), "nodes", None)),
-                                "has_edges": bool(result.get("result") and getattr(result.get("result"), "edges", None))
+                                "result_type": type(workflow_result).__name__ if workflow_result else "None",
+                                "has_nodes": bool(workflow_result and workflow_result.nodes),
+                                "has_edges": bool(workflow_result and workflow_result.edges)
                             })
                         
                         # Log the response with full context information
@@ -503,7 +506,7 @@ class WorkflowPlanner:
                             metadata={
                                 "attempt": attempt,
                                 "conversation_id": self.conversation_id,
-                                "result_type": type(result.get("result")).__name__ if result else "None",
+                                "result_type": type(result['result']).__name__ if result else "None",
                                 "response_length": len(str(result)) if result else 0,
                                 "query": query,
                                 "context_length": len(context_info)
@@ -511,8 +514,8 @@ class WorkflowPlanner:
                             attempt=attempt
                         )
                 
-                        # Extract the structured output
-                        workflow_spec_llm = result.get("result")
+                        # Extract the structured output - result is a dict from agent.run()
+                        workflow_spec_llm = result['result']
                         if not isinstance(workflow_spec_llm, WorkflowSpecLLM):
                             raise ValueError(f"Expected WorkflowSpecLLM, got {type(workflow_spec_llm)}")
                 
@@ -529,13 +532,14 @@ class WorkflowPlanner:
                             if workflow_spec_llm.nodes:
                                 data_source_nodes = [n for n in workflow_spec_llm.nodes if n.type == "data_source"]
                                 if data_source_nodes:
+                                    from ..data_models.workflow_spec import DataSourceData
                                     self.logger.info("Data source nodes generated:", data={
                                         "count": len(data_source_nodes),
                                         "nodes": [{
                                             "label": n.label,
-                                            "source_name": n.data.source_name,
-                                            "has_config": bool(n.data.config),
-                                            "config": n.data.config
+                                            "source_name": n.data.source_name if isinstance(n.data, DataSourceData) else "unknown",
+                                            "has_config": bool(n.data.config) if hasattr(n.data, 'config') else False,
+                                            "config": n.data.config if hasattr(n.data, 'config') else None
                                         } for n in data_source_nodes]
                                     })
                 
@@ -564,6 +568,10 @@ class WorkflowPlanner:
                                 filter_broken=True,
                                 verbose_format=False  # Use concise format for validation
                             )
+                            
+                            # Merge the passed tool_catalog into validation catalog
+                            if tool_catalog:
+                                validation_catalog.update(tool_catalog)
                         
                             # Count data sources in the unified catalog
                             data_source_count = sum(1 for k, v in validation_catalog.items() 
@@ -687,7 +695,7 @@ Reference the topology and SLA requirements above when making changes.
             message_history_limit=7,  # Limit to last 7 messages to prevent context overflow
             **kwargs
         )
-        refined_spec_llm = result.get("result")
+        refined_spec_llm = result['result']
         
         # Check if this is a chat-only response (nodes/edges are null)
         if isinstance(refined_spec_llm, WorkflowSpecLLM):

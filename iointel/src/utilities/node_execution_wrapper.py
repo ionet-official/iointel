@@ -1,105 +1,65 @@
 """
-Node Execution Wrapper with SLA Enforcement
-==========================================
+Simple SLA Validation for Workflow Nodes
+========================================
 
-This module provides runtime wrapper system that acts as a "meta runtime helper"
-to groom individual parts of the workflow graph, ensuring SLA compliance before
-allowing data to pass downstream.
+This module provides lightweight SLA validation for the typed execution system.
+It focuses on validation rather than complex retry logic, trusting that good
+pre-prompt injection will lead to compliance on the first attempt.
 
 Key features:
-- Message passing control (blocks bad data)
-- SLA gatekeeper functionality  
-- Automatic retry with enhanced prompts
-- Timeout and failure handling
-- Clean integration with DAG executor
+- Simple validation of tool usage against SLA requirements
+- Single retry support if needed
+- Clean integration with typed execution
+- Minimal complexity
 """
 
-import time
-from typing import Dict, List, Optional, Any, Callable, Tuple
-from dataclasses import dataclass
+from typing import List, Optional, Tuple, Any, Callable
 from enum import Enum
-
+import time
 from ..agent_methods.data_models.datamodels import ToolUsageResult
-from ..agent_methods.data_models.workflow_spec import SLARequirements  # Use the typed Pydantic version
-from ..agent_methods.data_models.decision_tools_catalog import (
-    get_sla_requirements_for_tools
-)
+from ..agent_methods.data_models.workflow_spec import SLARequirements, NodeSpec
+from ..agent_methods.data_models.execution_models import AgentExecutionResult, ExecutionStatus
 from ..utilities.io_logger import system_logger
 
-# Use IOLogger for structured logging with data parameter support
 logger = system_logger
 
 
 class SLAValidationResult(Enum):
-    """Results of SLA validation."""
-    PASS = "pass"
-    FAIL_NO_TOOLS = "fail_no_tools"
-    FAIL_WRONG_TOOLS = "fail_wrong_tools"
-    FAIL_WRONG_FINAL_TOOL = "fail_wrong_final_tool"
-    FAIL_INSUFFICIENT_CALLS = "fail_insufficient_calls"
+    """Result of SLA validation."""
+    PASS = "PASS"
+    FAIL_NO_TOOLS = "FAIL_NO_TOOLS"
+    FAIL_INSUFFICIENT_CALLS = "FAIL_INSUFFICIENT_CALLS"
+    FAIL_WRONG_TOOLS = "FAIL_WRONG_TOOLS"
+    FAIL_WRONG_FINAL_TOOL = "FAIL_WRONG_FINAL_TOOL"
 
 
-@dataclass 
-class ExecutionContext:
-    """Context for node execution."""
-    node_id: str
-    node_type: str
-    node_label: str
-    input_data: Any
-    attempt: int = 0
-    start_time: float = 0
-    sla_requirements: Optional[SLARequirements] = None
-
-
-class NodeExecutionWrapper:
+class SLAValidator:
     """
-    Meta runtime helper that wraps node execution with SLA validation.
+    Simple SLA validator for typed execution system.
     
-    Acts as a message passing gatekeeper - no data flows downstream until
-    SLA requirements are satisfied.
+    This replaces the complex wrapper with a straightforward validator
+    that checks if agents met their tool usage requirements.
     """
     
-    def __init__(self):
-        self.retry_prompts = self._create_retry_prompts()
-    
-    def _create_retry_prompts(self) -> List[str]:
-        """Create progressive retry prompts."""
-        return [
-            "\n\n🔄 RETRY REQUIRED: You did not meet the tool usage requirements. Please use the required tools before providing your response.",
-            "\n\n⚠️ FINAL ATTEMPT: This is your last chance to meet the SLA requirements. You MUST use the specified tools: {required_tools}"
-        ]
-    
-    def extract_sla_requirements(self, node_spec: Any, node_data: Dict[str, Any] = None) -> SLARequirements:
+    def extract_sla_requirements(self, node_spec: NodeSpec) -> Optional[SLARequirements]:
         """
         Extract SLA requirements from WorkflowSpec NodeSpec - SINGLE SOURCE OF TRUTH.
         
         REFACTORED APPROACH:
         1. Use NodeSpec.sla field as authoritative source (from WorkflowPlanner)
-        2. Fall back to node.data.sla for legacy workflows
-        3. NO GUESSING - if WorkflowPlanner didn't set SLA, no enforcement
+        2. NO GUESSING - if WorkflowPlanner didn't set SLA, no enforcement
         
         Args:
-            node_spec: NodeSpec object with .sla field (preferred)
-            node_data: Legacy dict-based node data (fallback)
+            node_spec: NodeSpec object with .sla field
         """
-        # 1. AUTHORITATIVE SOURCE: NodeSpec.sla field from WorkflowPlanner
-        if hasattr(node_spec, 'sla') and node_spec.sla is not None:
-            logger.info(f"✅ Using authoritative SLA from WorkflowSpec: {node_spec.sla}")
+        # AUTHORITATIVE SOURCE: NodeSpec.sla field from WorkflowPlanner
+        if node_spec.sla is not None:
+            logger.debug(f"Using SLA from WorkflowSpec: {node_spec.sla}")
             return node_spec.sla
         
-        # 2. FALLBACK: Legacy node.data.sla for backwards compatibility
-        if node_data and "sla" in node_data and node_data["sla"] is not None:
-            sla_config = node_data["sla"]
-            logger.info(f"🔄 Using legacy SLA from node.data: {sla_config}")
-            
-            if isinstance(sla_config, SLARequirements):
-                return sla_config
-            elif isinstance(sla_config, dict):
-                return SLARequirements(**sla_config)
-        
-        # 3. NO ENFORCEMENT - WorkflowPlanner is responsible for setting SLA
-        logger.debug(f"🔍 No SLA found in NodeSpec or node.data - no enforcement")
-        return SLARequirements(enforce_usage=False)
+        # NO ENFORCEMENT - WorkflowPlanner is responsible for setting SLA
+        logger.debug(f"No SLA found in NodeSpec - no enforcement")
+        return None
     
     def validate_sla_compliance(
         self, 
@@ -152,231 +112,165 @@ class NodeExecutionWrapper:
         
         return SLAValidationResult.PASS, "All SLA requirements satisfied"
     
-    def create_enhanced_prompt(
+    def validate_and_execute(
         self,
-        context: ExecutionContext,
-        validation_result: SLAValidationResult,
-        validation_reason: str
+        execute_fn: Callable,
+        node_spec: NodeSpec,
+        allow_retry: bool = True
     ) -> Any:
         """
-        Create enhanced input for retry attempts.
+        Validate SLA compliance after execution, with optional single retry.
         
-        This modifies the input data to include stronger prompts about tool usage.
-        """
-        requirements = context.sla_requirements
-        
-        # Get retry prompt
-        retry_idx = min(context.attempt - 1, len(self.retry_prompts) - 1)
-        retry_prompt = self.retry_prompts[retry_idx]
-        
-        if requirements and requirements.required_tools:
-            retry_prompt = retry_prompt.format(required_tools=", ".join(requirements.required_tools))
-        
-        # Create enforcement guidance
-        if requirements:
-            enforcement_guidance = f"""
-
-🚫 SLA VALIDATION FAILED: {validation_reason}
-
-📋 REQUIREMENTS:
-- Tool usage required: {requirements.tool_usage_required}
-- Required tools: {requirements.required_tools}
-- Minimum tool calls: {requirements.min_tool_calls}
-"""
-            
-            if requirements.final_tool_must_be:
-                enforcement_guidance += f"- Final tool must be: {requirements.final_tool_must_be}\n"
-            
-            enforcement_guidance += f"""
-🔄 ATTEMPT: {context.attempt}/{requirements.max_retries}
-💡 TIP: Use the required tools BEFORE providing your analysis.
-
-===== SLA ENFORCEMENT ACTIVE =====
-This node has SLA requirements that MUST be satisfied.
-Data will not flow downstream until compliance is achieved.
-===== END SLA ENFORCEMENT =====
-"""
-        else:
-            enforcement_guidance = ""
-        
-        # Modify the input data to include enhanced prompts
-        # This assumes the input has a query/objective field to enhance
-        enhanced_input = context.input_data.copy() if isinstance(context.input_data, dict) else context.input_data
-        
-        if isinstance(enhanced_input, dict):
-            if "query" in enhanced_input:
-                enhanced_input["query"] += retry_prompt + enforcement_guidance
-            elif "objective" in enhanced_input:
-                enhanced_input["objective"] += retry_prompt + enforcement_guidance
-            else:
-                # Add as new field
-                enhanced_input["sla_enforcement_prompt"] = retry_prompt + enforcement_guidance
-        
-        return enhanced_input
-    
-    async def execute_with_sla_enforcement(
-        self,
-        node_executor: Callable,
-        node_spec: Any,
-        input_data: Any,
-        node_id: str = "unknown",
-        node_type: str = "unknown", 
-        node_label: str = "Unknown Node"
-    ) -> Any:
-        """
-        Execute a node with SLA enforcement wrapper.
-        
-        This is the main entry point for SLA-enforced node execution.
+        This is a simple validation approach that:
+        1. Executes the node
+        2. Checks if SLA requirements were met
+        3. Optionally retries ONCE if validation failed
         
         Args:
-            node_executor: Function that executes the actual node
-            node_spec: NodeSpec object from WorkflowSpec (authoritative source)
-            input_data: Input data for the node
-            node_id: Node identifier
-            node_type: Node type (agent, tool, etc.)
-            node_label: Human-readable node label
+            execute_fn: Function that executes the node
+            node_spec: NodeSpec from WorkflowSpec
+            allow_retry: Whether to allow a single retry on failure
             
         Returns:
-            Node execution result (after SLA validation)
+            Execution result (passes through from execute_fn)
         """
-        # Extract SLA requirements from authoritative WorkflowSpec
+        # Extract SLA requirements
         sla_requirements = self.extract_sla_requirements(node_spec)
         
-        # Skip enforcement if not required
-        if not sla_requirements.enforce_usage:
-            logger.debug(f"Node {node_id} has no SLA requirements, executing normally")
-            return await node_executor()
+        # No SLA enforcement needed - just execute normally
+        if not sla_requirements or not sla_requirements.enforce_usage:
+            logger.debug(f"Node {node_spec.id} has no SLA requirements")
+            return execute_fn()
         
-        logger.info(f"🔒 SLA enforcement active for node {node_id} ({node_label})")
-        logger.info(f"   Requirements: {sla_requirements.required_tools}, final: {sla_requirements.final_tool_must_be}")
+        logger.info(f"🔒 SLA validation active for node {node_spec.id}")
         
-        # Log to feedback system for workflow analysis
-        self._log_sla_enforcement_start(node_id, node_label, sla_requirements)
+        # Execute the node
+        result = execute_fn()
         
-        # Create execution context
-        context = ExecutionContext(
-            node_id=node_id,
-            node_type=node_type,
-            node_label=node_label,
-            input_data=input_data,
-            start_time=time.time(),
-            sla_requirements=sla_requirements
+        # Extract tool usage from result
+        tool_usage_results = self._extract_tool_usage_from_result(result)
+        
+        # Validate SLA compliance
+        validation_result, validation_reason = self.validate_sla_compliance(
+            sla_requirements, tool_usage_results
         )
         
-        # Initialize validation variables for retries
-        validation_result = None
-        validation_reason = ""
+        if validation_result == SLAValidationResult.PASS:
+            logger.info(f"✅ Node {node_spec.id} passed SLA validation")
+            return result
         
-        # Execute with retries
-        for attempt in range(sla_requirements.max_retries + 1):
-            context.attempt = attempt
+        # Validation failed
+        logger.warning(f"❌ Node {node_spec.id} failed SLA validation: {validation_reason}")
+        
+        # Try once more if allowed
+        if allow_retry and sla_requirements.max_retries > 0:
+            logger.info(f"🔄 Retrying node {node_spec.id} with enhanced prompts")
             
-            # Check timeout
-            if time.time() - context.start_time > sla_requirements.timeout_seconds:
-                logger.error(f"Node {node_id} timed out after {sla_requirements.timeout_seconds}s")
-                raise TimeoutError(f"Node {node_id} execution timed out")
+            # Execute again (the pre-prompt injection should help)
+            result = execute_fn()
             
-            # Enhance input for retries
-            if attempt > 0 and validation_result is not None:
-                logger.info(f"🔄 Retry {attempt} for node {node_id}")
-                enhanced_input = self.create_enhanced_prompt(context, validation_result, validation_reason)
-                # Update the input for the node executor
-                # This requires the executor to accept dynamic input
-                context.input_data = enhanced_input
-            
-            # Execute the node
-            try:
-                result = await node_executor()
-            except Exception as e:
-                logger.error(f"Node {node_id} execution failed: {e}")
-                if attempt >= sla_requirements.max_retries:
-                    raise
-                continue
-            
-            # Extract tool usage from result
+            # Check again
             tool_usage_results = self._extract_tool_usage_from_result(result)
-            
-            # Validate SLA compliance
             validation_result, validation_reason = self.validate_sla_compliance(
                 sla_requirements, tool_usage_results
             )
             
             if validation_result == SLAValidationResult.PASS:
-                logger.info(f"✅ Node {node_id} passed SLA validation")
-                logger.info(f"   Tools used: {[r.tool_name for r in tool_usage_results]}")
-                
-                # Log successful SLA enforcement
-                self._log_sla_enforcement_result(node_id, True, attempt, tool_usage_results)
+                logger.info(f"✅ Node {node_spec.id} passed SLA validation on retry")
                 return result
-            
-            logger.warning(f"❌ Node {node_id} failed SLA validation: {validation_reason}")
-            
-            # Last attempt - return with failure warning
-            if attempt >= sla_requirements.max_retries:
-                logger.error(
-                    f"🚫 Node {node_id} failed SLA after {sla_requirements.max_retries + 1} attempts. "
-                    f"Final reason: {validation_reason}"
-                )
-                
-                # Log failed SLA enforcement
-                self._log_sla_enforcement_result(node_id, False, attempt, tool_usage_results, validation_reason)
-                
-                # Could raise exception or return with warning
-                # For now, return the result but log the SLA violation
-                return result
+            else:
+                logger.error(f"🚫 Node {node_spec.id} failed SLA after retry: {validation_reason}")
         
+        # Return result anyway but log the violation
+        logger.error(f"⚠️  Returning result despite SLA violation for node {node_spec.id}")
+        return result
+    
+    async def validate_async(
+        self,
+        execute_fn: Callable,
+        node_spec: NodeSpec,
+        allow_retry: bool = True
+    ) -> Any:
+        """
+        Async version of validate_and_execute.
+        
+        Args:
+            execute_fn: Async function that executes the node
+            node_spec: NodeSpec from WorkflowSpec
+            allow_retry: Whether to allow a single retry on failure
+            
+        Returns:
+            Execution result (passes through from execute_fn)
+        """
+        # Extract SLA requirements
+        sla_requirements = self.extract_sla_requirements(node_spec)
+        
+        # No SLA enforcement needed - just execute normally
+        if not sla_requirements or not sla_requirements.enforce_usage:
+            logger.debug(f"Node {node_spec.id} has no SLA requirements")
+            return await execute_fn()
+        
+        logger.info(f"🔒 SLA validation active for node {node_spec.id}")
+        
+        # Execute the node
+        result = await execute_fn()
+        
+        # Extract tool usage from result
+        tool_usage_results = self._extract_tool_usage_from_result(result)
+        
+        # Validate SLA compliance
+        validation_result, validation_reason = self.validate_sla_compliance(
+            sla_requirements, tool_usage_results
+        )
+        
+        if validation_result == SLAValidationResult.PASS:
+            logger.info(f"✅ Node {node_spec.id} passed SLA validation")
+            return result
+        
+        # Validation failed
+        logger.warning(f"❌ Node {node_spec.id} failed SLA validation: {validation_reason}")
+        
+        # Try once more if allowed
+        if allow_retry and sla_requirements.max_retries > 0:
+            logger.info(f"🔄 Retrying node {node_spec.id} with enhanced prompts")
+            
+            # Execute again (the pre-prompt injection should help)
+            result = await execute_fn()
+            
+            # Check again
+            tool_usage_results = self._extract_tool_usage_from_result(result)
+            validation_result, validation_reason = self.validate_sla_compliance(
+                sla_requirements, tool_usage_results
+            )
+            
+            if validation_result == SLAValidationResult.PASS:
+                logger.info(f"✅ Node {node_spec.id} passed SLA validation on retry")
+                return result
+            else:
+                logger.error(f"🚫 Node {node_spec.id} failed SLA after retry: {validation_reason}")
+        
+        # Return result anyway but log the violation
+        logger.error(f"⚠️  Returning result despite SLA violation for node {node_spec.id}")
         return result
     
     def _extract_tool_usage_from_result(self, result: Any) -> List[ToolUsageResult]:
-        """Extract tool usage from node execution result."""
+        """Extract tool usage from node execution result.
+        
+        Handles both typed AgentExecutionResult and legacy dict results.
+        """
+        # Handle typed AgentExecutionResult
+        if isinstance(result, AgentExecutionResult):
+            if result.agent_response and hasattr(result.agent_response, 'tool_usage_results'):
+                return result.agent_response.tool_usage_results or []
+            return []
+        
+        # Handle legacy dict result
         if isinstance(result, dict) and "tool_usage_results" in result:
             return result["tool_usage_results"] or []
+        
         return []
     
-    def _log_sla_enforcement_start(self, node_id: str, node_label: str, requirements: SLARequirements):
-        """Log SLA enforcement start for workflow analysis."""
-        logger.info(
-            "🔍 META-EXECUTION: SLA enforcement started", 
-            data={
-                "event": "sla_enforcement_start",
-                "node_id": node_id,
-                "node_label": node_label,
-                "requirements": {
-                    "required_tools": requirements.required_tools,
-                    "final_tool_must_be": requirements.final_tool_must_be,
-                    "min_tool_calls": requirements.min_tool_calls,
-                    "tool_usage_required": requirements.tool_usage_required,
-                    "max_retries": requirements.max_retries,
-                    "timeout_seconds": requirements.timeout_seconds
-                }
-            }
-        )  
-    
-    def _log_sla_enforcement_result(
-        self, 
-        node_id: str, 
-        success: bool, 
-        attempts: int, 
-        tool_usage_results: List[ToolUsageResult],
-        failure_reason: Optional[str] = None
-    ):
-        """Log SLA enforcement completion for workflow analysis."""
-        tools_used = [r.tool_name for r in tool_usage_results]
-        
-        logger.info(
-            f"🎯 META-EXECUTION: SLA enforcement {'✅ PASSED' if success else '❌ FAILED'}", 
-            data={
-                "event": "sla_enforcement_complete",
-                "node_id": node_id,
-                "success": success,
-                "attempts": attempts + 1,  # attempts is 0-based
-                "tools_used": tools_used,
-                "tool_count": len(tools_used),
-                "failure_reason": failure_reason,
-                "meta_execution_occurred": attempts > 0  # True if retries happened
-            }
-        )
 
 
-# Global wrapper instance
-node_execution_wrapper = NodeExecutionWrapper()
+# Global validator instance
+sla_validator = SLAValidator()

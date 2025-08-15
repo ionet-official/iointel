@@ -11,6 +11,8 @@ class WorkflowState:
     conversation_id: str = ""
     results: Dict[str, Any] = field(default_factory=dict)
     user_inputs: Dict[str, Any] = field(default_factory=dict)  # Runtime user inputs
+    execution_id: Optional[str] = None  # Unique execution ID for tracking
+    execution_summary: Optional[Any] = None  # Execution summary from feedback collector
 
     @classmethod
     def get_id(cls) -> str:
@@ -34,7 +36,7 @@ class TaskNode(BaseNode[WorkflowState]):
         self.conversation_id = self.conversation_id
 
     @classmethod
-    def get_node_def(cls, local_ns: Optional[Dict[str, Any]] = None):
+    def get_node_def(cls, local_ns: Optional[Dict[str, Any]] = None) -> NodeDef:
         next_edges: dict[str, Any] = {}
         next_cls = getattr(cls, "next_task", None)
         if next_cls is not None:

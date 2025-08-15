@@ -4,11 +4,14 @@ import inspect
 from pydantic import BaseModel, ConfigDict, model_serializer
 from pydantic_ai._output import get_union_args
 
-import logging
-import os
+# import logging
+# import os
 
 
 def make_logger(name: str, level: str = "INFO"):
+    # Quick fix to get tests running - should migrate to IOLogger later
+    import logging
+    import os
     logger = logging.getLogger(name)
     level_name = os.environ.get("AGENT_LOGGING_LEVEL", level).upper()
     numeric_level = getattr(logging, level_name, logging.INFO)
@@ -16,7 +19,7 @@ def make_logger(name: str, level: str = "INFO"):
     return logger
 
 
-logger = make_logger(__name__)
+# logger = make_logger(__name__)
 
 
 class LazyCaller(BaseModel):
@@ -35,24 +38,24 @@ class LazyCaller(BaseModel):
             kwargs=kwargs,
             name=kwargs.get("name") or func.__name__,
         )
-        logger.debug(f"CREATE NEW CALLER with {kwargs}")
+        # logger.debug(f"CREATE NEW CALLER with {kwargs}")
         self._evaluated = False
         self._result = None
 
     async def _resolve_nested(self, value: Any) -> Any:
-        logger.debug("Resolving: %s", value)
+        # logger.debug("Resolving: %s", value)
         if inspect.isawaitable(value):
             value = await value
         if hasattr(value, "execute") and callable(value.execute):
-            logger.debug("Resolving lazy object: %s", value)
+            # logger.debug("Resolving lazy object: %s", value)
             resolved = await self._resolve_nested(value.execute())
-            logger.debug("Resolved lazy object to: %s", resolved)
+            # logger.debug("Resolved lazy object to: %s", resolved)
             return resolved
         if isinstance(value, dict):
-            logger.debug("Resolving dict: %s", value)
+            # logger.debug("Resolving dict: %s", value)
             return {k: (await self._resolve_nested(v)) for k, v in value.items()}
         if isinstance(value, (list, tuple, set)):
-            logger.debug("Resolving collection: %s", value)
+            # logger.debug("Resolving collection: %s", value)
             result = []
             for item in value:
                 result.append(await self._resolve_nested(item))
@@ -63,8 +66,8 @@ class LazyCaller(BaseModel):
         if not self._evaluated:
             resolved_args = await self._resolve_nested(self.args)
             resolved_kwargs = await self._resolve_nested(self.kwargs)
-            logger.debug("Resolved args: %s", resolved_args)
-            logger.debug("Resolved kwargs: %s", resolved_kwargs)
+            # logger.debug("Resolved args: %s", resolved_args)
+            # logger.debug("Resolved kwargs: %s", resolved_kwargs)
             result = self.func(*resolved_args, **resolved_kwargs)
 
             # Recursively resolve nested lazy objects, if part of the result is lazy
@@ -83,14 +86,27 @@ class LazyCaller(BaseModel):
 def supports_tool_choice_required(model_name: str) -> bool:
     """Temp hack fix to check if the model supports tool choice required."""
     # TODO: Remove this once we have a better way to check if the model supports tool choice required.
+    original_name = model_name
     model_name = model_name.lower()
-    return (
+    
+    # Debug logging
+    print(f"🔍 Checking tool_choice support for model: '{original_name}' (normalized: '{model_name}')")
+    
+    supports = (
         model_name.startswith("gpt-")
         or model_name.startswith("openai/")
         or "gpt" in model_name
         or model_name == "meta-llama/llama-4-maverick-17b-128e-instruct-fp8"
         or model_name == "meta-llama/llama-3.3-70b-instruct"
+        or "llama-3.3" in model_name  # More flexible matching for Llama 3.3
+        or "llama-3.1" in model_name  # Llama 3.1 also supports function calling
+        or "llama-4" in model_name    # Llama 4 models support function calling
+        or model_name == "qwen/qwen3-coder-480b-a35b-instruct-fp8"  # Qwen 3 Coder supports function calling
+        or "qwen3-coder" in model_name  # More flexible matching for Qwen 3 Coder models
     )
+    
+    print(f"🔍 Model '{original_name}' tool_choice support: {supports}")
+    return supports
 
 
 def flatten_union_types(output_type) -> list:
