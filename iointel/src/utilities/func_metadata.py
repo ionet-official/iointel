@@ -59,7 +59,7 @@ class FuncMetadata(BaseModel):
         # Only add arguments_to_pass_directly that the function can accept
         if arguments_to_pass_directly:
             import inspect
-            if isinstance(fn, Callable):
+            if callable(fn):
                 sig = inspect.signature(fn)
                 has_var_keyword = any(p.kind == inspect.Parameter.VAR_KEYWORD for p in sig.parameters.values())
                 for key, value in arguments_to_pass_directly.items():
@@ -68,10 +68,11 @@ class FuncMetadata(BaseModel):
                         arguments_parsed_dict[key] = value
 
         if fn_is_async:
-            if isinstance(fn, Awaitable):
+            import asyncio
+            if asyncio.iscoroutine(fn):
                 return await fn
             return await fn(**arguments_parsed_dict)
-        if isinstance(fn, Callable):
+        if callable(fn):
             return fn(**arguments_parsed_dict)
         raise TypeError("fn must be either Callable or Awaitable")
 
