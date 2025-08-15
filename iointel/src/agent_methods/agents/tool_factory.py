@@ -4,13 +4,13 @@ from ..data_models.datamodels import AgentParams
 from typing import Callable, List
 import re
 from ...utilities.registries import TOOLS_REGISTRY
-from ...utilities.helpers import make_logger
+from ...utilities.io_logger import get_component_logger
 from ..data_models.datamodels import Tool
 
 import textwrap
 
 
-logger = make_logger(__name__)
+logger = get_component_logger("TOOL_FACTORY")
 
 
 def rehydrate_tool(tool_def: Tool) -> Callable:
