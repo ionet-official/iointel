@@ -124,9 +124,9 @@ class UnifiedSearchService:
     def _initialize_tool_rag(self):
         """Initialize tool RAG from tool registry."""
         try:
-            # Load tools from environment
-            load_tools_from_env()
-            tool_catalog = create_tool_catalog()
+            # Use already-loaded tools instead of reloading
+            # load_tools_from_env() is already called in workflow_server.py
+            tool_catalog = create_tool_catalog(filter_broken=True, verbose_format=False, use_working_filter=True)
             
             print(f"🔍 Tool catalog keys: {list(tool_catalog.keys()) if tool_catalog else 'None'}")
             

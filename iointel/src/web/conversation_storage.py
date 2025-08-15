@@ -7,6 +7,7 @@ corrupted context loading and track conversation versions.
 """
 
 import json
+import os
 import time
 from datetime import datetime
 from pathlib import Path
@@ -55,7 +56,9 @@ class ConversationStorage:
                         conv_id: ConversationMetadata(**conv_data)
                         for conv_id, conv_data in data.items()
                     }
-                print(f"📚 Loaded {len(self.conversations)} conversation records")
+                # Only print in non-test environments
+                if not os.getenv("TESTING_MODE"):
+                    print(f"📚 Loaded {len(self.conversations)} conversation records")
             except Exception as e:
                 print(f"⚠️ Failed to load conversation metadata: {e}")
     
