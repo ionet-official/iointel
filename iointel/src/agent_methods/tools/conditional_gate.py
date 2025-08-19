@@ -451,6 +451,46 @@ def evaluate_condition(data: Dict[str, Any], rule: ConditionRule) -> tuple[bool,
 
 
 @register_tool
+def routing_gate(
+    data: Any,
+    route_index: int,
+    route_name: Optional[str] = None,
+    action: str = "branch"
+) -> GateResult:
+    """
+    Simple routing gate that directly routes to a specified index.
+    
+    This is a streamlined version without complex JSON conditions.
+    The agent analyzes the data and directly specifies which route to take.
+    
+    Args:
+        data: Input data (kept for compatibility, can be anything)
+        route_index: The route index to select (0-based) matching edge route_index
+        route_name: Optional human-readable route name
+        action: Action to take ('branch', 'continue', or 'terminate')
+    
+    Returns:
+        GateResult with routing decision for the DAG executor
+        
+    Example:
+        >>> routing_gate(data="pwd", route_index=4, route_name="System & Shell")
+        GateResult(routed_to="System & Shell", route_index=4, action="branch", ...)
+    """
+    # Use route_name if provided, otherwise generate from index
+    routed_to = route_name if route_name else f"route_{route_index}"
+    
+    return GateResult(
+        routed_to=routed_to,
+        route_index=route_index,
+        action=action,
+        matched_route=routed_to,
+        decision_reason=f"Direct routing to {routed_to} (index {route_index})",
+        confidence=1.0,
+        audit_trail={"input_data": str(data)[:100], "direct_route": True}
+    )
+
+
+@register_tool
 def conditional_gate(
     data: Union[Dict, str],
     router_config: Union[RouterConfig, Dict[str, Any]]

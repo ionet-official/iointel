@@ -22,6 +22,7 @@ WORKING_TOOLS = {
     "what_time_is_it",
     "user_input",
     "prompt_tool",
+    "routing_gate",  # Simple routing without conditions
     "conditional_gate",
     "conditional_multi_gate",
     
