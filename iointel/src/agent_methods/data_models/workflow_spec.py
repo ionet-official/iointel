@@ -4,7 +4,7 @@ WorkflowSpec: Clean, discriminated union-based workflow specification.
 This module defines the workflow specification with proper separation of concerns:
 - data_source nodes: User input or static prompts (no tools)
 - agent nodes: Tool-using nodes with optional SLA
-- decision nodes: Agents with enforced conditional_gate routing
+- decision nodes: Agents with enforced routing_gate or conditional_gate routing
 - workflow_call nodes: Sub-workflow invocation
 
 Routing information lives on edges, not nodes.
@@ -200,25 +200,32 @@ class DecisionConfig(AgentConfig):
     Payload for decision nodes.
     
     REQUIRED invariants (routing-specific):
-    - tools MUST include 'conditional_gate'
+    - tools MUST include 'conditional_gate' OR 'routing_gate'
     - sla MUST exist
     - sla.enforce_usage MUST be true
-    - sla.required_tools MUST include 'conditional_gate'
-    - sla.final_tool_must_be MUST equal 'conditional_gate'
+    - sla.required_tools MUST include the routing tool
+    - sla.final_tool_must_be MUST equal the routing tool
     """
     @model_validator(mode="after")
     def _decision_requirements(self) -> DecisionConfig:
         tools_set = set(self.tools or [])
-        if "conditional_gate" not in tools_set:
-            raise ValueError("DecisionConfig.tools MUST include 'conditional_gate'.")
+        routing_tools = {"conditional_gate", "routing_gate"}
+        routing_tool_found = routing_tools.intersection(tools_set)
+        
+        if not routing_tool_found:
+            raise ValueError("DecisionConfig.tools MUST include either 'conditional_gate' or 'routing_gate'.")
+        
+        # Get the routing tool that was found
+        routing_tool = list(routing_tool_found)[0]
+        
         if self.sla is None:
             raise ValueError("DecisionConfig.sla is REQUIRED.")
         if not self.sla.enforce_usage:
             raise ValueError("DecisionConfig.sla.enforce_usage MUST be true.")
-        if "conditional_gate" not in set(self.sla.required_tools or []):
-            raise ValueError("DecisionConfig.sla.required_tools MUST include 'conditional_gate'.")
-        if self.sla.final_tool_must_be != "conditional_gate":
-            raise ValueError("DecisionConfig.sla.final_tool_must_be MUST be 'conditional_gate'.")
+        if routing_tool not in set(self.sla.required_tools or []):
+            raise ValueError(f"DecisionConfig.sla.required_tools MUST include '{routing_tool}'.")
+        if self.sla.final_tool_must_be != routing_tool:
+            raise ValueError(f"DecisionConfig.sla.final_tool_must_be MUST be '{routing_tool}'.")
         return self
 
 
@@ -410,16 +417,28 @@ class EdgeSpec(BaseModel):
 
 class WorkflowSpecLLM(BaseModel):
     """
-    The ONLY artifact the planner agent should emit.
+    WorkflowSpecLLM - The workflow specification you must generate.
     
-    Separation of concerns baked-in:
-    - `data_source` nodes ONLY define user/prompt input. They cannot call tools.
-    - `agent` nodes do the work with tools (and optional SLA).
-    - `decision` nodes are agents with enforced conditional routing via 'conditional_gate' and SLA.
-    - Routing metadata appears ONLY on edges from decision nodes (route_index).
+    NODE TYPES (strict separation of concerns):
+    1. data_source: Collects user input ONLY. NEVER calls tools. Config MUST have message + default_value.
+    2. agent: Executes tasks with tools. Can have SLA for enforcement.
+    3. decision: Routes workflow using 'routing_gate'. MUST have routing_gate in tools + SLA enforcement.
     
-    Chat-only responses:
-    - If no workflow should be created, set nodes=null and edges=null, and explain in `reasoning`.
+    ROUTING RULES:
+    - Decision nodes MUST use routing_gate(data=input, route_index=N, route_name=optional)
+    - Edges FROM decision nodes MUST have route_index (0, 1, 2...)
+    - Edges from non-decision nodes MUST NOT have route_index
+    - routing_gate returns the route_index to control which branch executes
+    
+    CHAT-ONLY MODE:
+    - When user asks questions/chat: Set nodes=null, edges=null, use reasoning for response
+    - When user wants workflow: Populate all fields with valid workflow
+    - You can think in terms of DAGs (Directed Acyclic Graphs) and understand how to build them and can explain to user what tools, what patterns to generate, etc. 
+    
+    CRITICAL:
+    - Every data_source needs config with message AND default_value
+    - Every decision needs routing_gate tool AND SLA with final_tool_must_be="routing_gate"
+    - Route indices start at 0 and increment (0=first branch, 1=second, etc.)
     """
     reasoning: str = Field(
         default="",
@@ -691,12 +710,13 @@ class WorkflowSpec(BaseModel):
                     if tool not in validation_catalog:
                         issues.append(f"🚨 HALLUCINATION: Node '{node.label}' references non-existent tool '{tool}'")
                 
-                # Decision nodes must have conditional_gate
+                # Decision nodes must have routing tool (routing_gate or conditional_gate)
                 if node.type == "decision":
-                    if "conditional_gate" not in node.data.tools:
-                        issues.append(f"Decision node '{node.label}' must include 'conditional_gate' in tools")
-                    if not node.data.sla or node.data.sla.final_tool_must_be != "conditional_gate":
-                        issues.append(f"Decision node '{node.label}' must have SLA with final_tool_must_be='conditional_gate'")
+                    routing_tools = {"routing_gate", "conditional_gate"}
+                    if not any(tool in node.data.tools for tool in routing_tools):
+                        issues.append(f"Decision node '{node.label}' must include 'routing_gate' or 'conditional_gate' in tools")
+                    if not node.data.sla or node.data.sla.final_tool_must_be not in routing_tools:
+                        issues.append(f"Decision node '{node.label}' must have SLA with final_tool_must_be='routing_gate' or 'conditional_gate'")
         
         return issues
     

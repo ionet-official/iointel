@@ -48,11 +48,24 @@ def inject_prompts_enforcement_from_sla(
     if sla_requirements.final_tool_must_be:
         # Has final tool requirement - likely a decision agent
         final_tool = sla_requirements.final_tool_must_be
-        pre_prompts.extend([
-            "🎯 You are a DECISION AGENT with MANDATORY tool usage requirements.",
-            f"⚡ CRITICAL: '{final_tool}' must be your FINAL tool call",
-            "🚫 TOOL USAGE IS MANDATORY - Do not provide analysis without using your required tools"
-        ])
+        
+        # Special handling for routing tools
+        if final_tool in ['routing_gate', 'conditional_gate']:
+            pre_prompts.extend([
+                "🎯 You are a ROUTING DECISION AGENT with MANDATORY routing requirements.",
+                f"⚡ CRITICAL: '{final_tool}' must be your FINAL tool call to route the workflow",
+                "🚫 ROUTING IS MANDATORY - You MUST route to one of the available paths"
+            ])
+            
+            # Add routing_gate specific guidance
+            if final_tool == 'routing_gate':
+                pre_prompts.append("📍 Use routing_gate(data=<input>, route_index=<0-based index>, route_name=<optional name>)")
+        else:
+            pre_prompts.extend([
+                "🎯 You are a DECISION AGENT with MANDATORY tool usage requirements.",
+                f"⚡ CRITICAL: '{final_tool}' must be your FINAL tool call",
+                "🚫 TOOL USAGE IS MANDATORY - Do not provide analysis without using your required tools"
+            ])
     else:
         # General agent with tool requirements
         pre_prompts.append("📊 You are an AGENT with specific tool usage requirements.")
