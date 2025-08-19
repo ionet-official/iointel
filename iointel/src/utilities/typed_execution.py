@@ -81,21 +81,85 @@ class TypedExecutionContext:
         """
         Get all input data for this node based on incoming edges.
         Maps source outputs to this node's expected inputs.
+        
+        Special handling for decision nodes: pass through the original input
+        that was given to the decision node, not just the routing result.
         """
         input_data = {}
         
         for edge in self.incoming_edges:
             source_result = self.state.results.get(edge.source)
             if source_result:
-                # Handle different result formats
-                if isinstance(source_result, dict) and 'result' in source_result:
-                    # Extract the actual result value
-                    value = source_result['result']
-                elif hasattr(source_result, 'result'):
-                    # Handle Pydantic models
-                    value = source_result.result
+                # Check if source is a decision/routing node
+                source_node = next((n for n in self.workflow_spec.nodes if n.id == edge.source), None)
+                is_decision_node = source_node and source_node.type in ["decision", "agent"]
+                
+                # Extract value based on result type
+                value = None
+                
+                # Special handling for decision nodes - get the original input
+                if is_decision_node:
+                    # For decision nodes, we want to pass through the original input
+                    # that the decision node received, not its routing result
+                    
+                    # First, check if we can get the original input from the decision node's context
+                    # Look for what the decision node itself received as input
+                    decision_input = None
+                    
+                    # Find edges going INTO the decision node
+                    decision_incoming = [e for e in self.workflow_spec.edges if e.target == edge.source]
+                    for dec_edge in decision_incoming:
+                        dec_source_result = self.state.results.get(dec_edge.source)
+                        if dec_source_result:
+                            # Extract the value from the node that fed the decision
+                            if isinstance(dec_source_result, dict) and 'result' in dec_source_result:
+                                decision_input = dec_source_result['result']
+                            elif hasattr(dec_source_result, 'result'):
+                                decision_input = dec_source_result.result
+                            else:
+                                decision_input = dec_source_result
+                            break
+                    
+                    # Use the original input if we found it
+                    if decision_input is not None:
+                        value = decision_input
+                        logger.info(f"Passing through original input from decision node {edge.source}: {str(value)[:300]}...")
+                    else:
+                        # Fallback to extracting from the decision result itself
+                        # Try to find the original context in the agent response
+                        if hasattr(source_result, 'agent_response') and source_result.agent_response:
+                            agent_resp = source_result.agent_response
+                            # Check if there's context stored in the response
+                            if hasattr(agent_resp, 'context') and agent_resp.context:
+                                # Use the context as the value
+                                value = agent_resp.context
+                            elif hasattr(agent_resp, 'result'):
+                                value = agent_resp.result
+                        elif isinstance(source_result, dict):
+                            # Try to extract from dict format
+                            if 'agent_response' in source_result:
+                                agent_resp = source_result['agent_response']
+                                if isinstance(agent_resp, dict) and 'context' in agent_resp:
+                                    value = agent_resp['context']
+                                elif isinstance(agent_resp, dict) and 'result' in agent_resp:
+                                    value = agent_resp['result']
+                            elif 'result' in source_result:
+                                value = source_result['result']
+                        
+                        if value is None:
+                            # Last resort - use the whole result
+                            value = source_result
+                
                 else:
-                    value = source_result
+                    # Standard node - extract result normally
+                    if isinstance(source_result, dict) and 'result' in source_result:
+                        # Extract the actual result value
+                        value = source_result['result']
+                    elif hasattr(source_result, 'result'):
+                        # Handle Pydantic models
+                        value = source_result.result
+                    else:
+                        value = source_result
                 
                 # Map based on edge handles if specified
                 if edge.targetHandle:

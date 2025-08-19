@@ -353,20 +353,20 @@ class DAGExecutor:
                         from ..agent_methods.data_models.datamodels import ToolUsageResult
                         from ..agent_methods.tools.conditional_gate import GateResult
                         
-                        # Get the LAST (most recent) conditional_gate result
-                        conditional_gate_results = []
+                        # Get the LAST (most recent) routing/conditional_gate result
+                        gate_results = []
                         for tool_result in tool_usage_results:
                             # Properly handle typed ToolUsageResult
                             if isinstance(tool_result, ToolUsageResult):
-                                if tool_result.tool_name == "conditional_gate":
-                                    conditional_gate_results.append(tool_result)
-                            elif isinstance(tool_result, dict) and tool_result.get("tool_name") == "conditional_gate":
+                                if tool_result.tool_name in ["conditional_gate", "routing_gate"]:
+                                    gate_results.append(tool_result)
+                            elif isinstance(tool_result, dict) and tool_result.get("tool_name") in ["conditional_gate", "routing_gate"]:
                                 # Legacy dict support
-                                conditional_gate_results.append(tool_result)
+                                gate_results.append(tool_result)
                         
                         # Use the last result (most recent tool call)
-                        if conditional_gate_results:
-                            tool_result = conditional_gate_results[-1]
+                        if gate_results:
+                            tool_result = gate_results[-1]
                             
                             # Extract the GateResult from ToolUsageResult
                             if isinstance(tool_result, ToolUsageResult):
@@ -381,7 +381,7 @@ class DAGExecutor:
                                     route_index = gate_result.route_index
                                     routed_to = gate_result.routed_to
                                     action = gate_result.action
-                                    logger.info("🔍 Found routing decision from conditional_gate", data={
+                                    logger.info("🔍 Found routing decision from gate tool", data={
                                         "decision_node": dep_id,
                                         "route_index": route_index,
                                         "routed_to": routed_to,
