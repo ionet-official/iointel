@@ -378,8 +378,8 @@ def get_weather(city: str) -> dict:
 agent = Agent(
     name="GradioSolar",
     instructions="You are a helpful assistant.",
-    model="gpt-4o",
-    api_key="sk-...",
+    model="openai/gpt-oss-120b",
+    api_key="io-...",
     tools=[get_weather],
     show_tool_calls=True,
 )
