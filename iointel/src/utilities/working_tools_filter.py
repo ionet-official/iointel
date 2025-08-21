@@ -22,9 +22,9 @@ WORKING_TOOLS = {
     "what_time_is_it",
     "user_input",
     "prompt_tool",
-    "routing_gate",  # Simple routing without conditions
-    "conditional_gate",
-    "conditional_multi_gate",
+    "routing_gate",  # Simple routing without conditions - PREFERRED for decision nodes
+    # "conditional_gate",  # DEPRECATED: Use routing_gate instead
+    # "conditional_multi_gate",  # DEPRECATED: Use routing_gate instead
     
     # Basic math tools (cleaner than agno calculator tools)
     "add",

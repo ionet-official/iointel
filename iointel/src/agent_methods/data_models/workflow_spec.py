@@ -4,12 +4,13 @@ WorkflowSpec: Clean, discriminated union-based workflow specification.
 This module defines the workflow specification with proper separation of concerns:
 - data_source nodes: User input or static prompts (no tools)
 - agent nodes: Tool-using nodes with optional SLA
-- decision nodes: Agents with enforced routing_gate or conditional_gate routing
+- decision nodes: Agents with enforced routing_gate routing
 - workflow_call nodes: Sub-workflow invocation
 
 Routing information lives on edges, not nodes.
 """
 from __future__ import annotations
+
 
 from typing import Annotated, Any, Dict, List, Literal, Optional, Union, Set
 from uuid import UUID, uuid4
@@ -24,8 +25,8 @@ from .data_source_registry import ValidDataSourceName
 # Data sources are NOT tools - they're input mechanisms
 _DATA_SOURCE_NAMES: set[str] = {"user_input", "prompt_tool"}
 
-# Centralized routing tools definition
-ROUTING_TOOLS = ['conditional_gate', 'threshold_gate', 'conditional_multi_gate']
+# Centralized routing tools definition (simplified to routing_gate only)
+ROUTING_TOOLS = ['routing_gate']
 
 
 # -----------------------------
@@ -42,46 +43,46 @@ class TestResult(BaseModel):
     error_message: str | None = None
 
 
-class TestAlignment(BaseModel):
-    """Test alignment metadata for workflows."""
-    test_ids: set[str] = Field(default_factory=set, description="Test IDs that validate this workflow")
-    test_results: list[TestResult] = Field(default_factory=list, description="Historical test results")
-    last_validated: datetime | None = None
-    validation_status: Literal["untested", "passing", "failing", "mixed"] = "untested"
-    production_ready: bool = Field(default=False, description="True if all critical tests pass")
+# class TestAlignment(BaseModel):
+#     """Test alignment metadata for workflows."""
+#     test_ids: set[str] = Field(default_factory=set, description="Test IDs that validate this workflow")
+#     test_results: list[TestResult] = Field(default_factory=list, description="Historical test results")
+#     last_validated: datetime | None = None
+#     validation_status: Literal["untested", "passing", "failing", "mixed"] = "untested"
+#     production_ready: bool = Field(default=False, description="True if all critical tests pass")
     
-    def add_test_result(self, result: TestResult):
-        """Add a new test result and update validation status."""
-        self.test_results.append(result)
-        self.test_ids.add(result.test_id)
-        self.last_validated = result.executed_at
-        self._update_validation_status()
+#     def add_test_result(self, result: TestResult):
+#         """Add a new test result and update validation status."""
+#         self.test_results.append(result)
+#         self.test_ids.add(result.test_id)
+#         self.last_validated = result.executed_at
+#         self._update_validation_status()
     
-    def _update_validation_status(self):
-        """Update validation status based on latest test results."""
-        if not self.test_results:
-            self.validation_status = "untested"
-            self.production_ready = False
-            return
+#     def _update_validation_status(self):
+#         """Update validation status based on latest test results."""
+#         if not self.test_results:
+#             self.validation_status = "untested"
+#             self.production_ready = False
+#             return
         
-        # Get latest result for each test
-        latest_results = {}
-        for result in self.test_results:
-            if result.test_id not in latest_results or result.executed_at > latest_results[result.test_id].executed_at:
-                latest_results[result.test_id] = result
+#         # Get latest result for each test
+#         latest_results = {}
+#         for result in self.test_results:
+#             if result.test_id not in latest_results or result.executed_at > latest_results[result.test_id].executed_at:
+#                 latest_results[result.test_id] = result
         
-        passed = sum(1 for r in latest_results.values() if r.passed)
-        total = len(latest_results)
+#         passed = sum(1 for r in latest_results.values() if r.passed)
+#         total = len(latest_results)
         
-        if passed == total:
-            self.validation_status = "passing"
-            self.production_ready = True
-        elif passed == 0:
-            self.validation_status = "failing"
-            self.production_ready = False
-        else:
-            self.validation_status = "mixed"
-            self.production_ready = False
+#         if passed == total:
+#             self.validation_status = "passing"
+#             self.production_ready = True
+#         elif passed == 0:
+#             self.validation_status = "failing"
+#             self.production_ready = False
+#         else:
+#             self.validation_status = "mixed"
+#             self.production_ready = False
 
 
 # -----------------------------
@@ -105,7 +106,7 @@ class SLARequirements(BaseModel):
     )
     final_tool_must_be: str | None = Field(
         default=None,
-        description="Exact tool name that MUST be the LAST call (e.g., 'conditional_gate' for decision routing)."
+        description="Exact tool name that MUST be the LAST call (e.g., 'routing_gate' for decision routing)."
     )
     min_tool_calls: int = Field(
         default=1,
@@ -200,32 +201,27 @@ class DecisionConfig(AgentConfig):
     Payload for decision nodes.
     
     REQUIRED invariants (routing-specific):
-    - tools MUST include 'conditional_gate' OR 'routing_gate'
+    - tools MUST include 'routing_gate'
     - sla MUST exist
     - sla.enforce_usage MUST be true
-    - sla.required_tools MUST include the routing tool
-    - sla.final_tool_must_be MUST equal the routing tool
+    - sla.required_tools MUST include 'routing_gate'
+    - sla.final_tool_must_be MUST equal 'routing_gate'
     """
     @model_validator(mode="after")
     def _decision_requirements(self) -> DecisionConfig:
         tools_set = set(self.tools or [])
-        routing_tools = {"conditional_gate", "routing_gate"}
-        routing_tool_found = routing_tools.intersection(tools_set)
         
-        if not routing_tool_found:
-            raise ValueError("DecisionConfig.tools MUST include either 'conditional_gate' or 'routing_gate'.")
-        
-        # Get the routing tool that was found
-        routing_tool = list(routing_tool_found)[0]
+        if "routing_gate" not in tools_set:
+            raise ValueError("DecisionConfig.tools MUST include 'routing_gate'.")
         
         if self.sla is None:
             raise ValueError("DecisionConfig.sla is REQUIRED.")
         if not self.sla.enforce_usage:
             raise ValueError("DecisionConfig.sla.enforce_usage MUST be true.")
-        if routing_tool not in set(self.sla.required_tools or []):
-            raise ValueError(f"DecisionConfig.sla.required_tools MUST include '{routing_tool}'.")
-        if self.sla.final_tool_must_be != routing_tool:
-            raise ValueError(f"DecisionConfig.sla.final_tool_must_be MUST be '{routing_tool}'.")
+        if "routing_gate" not in set(self.sla.required_tools or []):
+            raise ValueError("DecisionConfig.sla.required_tools MUST include 'routing_gate'.")
+        if self.sla.final_tool_must_be != "routing_gate":
+            raise ValueError("DecisionConfig.sla.final_tool_must_be MUST be 'routing_gate'.")
         return self
 
 
@@ -264,13 +260,13 @@ class DecisionNodeLLM(BaseModel):
     Node of type 'decision' (LLM version without ID).
     
     Purpose:
-    - Make a routing decision using 'conditional_gate'.
-    - MUST include SLA that enforces 'conditional_gate' as the final tool.
+    - Make a routing decision using 'routing_gate'.
+    - MUST include SLA that enforces 'routing_gate' as the final tool.
     Routing is expressed ONLY on the outgoing edges via route_index (0..N).
     """
     type: Literal["decision"] = Field("decision", description="Discriminator: 'decision'.")
     label: str = Field(description="Human-readable node label.")
-    data: DecisionConfig = Field(description="Decision configuration with enforced gate + SLA using conditional_gate.")
+    data: DecisionConfig = Field(description="Decision configuration with enforced gate + SLA using routing_gate.")
 
 
 class WorkflowCallNodeLLM(BaseModel):
@@ -710,13 +706,12 @@ class WorkflowSpec(BaseModel):
                     if tool not in validation_catalog:
                         issues.append(f"🚨 HALLUCINATION: Node '{node.label}' references non-existent tool '{tool}'")
                 
-                # Decision nodes must have routing tool (routing_gate or conditional_gate)
+                # Decision nodes must have routing tool (routing_gate only)
                 if node.type == "decision":
-                    routing_tools = {"routing_gate", "conditional_gate"}
-                    if not any(tool in node.data.tools for tool in routing_tools):
-                        issues.append(f"Decision node '{node.label}' must include 'routing_gate' or 'conditional_gate' in tools")
-                    if not node.data.sla or node.data.sla.final_tool_must_be not in routing_tools:
-                        issues.append(f"Decision node '{node.label}' must have SLA with final_tool_must_be='routing_gate' or 'conditional_gate'")
+                    if "routing_gate" not in node.data.tools:
+                        issues.append(f"Decision node '{node.label}' must include 'routing_gate' in tools")
+                    if not node.data.sla or node.data.sla.final_tool_must_be != "routing_gate":
+                        issues.append(f"Decision node '{node.label}' must have SLA with final_tool_must_be='routing_gate'")
         
         return issues
     

@@ -19,7 +19,7 @@ from pathlib import Path
 project_root = Path(__file__).parent.parent.parent.parent
 sys.path.insert(0, str(project_root))
 
-from iointel.src.agent_methods.agents.workflow_planner import WorkflowPlanner
+from iointel.src.agent_methods.agents.workflow_agent import WorkflowPlanner
 from iointel.src.agent_methods.data_models.workflow_spec import WorkflowSpec
 from iointel.src.agent_methods.tools.tool_loader import load_tools_from_env
 from iointel.src.utilities.tool_registry_utils import create_tool_catalog
@@ -35,6 +35,7 @@ from iointel.src.agent_methods.data_models.execution_models import (
 from .execution_feedback import WorkflowExecutionSummary
 import uuid
 import asyncio
+import json
 # Import workflow storage
 from .workflow_storage import WorkflowStorage
 from .execution_feedback import (
@@ -877,7 +878,7 @@ async def startup_event():
     # Initialize UnifiedSearchService
     try:
         # Check environment variable for search mode
-        use_fast_search = os.getenv("FAST_SEARCH_MODE", "true").lower() == "true"
+        use_fast_search = os.getenv("FAST_SEARCH_MODE", "false").lower() == "true"
         
         unified_search_service = UnifiedSearchService(
             storage_dir="saved_workflows",
@@ -923,16 +924,41 @@ async def websocket_endpoint(websocket: WebSocket):
         while True:
             # Keep connection alive - handle any incoming messages or just wait
             try:
-                message = await asyncio.wait_for(websocket.receive_text(), timeout=1.0)
+                message = await asyncio.wait_for(websocket.receive_text(), timeout=30.0)
                 # Echo back any received messages for debugging
                 workflow_logger.debug(f"Received WebSocket message: {message}")
+                
+                # Handle client messages
+                if message:
+                    data = json.loads(message) if isinstance(message, str) else message
+                    if data.get("type") == "pong":
+                        # Client responding to ping
+                        continue
+                    elif data.get("type") == "request_workflow":
+                        # Client requesting current workflow
+                        if current_workflow:
+                            workflow_data = current_workflow.model_dump()
+                            if 'id' in workflow_data:
+                                workflow_data['id'] = str(workflow_data['id'])
+                            await websocket.send_json({
+                                "type": "workflow_update",
+                                "workflow": workflow_data
+                            })
             except asyncio.TimeoutError:
-                # No message received, send a keepalive ping
-                await websocket.send_json({"type": "ping", "timestamp": datetime.now().isoformat()})
+                # Send keepalive ping less frequently (every 30 seconds instead of every second)
+                try:
+                    await websocket.send_json({"type": "ping", "timestamp": datetime.now().isoformat()})
+                except Exception as e:
+                    workflow_logger.error(f"Failed to send ping: {e}")
+                    break
     except WebSocketDisconnect:
         if websocket in connections:
             connections.remove(websocket)
         system_logger.info("WebSocket disconnected", data={"remaining_connections": len(connections)})
+    except Exception as e:
+        workflow_logger.error(f"WebSocket error: {e}")
+        if websocket in connections:
+            connections.remove(websocket)
 
 
 @app.get("/api/workflow")
@@ -973,6 +999,340 @@ async def clear_prompt_history_api():
     """Clear the prompt history."""
     count = clear_prompt_history()
     return {"success": True, "message": f"Cleared {count} prompts"}
+
+
+@app.get("/api/prompts/latest")
+async def get_latest_prompt():
+    """Get the latest prompt sent to the LLM with detailed formatting."""
+    prompts = get_prompt_history()
+    
+    if not prompts:
+        return {"success": False, "message": "No prompts in history"}
+    
+    # Find the latest workflow generation prompt
+    workflow_prompts = [p for p in prompts if "workflow_generation" in p.get("prompt_type", "")]
+    
+    if not workflow_prompts:
+        # Fallback to any prompt
+        latest = prompts[-1]
+    else:
+        latest = workflow_prompts[-1]
+    
+    # Format the prompt for readability
+    prompt_text = latest.get("prompt", "")
+    
+    # Split into sections for better readability
+    sections = {}
+    
+    # Extract tool catalog section if present
+    if "🛠️ AVAILABLE TOOLS" in prompt_text:
+        start = prompt_text.find("🛠️ AVAILABLE TOOLS")
+        end = prompt_text.find("\n\n---", start) if "\n\n---" in prompt_text[start:] else len(prompt_text)
+        sections["tool_catalog"] = prompt_text[start:end]
+    
+    # Extract data sources section if present
+    if "📊 AVAILABLE DATA SOURCES" in prompt_text:
+        start = prompt_text.find("📊 AVAILABLE DATA SOURCES")
+        end = prompt_text.find("\n\n", start + 100) if "\n\n" in prompt_text[start + 100:] else len(prompt_text)
+        sections["data_sources"] = prompt_text[start:end]
+    
+    # Extract validation errors if present
+    if "🚨🚨🚨 CRITICAL VALIDATION FAILURES" in prompt_text:
+        start = prompt_text.find("🚨🚨🚨 CRITICAL VALIDATION FAILURES")
+        end = prompt_text.find("=" * 80, start) + 80 if "=" * 80 in prompt_text[start:] else len(prompt_text)
+        sections["validation_errors"] = prompt_text[start:end]
+    
+    # Extract user query
+    if "USER QUERY:" in prompt_text:
+        start = prompt_text.find("USER QUERY:")
+        query = prompt_text[start:].split("\n")[1] if "\n" in prompt_text[start:] else prompt_text[start:]
+        sections["user_query"] = query
+    
+    return {
+        "success": True,
+        "prompt_id": latest.get("id"),
+        "prompt_type": latest.get("prompt_type"),
+        "timestamp": latest.get("timestamp"),
+        "metadata": latest.get("metadata", {}),
+        "sections": sections,
+        "full_prompt": prompt_text,
+        "response_preview": latest.get("response", "")[:500] if latest.get("response") else None
+    }
+
+
+@app.get("/api/prompts/debug/{prompt_type}")
+async def get_prompts_by_type(prompt_type: str):
+    """Get all prompts of a specific type for debugging."""
+    prompts = get_prompt_history()
+    
+    # Filter by type
+    filtered = [p for p in prompts if prompt_type in p.get("prompt_type", "")]
+    
+    # Format for readability
+    formatted = []
+    for p in filtered:
+        formatted.append({
+            "id": p.get("id"),
+            "type": p.get("prompt_type"),
+            "timestamp": p.get("timestamp"),
+            "metadata": p.get("metadata", {}),
+            "prompt_preview": p.get("prompt", "")[:200] + "..." if len(p.get("prompt", "")) > 200 else p.get("prompt", ""),
+            "has_response": p.get("response") is not None
+        })
+    
+    return {
+        "success": True,
+        "count": len(formatted),
+        "prompts": formatted
+    }
+
+
+@app.get("/prompts/debug", response_class=HTMLResponse)
+async def prompts_debug_viewer():
+    """Serve an HTML page for viewing prompts in a readable format."""
+    prompts = get_prompt_history()
+    
+    # Get the latest prompt details
+    latest_prompt_html = ""
+    if prompts:
+        latest = prompts[-1]
+        prompt_text = latest.get("prompt", "")
+        
+        # Format the prompt text with proper HTML escaping and highlighting
+        formatted_prompt = prompt_text.replace("<", "&lt;").replace(">", "&gt;")
+        
+        # Highlight different sections
+        formatted_prompt = formatted_prompt.replace("🛠️ AVAILABLE TOOLS", "<h3>🛠️ AVAILABLE TOOLS</h3>")
+        formatted_prompt = formatted_prompt.replace("📊 AVAILABLE DATA SOURCES", "<h3>📊 AVAILABLE DATA SOURCES</h3>")
+        formatted_prompt = formatted_prompt.replace("## ", "<h4>")
+        formatted_prompt = formatted_prompt.replace("\n\n", "</p><p>")
+        
+        latest_prompt_html = f"""
+        <div class="prompt-card">
+            <h3>Latest Prompt</h3>
+            <div class="prompt-meta">
+                <span>ID: {latest.get("id", "unknown")}</span>
+                <span>Time: {latest.get("timestamp", "unknown")}</span>
+            </div>
+            <pre class="prompt-content">{formatted_prompt}</pre>
+        </div>
+        """
+    
+    return HTMLResponse(f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>WorkflowPlanner Prompt Debugger</title>
+        <style>
+            body {{
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                margin: 0;
+                padding: 20px;
+                background: #0a0e27;
+                color: #e0e0e0;
+            }}
+            .container {{
+                max-width: 1400px;
+                margin: 0 auto;
+            }}
+            h1 {{
+                color: #ffb300;
+                border-bottom: 2px solid #ffb300;
+                padding-bottom: 10px;
+            }}
+            .controls {{
+                margin: 20px 0;
+                padding: 15px;
+                background: #1a1f3a;
+                border-radius: 8px;
+            }}
+            button {{
+                background: #ffb300;
+                color: #0a0e27;
+                border: none;
+                padding: 10px 20px;
+                border-radius: 4px;
+                cursor: pointer;
+                font-weight: bold;
+                margin-right: 10px;
+            }}
+            button:hover {{
+                background: #ffc947;
+            }}
+            .prompt-card {{
+                background: #1a1f3a;
+                border: 1px solid #2a3f5f;
+                border-radius: 8px;
+                padding: 20px;
+                margin: 20px 0;
+            }}
+            .prompt-meta {{
+                color: #888;
+                margin: 10px 0;
+                font-size: 0.9em;
+            }}
+            .prompt-meta span {{
+                margin-right: 20px;
+            }}
+            .prompt-content {{
+                background: #0a0e27;
+                padding: 15px;
+                border-radius: 4px;
+                overflow-x: auto;
+                white-space: pre-wrap;
+                word-wrap: break-word;
+                font-family: 'Monaco', 'Menlo', monospace;
+                font-size: 12px;
+                line-height: 1.5;
+                max-height: 600px;
+                overflow-y: auto;
+            }}
+            .stats {{
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+                gap: 15px;
+                margin: 20px 0;
+            }}
+            .stat-card {{
+                background: #1a1f3a;
+                padding: 15px;
+                border-radius: 8px;
+                text-align: center;
+            }}
+            .stat-value {{
+                font-size: 2em;
+                color: #ffb300;
+                font-weight: bold;
+            }}
+            .stat-label {{
+                color: #888;
+                margin-top: 5px;
+            }}
+            h3, h4 {{
+                color: #ffb300;
+                margin-top: 20px;
+            }}
+            .section-header {{
+                color: #4fc3f7;
+                font-weight: bold;
+                margin-top: 15px;
+            }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1>🔍 WorkflowPlanner Prompt Debugger</h1>
+            
+            <div class="stats">
+                <div class="stat-card">
+                    <div class="stat-value">{len(prompts)}</div>
+                    <div class="stat-label">Total Prompts</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="avgLength">-</div>
+                    <div class="stat-label">Avg Prompt Length</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="toolCount">-</div>
+                    <div class="stat-label">Tools Available</div>
+                </div>
+            </div>
+            
+            <div class="controls">
+                <button onclick="fetchLatestPrompt()">Fetch Latest Prompt</button>
+                <button onclick="clearPrompts()">Clear History</button>
+                <button onclick="downloadPrompts()">Download All</button>
+            </div>
+            
+            <div id="promptContainer">
+                {latest_prompt_html}
+            </div>
+        </div>
+        
+        <script>
+            async function fetchLatestPrompt() {{
+                const response = await fetch('/api/prompts/latest');
+                const data = await response.json();
+                
+                if (data.success) {{
+                    const container = document.getElementById('promptContainer');
+                    let html = '<div class="prompt-card">';
+                    html += '<h3>Latest Prompt Details</h3>';
+                    html += '<div class="prompt-meta">';
+                    html += `<span>ID: ${{data.prompt_id}}</span>`;
+                    html += `<span>Type: ${{data.prompt_type || 'unknown'}}</span>`;
+                    html += `<span>Time: ${{data.timestamp}}</span>`;
+                    html += '</div>';
+                    
+                    if (data.sections.tool_catalog) {{
+                        html += '<div class="section-header">Tool Catalog:</div>';
+                        html += '<pre class="prompt-content">' + escapeHtml(data.sections.tool_catalog) + '</pre>';
+                    }}
+                    
+                    if (data.sections.user_query) {{
+                        html += '<div class="section-header">User Query:</div>';
+                        html += '<pre class="prompt-content">' + escapeHtml(data.sections.user_query) + '</pre>';
+                    }}
+                    
+                    html += '<div class="section-header">Full Prompt:</div>';
+                    html += '<pre class="prompt-content">' + escapeHtml(data.full_prompt) + '</pre>';
+                    html += '</div>';
+                    
+                    container.innerHTML = html;
+                    
+                    // Update stats
+                    updateStats(data);
+                }}
+            }}
+            
+            async function clearPrompts() {{
+                const response = await fetch('/api/prompts/clear', {{ method: 'POST' }});
+                const data = await response.json();
+                if (data.success) {{
+                    alert(data.message);
+                    location.reload();
+                }}
+            }}
+            
+            async function downloadPrompts() {{
+                const response = await fetch('/api/prompts');
+                const data = await response.json();
+                const blob = new Blob([JSON.stringify(data, null, 2)], {{ type: 'application/json' }});
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'prompts_' + new Date().toISOString() + '.json';
+                a.click();
+            }}
+            
+            function escapeHtml(unsafe) {{
+                return unsafe
+                    .replace(/&/g, "&amp;")
+                    .replace(/</g, "&lt;")
+                    .replace(/>/g, "&gt;")
+                    .replace(/"/g, "&quot;")
+                    .replace(/'/g, "&#039;");
+            }}
+            
+            function updateStats(data) {{
+                // Calculate average length
+                if (data.full_prompt) {{
+                    document.getElementById('avgLength').textContent = data.full_prompt.length.toLocaleString();
+                }}
+                
+                // Count tools if available
+                if (data.sections.tool_catalog) {{
+                    const toolCount = (data.sections.tool_catalog.match(/• `/g) || []).length;
+                    document.getElementById('toolCount').textContent = toolCount;
+                }}
+            }}
+            
+            // Auto-fetch on load
+            fetchLatestPrompt();
+        </script>
+    </body>
+    </html>
+    """)
 
 
 @app.get("/api/executions/{execution_id}/feedback")
@@ -1551,7 +1911,7 @@ async def send_execution_feedback_to_planner(execution_summary: WorkflowExecutio
         )
         
         # Initialize WorkflowPlanner for feedback analysis
-        from ..agent_methods.agents.workflow_planner import WorkflowPlanner
+        from ..agent_methods.agents.workflow_agent import WorkflowPlanner
         
         # CRITICAL: Use the EXACT SAME conversation ID as the main planner for continuity
         # This ensures the feedback planner sees its own workflow generation in conversation history
@@ -2295,16 +2655,23 @@ async def test_analytics_panel():
 async def search_tools(query: str, top_k: int = 5):
     """Search available tools using unified semantic search."""
     try:
+        print(f"🔍 Searching tools for query: '{query}'")
+        
         # Use unified search service if available
         if unified_search_service:
+            print(f"📊 Using UnifiedSearchService")
             response = unified_search_service.search(
                 query=query,
                 search_types=["tools"],
                 top_k=top_k
             )
             
+            print(f"📊 UnifiedSearchService returned {len(response.results)} results")
+            
             # Extract just the tool results
             tool_results = [r for r in response.results if r.result_type == "tool"]
+            
+            print(f"🔧 Filtered to {len(tool_results)} tool results")
             
             return {
                 "query": query,
@@ -2363,6 +2730,58 @@ async def search_tools(query: str, top_k: int = 5):
     except Exception as e:
         print(f"Error searching tools: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/debug/tool-catalog/grouped-string")
+async def get_grouped_tools_string():
+    """Get the grouped tools catalog as a formatted string (exactly what LLM sees)."""
+    global tool_catalog
+    
+    from iointel.src.utilities.conversion_utils import tool_catalog_to_llm_prompt
+    
+    # Generate the exact prompt string that goes to the LLM
+    grouped_prompt = tool_catalog_to_llm_prompt(
+        tool_catalog,
+        title="# 🛠️ AVAILABLE TOOLS",
+        usage_note="Use these exact tool names in agent/decision nodes' tools array"
+    )
+    
+    return {
+        "success": True,
+        "tool_count": len(tool_catalog),
+        "grouped_catalog_string": grouped_prompt,
+        "preview": grouped_prompt[:500] + "..." if len(grouped_prompt) > 500 else grouped_prompt
+    }
+
+
+@app.get("/api/debug/tool-catalog")
+async def debug_tool_catalog():
+    """Debug endpoint to show what tools are in the catalog."""
+    global tool_catalog
+    
+    # Group tools by category/class
+    from iointel.src.utilities.conversion_utils import ConversionUtils
+    grouped = ConversionUtils._group_tools_by_class(tool_catalog)
+    
+    # Count tools by category
+    categories = {}
+    for class_name, tools in grouped.items():
+        categories[class_name] = len(tools)
+    
+    # Check specifically for YFinance tools
+    yfinance_tools = []
+    for name, info in tool_catalog.items():
+        if any(x in name.lower() for x in ['stock', 'company', 'analyst', 'financial', 'get_current', 'get_historical', 'yfinance']):
+            yfinance_tools.append(name)
+    
+    return {
+        "total_tools": len(tool_catalog),
+        "categories": categories,
+        "yfinance_tools": yfinance_tools,
+        "yfinance_count": len(yfinance_tools),
+        "tool_names": list(tool_catalog.keys()),
+        "grouped_tools": {class_name: [t[0] for t in tools] for class_name, tools in grouped.items()}
+    }
 
 
 @app.get("/search/workflows")

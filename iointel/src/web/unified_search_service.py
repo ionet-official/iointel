@@ -304,14 +304,16 @@ class UnifiedSearchService:
                     query, tool_indices[0], top_k=top_k
                 )
                 
-                for i, result in enumerate(tool_results):
-                    if i < len(self.tool_objects):
-                        tool_obj = self.tool_objects[i]
+                for result in tool_results:
+                    # Get the actual index from the search result
+                    result_idx = result.get('idx', result.get('index', -1))
+                    if result_idx >= 0 and result_idx < len(self.tool_objects):
+                        tool_obj = self.tool_objects[result_idx]
                         all_results.append(SearchResult(
                             result_type="tool",
                             title=tool_obj['name'],
                             description=tool_obj['description'],
-                            similarity_score=result.get('similarity', 0),
+                            similarity_score=result.get('similarity', result.get('final_score', 0)),
                             data=tool_obj['full_data'],
                             metadata={
                                 "category": tool_obj['category'],
@@ -332,9 +334,11 @@ class UnifiedSearchService:
                     query, test_indices[0], top_k=top_k
                 )
                 
-                for i, result in enumerate(test_results):
-                    if i < len(self.test_objects):
-                        test_obj = self.test_objects[i]
+                for result in test_results:
+                    # Get the actual index from the search result
+                    result_idx = result.get('idx', result.get('index', -1))
+                    if result_idx >= 0 and result_idx < len(self.test_objects):
+                        test_obj = self.test_objects[result_idx]
                         all_results.append(SearchResult(
                             result_type="test",
                             title=test_obj['name'],

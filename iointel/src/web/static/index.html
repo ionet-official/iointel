@@ -3214,10 +3214,25 @@
             ws.onopen = function() {
                 console.log('✅ WebSocket connected');
                 updateConnectionStatus('connected');
+                // Reset reconnection attempts on successful connection
+                reconnectAttempts = 0;
+                if (reconnectTimeout) {
+                    clearTimeout(reconnectTimeout);
+                    reconnectTimeout = null;
+                }
+                // Request current workflow after connection
+                ws.send(JSON.stringify({ type: 'request_workflow' }));
             };
             
             ws.onmessage = function(event) {
                 const data = JSON.parse(event.data);
+                
+                // Handle ping/pong for keepalive
+                if (data.type === 'ping') {
+                    ws.send(JSON.stringify({ type: 'pong' }));
+                    return;
+                }
+                
                 console.log('📩 WebSocket message:', data.type, data);
                 if (data.type === 'workflow_update') {
                     handleWorkflowUpdate(data.workflow);
@@ -3230,11 +3245,12 @@
                 }
             };
             
-            ws.onclose = function() {
-                console.log('❌ WebSocket closed');
+            ws.onclose = function(event) {
+                console.log('❌ WebSocket closed', event.code, event.reason);
                 updateConnectionStatus('disconnected');
-                // Reconnect after 3 seconds
-                setTimeout(initWebSocket, 3000);
+                ws = null;
+                // Reconnect with exponential backoff
+                reconnectWebSocket();
             };
             
             ws.onerror = function(error) {
@@ -5775,6 +5791,8 @@
                 const response = await fetch(`${API_CONFIG.SEARCH_SERVICE_URL}${endpoint}?query=${encodeURIComponent(query)}&limit=${API_CONFIG.SEARCH_MAX_RESULTS}`);
                 const data = await response.json();
                 
+                console.log('🔍 Search response for', searchType, ':', data);
+                
                 if ((data.results && data.results.length > 0) || (searchType === 'analytics' && Array.isArray(data) && data.length > 0)) {
                     // Store results globally for easier access  
                     window.currentSearchResults = searchType === 'analytics' ? data : data.results;
@@ -5825,8 +5843,10 @@
                                 </div>
                             `;
                         }).join('');
+                        resultsContainer.style.display = 'block';
                     } else {
                         // Tools and workflows use the original structure
+                        console.log('🔧 Rendering', data.results.length, searchType, 'results');
                         resultsContainer.innerHTML = data.results.map((result, index) => {
                             const icon = result.result_type === 'tool' ? '🔧' : '🌊';
                             const typeColor = result.result_type === 'tool' ? '#ff6b35' : '#64ff64';
@@ -7128,6 +7148,26 @@ ${result.snippet ? `**Matching Content**: ${result.snippet}` : ''}`;
                 
                 lines.push(traceLine);
                 
+                // Add input context display - show what the agent received
+                if ((nodeType === 'agent' || nodeType === 'decision') && summary.user_inputs) {
+                    // For now, show the user inputs as context (later we can enhance this)
+                    const inputKeys = Object.keys(summary.user_inputs);
+                    if (inputKeys.length > 0) {
+                        const firstInput = summary.user_inputs[inputKeys[0]];
+                        let inputText = '';
+                        if (typeof firstInput === 'string') {
+                            inputText = firstInput;
+                        } else if (firstInput?.user_input) {
+                            inputText = firstInput.user_input;
+                        }
+                        if (inputText) {
+                            // Show what this agent saw as input (more chars)
+                            const inputPreview = inputText.substring(0, 500).replace(/\n/g, ' ');
+                            lines.push(`    <span class="log-dim">├─ input:</span> <span class="log-input" style="color: #9ca3af;">${inputPreview}</span>`);
+                        }
+                    }
+                }
+                
                 // Add detailed tool usage results - check multiple sources
                 let toolUsageDetails = [];
                 
@@ -7153,12 +7193,15 @@ ${result.snippet ? `**Matching Content**: ${result.snippet}` : ''}`;
                         if (toolResult) {
                             try {
                                 if (typeof toolResult === 'object') {
-                                    resultPreview = JSON.stringify(toolResult).substring(0, 80).replace(/\n/g, ' ');
+                                    // Show much more of JSON results (800 chars)
+                                    resultPreview = JSON.stringify(toolResult).substring(0, 800).replace(/\n/g, ' ');
                                 } else {
-                                    resultPreview = String(toolResult).substring(0, 80).replace(/\n/g, ' ');
+                                    // Show much more of string results (800 chars)
+                                    resultPreview = String(toolResult).substring(0, 800).replace(/\n/g, ' ');
                                 }
                             } catch (e) {
-                                resultPreview = String(toolResult).substring(0, 80).replace(/\n/g, ' ');
+                                // Show much more even on error (800 chars)
+                                resultPreview = String(toolResult).substring(0, 800).replace(/\n/g, ' ');
                             }
                         }
                         
@@ -7171,11 +7214,13 @@ ${result.snippet ? `**Matching Content**: ${result.snippet}` : ''}`;
                     });
                 }
                 
-                // Add compact result/error info  
+                // Add compact result/error info - show more content
                 if (node.error_message) {
-                    lines.push(`    <span class="log-dim">└─</span> <span class="log-error">err: ${node.error_message.substring(0, 80).replace(/\n/g, ' ')}</span>`);
+                    // Show up to 1000 chars of error
+                    lines.push(`    <span class="log-dim">└─</span> <span class="log-error">err: ${node.error_message.substring(0, 1000).replace(/\n/g, ' ')}</span>`);
                 } else if (node.result_preview) {
-                    const preview = node.result_preview.substring(0, 80).replace(/\n/g, ' ');
+                    // Show up to 1000 chars of result
+                    const preview = node.result_preview.substring(0, 1000).replace(/\n/g, ' ');
                     lines.push(`    <span class="log-dim">└─</span> <span class="log-result">${preview}</span>`);
                 }
                 
@@ -7185,7 +7230,8 @@ ${result.snippet ? `**Matching Content**: ${result.snippet}` : ''}`;
                         const toolName = toolUsage.tool_name || 'unknown_tool';
                         const toolStatus = toolUsage.success ? '✓' : '✗';
                         const toolStatusClass = toolUsage.success ? 'log-success' : 'log-error';
-                        const toolResult = toolUsage.result ? String(toolUsage.result).substring(0, 60).replace(/\n/g, ' ') : '';
+                        // Show much more tool result content (800 chars instead of 60)
+                        const toolResult = toolUsage.result ? String(toolUsage.result).substring(0, 800).replace(/\n/g, ' ') : '';
                         
                         let toolLine = `    ├─ <span class="${toolStatusClass}">${toolStatus}</span> <span class="log-warning">${toolName}</span>`;
                         if (toolResult) {
@@ -7380,6 +7426,28 @@ ${result.snippet ? `**Matching Content**: ${result.snippet}` : ''}`;
             chat_mode: true,  // Default to chat mode enabled
             conversation_id: null
         };
+
+        // WebSocket reconnection logic with exponential backoff
+        let reconnectAttempts = 0;
+        let reconnectTimeout = null;
+        const MAX_RECONNECT_DELAY = 30000; // Max 30 seconds
+        const INITIAL_RECONNECT_DELAY = 1000; // Start with 1 second
+
+        function reconnectWebSocket() {
+            if (reconnectTimeout) {
+                clearTimeout(reconnectTimeout);
+            }
+            
+            const delay = Math.min(INITIAL_RECONNECT_DELAY * Math.pow(2, reconnectAttempts), MAX_RECONNECT_DELAY);
+            console.log(`🔄 Reconnecting WebSocket in ${delay/1000} seconds (attempt ${reconnectAttempts + 1})`);
+            
+            reconnectTimeout = setTimeout(() => {
+                reconnectAttempts++;
+                if (!ws || ws.readyState === WebSocket.CLOSED) {
+                    initWebSocket();
+                }
+            }, delay);
+        }
 
         async function initializeSession() {
             try {
