@@ -948,15 +948,31 @@ async def websocket_endpoint(websocket: WebSocket):
                 # Send keepalive ping less frequently (every 30 seconds instead of every second)
                 try:
                     await websocket.send_json({"type": "ping", "timestamp": datetime.now().isoformat()})
+                except (BrokenPipeError, ConnectionResetError, WebSocketDisconnect):
+                    # Client disconnected, exit gracefully
+                    break
                 except Exception as e:
-                    workflow_logger.error(f"Failed to send ping: {e}")
+                    if "Broken pipe" not in str(e) and "32" not in str(e):
+                        workflow_logger.error(f"Failed to send ping: {e}")
                     break
     except WebSocketDisconnect:
         if websocket in connections:
             connections.remove(websocket)
         system_logger.info("WebSocket disconnected", data={"remaining_connections": len(connections)})
+    except BrokenPipeError:
+        # Silently handle broken pipe - client disconnected
+        if websocket in connections:
+            connections.remove(websocket)
+        system_logger.debug("WebSocket broken pipe - client disconnected")
+    except ConnectionResetError:
+        # Silently handle connection reset - client disconnected  
+        if websocket in connections:
+            connections.remove(websocket)
+        system_logger.debug("WebSocket connection reset - client disconnected")
     except Exception as e:
-        workflow_logger.error(f"WebSocket error: {e}")
+        # Only log unexpected errors
+        if "Broken pipe" not in str(e) and "32" not in str(e):
+            workflow_logger.error(f"WebSocket error: {e}")
         if websocket in connections:
             connections.remove(websocket)
 
@@ -2985,10 +3001,13 @@ async def get_active_conversation():
 
 
 if __name__ == "__main__":
+    import os
+    port = int(os.environ.get("WORKFLOW_SERVER_PORT", "8002"))
     uvicorn.run(
-        "workflow_server:app",
+        "iointel.src.web.workflow_server:app",
         host="0.0.0.0",
-        port=8000,
+        port=port,
         reload=True,
-        log_level="info"
+        log_level="info",
+        timeout_keep_alive=75  # Increase keep-alive timeout
     )

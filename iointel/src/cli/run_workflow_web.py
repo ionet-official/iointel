@@ -20,9 +20,9 @@ def main():
     project_root = Path(__file__).parent.parent.parent.parent
     sys.path.insert(0, str(project_root))
     
-    print("🚀 Starting WorkflowPlanner Web Interface...")
-    print("📍 Server will be available at: http://localhost:8000")
-    print("🔧 API docs available at: http://localhost:8000/docs")
+    print("🚀 Starting IOIntel WorkflowPlanner Web Interface...")
+    print("📍 Server will be available at: http://localhost:8002")
+    print("🔧 API docs available at: http://localhost:8002/docs")
     print("⏹️  Press Ctrl+C to stop the server")
     print()
     
@@ -36,8 +36,8 @@ def main():
             import time
             time.sleep(2)  # Wait for server to start
             try:
-                webbrowser.open("http://localhost:8000")
-                print("🌐 Opened browser to http://localhost:8000")
+                webbrowser.open("http://localhost:8002")
+                print("🌐 Opened browser to http://localhost:8002")
             except Exception as e:
                 print(f"Could not open browser automatically: {e}")
         
@@ -50,7 +50,7 @@ def main():
         uvicorn.run(
             app,
             host="0.0.0.0",
-            port=8000,
+            port=8002,
             log_level="info",
             access_log=True
         )
