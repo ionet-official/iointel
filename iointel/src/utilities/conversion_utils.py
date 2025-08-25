@@ -21,7 +21,7 @@ prompt = workflow_spec_to_llm_prompt(spec)
 """
 
 import json
-from typing import Dict, Any, List, Optional, Union
+from typing import Dict, Any, List, Optional, Union, Tuple
 import datetime
 from pydantic import BaseModel
 import dataclasses
@@ -581,10 +581,48 @@ class ConversionUtils:
     # ========================================
     
     @staticmethod
+    def _extract_tool_class(tool) -> Optional[str]:
+        """Extract the class name from tool's docstring marker [AgnoTool:ClassName.tool_name]."""
+        try:
+            wrapped_fn = tool.get_wrapped_fn()
+            doc = wrapped_fn.__doc__ if wrapped_fn.__doc__ else ""
+            
+            if '[AgnoTool:' in doc:
+                start = doc.find('[AgnoTool:') + len('[AgnoTool:')
+                end = doc.find('.', start)
+                if end > start:
+                    return doc[start:end]
+        except:
+            pass
+        return None
+    
+    @staticmethod
+    def _group_tools_by_class(catalog: Dict[str, Any]) -> Dict[str, List[Tuple[str, Any]]]:
+        """Group tools by their registering class for better organization."""
+        from collections import defaultdict
+        from iointel.src.utilities.registries import TOOLS_REGISTRY
+        
+        # Build class mapping from registry
+        tool_to_class = {}
+        for tool_name in catalog.keys():
+            if tool_name in TOOLS_REGISTRY:
+                class_name = ConversionUtils._extract_tool_class(TOOLS_REGISTRY[tool_name])
+                if class_name:
+                    tool_to_class[tool_name] = class_name
+        
+        # Group tools by class
+        class_to_tools = defaultdict(list)
+        for tool_name, tool_info in catalog.items():
+            class_name = tool_to_class.get(tool_name, "Other")
+            class_to_tools[class_name].append((tool_name, tool_info))
+        
+        return dict(class_to_tools)
+    
+    @staticmethod
     def tool_catalog_to_llm_prompt(catalog: Dict[str, Any], title: str = "# Available Tools:", 
                                   usage_note: Optional[str] = None, 
                                   is_data_source: bool = False) -> str:
-        """Convert tool catalog to LLM prompt format. Single source of truth.
+        """Convert tool catalog to LLM prompt format with intelligent grouping by class.
         
         Args:
             catalog: Tool/data source catalog dictionary
@@ -593,12 +631,17 @@ class ConversionUtils:
             is_data_source: True if this is data sources (adds config examples)
         
         Returns:
-            Complete, ready-to-use prompt section
+            Complete, ready-to-use prompt section with tools grouped by their source class
         """
         if not catalog:
             return f"{title}\n❌ NO ITEMS AVAILABLE"
         
-        sections = [f"{title} ({len(catalog)} total):", ""]
+        # Group tools by class for better organization
+        grouped = ConversionUtils._group_tools_by_class(catalog)
+        
+        sections = [f"# 🛠️ AVAILABLE TOOLS ({len(catalog)} total)", 
+                   "Tools are organized by their source class/category:",
+                   ""]
         
         # Add data source config examples if needed
         if is_data_source:
@@ -609,57 +652,76 @@ class ConversionUtils:
                 ""
             ])
         
-        for i, (item_name, item_info) in enumerate(catalog.items()):
-            # Check format type
-            if 'params' in item_info:
-                # Concise format
-                desc = item_info.get('description', '')
-                params = item_info.get('params', [])
-                param_str = f"({', '.join(params)})" if params else "()"
-                
-                if is_data_source:
-                    sections.append(f"source_name: {item_name}{param_str} - {desc}")
-                else:
-                    sections.append(f"tool: {item_name}{param_str} - {desc}")
-            else:
-                # Verbose format
-                sections.append(f"📦 {item_name}")
-                sections.append(f"   Description: {item_info.get('description', 'No description')}")
-                
-                parameters = item_info.get('parameters', {})
-                if parameters:
-                    sections.append("   Parameters:")
-                    for param, param_info in parameters.items():
-                        if isinstance(param_info, dict):
-                            param_type = param_info.get('type', 'any')
-                            required = param_info.get('required', False)
-                            desc = param_info.get('description', '')
-                            req_str = " (required)" if required else " (optional)"
-                            sections.append(f"     • {param} ({param_type}){req_str}: {desc}")
-                        else:
-                            sections.append(f"     • {param}: {param_info}")
-                else:
-                    sections.append("   Parameters: None")
-                
-                # Add usage example
-                if is_data_source:
-                    if item_name == 'user_input':
-                        usage = '{"source_name": "user_input", "type": "data_source", "config": {"prompt": "Enter your question", "default_value": "What is the weather?"}}'
-                    elif item_name == 'prompt_tool':
-                        usage = '{"source_name": "prompt_tool", "type": "data_source", "config": {"prompt": "Enter context", "default_value": "Default"}}'
-                    else:
-                        usage = f'{{"source_name": "{item_name}", "config": {{"param": "value"}}}}'
-                else:
-                    usage = f'"{item_name}"'
-                sections.append(f"   Usage: {usage}")
+        # Format each group
+        for class_name in sorted(grouped.keys()):
+            tools = grouped[class_name]
             
-            # Add separator between items (except last)
-            if i < len(catalog) - 1:
-                sections.append("===")
+            # Get nice display name for known classes
+            if class_name == "YFinance":
+                display_name = "📈 Stock Market & Finance (YFinance)"
+            elif class_name == "File":
+                display_name = "📁 File Operations"
+            elif class_name == "Csv":
+                display_name = "📊 CSV Operations"
+            elif class_name == "Arxiv":
+                display_name = "📚 Academic Research (arXiv)"
+            elif class_name == "Shell":
+                display_name = "💻 System & Shell"
+            elif class_name == "Crawl4ai":
+                display_name = "🌐 Web Crawling"
+            elif class_name == "Other":
+                display_name = "🔧 General Tools"
+            else:
+                display_name = f"📦 {class_name}"
+            
+            sections.append(f"\n## {display_name}")
+            sections.append(f"{len(tools)} tool(s) available:")
+            sections.append("")
+            
+            for tool_name, tool_info in sorted(tools, key=lambda x: x[0]):
+                # Check format type
+                if 'params' in tool_info:
+                    # Concise format
+                    desc = tool_info.get('description', '')
+                    params = tool_info.get('params', [])
+                    param_str = f"({', '.join(params)})" if params else "()"
+                    
+                    if is_data_source:
+                        sections.append(f"  • source_name: `{tool_name}{param_str}` - {desc}")
+                    else:
+                        sections.append(f"  • `{tool_name}{param_str}` - {desc}")
+                else:
+                    # Verbose format
+                    sections.append(f"  • `{tool_name}`")
+                    sections.append(f"     Description: {tool_info.get('description', 'No description')}")
+                    
+                    parameters = tool_info.get('parameters', {})
+                    if parameters:
+                        sections.append("     Parameters:")
+                        for param, param_info in parameters.items():
+                            if isinstance(param_info, dict):
+                                param_type = param_info.get('type', 'any')
+                                required = param_info.get('required', False)
+                                desc = param_info.get('description', '')
+                                req_str = " (required)" if required else " (optional)"
+                                sections.append(f"       • {param} ({param_type}){req_str}: {desc}")
+                            else:
+                                sections.append(f"       • {param}: {param_info}")
             
             sections.append("")
         
-        # Add usage note if provided
+        # Add comprehensive usage notes
+        sections.extend([
+            "---",
+            "📝 **USAGE NOTES:**",
+            "• Use EXACT tool names as shown above (case-sensitive)",
+            "• Tools are grouped by functionality - if you need stock data, look in the Stock Market section",  
+            "• If a tool is not listed here, it DOES NOT EXIST - do not hallucinate tool names",
+            "• For complex workflows, combine tools from different categories",
+            ""
+        ])
+        
+        # Add any custom usage note if provided
         if usage_note:
             sections.append(f"🚨 {usage_note}. Any other names will cause failure.")
         
