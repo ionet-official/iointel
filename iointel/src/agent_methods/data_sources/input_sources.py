@@ -36,23 +36,34 @@ def resolve_user_input_value(user_inputs: Dict[str, Any], node_id: Optional[str]
         "user_inputs_preview": {k: str(v)[:50] + "..." if len(str(v)) > 50 else str(v) for k, v in user_inputs.items()}
     })
     
-    # If user provided input, use it. Period.
+    # If we have a node_id, try to get the specific input for this node
+    if node_id and node_id in user_inputs:
+        value = user_inputs[node_id]
+        logger.success("✅ Using user input for specific node", data={
+            "node_id": node_id,
+            "value_preview": str(value)[:50] + "..." if len(str(value)) > 50 else str(value)
+        })
+        return value
+    
+    # If user provided only one input, use it. Period.
     if len(user_inputs) == 1:
         key, value = next(iter(user_inputs.items()))
-        logger.success("✅ Using user input", data={
+        logger.success("✅ Using single user input", data={
             "key": key,
             "value_preview": str(value)[:50] + "..." if len(str(value)) > 50 else str(value)
         })
         return value
     
-    # Multiple inputs? Use the first one (this shouldn't happen in normal usage)
+    # Multiple inputs but no matching node_id? This shouldn't happen in normal usage
     if len(user_inputs) > 1:
-        key, value = next(iter(user_inputs.items()))
-        logger.warning("Multiple user inputs found, using first", data={
-            "selected_key": key,
+        # Log warning but try to be smart - don't just use first
+        logger.warning("Multiple user inputs found without matching node_id", data={
+            "node_id": node_id,
+            "available_keys": list(user_inputs.keys()),
             "total_inputs": len(user_inputs)
         })
-        return value
+        # If we can't find the right one, return None to use default
+        return None
     
     return None
 
