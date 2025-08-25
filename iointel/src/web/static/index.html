@@ -3392,7 +3392,12 @@
         }
         
         async function executeWorkflow() {
-            if (!currentWorkflow) return;
+            if (!currentWorkflow) {
+                alert('No workflow loaded. Please generate or load a workflow first.');
+                return;
+            }
+            
+            console.log('🎯 Execute button clicked. Current workflow:', currentWorkflow);
             
             setExecutionLoading(true);
             try {

@@ -20,7 +20,7 @@ if __name__ == "__main__":
 
 # Use conditional imports to avoid circular import issues when running directly
 try:
-    from iointel.src.agent_methods.agents.workflow_planner import WorkflowPlanner
+    from iointel.src.agent_methods.agents.workflow_agent import WorkflowPlanner
     from iointel.src.agent_methods.data_models.workflow_spec import WorkflowSpec
     from iointel.src.agent_methods.data_models.execution_models import (
         WorkflowExecutionResult, 
