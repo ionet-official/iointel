@@ -660,42 +660,6 @@ class DAGExecutor:
     async def _execute_node(self, node_id: str, state: WorkflowState) -> Any:
         """Execute a single node using typed execution system."""
         return await self._execute_node_typed(node_id, state)
-            # Create task node instance with required parameters
-            task_node = dag_node.task_node_class(
-                task=dag_node.task_node_class.task,
-                default_text=dag_node.task_node_class.default_text,
-                default_agents=dag_node.task_node_class.default_agents,
-                conversation_id=dag_node.task_node_class.conversation_id
-            )
-            
-            # Import here to avoid circular imports
-            from pydantic_graph import GraphRunContext, End
-            
-            # Execute the node
-            context = GraphRunContext(state=state, deps={})
-            result = await task_node.run(context)
-            
-            # Extract result value
-            if isinstance(result, End):
-                return state.results.get(node_id, None)
-            else:
-                return result
-        
-        # Wrap execution with SLA enforcement using authoritative NodeSpec
-        try:
-            result = await node_execution_wrapper.execute_with_sla_enforcement(
-                node_executor=execute_node_core,
-                node_spec=dag_node.node_spec,  # Pass full NodeSpec as authoritative source
-                input_data=state.results,  # Available data from previous nodes
-                node_id=node_id,
-                node_type=dag_node.node_spec.type,
-                node_label=dag_node.node_spec.label
-            )
-            return result
-        except Exception as e:
-            logger.error(f"Node {node_id} execution failed with SLA wrapper: {e}")
-            # Fall back to direct execution for compatibility
-            return await execute_node_core()
     
     async def _execute_node_typed(self, node_id: str, state: WorkflowState) -> Any:
         """Execute a single node using typed execution system."""
