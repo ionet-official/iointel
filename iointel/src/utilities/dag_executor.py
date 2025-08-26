@@ -36,12 +36,11 @@ class DAGExecutor:
     Supports conditional execution gating through decision nodes.
     """
     
-    def __init__(self, use_typed_execution: bool = False, feedback_collector=None):
+    def __init__(self, feedback_collector=None):
         self.nodes: Dict[str, DAGNode] = {}
         self.execution_order: List[List[str]] = []  # List of batches that can run in parallel
         self.edges: List[EdgeSpec] = []  # Store edges for conditional checking
         self.skipped_nodes: Set[str] = set()  # Track nodes skipped due to decision gating
-        self.use_typed_execution = use_typed_execution
         self.conversation_id: Optional[str] = None
         self.workflow_spec: Optional[WorkflowSpec] = None  # Store the full workflow spec
         self.feedback_collector = feedback_collector  # Optional feedback tracking
@@ -659,15 +658,8 @@ class DAGExecutor:
         return state
     
     async def _execute_node(self, node_id: str, state: WorkflowState) -> Any:
-        """Execute a single node with SLA enforcement wrapper."""
-        dag_node = self.nodes[node_id]
-        
-        # Use typed execution if enabled
-        if self.use_typed_execution:
-            return await self._execute_node_typed(node_id, state)
-                
-        # Define the actual node execution function
-        async def execute_node_core():
+        """Execute a single node using typed execution system."""
+        return await self._execute_node_typed(node_id, state)
             # Create task node instance with required parameters
             task_node = dag_node.task_node_class(
                 task=dag_node.task_node_class.task,

@@ -79,7 +79,6 @@ def _create_workflow_planner(conversation_id: str, debug: bool = False) -> Workf
 def _create_dag_executor(feedback_collector: Optional[ExecutionFeedbackCollector] = None) -> DAGExecutor:
     """Create a configured DAGExecutor instance."""
     return DAGExecutor(
-        use_typed_execution=True,
         feedback_collector=feedback_collector
     )
 
