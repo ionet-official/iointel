@@ -520,7 +520,7 @@ class RAGFactory:
         # Default encodings if not provided
         if column_encodings is None:
             text_cols = [col for col in df.columns if df[col].dtype == 'object']
-            column_encodings = {col: col for col in text_cols[:5]}  # First 5 text columns
+            column_encodings = {col: col for col in text_cols}  # First 5 text columns
             if len(text_cols) > 1:
                 column_encodings["all_text"] = text_cols  # All text columns combined
         

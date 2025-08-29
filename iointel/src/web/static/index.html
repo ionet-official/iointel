@@ -9,6 +9,9 @@
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
     
+    <!-- Security: DOMPurify for XSS prevention -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
+    
     <!-- React Flow CSS -->
     <link rel="stylesheet" href="https://unpkg.com/reactflow@11.10.4/dist/style.css">
     
@@ -3185,6 +3188,59 @@
     <script src="https://unpkg.com/reactflow@11.10.4/dist/umd/index.js"></script>
 
     <script>
+        // ============================================
+        // SECURITY UTILITIES - Use these EVERYWHERE!
+        // ============================================
+        const SecurityUtils = {
+            // Safe text insertion (prevents XSS)
+            safe(text) {
+                const div = document.createElement('div');
+                div.textContent = String(text ?? '');
+                return div.innerHTML;
+            },
+            
+            // Safe HTML with limited tags
+            safeHTML(html) {
+                if (typeof DOMPurify === 'undefined') {
+                    console.error('DOMPurify not loaded! Falling back to safe text.');
+                    return this.safe(html);
+                }
+                return DOMPurify.sanitize(html, {
+                    ALLOWED_TAGS: ['b', 'i', 'em', 'strong', 'pre', 'code', 'br', 'span', 'div', 'p', 'a'],
+                    ALLOWED_ATTR: ['class', 'data-node-id', 'data-tool-name', 'href', 'target'],
+                    ALLOWED_CLASSES: {
+                        'span': ['pill', 'pill--tool', 'pill--sla', 'pill--status', 'pill--error', 'pill--success'],
+                        'div': ['code-block', 'result-item', 'workflow-node'],
+                        'pre': ['code-output'],
+                        'code': ['inline-code']
+                    }
+                });
+            },
+            
+            // Safe attribute value
+            safeAttr(value) {
+                return String(value ?? '').replace(/["'<>]/g, '');
+            },
+            
+            // Safe URL
+            safeURL(url) {
+                try {
+                    const parsed = new URL(url, window.location.origin);
+                    if (!['http:', 'https:'].includes(parsed.protocol)) {
+                        return '#';
+                    }
+                    return url;
+                } catch {
+                    return '#';
+                }
+            },
+            
+            // Safe JSON string for embedding in HTML attributes
+            safeJSON(obj) {
+                return this.safeAttr(JSON.stringify(obj));
+            }
+        };
+
         // Configuration Constants
         const API_CONFIG = {
             SEARCH_SERVICE_URL: window.location.origin,  // Use same server now that services are integrated
@@ -3382,7 +3438,7 @@
                     resultsScrollArea.style.display = 'none';
                 }
                 if (resultsContent) {
-                    resultsContent.innerHTML = '';
+                    resultsContent.innerHTML = ''; // Safe - empty string
                 }
                 // Clear cached user inputs only if explicitly clearing workflow
                 clearCachedInputs();
@@ -3464,10 +3520,10 @@
             if (sendBtn) {
                 sendBtn.disabled = loading;
                 if (loading) {
-                    sendBtn.innerHTML = '<span>⏳ Generating...</span>';
+                    sendBtn.innerHTML = SecurityUtils.safeHTML('<span>⏳ Generating...</span>');
                     sendBtn.classList.add('loading');
                 } else {
-                    sendBtn.innerHTML = '<span>✨ Send</span>';
+                    sendBtn.innerHTML = SecurityUtils.safeHTML('<span>✨ Send</span>');
                     sendBtn.classList.remove('loading');
                 }
             }
@@ -3501,14 +3557,14 @@
                     // Clear execution results
                     const resultsContent = document.getElementById('resultsContent');
                     if (resultsContent) {
-                        resultsContent.innerHTML = '';
+                        resultsContent.innerHTML = ''; // Safe - empty string
                         console.log('🗑️ Cleared execution results');
                     }
                     
                     // Clear execution logs
                     const executionLogs = document.getElementById('executionLogs');
                     if (executionLogs) {
-                        executionLogs.innerHTML = '<div style="text-align: center; color: rgba(255, 130, 40, 0.5); padding: 2rem;">No execution logs available yet. Run a workflow to see detailed logs.</div>';
+                        executionLogs.innerHTML = SecurityUtils.safeHTML('<div style="text-align: center; color: rgba(255, 130, 40, 0.5); padding: 2rem;">No execution logs available yet. Run a workflow to see detailed logs.</div>');
                         console.log('🗑️ Cleared execution logs');
                     }
                     
@@ -3524,7 +3580,7 @@
                     clearExecutionStatus();
                     const resultsContent = document.getElementById('resultsContent');
                     if (resultsContent) {
-                        resultsContent.innerHTML = '';
+                        resultsContent.innerHTML = ''; // Safe - empty string
                     }
                 } else {
                     console.log('🔄 Keeping cached inputs and results for same workflow');
@@ -3594,10 +3650,10 @@
             if (executeBtn) {
                 executeBtn.disabled = loading || !currentWorkflow;
                 if (loading) {
-                    executeBtn.innerHTML = '🚀 Running';
+                    executeBtn.textContent = '🚀 Running';
                     executeBtn.classList.add('loading');
                 } else {
-                    executeBtn.innerHTML = 'Run';
+                    executeBtn.textContent = 'Run';
                     executeBtn.classList.remove('loading');
                 }
             }
@@ -4263,7 +4319,7 @@
             
             if (resultsContent) {
                 console.log('🎆 Setting results content HTML length:', resultsHTML.length);
-                resultsContent.innerHTML = resultsHTML;
+                resultsContent.innerHTML = SecurityUtils.safeHTML(resultsHTML);
                 console.log('✅ Results content updated');
                 
                 // Show the scroll area
@@ -5659,30 +5715,30 @@
                 previewFormatted = previewFormatted.replace(/`(.*?)`/g, '<code>$1</code>');
                 previewFormatted = previewFormatted.replace(/\n/g, '<br>');
                 
-                messageDiv.innerHTML = `
-                    <div class="message-bubble collapsible-message" id="${messageId}">
-                        <div class="message-preview" onclick="toggleMessage('${messageId}')">
+                messageDiv.innerHTML = SecurityUtils.safeHTML(`
+                    <div class="message-bubble collapsible-message" id="${SecurityUtils.safeAttr(messageId)}">
+                        <div class="message-preview" onclick="toggleMessage('${SecurityUtils.safeAttr(messageId)}')">
                             ${previewFormatted}<br>
                             <span style="color: rgba(100, 255, 100, 0.7); cursor: pointer; font-size: 0.9em;">
-                                ▼ Click to expand full report (${message.split('\n').length} lines)
+                                ▼ Click to expand full report (${SecurityUtils.safe(message.split('\n').length)} lines)
                             </span>
                         </div>
                         <div class="message-full" style="display: none;">
                             ${formattedMessage}
                             <br>
                             <span style="color: rgba(100, 255, 100, 0.7); cursor: pointer; font-size: 0.9em;" 
-                                  onclick="toggleMessage('${messageId}')">
+                                  onclick="toggleMessage('${SecurityUtils.safeAttr(messageId)}')">
                                 ▲ Click to collapse
                             </span>
                         </div>
                     </div>
-                    <div class="message-time">${timeStr}</div>
-                `;
+                    <div class="message-time">${SecurityUtils.safe(timeStr)}</div>
+                `);
             } else {
-                messageDiv.innerHTML = `
+                messageDiv.innerHTML = SecurityUtils.safeHTML(`
                     <div class="message-bubble">${formattedMessage}</div>
-                    <div class="message-time">${timeStr}</div>
-                `;
+                    <div class="message-time">${SecurityUtils.safe(timeStr)}</div>
+                `);
             }
             
             chatMessages.appendChild(messageDiv);
