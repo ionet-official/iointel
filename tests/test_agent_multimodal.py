@@ -208,14 +208,14 @@ async def test_unsupported_media_type():
 
     # Mock the runner to simulate unsupported media type error
     agent._runner.run = AsyncMock(
-        side_effect=ValueError("Unsupported media type: application/x-malware")
+        side_effect=ValueError("Unsupported media type: application/x-unsupported")
     )
 
     with pytest.raises(ValueError, match="Unsupported media type"):
         content = [
             "Analyze this file:",
             BinaryContent(
-                data=b"malicious content", media_type="application/x-malware"
+                data=b"unsupported file content", media_type="application/x-unsupported"
             ),
         ]
         await agent.run(content)
