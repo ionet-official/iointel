@@ -9,7 +9,6 @@ This script migrates workflows from the old 'tool' type to the new ontology:
 
 import os
 import sys
-import json
 import re
 from pathlib import Path
 
@@ -72,7 +71,7 @@ def migrate_workflow_file(file_path: str) -> bool:
             result = full_match.replace('type="tool"', 'type="agent"')
             result = result.replace("type='tool'", "type='agent'")
             changes_made = True
-            print(f"  ⚠️  Converted unknown tool to agent (needs manual review)")
+            print("  ⚠️  Converted unknown tool to agent (needs manual review)")
             return result
         
         # Find all NodeSpec constructions with type="tool"
@@ -107,7 +106,7 @@ def migrate_workflow_file(file_path: str) -> bool:
             print(f"  💾 Saved changes to {file_path}")
             return True
         else:
-            print(f"  ➡️  No changes needed")
+            print("  ➡️  No changes needed")
             return False
             
     except Exception as e:
@@ -160,8 +159,8 @@ def main():
         for file_path in changed_files:
             print(f"  - {file_path}")
         
-        print(f"\n⚠️  Please review the changes and test the system!")
-        print(f"💡 Consider running tests: uv run python -m pytest tests/")
+        print("\n⚠️  Please review the changes and test the system!")
+        print("💡 Consider running tests: uv run python -m pytest tests/")
     
     return len(changed_files)
 

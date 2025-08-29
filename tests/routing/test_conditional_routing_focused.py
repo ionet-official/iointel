@@ -18,7 +18,6 @@ from iointel.src.agent_methods.data_models.workflow_spec import (
 )
 from iointel.src.utilities.dag_executor import DAGExecutor
 from iointel.src.utilities.graph_nodes import WorkflowState
-from iointel.src.agent_methods.tools import conditional_gate  # Import to register
 
 
 async def test_conditional_routing_single_case():

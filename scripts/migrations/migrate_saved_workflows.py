@@ -81,7 +81,7 @@ def migrate_workflow_file(file_path):
         with open(file_path, 'w', encoding='utf-8') as f:
             json.dump(workflow_data, f, indent=2, ensure_ascii=False)
         
-        print(f"  ✅ Migration completed")
+        print("  ✅ Migration completed")
         return True
         
     except Exception as e:
@@ -109,7 +109,7 @@ def main():
         if migrate_workflow_file(json_file):
             success_count += 1
     
-    print(f"\n🎉 Migration completed!")
+    print("\n🎉 Migration completed!")
     print(f"✅ Successfully migrated: {success_count}/{len(json_files)} files")
     
     if success_count < len(json_files):

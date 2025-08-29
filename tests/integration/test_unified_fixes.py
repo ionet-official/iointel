@@ -3,7 +3,6 @@
 
 import asyncio
 from iointel.src.agent_methods.agents.workflow_planner import WorkflowPlanner
-from iointel.src.utilities.io_logger import system_logger
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -17,7 +16,7 @@ async def test_unified_fixes():
     """Test that our fixes work together properly."""
     
     # Create tool catalog from registered tools
-    from iointel.src.utilities.tool_registry_utils import create_tool_catalog, create_validation_catalog
+    from iointel.src.utilities.tool_registry_utils import create_validation_catalog
     from iointel.src.utilities.working_tools_filter import filter_available_tools
     
     # Get available tools and filter to working ones
@@ -55,7 +54,7 @@ async def test_unified_fixes():
             query=test_query,
             tool_catalog=tool_catalog  # Pass the tool catalog!
         )
-        print(f"\nWorkflow generated successfully!")
+        print("\nWorkflow generated successfully!")
         print(f"Title: {workflow.title}")
         print(f"Nodes: {len(workflow.nodes)}")
         
@@ -77,7 +76,7 @@ async def test_unified_fixes():
         print("\n=== Testing Workflow Execution ===")
         
         # Use shared workflow execution helper
-        from iointel.src.utilities.workflow_helpers import execute_workflow, get_execution_summary
+        from iointel.src.utilities.workflow_helpers import execute_workflow
         
         # Execute workflow using the shared function
         result = await execute_workflow(
@@ -93,13 +92,13 @@ async def test_unified_fixes():
         
         if result.status == ExecutionStatus.COMPLETED:
             stats = result.metadata.get("stats", {})
-            print(f"\nExecution completed!")
+            print("\nExecution completed!")
             print(f"Executed nodes: {stats['executed_nodes']}/{stats['total_nodes']}")
             print(f"Efficiency: {stats['execution_efficiency']}")
             print(f"Execution time: {result.execution_time}s")
             
             # Check results
-            print(f"\nExecution results:")
+            print("\nExecution results:")
             for node_id, node_result in result.node_results.items():
                 print(f"  {node_id}: {node_result.node_type}")
                 
@@ -107,7 +106,7 @@ async def test_unified_fixes():
                 if node_result.node_type == "agent" and isinstance(node_result.result, AgentExecutionResult):
                     agent_result = node_result.result
                     if agent_result.agent_response:
-                        print(f"    Has agent response: Yes")
+                        print("    Has agent response: Yes")
                         if agent_result.agent_response.tool_usage_results:
                             print(f"    Tool calls: {len(agent_result.agent_response.tool_usage_results)}")
             
@@ -121,7 +120,7 @@ async def test_unified_fixes():
                     # Check if agent response has tool usage
                     if agent_result.agent_response and agent_result.agent_response.tool_usage_results:
                         tools_used = [tool.tool_name for tool in agent_result.agent_response.tool_usage_results]
-                        print(f"\n✅ SUCCESS: Decision node used tools as required by SLA!")
+                        print("\n✅ SUCCESS: Decision node used tools as required by SLA!")
                         print(f"   Tools used: {tools_used}")
                         print(f"   Number of tool calls: {len(agent_result.agent_response.tool_usage_results)}")
                         # Show tool results
@@ -129,16 +128,16 @@ async def test_unified_fixes():
                             result_preview = str(tool_result.tool_result)[:100]
                             print(f"   - {tool_result.tool_name}: {result_preview}...")
                     else:
-                        print(f"\n❌ FAILURE: Decision node did not use tools despite SLA enforcement")
+                        print("\n❌ FAILURE: Decision node did not use tools despite SLA enforcement")
                         print(f"   Agent response type: {type(agent_result.agent_response)}")
                 else:
                     print(f"\n⚠️  WARNING: Decision result is not AgentExecutionResult, got {type(agent_result)}")
             else:
-                print(f"\n⚠️  WARNING: Could not find decision_1 in results")
+                print("\n⚠️  WARNING: Could not find decision_1 in results")
         else:
             print(f"\nExecution failed: {result.error}")
             if result.status == ExecutionStatus.PARTIAL:
-                print(f"Some nodes completed, but there were failures")
+                print("Some nodes completed, but there were failures")
             import traceback
             traceback.print_exc()
                     

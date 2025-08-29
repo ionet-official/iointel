@@ -211,7 +211,7 @@ async def run_court_simulation():
     
     # Show execution plan
     summary = executor.get_execution_summary()
-    print(f"📋 Execution Plan:")
+    print("📋 Execution Plan:")
     print(f"   Total nodes: {summary['total_nodes']}")
     print(f"   Total batches: {summary['total_batches']}")
     print(f"   Max parallelism: {summary['max_parallelism']}")

@@ -3,7 +3,6 @@
 Debug script to find where .ins is being accessed.
 """
 import asyncio
-import sys
 import traceback
 from uuid import uuid4
 
@@ -19,8 +18,7 @@ from iointel.src.agent_methods.data_models.workflow_spec import (
     DataSourceData,
     AgentConfig,
     DataSourceConfig,
-    EdgeSpec,
-    SLARequirements
+    EdgeSpec
 )
 
 # Import tools to register them

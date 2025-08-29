@@ -7,7 +7,6 @@ from iointel import Agent
 from iointel import AsyncMemory
 from rich.console import Console
 from dotenv import load_dotenv
-import os
 
 # Initialize rich console
 console = Console()
@@ -59,7 +58,7 @@ try:
     async def test_no_tools():
         console.print("[cyan]Testing basic conversation...[/cyan]")
         result = await runner.run("Hello! Can you tell me what 2+2 equals?", pretty=True)
-        console.print(f"[green]✅ No-tools test successful[/green]")
+        console.print("[green]✅ No-tools test successful[/green]")
         return result
     
     # Run the test
@@ -104,7 +103,7 @@ try:
     async def test_with_tool():
         console.print("[cyan]Testing tool usage...[/cyan]")
         result = await runner_with_tool.run("Please use the simple_add tool to calculate 5 + 7", pretty=True)
-        console.print(f"[green]✅ Tool test successful[/green]")
+        console.print("[green]✅ Tool test successful[/green]")
         return result
     
     # Run the test

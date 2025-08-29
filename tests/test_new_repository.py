@@ -43,18 +43,18 @@ def test_new_repository():
                     print("  ✅ PASSED - Validation succeeded as expected")
                     passed += 1
                 else:
-                    print(f"  ❌ FAILED - Expected to pass but got issues:")
+                    print("  ❌ FAILED - Expected to pass but got issues:")
                     for issue in issues:
                         print(f"     - {issue}")
                     failed += 1
             else:
                 # Test should fail
                 if len(issues) > 0:
-                    print(f"  ✅ PASSED - Validation failed as expected")
+                    print("  ✅ PASSED - Validation failed as expected")
                     print(f"     Issues: {issues[0][:50]}...")
                     passed += 1
                 else:
-                    print(f"  ❌ FAILED - Expected to fail but passed validation")
+                    print("  ❌ FAILED - Expected to fail but passed validation")
                     failed += 1
                     
         except Exception as e:
@@ -69,7 +69,7 @@ def test_new_repository():
     
     # Summary
     print("=" * 60)
-    print(f"📊 TEST SUMMARY")
+    print("📊 TEST SUMMARY")
     print(f"   Total:  {len(tests)}")
     print(f"   ✅ Passed: {passed}")
     print(f"   ❌ Failed: {failed}")

@@ -2675,7 +2675,7 @@ async def search_tools(query: str, top_k: int = 5):
         
         # Use unified search service if available
         if unified_search_service:
-            print(f"📊 Using UnifiedSearchService")
+            print("📊 Using UnifiedSearchService")
             response = unified_search_service.search(
                 query=query,
                 search_types=["tools"],

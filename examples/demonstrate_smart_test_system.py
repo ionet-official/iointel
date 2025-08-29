@@ -31,7 +31,7 @@ def demonstrate_smart_test_system():
     # 1. Initialize the smart repository
     print("\n1. 📁 INITIALIZING SMART REPOSITORY")
     repo = WorkflowTestRepository(storage_dir="demo_test_repository")
-    print(f"   ✅ Repository initialized with persistent storage")
+    print("   ✅ Repository initialized with persistent storage")
     print(f"   📂 Storage layers: {[layer.value for layer in TestLayer]}")
     
     # 2. Create our data source validation test using the smart factory
@@ -149,7 +149,7 @@ def demonstrate_smart_test_system():
         layer=TestLayer.LOGICAL,
         category="data_source_validation"
     )
-    print(f"   ⚗️  Logical fixtures generated:")
+    print("   ⚗️  Logical fixtures generated:")
     print(f"      - Workflow specs: {len(logical_fixtures['workflow_specs'])}")
     print(f"      - Validation cases: {len(logical_fixtures['validation_cases'])}")
     print(f"      - Routing cases: {len(logical_fixtures['routing_cases'])}")
@@ -159,7 +159,7 @@ def demonstrate_smart_test_system():
         layer=TestLayer.AGENTIC,
         category="data_source_validation"
     )
-    print(f"   🤖 Agentic fixtures generated:")
+    print("   🤖 Agentic fixtures generated:")
     print(f"      - User prompts: {len(agentic_fixtures['user_prompts'])}")
     print(f"      - Tool catalogs: {len(agentic_fixtures['tool_catalogs'])}")
     print(f"      - Generation cases: {len(agentic_fixtures['generation_cases'])}")
@@ -174,7 +174,7 @@ def demonstrate_smart_test_system():
                 workflow = WorkflowSpec(**workflow_spec_data)
                 
                 # Create mock tool catalog with valid data sources
-                mock_catalog = {name: {"description": f"Valid data source"} 
+                mock_catalog = {name: {"description": "Valid data source"} 
                               for name in get_valid_data_source_names()}
                 mock_catalog.update(agentic_fixtures['tool_catalogs'][0] or {})
                 
@@ -216,7 +216,7 @@ def demonstrate_smart_test_system():
     storage_dir = Path("demo_test_repository")
     
     if storage_dir.exists():
-        print(f"   📂 Repository structure:")
+        print("   📂 Repository structure:")
         for layer_dir in storage_dir.iterdir():
             if layer_dir.is_dir():
                 test_files = list(layer_dir.glob("*.json"))
@@ -247,7 +247,7 @@ def demonstrate_smart_test_system():
     
     repo.add_test_case(stock_test)
     print(f"   ✅ Added orchestration test: {stock_test.name}")
-    print(f"   🎯 This matches the user's original request from CLAUDE.local.md")
+    print("   🎯 This matches the user's original request from CLAUDE.local.md")
     
     # 9. Summary of capabilities
     print("\n8. 🎉 SMART TEST SYSTEM CAPABILITIES SUMMARY")

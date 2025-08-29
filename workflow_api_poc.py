@@ -31,11 +31,9 @@ project_root = Path(__file__).parent
 sys.path.insert(0, str(project_root))
 
 from iointel.src.agent_methods.data_models.workflow_spec import WorkflowSpec
-from iointel.src.web.workflow_api_service import app as api_app, workflow_api_registry
+from iointel.src.web.workflow_api_service import app as api_app
 
 def run_server():
-    import uvicorn
-    from iointel.src.web.workflow_api_service import app as api_app
     uvicorn.run(api_app, host="0.0.0.0", port=8001, log_level="info")
 
 class WorkflowAPIDemo:
@@ -186,7 +184,7 @@ class WorkflowAPIDemo:
                 "symbol": "BTC",
                 "market": "USD"
             })
-            print(f"✅ Execution started!")
+            print("✅ Execution started!")
             print(f"   - Run ID: {post_result['run_id']}")
             print(f"   - Status: {post_result['status']}")
             if post_result.get('results'):
@@ -201,7 +199,7 @@ class WorkflowAPIDemo:
                 market="USD",
                 async_execution="false"
             )
-            print(f"✅ Execution completed!")
+            print("✅ Execution completed!")
             print(f"   - Run ID: {get_result['run_id']}")
             print(f"   - Status: {get_result['status']}")
             if get_result.get('results'):

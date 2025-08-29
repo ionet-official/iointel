@@ -4,7 +4,6 @@ Test the simplified routing_gate tool.
 Shows that we can route without complex conditional JSON.
 """
 
-import asyncio
 from iointel.src.agent_methods.tools.conditional_gate import routing_gate, GateResult
 
 def test_routing_gate():
@@ -20,8 +19,8 @@ def test_routing_gate():
         route_name="System & Shell"
     )
     
-    print(f"\nTest 1: Route 'pwd' command")
-    print(f"  Input: 'pwd'")
+    print("\nTest 1: Route 'pwd' command")
+    print("  Input: 'pwd'")
     print(f"  Route Index: {result.route_index}")
     print(f"  Routed To: {result.routed_to}")
     print(f"  Action: {result.action}")
@@ -38,8 +37,8 @@ def test_routing_gate():
         route_name="Finance"
     )
     
-    print(f"\nTest 2: Route stock query")
-    print(f"  Input: 'TSLA stock price'")
+    print("\nTest 2: Route stock query")
+    print("  Input: 'TSLA stock price'")
     print(f"  Route Index: {result.route_index}")
     print(f"  Routed To: {result.routed_to}")
     print(f"  Action: {result.action}")
@@ -53,8 +52,8 @@ def test_routing_gate():
         route_index=3
     )
     
-    print(f"\nTest 3: Route with auto-generated name")
-    print(f"  Input: 'calculate 2+2'")
+    print("\nTest 3: Route with auto-generated name")
+    print("  Input: 'calculate 2+2'")
     print(f"  Route Index: {result.route_index}")
     print(f"  Routed To: {result.routed_to}")
     print(f"  Action: {result.action}")
@@ -69,8 +68,8 @@ def test_routing_gate():
         action="terminate"
     )
     
-    print(f"\nTest 4: Terminate routing")
-    print(f"  Input: 'stop'")
+    print("\nTest 4: Terminate routing")
+    print("  Input: 'stop'")
     print(f"  Route Index: {result.route_index}")
     print(f"  Routed To: {result.routed_to}")
     print(f"  Action: {result.action}")

@@ -992,9 +992,9 @@ async def test_stock_agent_data_source_vs_agent_nodes(real_tool_catalog):
             assert 'get_current_stock_price' not in str(ds_node.data.source_name), \
                 "data_source nodes should NOT have API tools like get_current_stock_price"
     
-    print(f"✅ Test passed!")
+    print("✅ Test passed!")
     print(f"Generated workflow: {workflow.title}")
-    print(f"Nodes created:")
+    print("Nodes created:")
     for node in workflow.nodes:
         print(f"  - {node.id}: {node.type} ({node.label})")
         if node.type == 'data_source':

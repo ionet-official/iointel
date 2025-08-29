@@ -18,9 +18,7 @@ from iointel.src.agent_methods.data_models.workflow_spec import (
     WorkflowRunSummary,
     NodeRunSummary,
     ArtifactRef,
-    DataSourceNode,
-    AgentNode,
-    DecisionNode
+    AgentNode
 )
 
 

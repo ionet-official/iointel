@@ -17,7 +17,6 @@ from iointel.src.agent_methods.data_models.workflow_spec import (
 )
 from iointel.src.utilities.dag_executor import DAGExecutor
 from iointel.src.utilities.graph_nodes import WorkflowState
-from iointel.src.agent_methods.tools import conditional_gate  # Import to register
 
 
 async def test_routing_scenario(scenario_name, test_value, expected_route):
@@ -129,7 +128,7 @@ router_config: {{
     assert len(executed) == 1, f"Only one route should execute, got {len(executed)}"
     assert len(skipped) == 2, f"Two routes should be skipped, got {len(skipped)}"
     
-    print(f"  ✅ PASSED!")
+    print("  ✅ PASSED!")
     return True
 
 

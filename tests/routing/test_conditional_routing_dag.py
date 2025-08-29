@@ -20,11 +20,8 @@ load_dotenv(env_path)
 from iointel.src.agent_methods.data_models.workflow_spec import (
     WorkflowSpec, NodeSpec, NodeData, EdgeSpec, EdgeData
 )
-from iointel.src.utilities.dag_executor import DAGExecutor, create_dag_executor_from_spec
+from iointel.src.utilities.dag_executor import create_dag_executor_from_spec
 from iointel.src.utilities.graph_nodes import WorkflowState
-from iointel.src.utilities.registries import TOOLS_REGISTRY
-from iointel.src.utilities.decorators import register_custom_task
-from iointel.src.agent_methods.tools import conditional_gate  # Import to register the tool
 
 
 async def test_conditional_routing_with_route_index():
@@ -141,7 +138,7 @@ You MUST call the conditional_gate tool with proper router_config.""",
     # Decision node should have executed
     assert "decision_node" in final_state.results
     decision_result = final_state.results["decision_node"]
-    print(f"  ✅ Decision node executed")
+    print("  ✅ Decision node executed")
     
     # Check which route was taken
     executed_nodes = [node_id for node_id in final_state.results if node_id not in ["input_data", "decision_node"]]
@@ -283,7 +280,7 @@ Extract the sentiment and confidence from the market data, then call conditional
         print(f"    Expected: {scenario['expected_route']}")
         print(f"    Executed: {executed_action}")
         assert executed_action == scenario['expected_route'], f"Expected {scenario['expected_route']}, got {executed_action}"
-        print(f"    ✅ Routing correct!")
+        print("    ✅ Routing correct!")
     
     print("\n  ✅ All routing scenarios passed!")
 

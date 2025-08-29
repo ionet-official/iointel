@@ -15,7 +15,6 @@ sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '../../
 
 from iointel.src.agent_methods.agents.workflow_planner import WorkflowPlanner
 from iointel.src.utilities.tool_registry_utils import create_tool_catalog
-from iointel.src.agent_methods.data_models.workflow_spec import WorkflowSpec
 from iointel.src.agent_methods.tools.tool_loader import load_tools_from_env
 import os
 
@@ -57,14 +56,14 @@ class TestToolVsAgentPlacement:
                            if hasattr(n.data, 'tool_name') and 
                            ('stock' in n.data.tool_name.lower() or 'price' in n.data.tool_name.lower())]
         
-        print(f"\n🔍 ANALYSIS - Tool Nodes:")
+        print("\n🔍 ANALYSIS - Tool Nodes:")
         for node in tool_nodes:
             tool_name = getattr(node.data, 'tool_name', 'unknown')
             print(f"  🔧 {node.label} (tool: {tool_name})")
             if tool_name not in ['user_input', 'add', 'subtract', 'multiply', 'divide']:
                 print(f"    ⚠️  PROBLEMATIC: '{tool_name}' should likely be in an agent node!")
         
-        print(f"\n🔍 ANALYSIS - Agent Nodes:")
+        print("\n🔍 ANALYSIS - Agent Nodes:")
         decision_agents = [n for n in workflow_spec.nodes if n.type == 'decision']
         for agent in decision_agents:
             tools = getattr(agent.data, 'tools', [])
@@ -122,7 +121,7 @@ class TestToolVsAgentPlacement:
         data_fetcher_nodes = [n for n in workflow_spec.nodes if n.type == 'data_fetcher']
         analyzer_nodes = [n for n in workflow_spec.nodes if n.type == 'analyzer']
         
-        print(f"\n📊 Results:")
+        print("\n📊 Results:")
         print(f"  Tool nodes with weather APIs: {len(weather_tool_nodes)}")
         print(f"  Data fetcher nodes: {len(data_fetcher_nodes)}")
         print(f"  Analyzer nodes: {len(analyzer_nodes)}")
@@ -263,7 +262,7 @@ if __name__ == "__main__":
     results = asyncio.run(run_all_tests())
     
     if results:
-        print(f"\n📊 SUMMARY:")
+        print("\n📊 SUMMARY:")
         print(f"  Stock Decision Test: {'✅' if results['stock_decision'] else '❌'}")
         print(f"  Data Fetcher Test: {'✅' if results['data_fetcher'] else '❌'}")
         print(f"  Valid Tool Usage Test: {'✅' if results['valid_tool_usage'] else '❌'}")

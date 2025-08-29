@@ -57,9 +57,9 @@ async def test_user_input_with_workflow_helpers():
             
             # Look for evidence that NVDA was used instead of default
             if isinstance(node_result, str) and "NVDA" in node_result:
-                print(f"   ✅ Found user input 'NVDA' in results!")
+                print("   ✅ Found user input 'NVDA' in results!")
             elif isinstance(node_result, str) and "AAPL" in node_result:
-                print(f"   ⚠️  Found default 'AAPL' - user input might not have been used")
+                print("   ⚠️  Found default 'AAPL' - user input might not have been used")
                 
     else:
         print(f"❌ Workflow execution failed: {result.get('error', 'Unknown error')}")

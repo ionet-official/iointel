@@ -12,7 +12,6 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from iointel.src.agents import Agent
 from iointel.src.agent_methods.tools.tool_loader import load_tools_from_env, get_tool_by_name
-from iointel.src.agent_methods.tools.conditional_gate import routing_gate  # Import to register
 
 async def test_simple():
     # Load tools

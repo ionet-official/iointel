@@ -5,7 +5,6 @@ import sys
 sys.path.append('.')
 
 from iointel.src.agent_methods.data_models.workflow_spec import WorkflowSpec, NodeSpec, EdgeSpec, NodeData, EdgeData
-from iointel.src.agent_methods.data_models.datamodels import AgentParams
 from iointel.src.utilities.dag_executor import DAGExecutor
 from iointel.src.utilities.graph_nodes import WorkflowState
 from iointel.src.utilities.io_logger import get_component_logger
@@ -91,7 +90,7 @@ async def test_typed_execution():
         try:
             final_state = await executor.execute_dag(initial_state)
             
-            logger.info(f"\n✅ Execution completed successfully!")
+            logger.info("\n✅ Execution completed successfully!")
             logger.info(f"Results: {list(final_state.results.keys())}")
             
             # Check user input result

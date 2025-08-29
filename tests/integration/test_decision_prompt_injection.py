@@ -8,8 +8,6 @@ from iointel.src.agent_methods.data_models.workflow_spec import (
 )
 from iointel.src.utilities.dag_executor import DAGExecutor
 from iointel.src.utilities.graph_nodes import WorkflowState
-from iointel.src.agents import Agent
-from iointel.src.utilities.io_logger import system_logger
 
 async def test_decision_prompt_injection():
     """Test that decision nodes get proper prompt injection."""
@@ -132,7 +130,7 @@ async def test_decision_prompt_injection():
         )
         
         print("\n=== Test Results ===")
-        print(f"Execution completed successfully")
+        print("Execution completed successfully")
         print(f"Final results: {list(final_state.results.keys())}")
         
         # Check if decision node was executed

@@ -10,11 +10,10 @@ The current repository only has 4 default test cases, but we have 100+
 test files with real scenarios that need to be preserved.
 """
 
-import ast
 import json
 import re
 from pathlib import Path
-from typing import Dict, List, Any, Optional, Tuple
+from typing import Dict, List, Any
 import argparse
 
 from iointel.src.utilities.workflow_test_repository import (

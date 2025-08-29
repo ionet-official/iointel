@@ -12,7 +12,7 @@ Routing information lives on edges, not nodes.
 from __future__ import annotations
 
 
-from typing import Annotated, Any, Dict, List, Literal, Optional, Union, Set
+from typing import Annotated, Any, Literal, Union
 from uuid import UUID, uuid4
 from datetime import datetime
 from pydantic import BaseModel, Field, model_validator

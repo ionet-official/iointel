@@ -55,7 +55,7 @@ class TestLogicalLayer:
                 if test_case.should_pass:
                     assert len(issues) == 0, f"Expected test to pass but got issues: {issues}"
                 else:
-                    assert len(issues) > 0, f"Expected test to fail but got no issues"
+                    assert len(issues) > 0, "Expected test to fail but got no issues"
                     
                     # Check expected errors if specified
                     if test_case.expected_errors:

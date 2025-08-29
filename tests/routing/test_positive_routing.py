@@ -29,8 +29,6 @@ from iointel.src.agent_methods.data_models.datamodels import AgentParams
 from iointel.src.utilities.io_logger import get_component_logger
 
 # Import tools to register them
-from iointel.src.agent_methods.tools.user_input import prompt_tool
-from iointel.src.agent_methods.tools import conditional_gate
 import os
 
 # Create beautiful IOLogger for test output

@@ -86,7 +86,7 @@ async def test_execution_with_feedback():
         # Check node durations
         if summary.performance_metrics and 'node_durations' in summary.performance_metrics:
             durations = summary.performance_metrics['node_durations']
-            print(f"\n⏱️  Node Durations:")
+            print("\n⏱️  Node Durations:")
             for node_id, duration in durations.items():
                 print(f"   - {node_id}: {duration}s")
         else:

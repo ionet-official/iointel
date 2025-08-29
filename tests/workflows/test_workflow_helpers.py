@@ -26,7 +26,7 @@ async def test_workflow_helpers():
             debug=True
         )
         
-        print(f"✅ Test completed!")
+        print("✅ Test completed!")
         print(f"   Status: {result.status}")
         print(f"   Workflow: {result.workflow_name}")
         print(f"   Execution time: {result.execution_time:.2f}s")

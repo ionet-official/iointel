@@ -20,7 +20,6 @@ from iointel.src.utilities.workflow_test_repository import (
 )
 from iointel.src.agent_methods.data_models.workflow_spec import WorkflowSpec
 from iointel.src.agent_methods.agents.workflow_planner import WorkflowPlanner
-from iointel.src.utilities.dag_executor import DAGExecutor
 from iointel.src.agent_methods.data_models.data_source_registry import get_valid_data_source_names
 
 
@@ -63,7 +62,7 @@ class SmartTestRunner:
             # 5. Compare actual vs expected
             validation_results = self._validate_results(actual_result, expected)
             
-            print(f"   📊 VALIDATION RESULTS:")
+            print("   📊 VALIDATION RESULTS:")
             for key, result in validation_results.items():
                 status = "✅" if result['passed'] else "❌"
                 print(f"      {status} {key}: expected={result['expected']}, actual={result['actual']}")
@@ -116,7 +115,7 @@ class SmartTestRunner:
             # 4. Compare actual vs expected
             validation_results = self._validate_results(actual_result, expected)
             
-            print(f"   📊 GENERATION RESULTS:")
+            print("   📊 GENERATION RESULTS:")
             for key, result in validation_results.items():
                 status = "✅" if result['passed'] else "❌"
                 print(f"      {status} {key}: expected={result['expected']}, actual={result['actual']}")
@@ -175,7 +174,7 @@ class SmartTestRunner:
             # 4. Compare actual vs expected
             validation_results = self._validate_results(actual_result, expected)
             
-            print(f"   📊 EXECUTION RESULTS:")
+            print("   📊 EXECUTION RESULTS:")
             for key, result in validation_results.items():
                 status = "✅" if result['passed'] else "❌"
                 print(f"      {status} {key}: expected={result['expected']}, actual={result['actual']}")
@@ -461,7 +460,7 @@ async def demonstrate_test_execution():
     print(f"Success Rate: {(passed_tests/total_tests)*100:.1f}%")
     
     # 7. Show how results are stored
-    print(f"\n💾 RESULTS STORAGE")
+    print("\n💾 RESULTS STORAGE")
     runner.results = {
         'logical': logical_result,
         'agentic': agentic_result,

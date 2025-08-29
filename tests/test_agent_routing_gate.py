@@ -14,7 +14,6 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from iointel.src.agents import Agent
 from iointel.src.agent_methods.tools.tool_loader import load_tools_from_env
 # Import routing_gate to register it
-from iointel.src.agent_methods.tools.conditional_gate import routing_gate
 from iointel.src.utilities.tool_registry_utils import create_tool_catalog
 
 async def test_agent_with_routing_gate():
@@ -85,7 +84,7 @@ IMPORTANT: You MUST call routing_gate with your decision.""",
             # Get the tool usage results (list of ToolUsageResult objects)
             for tool_result in result['tool_usage_results']:
                 if tool_result.tool_name == 'routing_gate':
-                    print(f"   ✅ Agent called routing_gate:")
+                    print("   ✅ Agent called routing_gate:")
                     print(f"      route_index: {tool_result.tool_args.get('route_index')}")
                     print(f"      route_name: {tool_result.tool_args.get('route_name', 'not specified')}")
                     
@@ -95,14 +94,14 @@ IMPORTANT: You MUST call routing_gate with your decision.""",
                     
                     # Verify the routing
                     if gate_result.route_index == expected_index:
-                        print(f"   ✅ Correct routing!")
+                        print("   ✅ Correct routing!")
                     else:
                         print(f"   ❌ Wrong route! Got {gate_result.route_index}, expected {expected_index}")
                     break
             else:
-                print(f"   ❌ Agent didn't use routing_gate!")
+                print("   ❌ Agent didn't use routing_gate!")
         else:
-            print(f"   ❌ Agent didn't use any tools!")
+            print("   ❌ Agent didn't use any tools!")
             print(f"   Response: {result.get('result', 'No response')}")
     
     print("\n" + "=" * 60)
@@ -115,8 +114,8 @@ async def test_workflow_with_routing():
     print("=" * 60)
     
     from iointel.src.agent_methods.data_models.workflow_spec import (
-        WorkflowSpec, DataSourceNode, AgentNode, DecisionNode, EdgeSpec, 
-        DataSourceData, EdgeData, AgentConfig, DecisionConfig, SLARequirements
+        WorkflowSpec, DataSourceNode, AgentNode, EdgeSpec, 
+        DataSourceData, EdgeData, AgentConfig
     )
     from iointel.src.utilities.workflow_helpers import execute_workflow
     import uuid
@@ -196,7 +195,7 @@ For shell commands like 'pwd', use: routing_gate(data=<input>, route_index=4, ro
         debug=True
     )
     
-    print(f"\n📊 Execution Result:")
+    print("\n📊 Execution Result:")
     print(f"   Status: {result.status}")
     print(f"   Nodes executed: {list(result.node_results.keys())}")
     
@@ -205,27 +204,27 @@ For shell commands like 'pwd', use: routing_gate(data=<input>, route_index=4, ro
     shell_result = result.node_results.get("shell_handler")
     other_result = result.node_results.get("other_handler")
     
-    print(f"\n🔍 Router Node Analysis:")
+    print("\n🔍 Router Node Analysis:")
     # From logs, we can see routing_gate was used and routed to Shell (index 4)
-    print(f"   ✅ routing_gate used correctly (visible in execution logs)")
-    print(f"   ✅ Route index: 4 (Shell) - correct for 'pwd' command")
+    print("   ✅ routing_gate used correctly (visible in execution logs)")
+    print("   ✅ Route index: 4 (Shell) - correct for 'pwd' command")
     
     # Check actual execution results
     if shell_result and hasattr(shell_result, 'status'):
         if shell_result.status.name == 'COMPLETED':
-            print(f"   ✅ Shell handler executed successfully (correct routing!)")
+            print("   ✅ Shell handler executed successfully (correct routing!)")
         else:
             print(f"   ❌ Shell handler status: {shell_result.status} (routing failed)")
     else:
-        print(f"   ❌ Shell handler result not found")
+        print("   ❌ Shell handler result not found")
     
     if other_result and hasattr(other_result, 'status'):
         if other_result.status.name == 'SKIPPED':
-            print(f"   ✅ Other handler was skipped (correct!)")
+            print("   ✅ Other handler was skipped (correct!)")
         else:
             print(f"   ❌ Other handler status: {other_result.status} (should have been skipped)")
     else:
-        print(f"   ✅ Other handler was skipped (not in results - correct!)")
+        print("   ✅ Other handler was skipped (not in results - correct!)")
     
     print("\n" + "=" * 60)
     print("Workflow test complete!")
@@ -325,7 +324,7 @@ You MUST use routing_gate as your final action due to SLA requirements.""",
         debug=True
     )
     
-    print(f"\n📊 DecisionNode Execution Result:")
+    print("\n📊 DecisionNode Execution Result:")
     print(f"   Status: {result.status}")
     print(f"   Nodes executed: {list(result.node_results.keys())}")
     
@@ -334,28 +333,28 @@ You MUST use routing_gate as your final action due to SLA requirements.""",
     shell_result = result.node_results.get("shell_handler")
     other_result = result.node_results.get("other_handler")
     
-    print(f"\n🔍 DecisionNode Router Analysis:")
+    print("\n🔍 DecisionNode Router Analysis:")
     # From logs, we can see routing_gate was used with SLA enforcement
-    print(f"   ✅ DecisionNode + routing_gate + SLA working correctly (visible in execution logs)")
-    print(f"   ✅ Enhanced agent instructions for decision node router with SLA enforcement")
-    print(f"   ✅ Route index: 4 (Shell) - correct for 'ls' command")
+    print("   ✅ DecisionNode + routing_gate + SLA working correctly (visible in execution logs)")
+    print("   ✅ Enhanced agent instructions for decision node router with SLA enforcement")
+    print("   ✅ Route index: 4 (Shell) - correct for 'ls' command")
     
     # Check actual execution results
     if shell_result and hasattr(shell_result, 'status'):
         if shell_result.status.name == 'COMPLETED':
-            print(f"   ✅ Shell handler executed successfully (correct DecisionNode routing!)")
+            print("   ✅ Shell handler executed successfully (correct DecisionNode routing!)")
         else:
             print(f"   ❌ Shell handler status: {shell_result.status} (DecisionNode routing failed)")
     else:
-        print(f"   ❌ Shell handler result not found")
+        print("   ❌ Shell handler result not found")
     
     if other_result and 'status' in other_result.result['result']:
         if other_result.result['result']['status'] == 'skipped':
-            print(f"   ✅ Other handler was skipped (correct DecisionNode behavior!)")
+            print("   ✅ Other handler was skipped (correct DecisionNode behavior!)")
         else:
             print(f"   ❌ Other handler status: {other_result.status} (should have been skipped)")
     else:
-        print(f"   ✅ Other handler was skipped (not in results - correct DecisionNode behavior!)")
+        print("   ✅ Other handler was skipped (not in results - correct DecisionNode behavior!)")
     
     print("\n" + "=" * 60)
     print("DecisionNode workflow test complete!")

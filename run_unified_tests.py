@@ -22,7 +22,6 @@ from typing import List, Optional
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '.'))
 
 from iointel.src.utilities.workflow_test_repository import (
-    WorkflowTestRepository, 
     TestLayer, 
     WorkflowTestCase,
     get_test_repository
@@ -30,12 +29,10 @@ from iointel.src.utilities.workflow_test_repository import (
 from iointel.src.utilities.workflow_helpers import generate_only, plan_and_execute
 from iointel.src.agent_methods.tools.tool_loader import load_tools_from_env
 from iointel.src.utilities.tool_registry_utils import create_tool_catalog
-from iointel.src.agent_methods.data_models.workflow_spec import WorkflowSpec, TestResult
+from iointel.src.agent_methods.data_models.workflow_spec import WorkflowSpec
 from iointel.src.utilities.test_executors import get_test_executor, list_test_types
-from iointel.src.utilities.workflow_alignment import WorkflowAlignmentService
 from iointel.src.web.conversation_storage import ConversationStorage
 import subprocess
-from uuid import uuid4
 
 class UnifiedTestRunner:
     """Runs tests from the unified smart test repository."""
@@ -148,14 +145,14 @@ class UnifiedTestRunner:
                     print(f"   ❌ Unexpected validation issues: {issues}")
                     return False
                 else:
-                    print(f"   ✅ Structure validation passed")
+                    print("   ✅ Structure validation passed")
                     return True
             else:
                 if issues:
                     print(f"   ✅ Expected validation failures found: {issues}")
                     return True
                 else:
-                    print(f"   ❌ Expected validation to fail but it passed")
+                    print("   ❌ Expected validation to fail but it passed")
                     return False
                     
         except Exception as e:
@@ -364,7 +361,7 @@ class UnifiedTestRunner:
                 elif not test_type:
                     # No test_type specified - infer from structure
                     test_type = "agentic_generation"  # default for agentic layer
-                    print(f"   🔍 Defaulting to: agentic_generation")
+                    print("   🔍 Defaulting to: agentic_generation")
             
             # Get test executor based on test type
             executor = get_test_executor(test_type)
@@ -394,10 +391,10 @@ class UnifiedTestRunner:
             
             if success:
                 self.results["passed"] += 1
-                print(f"   🎉 TEST PASSED")
+                print("   🎉 TEST PASSED")
             else:
                 self.results["failed"] += 1
-                print(f"   ❌ TEST FAILED")
+                print("   ❌ TEST FAILED")
             
             return success
             
@@ -473,7 +470,7 @@ class UnifiedTestRunner:
         
         # Show summary
         print(f"\n{'='*60}")
-        print(f"📊 TEST SUMMARY")
+        print("📊 TEST SUMMARY")
         print(f"   Total:  {self.results['total']}")
         print(f"   ✅ Passed: {self.results['passed']}")
         print(f"   ❌ Failed: {self.results['failed']}")
@@ -483,9 +480,9 @@ class UnifiedTestRunner:
         print(f"   📈 Success Rate: {success_rate:.1f}%")
         
         if self.results['failed'] == 0 and self.results['errors'] == 0:
-            print(f"\n🎉 ALL TESTS PASSED! The stack is working perfectly!")
+            print("\n🎉 ALL TESTS PASSED! The stack is working perfectly!")
         else:
-            print(f"\n⚠️ Some tests failed. Check output above for details.")
+            print("\n⚠️ Some tests failed. Check output above for details.")
         
         return self.results
 

@@ -19,8 +19,6 @@ from iointel.src.utilities.graph_nodes import WorkflowState
 import uuid
 
 # Import tools to ensure they're registered
-from iointel.src.agent_methods.tools.basic_math import add, multiply
-from iointel.src.agent_methods.tools.conditional_gate import conditional_gate
 
 
 async def test_agent_creation():
@@ -56,9 +54,9 @@ async def test_agent_creation():
     )
     
     print("📋 Created WorkflowSpec with:")
-    print(f"  - 1 agent node with instructions")
-    print(f"  - Tools: ['add']")
-    print(f"  - Model: gpt-4o")
+    print("  - 1 agent node with instructions")
+    print("  - Tools: ['add']")
+    print("  - Model: gpt-4o")
     
     # Create executor with typed execution
     executor = DAGExecutor(use_typed_execution=True)
@@ -144,9 +142,9 @@ async def test_agent_with_decision():
     )
     
     print("📋 Created WorkflowSpec with:")
-    print(f"  - 1 decision node")
-    print(f"  - Tools: ['conditional_gate']")
-    print(f"  - Should route based on stock price")
+    print("  - 1 decision node")
+    print("  - Tools: ['conditional_gate']")
+    print("  - Should route based on stock price")
     
     executor = DAGExecutor(use_typed_execution=True)
     
@@ -239,9 +237,9 @@ async def test_multi_agent_workflow():
     )
     
     print("📋 Created WorkflowSpec with:")
-    print(f"  - 2 agent nodes in sequence")
-    print(f"  - agent_1 uses 'add' tool")
-    print(f"  - agent_2 uses 'multiply' tool")
+    print("  - 2 agent nodes in sequence")
+    print("  - agent_1 uses 'add' tool")
+    print("  - agent_2 uses 'multiply' tool")
     
     executor = DAGExecutor(use_typed_execution=True)
     

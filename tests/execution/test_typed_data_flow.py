@@ -19,7 +19,7 @@ from iointel.src.agent_methods.data_models.execution_models import (
     AgentRunResponse,
     ExecutionStatus
 )
-from iointel.src.chainables import execute_tool_task, execute_agent_task
+from iointel.src.chainables import execute_tool_task
 from iointel.src.utilities.registries import TOOLS_REGISTRY
 
 async def test_typed_data_flow():

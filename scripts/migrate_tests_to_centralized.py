@@ -16,17 +16,15 @@ This will:
 4. Optionally apply automatic migrations where safe
 """
 
-import ast
 import json
 import re
 from pathlib import Path
-from typing import Dict, List, Any, Optional, Tuple
+from typing import Dict, List, Any
 import argparse
 
 from iointel.src.utilities.workflow_test_repository import (
     WorkflowTestRepository,
     TestLayer,
-    WorkflowTestCase,
     get_test_repository
 )
 

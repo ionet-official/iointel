@@ -30,7 +30,7 @@ async def test_llama_agent():
         base_url=os.getenv('IO_BASE_URL', "https://api.intelligence-dev.io.solutions/api/v1")
     )
     
-    print(f"📋 Agent Configuration:")
+    print("📋 Agent Configuration:")
     print(f"   Name: {agent.name}")
     print(f"   Model: {agent.model}")
     print(f"   Base URL: {agent.base_url}")
@@ -45,13 +45,13 @@ async def test_llama_agent():
         # Run the agent
         result = await agent.run(test_prompt)
         
-        print(f"\n✅ Agent execution successful!")
+        print("\n✅ Agent execution successful!")
         print(f"📄 Result type: {type(result)}")
         print(f"📝 Response: {result.get('result', result)}")
         
         # Show full result structure if it's a dict
         if isinstance(result, dict):
-            print(f"\n🔍 Full result structure:")
+            print("\n🔍 Full result structure:")
             for key, value in result.items():
                 if key == 'full_result':
                     print(f"   {key}: {type(value)}")
@@ -64,14 +64,14 @@ async def test_llama_agent():
         print(f"\n❌ Agent execution failed: {e}")
         print(f"💥 Error type: {type(e)}")
         import traceback
-        print(f"📋 Traceback:")
+        print("📋 Traceback:")
         traceback.print_exc()
         return False
 
 async def test_llama_with_conversation():
     """Test agent with conversation continuity."""
     
-    print(f"\n🔄 Testing conversation continuity...")
+    print("\n🔄 Testing conversation continuity...")
     
     # Initialize memory for conversation persistence
     memory = AsyncMemory("sqlite+aiosqlite:///test_conversations.db")
@@ -130,7 +130,7 @@ async def main():
     passed = sum(test_results)
     total = len(test_results)
     
-    print(f"\n📊 Test Results:")
+    print("\n📊 Test Results:")
     print(f"   Passed: {passed}/{total}")
     print(f"   Success Rate: {passed/total*100:.1f}%")
     

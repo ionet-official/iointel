@@ -6,13 +6,11 @@ Comprehensive tests for the single source of truth conversion system.
 Tests both object and dict inputs to ensure proper typing.
 """
 
-import pytest
 from datetime import datetime
 from dataclasses import dataclass
 from pydantic import BaseModel
 
 from iointel.src.utilities.conversion_utils import (
-    ConversionUtils,
     to_jsonable,
     tool_usage_results_to_llm,
     tool_usage_results_to_html,
@@ -22,7 +20,7 @@ from iointel.src.utilities.conversion_utils import (
     workflow_spec_to_llm_prompt
 )
 from iointel.src.agent_methods.data_models.workflow_spec import WorkflowSpec, NodeSpec, EdgeSpec, NodeData, EdgeData
-from iointel.src.web.execution_feedback import WorkflowExecutionSummary, NodeExecutionTracking, ExecutionStatus
+from iointel.src.web.execution_feedback import WorkflowExecutionSummary, ExecutionStatus
 
 
 class TestBasicConversions:

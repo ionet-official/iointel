@@ -13,8 +13,7 @@ from iointel.src.agent_methods.data_models.workflow_spec import (
     DataSourceData,
     AgentConfig,
     DataSourceConfig,
-    EdgeSpec,
-    SLARequirements
+    EdgeSpec
 )
 
 async def test_simple_workflow():

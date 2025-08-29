@@ -143,7 +143,7 @@ def add_data_source_validation_test_properly():
         layer=TestLayer.LOGICAL,
         category="data_source_validation"
     )
-    print(f"🧪 Generated fixtures:")
+    print("🧪 Generated fixtures:")
     print(f"   - Workflow specs: {len(fixtures['workflow_specs'])}")
     print(f"   - Validation cases: {len(fixtures['validation_cases'])}")
     
@@ -155,7 +155,7 @@ def add_data_source_validation_test_properly():
     reloaded_test = repo2.get_test_case(test_case.id)
     
     if reloaded_test:
-        print(f"✅ Test successfully reloaded from disk")
+        print("✅ Test successfully reloaded from disk")
         print(f"   Name: {reloaded_test.name}")
         print(f"   Category: {reloaded_test.category}")
         print(f"   Has workflow spec: {reloaded_test.workflow_spec is not None}")
@@ -255,9 +255,9 @@ def demonstrate_factory_patterns():
     # Show the smart relationship between test layers
     print("\n🔗 SMART TEST RELATIONSHIPS")
     print("   The same user prompt flows through all layers:")
-    print(f"   🤖 Agentic: Tests generation from prompt")
-    print(f"   ⚗️  Logical: Tests resulting structure")
-    print(f"   🎯 Orchestration: Tests full execution")
+    print("   🤖 Agentic: Tests generation from prompt")
+    print("   ⚗️  Logical: Tests resulting structure")
+    print("   🎯 Orchestration: Tests full execution")
     
     return logical_test, agentic_test, orchestration_test
 

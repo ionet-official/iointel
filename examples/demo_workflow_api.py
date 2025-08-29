@@ -11,7 +11,6 @@ import json
 import sys
 import uuid
 from pathlib import Path
-from typing import Dict, Any
 
 # Add project root to path
 project_root = Path(__file__).parent
@@ -108,7 +107,7 @@ async def demonstrate_workflow_api():
         print(f"   - User input parameters: {len([n for n in workflow_spec.nodes if n.type == 'data_source' and getattr(n.data, 'source_name', None) == 'user_input'])}")
         
         # 2. Register workflow with API registry
-        print(f"\n🔗 Step 2: Registering workflow...")
+        print("\n🔗 Step 2: Registering workflow...")
         registration_result = workflow_api_registry.register_workflow(
             org_id=org_id,
             user_id=user_id,
@@ -116,20 +115,20 @@ async def demonstrate_workflow_api():
             workflow_spec=workflow_spec
         )
         print("✅ Workflow registered successfully!")
-        print(f"   API endpoints created:")
+        print("   API endpoints created:")
         print(f"   - {registration_result['run_endpoint']}")
         print(f"   - {registration_result['spec_endpoint']}")
         
         # 3. Show user input parameter extraction
         registry_info = workflow_api_registry.registered_workflows[f"{org_id}/{user_id}/{workflow_id}"]
         user_params = registry_info["user_input_params"]
-        print(f"\n📝 Step 3: Extracted user input parameters:")
+        print("\n📝 Step 3: Extracted user input parameters:")
         for param in user_params:
             print(f"   - {param['label']} (node_id: {param['node_id']})")
             print(f"     Type: {param['type']}, Required: {param['required']}")
         
         # 4. Demonstrate API execution with different input styles
-        print(f"\n🚀 Step 4: Executing workflow via API...")
+        print("\n🚀 Step 4: Executing workflow via API...")
         
         # Simulate API call with inputs
         run_request = WorkflowRunRequest(
@@ -138,12 +137,12 @@ async def demonstrate_workflow_api():
             metadata={"demo": True}
         )
         
-        print(f"   Simulating API call:")
+        print("   Simulating API call:")
         print(f"   POST /api/v1/orgs/{org_id}/users/{user_id}/workflows/{workflow_id}/runs")
         print(f"   Body: {json.dumps(run_request.model_dump(), indent=2)}")
         
         # Execute workflow (this would normally happen through HTTP)
-        print(f"\n⚙️  Executing workflow...")
+        print("\n⚙️  Executing workflow...")
         execution_result = await workflow_api_registry.execute_workflow_api(
             org_id=org_id,
             user_id=user_id,
@@ -151,7 +150,7 @@ async def demonstrate_workflow_api():
             run_request=run_request
         )
         
-        print(f"✅ Execution completed!")
+        print("✅ Execution completed!")
         print(f"   - Run ID: {execution_result.run_id}")
         print(f"   - Status: {execution_result.status}")
         print(f"   - Started: {execution_result.started_at}")
@@ -161,14 +160,14 @@ async def demonstrate_workflow_api():
             print(f"   - Results: {len(execution_result.results)} result objects")
         
         # 5. Show query parameter mapping
-        print(f"\n🌐 Step 5: Query Parameter API Examples")
+        print("\n🌐 Step 5: Query Parameter API Examples")
         print("   The following URL patterns would all work:")
         print(f"   GET /api/v1/orgs/{org_id}/users/{user_id}/workflows/{workflow_id}/run?message=Hello")
         print(f"   GET /api/v1/orgs/{org_id}/users/{user_id}/workflows/{workflow_id}/run?message_input=Hello")
         print(f"   GET /api/v1/orgs/{org_id}/users/{user_id}/workflows/{workflow_id}/run?message=Hello&async_execution=false")
         
         # 6. Show cURL examples
-        print(f"\n💻 Step 6: cURL Examples")
+        print("\n💻 Step 6: cURL Examples")
         print("   POST request:")
         print(f"   curl -X POST http://localhost:8001/api/v1/orgs/{org_id}/users/{user_id}/workflows/{workflow_id}/runs \\")
         print("        -H 'Content-Type: application/json' \\")
@@ -178,7 +177,7 @@ async def demonstrate_workflow_api():
         print(f"   curl 'http://localhost:8001/api/v1/orgs/{org_id}/users/{user_id}/workflows/{workflow_id}/run?message=Hello+world!'")
         
         # 7. Show production-ready features
-        print(f"\n🏭 Step 7: Production Features")
+        print("\n🏭 Step 7: Production Features")
         print("   ✅ Multi-tenant organization/user scoping")
         print("   ✅ Automatic user input → query parameter mapping")
         print("   ✅ Both synchronous and asynchronous execution")
@@ -187,7 +186,7 @@ async def demonstrate_workflow_api():
         print("   ✅ RESTful API design with proper HTTP methods")
         print("   ✅ JSON and query parameter input formats")
         
-        print(f"\n🎉 Demonstration completed successfully!")
+        print("\n🎉 Demonstration completed successfully!")
         print("=" * 50)
         
     except Exception as e:

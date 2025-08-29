@@ -11,12 +11,10 @@ The answer is: YES, but through smart wrappers that use centralized data.
 """
 
 import pytest
-from pathlib import Path
-from typing import Dict, Any, List
+from typing import Dict, Any
 
 from iointel.src.agent_methods.agents.workflow_planner import WorkflowPlanner
-from iointel.src.agent_methods.data_models.workflow_spec import WorkflowSpec, NodeSpec, EdgeSpec, NodeData, EdgeData
-from iointel.src.utilities.dag_executor import DAGExecutor
+from iointel.src.agent_methods.data_models.workflow_spec import WorkflowSpec
 
 
 class TestComprehensiveWorkflowCoverage:

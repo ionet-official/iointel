@@ -17,7 +17,6 @@ test repository based on the test's needs.
 """
 
 import pytest
-from typing import Dict, List, Any, Optional
 from pathlib import Path
 
 from iointel.src.utilities.workflow_test_repository import (

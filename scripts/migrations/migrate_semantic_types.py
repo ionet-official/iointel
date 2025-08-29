@@ -12,10 +12,9 @@ Tool and decision types remain unchanged.
 """
 
 import json
-import os
 import shutil
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Dict, Tuple
 
 def migrate_workflow_file(file_path: Path) -> Tuple[bool, Dict]:
     """
@@ -72,7 +71,7 @@ def migrate_workflow_file(file_path: Path) -> Tuple[bool, Dict]:
     
     # If no changes were made, return early
     if nodes_updated == 0:
-        print(f"  ℹ️  No semantic types found - file already uses simple types")
+        print("  ℹ️  No semantic types found - file already uses simple types")
         return False, {"message": "No changes needed"}
     
     # Create backup
@@ -84,7 +83,7 @@ def migrate_workflow_file(file_path: Path) -> Tuple[bool, Dict]:
     try:
         with open(file_path, 'w', encoding='utf-8') as f:
             json.dump(workflow_data, f, indent=2, ensure_ascii=False)
-        print(f"  ✅ Updated file written successfully")
+        print("  ✅ Updated file written successfully")
     except Exception as e:
         # Restore from backup if write fails
         shutil.copy2(backup_path, file_path)
@@ -112,10 +111,10 @@ def migrate_all_saved_workflows(workflows_dir: Path = None) -> Dict:
     if workflows_dir is None:
         workflows_dir = Path(__file__).parent / "saved_workflows" / "json"
     
-    print(f"🚀 WORKFLOW SEMANTIC TYPE MIGRATION")
-    print(f"================================")
+    print("🚀 WORKFLOW SEMANTIC TYPE MIGRATION")
+    print("================================")
     print(f"Directory: {workflows_dir}")
-    print(f"Target: Convert analyzer/executor/data_fetcher/conversational -> agent")
+    print("Target: Convert analyzer/executor/data_fetcher/conversational -> agent")
     print()
     
     if not workflows_dir.exists():
