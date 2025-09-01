@@ -1,4 +1,4 @@
-from typing import Dict, Callable, TYPE_CHECKING
+from typing import Any, Dict, Callable, TYPE_CHECKING
 
 
 if TYPE_CHECKING:
@@ -19,3 +19,7 @@ TOOLS_REGISTRY: "Dict[str, Tool]" = {}
 
 # A global registry of classes which instance methods are registered as tools
 TOOL_SELF_REGISTRY: "Dict[str, type[BaseModel]]" = {}
+
+# The registry for initialising default state for stateful tools.
+# Maps tool name -> tool arg -> arg value
+STATEFUL_TOOL_DEFAULTS: Dict[str, Dict[str, Any]] = {}
