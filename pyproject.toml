@@ -15,9 +15,7 @@ dependencies = [
     "sqlalchemy-utils>=0.41.2",
     "sqlalchemy>=2.0.36",
     "rich>=13.9.4",
-    # For some reason both firecrawl-py and firecrawl are necessary
-    "firecrawl-py>=2.2.0",
-    "firecrawl>=2.2.0",
+    "firecrawl>=4.0.0",
     "backoff==2.2.1",
     "agno[tools]==1.5.5",
     "gradio>=5.32.1",
