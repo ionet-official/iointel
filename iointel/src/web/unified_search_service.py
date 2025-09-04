@@ -121,24 +121,25 @@ class UnifiedSearchService:
     def _initialize_tool_rag(self):
         """Initialize tool RAG from tool registry."""
         try:
-            # Use already-loaded tools instead of reloading
-            # load_tools_from_env() is already called in workflow_server.py
+            # Make sure tools are loaded first
+            from ..agent_methods.tools.tool_loader import load_tools_from_env
+            from dotenv import load_dotenv
+            import os
+            
+            # Load environment and tools
+            load_dotenv("creds.env")
+            load_tools_from_env("creds.env")
+            
+            # Now create the catalog
             tool_catalog = create_tool_catalog(filter_broken=True, verbose_format=False, use_working_filter=True)
             
-            print(f"🔍 Tool catalog keys: {list(tool_catalog.keys()) if tool_catalog else 'None'}")
-            
-            # Check different possible structures
-            tools_data = None
-            if tool_catalog:
-                if 'tools' in tool_catalog:
-                    tools_data = tool_catalog['tools']
-                elif isinstance(tool_catalog, dict):
-                    # Maybe tools are at the root level
-                    tools_data = tool_catalog
-            
-            if not tools_data:
+            # The catalog is flat - each key is a tool name
+            if not tool_catalog:
                 print("⚠️ No tools found to index")
                 return
+            
+            # The catalog already has tools at the root level
+            tools_data = tool_catalog
             
             print(f"🔍 Found {len(tools_data)} tools to index")
             

@@ -48,6 +48,13 @@ from iointel.src.agent_methods.tools.collection_manager import search_collection
 from .test_analytics_api import test_analytics_router
 from .workflow_rag_router import workflow_rag_router
 from .unified_search_service import UnifiedSearchService
+# Import Workflow-as-API service components
+from .workflow_api_service import (
+    workflow_api_registry,
+    WorkflowRunRequest,
+    WorkflowRunResponse,
+    WorkflowSpecResponse
+)
 
 
 # Register executors for web interface
@@ -379,7 +386,11 @@ async def web_workflow_call_executor(task_metadata, objective, agents, execution
 
 
 # Initialize FastAPI app
-app = FastAPI(title="WorkflowPlanner Web Interface", version="1.0.0")
+app = FastAPI(
+    title="IOIntel WorkflowPlanner Platform", 
+    version="2.0.0",
+    description="WorkflowPlanner UI and Workflow-as-API Service (WaaS)"
+)
 
 # Add session middleware for conversation ID persistence
 app.add_middleware(
@@ -1701,7 +1712,7 @@ async def execute_workflow(execution_request: ExecutionRequest, request: Request
         form_id=execution_request.form_id,
         session_info={
             "workflow_session_id": request.session.get("workflow_session_id"),
-            "chat_mode": request.session.get("chat_mode", False)
+            "chat_mode": request.session.get("chat_mode", True)
         }
     ))
     
@@ -1883,7 +1894,7 @@ async def execute_workflow_background(
         # Extract session info for feedback continuity
         session_info = session_info or {}
         session_id = session_info.get("workflow_session_id")
-        chat_mode = session_info.get("chat_mode", False)
+        chat_mode = session_info.get("chat_mode", True)
         
         interface_conversation_id = None
         if chat_mode and session_id:
@@ -2436,7 +2447,7 @@ class SessionManager:
             self.faux_users[session_id] = FauxUser(session_id)
         return self.faux_users[session_id]
     
-    def get_session_status(self, session_id: str, chat_mode: bool = False) -> dict:
+    def get_session_status(self, session_id: str, chat_mode: bool = True) -> dict:
         """Get current session status and settings."""
         if not session_id:
             return {
@@ -2537,7 +2548,15 @@ async def initialize_session(request: Request):
 async def get_session_status(request: Request):
     """Get current session status and settings."""
     session_id = request.session.get("workflow_session_id")
-    chat_mode = request.session.get("chat_mode", False)
+    
+    # If no session exists, create one with chat mode enabled by default
+    if not session_id:
+        result = session_manager.create_new_session(chat_mode=True)
+        request.session["workflow_session_id"] = result["session_id"]
+        request.session["chat_mode"] = True
+        return result
+    
+    chat_mode = request.session.get("chat_mode", True)  # Default to True for memory enabled
     return session_manager.get_session_status(session_id, chat_mode)
 
 @app.post("/api/session/chat-mode")
@@ -2998,6 +3017,83 @@ async def get_active_conversation():
         }
     else:
         raise HTTPException(status_code=404, detail="Active conversation not found")
+
+
+# ============================================
+# WORKFLOW-AS-API SERVICE (WaaS) ENDPOINTS
+# ============================================
+
+@app.post("/api/waas/register/{org_id}/{user_id}/{workflow_id}")
+async def register_workflow_api(
+    org_id: str,
+    user_id: str, 
+    workflow_id: str,
+    workflow_spec: WorkflowSpec
+):
+    """Register a workflow specification for API access."""
+    result = workflow_api_registry.register_workflow(
+        org_id, user_id, workflow_id, workflow_spec
+    )
+    return result
+
+
+@app.post("/api/v1/orgs/{org_id}/users/{user_id}/workflows/{workflow_id}/runs")
+async def execute_workflow_api(
+    org_id: str,
+    user_id: str,
+    workflow_id: str,
+    run_request: WorkflowRunRequest
+) -> WorkflowRunResponse:
+    """Execute a registered workflow via API."""
+    return await workflow_api_registry.execute_workflow_api(
+        org_id, user_id, workflow_id, run_request
+    )
+
+
+@app.get("/api/v1/orgs/{org_id}/users/{user_id}/workflows/{workflow_id}/runs/{run_id}")
+async def get_workflow_run_status(
+    org_id: str,
+    user_id: str,
+    workflow_id: str,
+    run_id: str
+):
+    """Get the status of a workflow run."""
+    if run_id not in workflow_api_registry.active_runs:
+        raise HTTPException(status_code=404, detail=f"Run not found: {run_id}")
+    return workflow_api_registry.active_runs[run_id]
+
+
+@app.get("/api/v1/orgs/{org_id}/users/{user_id}/workflows/{workflow_id}/spec")
+async def get_workflow_spec_api(
+    org_id: str,
+    user_id: str,
+    workflow_id: str
+):
+    """Get the specification of a registered workflow."""
+    workflow_key = f"{org_id}/{user_id}/{workflow_id}"
+    if workflow_key not in workflow_api_registry.registered_workflows:
+        raise HTTPException(status_code=404, detail=f"Workflow not found: {workflow_key}")
+    
+    workflow_info = workflow_api_registry.registered_workflows[workflow_key]
+    return WorkflowSpecResponse(
+        workflow_id=workflow_id,
+        title=workflow_info["workflow_spec"].title,
+        description=workflow_info["workflow_spec"].description or "",
+        spec=workflow_info["workflow_spec"],
+        created_at=workflow_info["created_at"],
+        updated_at=workflow_info["updated_at"]
+    )
+
+
+@app.get("/api/waas/health")
+async def waas_health():
+    """Health check for Workflow-as-API service."""
+    return {
+        "status": "healthy",
+        "registered_workflows": len(workflow_api_registry.registered_workflows),
+        "active_runs": len(workflow_api_registry.active_runs),
+        "timestamp": datetime.now()
+    }
 
 
 if __name__ == "__main__":
