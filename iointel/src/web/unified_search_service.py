@@ -306,21 +306,31 @@ class UnifiedSearchService:
                 )
                 
                 for result in tool_results:
-                    # Get the actual index from the search result
-                    result_idx = result.get('idx', result.get('index', -1))
-                    if result_idx >= 0 and result_idx < len(self.tool_objects):
-                        tool_obj = self.tool_objects[result_idx]
-                        all_results.append(SearchResult(
-                            result_type="tool",
-                            title=tool_obj['name'],
-                            description=tool_obj['description'],
-                            similarity_score=result.get('similarity', result.get('final_score', 0)),
-                            data=tool_obj['full_data'],
-                            metadata={
-                                "category": tool_obj['category'],
-                                "parameter_count": len(tool_obj['parameters'])
-                            }
-                        ))
+                    # The result contains the actual data, not an index
+                    # data format: [name, description, category, parameters_str]
+                    result_data = result.get('data', [])
+                    if len(result_data) >= 3:
+                        tool_name = result_data[0]
+                        
+                        # Find the matching tool object by name
+                        matching_tool = None
+                        for tool_obj in self.tool_objects:
+                            if tool_obj['name'] == tool_name:
+                                matching_tool = tool_obj
+                                break
+                        
+                        if matching_tool:
+                            all_results.append(SearchResult(
+                                result_type="tool",
+                                title=matching_tool['name'],
+                                description=matching_tool['description'],
+                                similarity_score=result.get('similarity', result.get('final_score', 0)),
+                                data=matching_tool['full_data'],
+                                metadata={
+                                    "category": matching_tool['category'],
+                                    "parameter_count": len(matching_tool['parameters'])
+                                }
+                            ))
                 
                 results_by_type["tools"] = len(tool_results)
             except Exception as e:
