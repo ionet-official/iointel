@@ -554,6 +554,20 @@ Every workflow should feel like getting MORE than the user expected - sophistica
 {"source": "user_input_node", "target": "analyzer"}  // ✅ Clean data flow edge
 ```
 
+**1b. DATA_SOURCE ROUTING PREVENTION:**
+- ❌ NEVER create edges that route TO data_source nodes (they are INPUT-ONLY)
+- ❌ data_source nodes can only be SOURCE of edges, never TARGET
+- ❌ INVALID EXAMPLES:
+```json
+{"source": "decision_node", "target": "user_input", "data": {"route_index": 0}}  // ❌ Cannot route to data_source!
+{"source": "agent_1", "target": "user_input"}  // ❌ Cannot connect back to data_source!
+```
+- ✅ CORRECT: Route to agent nodes for processing:
+```json  
+{"source": "decision_node", "target": "agent_1", "data": {"route_index": 0}}  // ✅ Routes to agent
+{"source": "user_input", "target": "agent_1"}  // ✅ data_source as source only
+```
+
 **2. MISSING PARAMETERS PREVENTION:**
 - ❌ NEVER create user_input data_source without 'message' and 'default_value' parameters
 - ✅ ALWAYS include required config for data_source nodes:
