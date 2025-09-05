@@ -81,41 +81,73 @@ console.print(f"[yellow]Total tools available: {len(all_tools)}[/yellow]")
 def select_model():
     """Interactive model selection."""
     console.print("\n[cyan]🤖 Model Selection[/cyan]")
+    console.print("[yellow]Note: Only models with full tool calling support are shown[/yellow]")
     
-    available_models = [
-        ("gpt-4o", "GPT-4o (OpenAI) - Most capable, structured output"),
-        ("gpt-4o-mini", "GPT-4o Mini (OpenAI) - Fast and efficient"),
-        ("meta-llama/Llama-3.3-70B-Instruct", "Llama-3.3-70B (IO Intel) - Open source, great for conversation"),
-        ("meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8", "Llama-4-Maverick-17B (IO Intel) - Compact, efficient"),
-        ("Qwen/Qwen3-Coder-480B-A35B-Instruct-FP8", "Qwen3-Coder-480B-A35B-Instruct-FP8 (IO Intel) - Compact, efficient"),
-    ]
+    # Import the model lists from constants
+    from iointel.src.utilities.constants import (
+        get_available_models_with_tool_calling, 
+        get_chat_only_models, 
+        get_blocked_models
+    )
+    
+    # Get working models
+    working_models = get_available_models_with_tool_calling()
+    
+    # Create model descriptions
+    model_descriptions = {
+        "gpt-4o": "GPT-4o (OpenAI) - Most capable, structured output",
+        "gpt-4o-mini": "GPT-4o Mini (OpenAI) - Fast and efficient",
+        "meta-llama/Llama-3.3-70B-Instruct": "Llama-3.3-70B (IO Intel) - Open source, great for conversation",
+        "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8": "Llama-4-Maverick-17B (IO Intel) - Compact, efficient",
+        "Qwen/Qwen3-235B-A22B-Thinking-2507": "Qwen3-235B-Thinking (IO Intel) - Large thinking model",
+        "Intel/Qwen3-Coder-480B-A35B-Instruct-int4-mixed-ar": "Intel-Qwen3-Coder-480B (IO Intel) - Intel optimized coder",
+        "mistralai/Mistral-Nemo-Instruct-2407": "Mistral-Nemo (IO Intel) - Nemo instruct model",
+    }
+    
+    available_models = [(model, model_descriptions.get(model, f"{model} (IO Intel)")) for model in working_models]
     
     for i, (model_name, description) in enumerate(available_models, 1):
         console.print(f"  {i}. {description}")
     
-    console.print("  6. Custom (enter your own model name)")
-    console.print(f"  7. Use environment MODEL_NAME ({os.getenv('MODEL_NAME', 'not set')})")
+    console.print(f"  {len(available_models) + 1}. Custom (enter your own model name)")
+    console.print(f"  {len(available_models) + 2}. Use environment MODEL_NAME ({os.getenv('MODEL_NAME', 'not set')})")
+    console.print(f"  {len(available_models) + 3}. Show blocked models (for debugging)")
     
+    max_choice = len(available_models) + 3
     
     while True:
         try:
-            choice = input("\nSelect model (1-7): ").strip()
+            choice = input(f"\nSelect model (1-{max_choice}): ").strip()
             
-            # Handle model selections (1-5)
-            if choice in ["1", "2", "3", "4", "5"]:
+            # Handle model selections (1 to len(available_models))
+            if choice.isdigit() and 1 <= int(choice) <= len(available_models):
                 return available_models[int(choice) - 1][0]
-            # Handle custom model (6)
-            elif choice == "6":
+            # Handle custom model
+            elif choice == str(len(available_models) + 1):
                 custom_model = input("Enter custom model name: ").strip()
                 return custom_model if custom_model else "gpt-4o"
-            # Handle environment variable (7)
-            elif choice == "7":
+            # Handle environment variable
+            elif choice == str(len(available_models) + 2):
                 return os.getenv("MODEL_NAME", "gpt-4o")
+            # Handle blocked models display
+            elif choice == str(len(available_models) + 3):
+                console.print("\n[red]🚫 Blocked Models (Server Configuration Issues):[/red]")
+                blocked_models = get_blocked_models()
+                for model in blocked_models:
+                    console.print(f"  • {model} - Server needs vLLM flags")
+                
+                console.print("\n[yellow]💬 Chat-Only Models (No Tool Calling):[/yellow]")
+                chat_only_models = get_chat_only_models()
+                for model in chat_only_models:
+                    console.print(f"  • {model} - No tool choice support")
+                
+                console.print("\n[blue]ℹ️  These models are excluded from the main list to prevent errors.[/blue]")
+                continue  # Show the menu again
             else:
-                console.print("[red]Invalid choice. Please select 1-7.[/red]")
+                console.print(f"[red]Invalid choice. Please select 1-{max_choice}.[/red]")
                 
         except (ValueError, IndexError):
-            console.print("[red]Invalid choice. Please select 1-7.[/red]")
+            console.print(f"[red]Invalid choice. Please select 1-{max_choice}.[/red]")
 
 # Select model interactively
 selected_model = select_model()
@@ -168,7 +200,7 @@ runner = Agent(
     api_key=model_config["api_key"],
     base_url=model_config["base_url"],
     memory=memory,
-    conversation_id=CONVERSATION_ID+str(datetime.now()),
+    conversation_id=f"fresh_conversation_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
     tools=all_tools,
     show_tool_calls=True,  # Enable verbose output to show tool usage
     tool_pil_layout="horizontal",  # 'vertical' or 'horizontal'

@@ -7734,22 +7734,41 @@ ${result.snippet ? `**Matching Content**: ${result.snippet}` : ''}`;
         }
         
         async function loadCurrentConversation() {
+            console.log('🔄 loadCurrentConversation() called');
             try {
-                const response = await fetch('/api/conversations/active');
+                // Add cache-busting parameter to prevent stale data
+                const timestamp = Date.now();
+                console.log('📡 Fetching /api/conversations/active...');
+                const response = await fetch(`/api/conversations/active?t=${timestamp}`);
+                console.log('📡 Response status:', response.status);
+                console.log('📡 Response ok:', response.ok);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
                 const conversation = await response.json();
+                console.log('📡 Loaded conversation:', conversation);
                 currentConversation = conversation;
                 updateConversationDisplay(conversation);
             } catch (error) {
-                console.error('Error loading current conversation:', error);
-                document.getElementById('conversationInfo').textContent = 'Error loading conversation';
+                console.error('❌ Error loading current conversation:', error);
+                const infoElement = document.getElementById('conversationInfo');
+                if (infoElement) {
+                    infoElement.textContent = 'Error loading conversation: ' + error.message;
+                } else {
+                    console.error('❌ conversationInfo element not found!');
+                }
             }
         }
         
         function updateConversationDisplay(conversation) {
             const info = document.getElementById('conversationInfo');
+            console.log('updateConversationDisplay called with:', conversation);
             
             // Handle incomplete conversation data
             if (!conversation || !conversation.created_at) {
+                console.log('Conversation missing or no created_at:', {conversation, created_at: conversation?.created_at});
                 info.innerHTML = `
                     <span style="color: #64ff64;">📋 v1</span> • 
                     <span style="color: #888;">Created: ${new Date().toLocaleDateString()}</span> • 
@@ -7795,7 +7814,9 @@ ${result.snippet ? `**Matching Content**: ${result.snippet}` : ''}`;
             listDiv.innerHTML = '<div style="text-align: center; padding: 2rem; color: #888;">Loading conversations...</div>';
             
             try {
-                const response = await fetch('/api/conversations');
+                // Add cache-busting parameter
+                const timestamp = Date.now();
+                const response = await fetch(`/api/conversations?t=${timestamp}`);
                 const data = await response.json();
                 const conversations = data.conversations;
                 
@@ -7887,7 +7908,18 @@ ${result.snippet ? `**Matching Content**: ${result.snippet}` : ''}`;
         async function createNewConversation() {
             try {
                 const response = await fetch('/api/conversations/new', { method: 'POST' });
+                console.log('Response status:', response.status);
+                console.log('Response headers:', response.headers);
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('Error response:', errorText);
+                    alert(`Error creating new conversation: ${response.status} - ${errorText}`);
+                    return;
+                }
+                
                 const data = await response.json();
+                console.log('Response data:', data);
                 
                 if (data.status === 'created') {
                     console.log('✅ Created new conversation:', data.conversation_id);
@@ -7908,7 +7940,7 @@ ${result.snippet ? `**Matching Content**: ${result.snippet}` : ''}`;
                 }
             } catch (error) {
                 console.error('Error creating new conversation:', error);
-                alert('Error creating new conversation');
+                alert('Error creating new conversation: ' + error.message);
             }
         }
         
