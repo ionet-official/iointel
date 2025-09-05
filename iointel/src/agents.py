@@ -8,16 +8,69 @@ from .utilities.helpers import supports_tool_choice_required, flatten_union_type
 from .ui.rich_panels import render_agent_result_panel
 from .ui.io_gradio_ui import IOGradioUI
 
-from pydantic_ai.models.openai import OpenAIModel
+from pydantic import ConfigDict, SecretStr, BaseModel, ValidationError
+from pydantic_ai.messages import PartDeltaEvent, TextPartDelta, ToolCallPart
+from typing import Callable, Dict, Any, Optional, Union, Literal, List
+
+from pydantic_ai.models.openai import OpenAIModel, ModelRequestParameters
 from pydantic_ai.providers.openai import OpenAIProvider
+from .models.harmony_model import HarmonyModel
+from typing import Literal
+from openai import NOT_GIVEN
 from pydantic_ai import Agent as PydanticAgent, Tool as PydanticTool
 from pydantic_ai.agent import AgentRunResult
 from pydantic_ai.messages import ModelMessage
 from pydantic_ai.settings import ModelSettings
 
-from pydantic import ConfigDict, SecretStr, BaseModel, ValidationError
-from pydantic_ai.messages import PartDeltaEvent, TextPartDelta, ToolCallPart
-from typing import Callable, Dict, Any, Optional, Union, Literal, List
+
+class CleanedToolSchemaModel(OpenAIModel):
+    """Custom model that cleans tool schemas to remove problematic fields like 'strict'."""
+    
+    def _clean_tool_schema(self, schema):
+        """Clean tool schema by removing fields that are not accepted by the API."""
+        if not isinstance(schema, dict):
+            return schema
+        
+        # Create a deep copy to avoid modifying the original
+        import copy
+        cleaned_schema = copy.deepcopy(schema)
+        
+        # Remove 'strict' field from the schema
+        if 'strict' in cleaned_schema:
+            del cleaned_schema['strict']
+        
+        # Recursively clean nested objects
+        for key, value in cleaned_schema.items():
+            if isinstance(value, dict):
+                cleaned_schema[key] = self._clean_tool_schema(value)
+            elif isinstance(value, list):
+                cleaned_schema[key] = [self._clean_tool_schema(item) if isinstance(item, dict) else item for item in value]
+        
+        return cleaned_schema
+    
+    async def request(self, messages, model_settings=None, model_request_parameters=None):
+        """Override request to clean tool schemas and set tool_choice for GPT-OSS models."""
+        # Debug: Print the model name being used
+        print(f"🔍 CleanedToolSchemaModel.request() called with model_name: '{self.model_name}'")
+        
+        # Clean tool schemas in the request
+        if model_request_parameters and hasattr(model_request_parameters, 'tools'):
+            tools = model_request_parameters.tools
+            if isinstance(tools, list):
+                for tool in tools:
+                    if isinstance(tool, dict) and 'function' in tool:
+                        if 'parameters' in tool['function']:
+                            tool['function']['parameters'] = self._clean_tool_schema(tool['function']['parameters'])
+        
+        # Set tool_choice="auto" for GPT-OSS models (required by vLLM documentation)
+        if isinstance(self.model_name, str) and "gpt-oss" in self.model_name.lower():
+            print(f"🔧 Setting tool_choice='auto' for GPT-OSS model: {self.model_name}")
+            if model_request_parameters is None:
+                model_request_parameters = ModelRequestParameters()
+            model_request_parameters.tool_choice = "auto"
+        
+        # Call the parent request method
+        return await super().request(messages, model_settings, model_request_parameters)
 
 
 class PatchedValidatorTool(PydanticTool):
@@ -68,7 +121,7 @@ class Agent(BaseModel):
     persona: Optional[PersonaConfig] = None
     context: Optional[Any] = None
     tools: Optional[list] = None
-    model: Optional[Union[OpenAIModel, str]] = None
+    model: Optional[Union[OpenAIModel, str, HarmonyModel]] = None
     memory: Optional[AsyncMemory] = None
     model_settings: Optional[ModelSettings | Dict[str, Any]] = (
         None  # dict(extra_body=None), #can add json model schema here
@@ -94,7 +147,7 @@ class Agent(BaseModel):
         persona: Optional[PersonaConfig] = None,
         context: Optional[Any] = None,
         tools: Optional[list] = None,
-        model: Optional[Union[OpenAIModel, str]] = None,
+        model: Optional[Union[OpenAIModel, str, HarmonyModel]] = None,
         memory: Optional[AsyncMemory] = None,
         model_settings: Optional[
             ModelSettings | Dict[str, Any]
@@ -129,16 +182,22 @@ class Agent(BaseModel):
         :param memory: A Memory instance to use for the agent. Memory module can store and retrieve data, and share context between agents.
 
         """
-        # Use centralized model configuration
-        from .utilities.constants import get_model_config
-        
-        # HACK: Force load environment for Llama models
+        # HACK: Force load environment for Llama models BEFORE getting config
         if isinstance(model, str) and "llama" in model.lower():
             import os
             from dotenv import load_dotenv
-            load_dotenv("creds.env")
+            load_dotenv("creds.env", override=True)
             print(f"🔧 HACK: Force loading creds.env for Llama model: {model}")
             print(f"   IO_API_KEY present: {'IO_API_KEY' in os.environ}")
+            print(f"   IO_API_BASE present: {'IO_API_BASE' in os.environ}")
+            
+            # Clear ALL caches so they re-read the env vars
+            from .utilities.constants import get_api_url, get_api_key
+            get_api_url.cache_clear()
+            get_api_key.cache_clear()
+        
+        # Use centralized model configuration
+        from .utilities.constants import get_model_config
         
         config = get_model_config(
             model=model if isinstance(model, str) else None,
@@ -158,27 +217,51 @@ class Agent(BaseModel):
         )
         resolved_base_url = config["base_url"]
 
-        if isinstance(model, OpenAIModel):
+        if isinstance(model, (OpenAIModel, HarmonyModel)):
             resolved_model = model
         else:
-            # HACK: More debug for Llama models
-            if isinstance(model, str) and "llama" in model.lower():
-                print("🔧 Creating OpenAIModel:")
-                print(f"   model_name: {model}")
+            model_name_to_use = model if isinstance(model, str) else "gpt-4o"
+            
+            # Check if this is a GPT-OSS model - enable tool calling with auto tool choice
+            if isinstance(model, str) and "gpt-oss" in model.lower():
+                print("🔧 Creating CleanedToolSchemaModel for GPT-OSS:")
+                print(f"   model_name: {model_name_to_use}")
                 print(f"   base_url: {resolved_base_url}")
                 print(f"   api_key length: {len(resolved_api_key.get_secret_value())}")
+                print("   ✅ GPT-OSS models: chat + tool calling enabled with auto tool choice")
                 
-            kwargs = dict(
-                model_kwargs,
-                provider=OpenAIProvider(
-                    base_url=resolved_base_url,
-                    api_key=resolved_api_key.get_secret_value(),
-                ),
-            )
-            resolved_model = OpenAIModel(
-                model_name=model if isinstance(model, str) else "gpt-4o",
-                **kwargs,
-            )
+                kwargs = dict(
+                    model_kwargs,
+                    provider=OpenAIProvider(
+                        base_url=resolved_base_url,
+                        api_key=resolved_api_key.get_secret_value(),
+                    ),
+                )
+                resolved_model = CleanedToolSchemaModel(
+                    model_name=model_name_to_use,
+                    **kwargs,
+                )
+            else:
+                # HACK: More debug for Llama models
+                if isinstance(model, str) and "llama" in model.lower():
+                    print("🔧 Creating CleanedToolSchemaModel:")
+                    print(f"   model_name: {model}")
+                    print(f"   base_url: {resolved_base_url}")
+                    print(f"   api_key length: {len(resolved_api_key.get_secret_value())}")
+                    
+                kwargs = dict(
+                    model_kwargs,
+                    provider=OpenAIProvider(
+                        base_url=resolved_base_url,
+                        api_key=resolved_api_key.get_secret_value(),
+                    ),
+                )
+                # Use CleanedToolSchemaModel to automatically clean tool schemas
+                print(f"🔍 Creating CleanedToolSchemaModel with model_name: '{model_name_to_use}'")
+                resolved_model = CleanedToolSchemaModel(
+                    model_name=model_name_to_use,
+                    **kwargs,
+                )
 
         resolved_tools = [
             self._get_registered_tool(tool, allow_unregistered_tools)
@@ -195,6 +278,11 @@ class Agent(BaseModel):
         if model_settings is None:
             model_settings = {}
         model_settings["supports_tool_choice_required"] = model_supports_tool_choice
+        
+        # For models that don't support tool choice, disable tools entirely
+        if not model_supports_tool_choice:
+            print(f"⚠️  Model '{model}' doesn't support tool choice - disabling tools")
+            resolved_tools = []  # Disable tools for models that don't support tool choice
 
         super().__init__(
             name=name,
@@ -402,6 +490,15 @@ class Agent(BaseModel):
         return None
 
     def _adjust_output_type(self, kwargs: dict[str, Any]) -> None:
+        """Adjusts the output type for models that don't support tool_choice_required.
+        
+        For models without tool_choice_required support, ensures str is included in the output
+        type union to handle cases where the model returns a string response instead of using
+        tools. This maintains backwards compatibility while allowing structured outputs.
+        
+        Args:
+            kwargs: Dictionary of keyword arguments that may contain an output_type
+        """
         if not self.model_settings.get("supports_tool_choice_required"):
             output_type = kwargs.get("output_type")
             if output_type is not None and output_type is not str:
@@ -409,7 +506,7 @@ class Agent(BaseModel):
                 if str not in flat_types:
                     flat_types = [str] + flat_types
                 kwargs["output_type"] = Union[tuple(flat_types)]
-
+                
     async def run(
         self,
         query: str,
@@ -590,7 +687,7 @@ class LiberalToolAgent(Agent):
         persona: Optional[PersonaConfig] = None,
         context: Optional[Any] = None,
         tools: Optional[list] = None,
-        model: Optional[Union[OpenAIModel, str]] = None,
+        model: Optional[Union[OpenAIModel, str, HarmonyModel]] = None,
         memory: Optional[AsyncMemory] = None,
         model_settings: Optional[Dict[str, Any]] = None,
         api_key: Optional[SecretStr | str] = None,

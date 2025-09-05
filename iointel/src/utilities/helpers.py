@@ -103,6 +103,8 @@ def supports_tool_choice_required(model_name: str) -> bool:
         or "llama-4" in model_name    # Llama 4 models support function calling
         or model_name == "qwen/qwen3-coder-480b-a35b-instruct-fp8"  # Qwen 3 Coder supports function calling
         or "qwen3-coder" in model_name  # More flexible matching for Qwen 3 Coder models
+        or "gpt-oss" in model_name    # GPT-OSS models should support tool calling
+        # Note: CohereForAI models do NOT support tool choice?? check this. 
     )
     
     print(f"🔍 Model '{original_name}' tool_choice support: {supports}")

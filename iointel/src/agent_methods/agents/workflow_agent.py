@@ -3,7 +3,7 @@ import uuid
 from typing import Dict, Any, Optional
 from iointel.src.agents import Agent
 from iointel.src.memory import AsyncMemory
-from iointel.src.simple_conversation import simple_conversation
+from iointel.src.web.unified_conversation_storage import get_unified_conversation_storage
 from iointel.src.agent_methods.data_models.workflow_spec import WorkflowSpec, WorkflowSpecLLM
 from datetime import datetime
 from iointel.src.utilities.io_logger import log_prompt, get_component_logger
@@ -181,58 +181,88 @@ Do NOT create a new workflow from scratch. Only modify what the user specificall
         return tools_section, data_sources_section
     
     def _format_catalog_section(self, title: str, catalog: Dict[str, Any], usage_note: str) -> str:
-        """Format a section of the catalog using centralized converter."""
+        """Format a section of the catalog with tool names, parameters, and final summary."""
         if not catalog:
             return f"{title}:\n❌ NO ITEMS AVAILABLE"
         
-        # Use centralized converter for tool catalog
-        catalog_prompt = tool_catalog_to_llm_prompt(catalog)
+        lines = [title]
         
-        # Replace the generic header with our specific title
-        catalog_prompt = catalog_prompt.replace("# Available Tools:", title)
+        # Format each item with its parameters
+        for item_name, item_info in catalog.items():
+            description = item_info.get('description', 'No description')
+            params = item_info.get('params', [])
+            
+            lines.append(f"- {item_name}")
+            lines.append(f"Description: {description}")
+            
+            if params:
+                lines.append("Parameters:")
+                for param in params:
+                    lines.append(f" - {param}")
+            else:
+                lines.append("Parameters: None")
+            
+            lines.append("")  # Empty line between items
         
-        # Add usage note and data source examples if needed
-        suffix = f"\n🚨 {usage_note}. Any other names will cause failure."
+        # Add final summary section with all names
+        lines.append("=" * 50)
+        if "TOOLS" in title:
+            lines.append("📋 COMPLETE TOOL LIST (Use these names appropriate to the agent's name and instructions to load tools):")
+            lines.append("=" * 50)
+            for item_name in catalog.keys():
+                lines.append(f"- {item_name}")
+            
+            lines.append("")
+            lines.append("🚨 CRITICAL: You MUST ONLY use these exact tool names. Do NOT invent or hallucinate tool names.")
+            lines.append(f"🚨 {usage_note}. Any other names will cause failure.")
+            lines.append("🚨 FOR BASH/SHELL COMMANDS: Use 'run_shell_command' tool")
+        else:
+            lines.append("📋 COMPLETE DATA SOURCE LIST:")
+            lines.append("=" * 50)
+            for item_name in catalog.keys():
+                lines.append(f"- {item_name}")
+            
+            lines.append("")
+            lines.append("🚨 CRITICAL: You MUST ONLY use these exact source names. Do NOT invent or hallucinate source names.")
+            lines.append(f"🚨 {usage_note}. Any other names will cause failure.")
         
+        # Add data source config examples if needed
         if "DATA SOURCES" in title:
-            # Add mandatory config examples for data sources - CLEAR AS FUCK
-            suffix = f"""
-
-🚨🚨🚨 CRITICAL: DATA SOURCE CONFIG IS MANDATORY 🚨🚨🚨
-Every data_source node MUST have config with ALL required parameters.
-
-COPY THESE EXACT TEMPLATES (filled in with appropriate values for the users query):
-
-user_input template:
-{{
-  "type": "data_source",
-  "label": "Your Label Here", 
-  "data": {{
-    "source_name": "user_input",
-    "config": {{
-      "message": "Your specific message text here",
-      "default_value": "Your default value here"
-    }}
-  }}
-}}
-
-prompt_tool template:
-{{
-  "type": "data_source",
-  "label": "Your Label Here",
-  "data": {{
-    "source_name": "prompt_tool", 
-    "config": {{
-      "message": "Your specific message text here",
-      "default_value": "Your default value here"
-    }}
-  }}
-}}
-
-🚨 NEVER use config: null or config: {{}} - ALWAYS include message and default_value
-{suffix}"""
+            lines.append("")
+            lines.append("🚨🚨🚨 CRITICAL: DATA SOURCE CONFIG IS MANDATORY 🚨🚨🚨")
+            lines.append("Every data_source node MUST have config with ALL required parameters.")
+            lines.append("")
+            lines.append("COPY THESE EXACT TEMPLATES:")
+            lines.append("")
+            lines.append("user_input template:")
+            lines.append('{')
+            lines.append('  "type": "data_source",')
+            lines.append('  "label": "Your Label Here",')
+            lines.append('  "data": {')
+            lines.append('    "source_name": "user_input",')
+            lines.append('    "config": {')
+            lines.append('      "message": "Your specific message text here",')
+            lines.append('      "default_value": "Your default value here"')
+            lines.append('    }')
+            lines.append('  }')
+            lines.append('}')
+            lines.append("")
+            lines.append("prompt_tool template:")
+            lines.append('{')
+            lines.append('  "type": "data_source",')
+            lines.append('  "label": "Your Label Here",')
+            lines.append('  "data": {')
+            lines.append('    "source_name": "prompt_tool",')
+            lines.append('    "config": {')
+            lines.append('      "message": "Your specific message text here",')
+            lines.append('      "default_value": "Your default value here"')
+            lines.append('    }')
+            lines.append('  }')
+            lines.append('}')
+            lines.append("")
+            lines.append("🚨 NEVER use config: null or config: {} - ALWAYS include message and default_value")
         
-        return f"{catalog_prompt}{suffix}"
+        return "\n".join(lines)
 
     
     def _build_previous_workflow_context(self) -> Optional[str]:
@@ -382,12 +412,13 @@ class WorkflowPlanner:
             print("⚠️ WorkflowPlanner initialized with validation bypass enabled")
         
         # Initialize the underlying agent with structured output
+        # Don't pass api_key/base_url explicitly if not provided - let Agent handle model-specific config
         self.agent = Agent(
             name="WorkflowPlanner",
             instructions=get_workflow_planner_instructions(),  # Base instructions - WorkflowPromptBuilder adds context
             model=model or os.getenv("MODEL_NAME", "gpt-4o"),
-            api_key=api_key or os.getenv("OPENAI_API_KEY"),
-            base_url=base_url or os.getenv("OPENAI_API_BASE", "https://api.openai.com/v1"),
+            api_key=api_key,  # Pass through as-is, let Agent resolve based on model
+            base_url=base_url,  # Pass through as-is, let Agent resolve based on model
             memory=memory,
             conversation_id=self.conversation_id,
             output_type=WorkflowSpecLLM,  # 🔑 guarantees structured JSON
@@ -551,7 +582,8 @@ class WorkflowPlanner:
                                 # Extract clean agent response from the workflow result
                                 agent_response = workflow_result.reasoning or f"Generated workflow: {workflow_result.title or 'Untitled'}"
                                 print(f"🔵 Storing simple conversation: {self.conversation_id} | {query[:50]}... | {agent_response[:50]}...")
-                                success = simple_conversation.add(self.conversation_id, query, agent_response)
+                                storage = get_unified_conversation_storage()
+                                success = storage.add_message(self.conversation_id, query, agent_response)
                                 print(f"🔵 Simple conversation storage: {'✅ Success' if success else '❌ Failed'}")
                             else:
                                 print(f"🔵 No workflow result to store for conversation: {self.conversation_id}")
