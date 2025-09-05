@@ -3455,6 +3455,14 @@
             
             console.log('🎯 Execute button clicked. Current workflow:', currentWorkflow);
             
+            // Clear previous execution logs when starting new execution
+            executionLogs = null;
+            const executionLogsElement = document.getElementById('executionLogs');
+            if (executionLogsElement) {
+                executionLogsElement.innerHTML = SecurityUtils.safeHTML('<div style="text-align: center; color: rgba(255, 130, 40, 0.5); padding: 2rem;">Executing workflow... Please wait.</div>');
+                console.log('🗑️ Cleared execution logs for new execution');
+            }
+            
             setExecutionLoading(true);
             try {
                 // Always include cached user inputs with execution
@@ -3562,11 +3570,15 @@
                     }
                     
                     // Clear execution logs
-                    const executionLogs = document.getElementById('executionLogs');
-                    if (executionLogs) {
-                        executionLogs.innerHTML = SecurityUtils.safeHTML('<div style="text-align: center; color: rgba(255, 130, 40, 0.5); padding: 2rem;">No execution logs available yet. Run a workflow to see detailed logs.</div>');
+                    const executionLogsElement = document.getElementById('executionLogs');
+                    if (executionLogsElement) {
+                        executionLogsElement.innerHTML = SecurityUtils.safeHTML('<div style="text-align: center; color: rgba(255, 130, 40, 0.5); padding: 2rem;">No execution logs available yet. Run a workflow to see detailed logs.</div>');
                         console.log('🗑️ Cleared execution logs');
                     }
+                    
+                    // Clear the global executionLogs variable
+                    executionLogs = null;
+                    console.log('🗑️ Cleared global executionLogs variable');
                     
                     // Clear cached inputs
                     clearCachedInputs();
@@ -7191,11 +7203,12 @@ ${result.snippet ? `**Matching Content**: ${result.snippet}` : ''}`;
                 const statusChar = isSuccess ? '✓' : '✗';
                 const statusClass = isSuccess ? 'log-success' : 'log-error';
                 const duration = (node.duration_seconds !== null && node.duration_seconds !== undefined) ? `${node.duration_seconds.toFixed(1)}s` : '---';
-                const nodeId = node.node_id || node.node_label || `node_${idx + 1}`;
+                const nodeId = node.node_label || node.node_id || `node_${idx + 1}`;
                 const nodeType = node.node_type || 'unknown';
                 
-                // Check for SLA info
-                const nodeData = currentWorkflow?.nodes?.find(n => n.id === nodeId);
+                // Check for SLA info - use actual node_id for lookup, not display label
+                const actualNodeId = node.node_id || node.node_label || `node_${idx + 1}`;
+                const nodeData = currentWorkflow?.nodes?.find(n => n.id === actualNodeId);
                 const hasSLA = nodeData?.sla?.enforce_usage;
                 const slaInfo = hasSLA ? ' <span class="log-highlight">🎯SLA</span>' : '';
                 
@@ -7235,8 +7248,8 @@ ${result.snippet ? `**Matching Content**: ${result.snippet}` : ''}`;
                 // Try to get tool usage from various sources
                 if (node.tool_usage_details && node.tool_usage_details.length > 0) {
                     toolUsageDetails = node.tool_usage_details;
-                } else if (executionTasks[nodeId] && executionTasks[nodeId].tool_usage_results) {
-                    toolUsageDetails = executionTasks[nodeId].tool_usage_results;
+                } else if (executionTasks[actualNodeId] && executionTasks[actualNodeId].tool_usage_results) {
+                    toolUsageDetails = executionTasks[actualNodeId].tool_usage_results;
                 } else if (node.tool_usage_results) {
                     toolUsageDetails = node.tool_usage_results;
                 }
@@ -7734,9 +7747,32 @@ ${result.snippet ? `**Matching Content**: ${result.snippet}` : ''}`;
         
         function updateConversationDisplay(conversation) {
             const info = document.getElementById('conversationInfo');
-            const created = new Date(conversation.created_at).toLocaleDateString();
-            const version = conversation.version;
-            const stats = `${conversation.workflow_count}w, ${conversation.execution_count}e`;
+            
+            // Handle incomplete conversation data
+            if (!conversation || !conversation.created_at) {
+                info.innerHTML = `
+                    <span style="color: #64ff64;">📋 v1</span> • 
+                    <span style="color: #888;">Created: ${new Date().toLocaleDateString()}</span> • 
+                    <span style="color: #ff6b35;">0w, 0e</span>
+                `;
+                return;
+            }
+            
+            // Safely handle date creation
+            let created;
+            try {
+                const date = new Date(conversation.created_at);
+                if (isNaN(date.getTime())) {
+                    throw new Error('Invalid date');
+                }
+                created = date.toLocaleDateString();
+            } catch (error) {
+                created = new Date().toLocaleDateString();
+            }
+            const version = conversation.version || 'v1';
+            const workflowCount = conversation.workflow_count || 0;
+            const executionCount = conversation.execution_count || 0;
+            const stats = `${workflowCount}w, ${executionCount}e`;
             
             info.innerHTML = `
                 <span style="color: #64ff64;">📋 ${version}</span> • 
@@ -7770,8 +7806,20 @@ ${result.snippet ? `**Matching Content**: ${result.snippet}` : ''}`;
                 
                 listDiv.innerHTML = conversations.map(conv => {
                     try {
-                        const created = new Date(conv.created_at).toLocaleDateString();
-                        const lastUsed = new Date(conv.last_used_at).toLocaleDateString();
+                        // Safely handle date creation
+                        let created, lastUsed;
+                        try {
+                            const createdDate = new Date(conv.created_at);
+                            created = isNaN(createdDate.getTime()) ? 'Unknown' : createdDate.toLocaleDateString();
+                        } catch (error) {
+                            created = 'Unknown';
+                        }
+                        try {
+                            const lastUsedDate = new Date(conv.last_used_at);
+                            lastUsed = isNaN(lastUsedDate.getTime()) ? 'Unknown' : lastUsedDate.toLocaleDateString();
+                        } catch (error) {
+                            lastUsed = 'Unknown';
+                        }
                         const isActive = currentConversation && conv.conversation_id === currentConversation.conversation_id;
                     const statusColor = {
                         'active': '#64ff64',

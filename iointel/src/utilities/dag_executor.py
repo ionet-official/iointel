@@ -441,18 +441,35 @@ class DAGExecutor:
                                         
                                         # Find edges from this decision node to our target node
                                         target_edges = [e for e in self.edges if e.source == dep_id and e.target == node_id]
+                                        logger.info(f"🔍 Checking routing for {dep_id} → {node_id}", data={
+                                            "decision_node": dep_id,
+                                            "target_node": node_id,
+                                            "route_index": route_index,
+                                            "target_edges_count": len(target_edges),
+                                            "edge_details": [
+                                                {
+                                                    "source": e.source,
+                                                    "target": e.target,
+                                                    "route_index": e.data.route_index if hasattr(e, 'data') and hasattr(e.data, 'route_index') else None,
+                                                    "route_label": e.data.route_label if hasattr(e, 'data') and hasattr(e.data, 'route_label') else None
+                                                } for e in target_edges
+                                            ]
+                                        })
                                         if target_edges:
                                             # Check if this execution's route matches our target
                                             for edge in target_edges:
-                                                if hasattr(edge, 'route_index') and edge.route_index == route_index:
+                                                # Check route_index in edge.data (correct structure)
+                                                edge_route_index = edge.data.route_index if hasattr(edge, 'data') and hasattr(edge.data, 'route_index') else None
+                                                if edge_route_index == route_index:
                                                     logger.info(f"✅ Execution {execution_index + 1} routes to target node", data={
                                                         "decision_node": dep_id,
                                                         "execution_index": execution_index,
                                                         "target_node": node_id,
-                                                        "route_index": route_index
+                                                        "route_index": route_index,
+                                                        "edge_route_index": edge_route_index
                                                     })
                                                     return True
-                                                elif not hasattr(edge, 'route_index') and route_index == 0:
+                                                elif edge_route_index is None and route_index == 0:
                                                     # Default route (no route_index specified)
                                                     logger.info(f"✅ Execution {execution_index + 1} uses default route to target node", data={
                                                         "decision_node": dep_id,
