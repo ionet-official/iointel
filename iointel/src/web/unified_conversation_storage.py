@@ -12,7 +12,7 @@ import os
 from datetime import datetime, timezone
 from typing import List, Dict, Any, Optional
 from pathlib import Path
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass
 
 
 @dataclass

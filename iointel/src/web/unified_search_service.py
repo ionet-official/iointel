@@ -124,7 +124,6 @@ class UnifiedSearchService:
             # Make sure tools are loaded first
             from ..agent_methods.tools.tool_loader import load_tools_from_env
             from dotenv import load_dotenv
-            import os
             
             # Load environment and tools
             load_dotenv("creds.env")

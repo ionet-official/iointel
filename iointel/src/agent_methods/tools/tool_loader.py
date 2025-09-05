@@ -277,8 +277,14 @@ def _init_csv_toolkit():
     """Initialize CSV toolkit."""
     try:
         from .agno.csv import Csv
+        import os
+        import glob
         
-        Csv()
+        # Find all CSV files in current working directory
+        csv_files = glob.glob(os.path.join(os.getcwd(), "*.csv"))
+        
+        # Initialize CSV tool with actual CSV files found
+        csv_tool = Csv(csvs=csv_files if csv_files else [])
         # Csv should register its own tools
         return []  # Return empty, tools are auto-registered
     except ImportError as e:

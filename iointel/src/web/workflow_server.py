@@ -1191,7 +1191,7 @@ async def get_stored_prompts():
     """Get all stored prompts from database and file system."""
     import json
     from pathlib import Path
-    from sqlalchemy import select, text
+    from sqlalchemy import select
     
     # Get conversation prompts from database
     db_prompts = []
