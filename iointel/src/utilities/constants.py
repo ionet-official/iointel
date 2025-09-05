@@ -89,8 +89,8 @@ def get_model_config(model: Optional[str] = None, api_key: Optional[str] = None,
     # Determine if this is an OpenAI model
     # Note: GPT-OSS models (even with openai/ prefix) are NOT OpenAI models, they're served through IO Intel
     is_openai_model = (
-        (resolved_model.startswith("gpt-") and not "gpt-oss" in resolved_model.lower()) or 
-        ("openai" in resolved_model.lower() and not "gpt-oss" in resolved_model.lower()) or
+        (resolved_model.startswith("gpt-") and "gpt-oss" not in resolved_model.lower()) or 
+        ("openai" in resolved_model.lower() and "gpt-oss" not in resolved_model.lower()) or
         resolved_model in ["gpt-5", "gpt-4o", "gpt-4", "gpt-3.5-turbo"]
     )
     

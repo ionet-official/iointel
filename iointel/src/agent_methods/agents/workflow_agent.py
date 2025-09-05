@@ -10,8 +10,7 @@ from iointel.src.utilities.io_logger import log_prompt, get_component_logger
 from iointel.src.utilities.unified_prompt_system import unified_prompt_system, PromptType
 from iointel.src.utilities.conversion_utils import (
     validation_errors_to_llm_prompt,
-    workflow_spec_to_llm_prompt,
-    tool_catalog_to_llm_prompt
+    workflow_spec_to_llm_prompt
 )
 from iointel.src.agent_methods.agents.workflow_prompts import get_workflow_planner_instructions
 

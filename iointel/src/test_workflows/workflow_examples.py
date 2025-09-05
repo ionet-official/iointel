@@ -9,7 +9,7 @@ This module provides a single source of truth for workflow examples that can be:
 
 import uuid
 from typing import Dict, Any
-from ..agent_methods.data_models.workflow_spec import WorkflowSpec, NodeSpec, NodeData, EdgeSpec
+from iointel.src.agent_methods.data_models.workflow_spec import WorkflowSpec, EdgeSpec, AgentConfig, AgentNode
 
 
 def create_workflow_examples() -> Dict[str, WorkflowSpec]:
@@ -28,15 +28,14 @@ def create_workflow_examples() -> Dict[str, WorkflowSpec]:
         title="Simple Addition",
         description="Add two numbers together",
         nodes=[
-            NodeSpec(
+            AgentNode(
                 id="add_numbers",
                 type="agent",
                 label="Add 10 + 5",
-                data=NodeData(
+                data=AgentConfig(
                     agent_instructions="Add the numbers 10 and 5 together using the add tool",
                     tools=["add"],
                     config={"a": 10, "b": 5},
-                    outs=["result"]
                 )
             )
         ],
@@ -51,51 +50,44 @@ def create_workflow_examples() -> Dict[str, WorkflowSpec]:
         title="Linear Chain Calculation",
         description="Chain calculations: (10+5)*2 = 30, √30 ≈ 5.477, +1 ≈ 6.477",
         nodes=[
-            NodeSpec(
+            AgentNode(
                 id="step_a",
                 type="agent",
                 label="Step A: Add 10+5",
-                data=NodeData(
+                data=AgentConfig(
                     agent_instructions="Use the add tool to complete this task",
                     tools=["add"],
                     config={"a": 10, "b": 5},
-                    outs=["result"]
                 )
             ),
-            NodeSpec(
+            AgentNode(
                 id="step_b",
                 type="agent",
                 label="Step B: Multiply by 2",
-                data=NodeData(
+                data=AgentConfig(
                     agent_instructions="Use the multiply tool to complete this task",
                     tools=["multiply"],
                     config={"a": "{step_a}", "b": 2},
-                    ins=["result"],
-                    outs=["result"]
                 )
             ),
-            NodeSpec(
+            AgentNode(
                 id="step_c",
                 type="agent",
                 label="Step C: Square root",
-                data=NodeData(
+                data=AgentConfig(
                     agent_instructions="Use the square_root tool to complete this task",
                     tools=["square_root"],
                     config={"x": "{step_b}"},
-                    ins=["result"],
-                    outs=["result"]
                 )
             ),
-            NodeSpec(
+            AgentNode(
                 id="step_d",
                 type="agent",
                 label="Step D: Add 1",
-                data=NodeData(
+                data=AgentConfig(
                     agent_instructions="Use the add tool to complete this task",
                     tools=["add"],
                     config={"a": "{step_c}", "b": 1},
-                    ins=["result"],
-                    outs=["result"]
                 )
             )
         ],
@@ -114,51 +106,44 @@ def create_workflow_examples() -> Dict[str, WorkflowSpec]:
         title="Parallel Branches",
         description="Test parallel execution: 15 → (15²=225, 15*2=30) → 225+30=255",
         nodes=[
-            NodeSpec(
+            AgentNode(
                 id="source",
                 type="agent",
                 label="Source: Add 10+5",
-                data=NodeData(
+                data=AgentConfig(
                     agent_instructions="Use the add tool to complete this task",
                     tools=["add"],
                     config={"a": 10, "b": 5},
-                    outs=["result"]
                 )
             ),
-            NodeSpec(
+            AgentNode(
                 id="branch_1",
                 type="agent",
                 label="Branch 1: Square",
-                data=NodeData(
+                data=AgentConfig(
                     agent_instructions="Use the multiply tool to complete this task",
                     tools=["multiply"],
                     config={"a": "{source}", "b": "{source}"},
-                    ins=["value"],
-                    outs=["result"]
                 )
             ),
-            NodeSpec(
+            AgentNode(
                 id="branch_2",
                 type="agent",
                 label="Branch 2: Double",
-                data=NodeData(
+                data=AgentConfig(
                     agent_instructions="Use the multiply tool to complete this task",
                     tools=["multiply"],
                     config={"a": "{source}", "b": 2},
-                    ins=["value"],
-                    outs=["result"]
                 )
             ),
-            NodeSpec(
+            AgentNode(
                 id="merge",
                 type="agent",
                 label="Merge: Add branches",
-                data=NodeData(
+                data=AgentConfig(
                     agent_instructions="Use the add tool to complete this task",
                     tools=["add"],
                     config={"a": "{branch_1}", "b": "{branch_2}"},
-                    ins=["value1", "value2"],
-                    outs=["result"]
                 )
             )
         ],
@@ -178,38 +163,34 @@ def create_workflow_examples() -> Dict[str, WorkflowSpec]:
         title="Weather Temperature Addition",
         description="Get weather for Paris and London, add their temperatures",
         nodes=[
-            NodeSpec(
+            AgentNode(
                 id="get_paris_temp",
                 type="agent",
                 label="Get Paris Temperature",
-                data=NodeData(
+                data=AgentConfig(
                     agent_instructions="Use the get_weather tool to complete this task",
                     tools=["get_weather"],
                     config={"city": "Paris"},
-                    outs=["result"]
                 )
             ),
-            NodeSpec(
+            AgentNode(
                 id="get_london_temp",
                 type="agent",
                 label="Get London Temperature",
-                data=NodeData(
+                data=AgentConfig(
                     agent_instructions="Use the get_weather tool to complete this task",
                     tools=["get_weather"],
                     config={"city": "London"},
-                    outs=["result"]
                 )
             ),
-            NodeSpec(
+            AgentNode(
                 id="add_temperatures",
                 type="agent",
                 label="Add Temperatures",
-                data=NodeData(
+                data=AgentConfig(
                     agent_instructions="Use the add tool to complete this task",
                     tools=["add"],
                     config={"a": "{get_paris_temp.temp}", "b": "{get_london_temp.temp}"},
-                    ins=["temp1", "temp2"],
-                    outs=["result"]
                 )
             )
         ],
@@ -227,24 +208,20 @@ def create_workflow_examples() -> Dict[str, WorkflowSpec]:
         title="Joke to Laughter Workflow",
         description="A workflow where a joke agent creates a joke, and an audience agent evaluates the severity of laughter",
         nodes=[
-            NodeSpec(
+            AgentNode(
                 id="joke_agent",
                 type="agent",
                 label="Create Joke",
-                data=NodeData(
+                data=AgentConfig(
                     agent_instructions="Create a humorous joke that would make an audience laugh.",
-                    ins=[],
-                    outs=["joke_output"]
                 )
             ),
-            NodeSpec(
+            AgentNode(
                 id="audience_agent",
                 type="agent", 
                 label="Evaluate Joke",
-                data=NodeData(
+                data=AgentConfig(
                     agent_instructions="Evaluate this joke: {joke_agent}. Rate the humor and expected laughter severity.",
-                    ins=["joke_input"],
-                    outs=["evaluation"]
                 )
             )
         ],
@@ -267,25 +244,22 @@ def create_workflow_examples() -> Dict[str, WorkflowSpec]:
         title="Mixed Tool and Agent Workflow",
         description="Get weather data with tools, then analyze it with an agent",
         nodes=[
-            NodeSpec(
+            AgentNode(
                 id="get_weather",
                 type="agent",
                 label="Get Weather",
-                data=NodeData(
+                data=AgentConfig(
                     agent_instructions="Use the get_weather tool to complete this task",
                     tools=["get_weather"],
                     config={"city": "New York"},
-                    outs=["weather_data"]
                 )
             ),
-            NodeSpec(
+            AgentNode(
                 id="analyze_weather",
                 type="agent",
                 label="Analyze Weather",
-                data=NodeData(
+                data=AgentConfig(
                     agent_instructions="Analyze this weather data: {get_weather}. Provide recommendations for outdoor activities.",
-                    ins=["weather_input"],
-                    outs=["analysis"]
                 )
             )
         ],

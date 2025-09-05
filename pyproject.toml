@@ -26,6 +26,7 @@ dependencies = [
     "itsdangerous>=2.2.0",
     "usearch>=2.19.1",
     "sentence-transformers>=5.0.0",
+    "openai-harmony>=0.0.4",
 ]
 keywords = ["Agents", "LLM", "framework", "AI", "tools"]
 classifiers = [
