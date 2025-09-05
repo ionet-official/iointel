@@ -14,9 +14,6 @@ from typing import Callable, Dict, Any, Optional, Union, Literal, List
 
 from pydantic_ai.models.openai import OpenAIModel, ModelRequestParameters
 from pydantic_ai.providers.openai import OpenAIProvider
-from .models.harmony_model import HarmonyModel
-from typing import Literal
-from openai import NOT_GIVEN
 from pydantic_ai import Agent as PydanticAgent, Tool as PydanticTool
 from pydantic_ai.agent import AgentRunResult
 from pydantic_ai.messages import ModelMessage
@@ -121,7 +118,7 @@ class Agent(BaseModel):
     persona: Optional[PersonaConfig] = None
     context: Optional[Any] = None
     tools: Optional[list] = None
-    model: Optional[Union[OpenAIModel, str, HarmonyModel]] = None
+    model: Optional[Union[OpenAIModel, str]] = None
     memory: Optional[AsyncMemory] = None
     model_settings: Optional[ModelSettings | Dict[str, Any]] = (
         None  # dict(extra_body=None), #can add json model schema here
@@ -147,7 +144,7 @@ class Agent(BaseModel):
         persona: Optional[PersonaConfig] = None,
         context: Optional[Any] = None,
         tools: Optional[list] = None,
-        model: Optional[Union[OpenAIModel, str, HarmonyModel]] = None,
+        model: Optional[Union[OpenAIModel, str]] = None,
         memory: Optional[AsyncMemory] = None,
         model_settings: Optional[
             ModelSettings | Dict[str, Any]
@@ -217,7 +214,7 @@ class Agent(BaseModel):
         )
         resolved_base_url = config["base_url"]
 
-        if isinstance(model, (OpenAIModel, HarmonyModel)):
+        if isinstance(model, OpenAIModel):
             resolved_model = model
         else:
             model_name_to_use = model if isinstance(model, str) else "gpt-4o"
@@ -687,7 +684,7 @@ class LiberalToolAgent(Agent):
         persona: Optional[PersonaConfig] = None,
         context: Optional[Any] = None,
         tools: Optional[list] = None,
-        model: Optional[Union[OpenAIModel, str, HarmonyModel]] = None,
+        model: Optional[Union[OpenAIModel, str]] = None,
         memory: Optional[AsyncMemory] = None,
         model_settings: Optional[Dict[str, Any]] = None,
         api_key: Optional[SecretStr | str] = None,
