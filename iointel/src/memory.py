@@ -215,27 +215,62 @@ class AsyncMemory:
             is_structured_output = self._is_structured_output_conversation(conversation_id, history_list)
             print(f"--- Detected structured output conversation: {is_structured_output}")
             
+            # Track the last message kind to ensure proper alternation
+            # CRITICAL: Apply role alternation fix to ALL conversations, not just structured output
+            last_kind = None
+            
             for item in filtered_history_list:
                 kind = item.get("kind")
                 parts = item.get("parts", [])
                 
-                # For structured output conversations, preserve tool-call/tool-return messages
-                # For regular conversations, filter them out as before
-                if is_structured_output:
-                    # Keep all parts for structured output conversations
-                    filtered_parts = parts
-                else:
-                    # Filter out tool-call/tool-return parts for regular conversations
-                    filtered_parts = [
-                        part
-                        for part in parts
-                        if part.get("part_kind")
-                        not in {"tool-call", "tool-return", "retry-prompt"}
-                    ]
+                filtered_parts = []
+                for part in parts:
+                    part_kind = part.get("part_kind")
+                    
+                    # Always keep user prompts and text responses
+                    if part_kind in {"user-prompt", "text", "system-prompt"}:
+                        filtered_parts.append(part)
+                    
+                    # For tool-call parts, only keep final_result calls (agent responses)
+                    # and filter out all other tool calls to prevent hallucination
+                    elif part_kind == "tool-call":
+                        tool_name = part.get("tool_name", "")
+                        if tool_name == "final_result":
+                            # Convert final_result tool call to a text response for the agent
+                            # This preserves the agent's response while removing the tool call pattern
+                            try:
+                                workflow_data = json.loads(part.get("args", "{}"))
+                                title = workflow_data.get("title", "Workflow")
+                                reasoning = workflow_data.get("reasoning", "Generated workflow")
+                                
+                                # Create a text part that represents the agent's response
+                                text_response = {
+                                    "part_kind": "text",
+                                    "content": f"I created a workflow: '{title}'. {reasoning}"
+                                }
+                                filtered_parts.append(text_response)
+                            except:
+                                # If we can't parse the workflow, create a generic response
+                                text_response = {
+                                    "part_kind": "text", 
+                                    "content": "I created a workflow for you."
+                                }
+                                filtered_parts.append(text_response)
+                        # Filter out all other tool calls (like routing_gate, etc.)
+                    
+                    # Always filter out tool-return and retry-prompt parts
+                    # (these don't contain useful information for the agent)
                 
                 if not filtered_parts:
                     continue
 
+                # CRITICAL FIX: Ensure proper role alternation for ALL conversations
+                # Skip consecutive messages of the same kind to maintain user/assistant alternation
+                if last_kind == kind:
+                    print(f"--- Skipping consecutive {kind} message to maintain role alternation")
+                    continue
+                
+                last_kind = kind
                 item["parts"] = filtered_parts
                 if kind == "request":
                     parsed_history.append(parse_request(item))

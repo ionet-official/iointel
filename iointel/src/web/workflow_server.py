@@ -24,7 +24,7 @@ from iointel.src.agent_methods.data_models.workflow_spec import WorkflowSpec
 from iointel.src.agent_methods.tools.tool_loader import load_tools_from_env
 from iointel.src.utilities.tool_registry_utils import create_tool_catalog
 from iointel.src.memory import AsyncMemory
-from iointel.src.web.conversation_storage import get_conversation_storage
+from iointel.src.web.unified_conversation_storage import get_unified_conversation_storage
 from iointel.src.utilities.constants import get_model_config
 # Add missing imports for execution functions
 from iointel.src.chainables import execute_agent_task, execute_data_source_task, execute_tool_task
@@ -854,7 +854,7 @@ async def startup_event():
     
     # Initialize WorkflowPlanner with managed conversation
     try:
-        conversation_storage = get_conversation_storage()
+        conversation_storage = get_unified_conversation_storage()
         startup_conversation_id = conversation_storage.get_active_web_conversation()
         
         # Use shared model configuration for main planner
@@ -900,7 +900,7 @@ async def startup_event():
         search_mode = "fast hash encoding" if use_fast_search else "real semantic vectors"
         system_logger.success(
             f"UnifiedSearchService initialized with {search_mode}",
-            data={"search_mode": search_mode, "tip": "Set FAST_SEARCH_MODE=false for real semantic vectors"}
+            data={"search_mode": search_mode, "tip": "Set FAST_SEARCH_MODE=true for real semantic vectors, false for fast hash encoding"}
         )
     except Exception as e:
         system_logger.warning(f"UnifiedSearchService initialization failed: {e}")
@@ -1055,8 +1055,8 @@ async def get_recent_conversations(limit: int = 10):
 async def get_simple_recent_conversations(limit: int = 10):
     """Get recent conversation IDs."""
     try:
-        from iointel.src.simple_conversation import simple_conversation
-        conversations = simple_conversation.get_recent_conversations(limit)
+        storage = get_unified_conversation_storage()
+        conversations = storage.get_recent_conversations(limit)
         
         return {
             "recent_conversations": conversations,
@@ -1067,12 +1067,36 @@ async def get_simple_recent_conversations(limit: int = 10):
         return {"error": f"Error getting conversations: {str(e)}"}
 
 
+@app.get("/api/conversations/active")
+async def get_active_conversation():
+    """Get the current active conversation."""
+    storage = get_unified_conversation_storage()
+    conversation_id = storage.get_active_web_conversation()
+    conversation = storage.get_conversation(conversation_id)
+    
+    if conversation:
+        return {
+            "conversation_id": conversation.conversation_id,
+            "version": conversation.version,
+            "session_type": conversation.session_type,
+            "status": conversation.status,
+            "created_at": conversation.created_at,
+            "last_used_at": conversation.last_used_at,
+            "total_messages": conversation.total_messages,
+            "workflow_count": conversation.workflow_count,
+            "execution_count": conversation.execution_count,
+            "notes": conversation.notes
+        }
+    else:
+        raise HTTPException(status_code=404, detail="Active conversation not found")
+
+
 @app.get("/api/conversations/{conversation_id}")
 async def get_simple_conversation(conversation_id: str, limit: int = 10):
     """Get simple conversation history by ID."""
     try:
-        from iointel.src.simple_conversation import simple_conversation
-        conversation = simple_conversation.get_conversation(conversation_id, limit)
+        storage = get_unified_conversation_storage()
+        conversation = storage.get_messages(conversation_id, limit)
         
         return {
             "conversation_id": conversation_id,
@@ -1083,11 +1107,39 @@ async def get_simple_conversation(conversation_id: str, limit: int = 10):
         return {"error": f"Error getting conversation: {str(e)}"}
 
 
+@app.post("/api/conversations/new")
+async def create_new_conversation():
+    """Create a new conversation session."""
+    storage = get_unified_conversation_storage()
+    
+    # Archive the current active conversation first
+    current_conversations = storage.list_conversations(
+        session_type="web_interface", 
+        status="active"
+    )
+    
+    for conv in current_conversations:
+        storage.archive_conversation(conv.conversation_id)
+        print(f"📦 Auto-archived previous conversation: {conv.conversation_id} ({conv.version})")
+    
+    # Force create a new conversation 
+    conversation_id = storage.create_conversation(
+        session_type="web_interface",
+        notes="Created via web interface - forced new session"
+    )
+    
+    print(f"✨ Force created new conversation: {conversation_id}")
+    
+    return {
+        "conversation_id": conversation_id,
+        "status": "created"
+    }
+
 @app.post("/api/conversations/{conversation_id}")
 async def add_simple_conversation_turn(conversation_id: str, request: dict):
     """Add a conversation turn (user input + agent response)."""
     try:
-        from iointel.src.simple_conversation import simple_conversation
+        storage = get_unified_conversation_storage()
         
         user_input = request.get("user_input", "")
         agent_response = request.get("agent_response", "")
@@ -1095,7 +1147,7 @@ async def add_simple_conversation_turn(conversation_id: str, request: dict):
         if not user_input or not agent_response:
             return {"error": "Both user_input and agent_response are required"}
         
-        success = simple_conversation.add(conversation_id, user_input, agent_response)
+        success = storage.add_message(conversation_id, user_input, agent_response)
         
         if success:
             return {"status": "success", "message": "Conversation turn added"}
@@ -1608,12 +1660,28 @@ async def get_tools():
     """Get available tools."""
     return {"tools": tool_catalog}
 
+@app.get("/api/models")
+async def get_models():
+    """Get available models that support tool calling."""
+    from iointel.src.utilities.constants import (
+        get_available_models_with_tool_calling,
+        get_chat_only_models,
+        get_blocked_models
+    )
+    
+    return {
+        "working_models": get_available_models_with_tool_calling(),
+        "chat_only_models": get_chat_only_models(),
+        "blocked_models": get_blocked_models(),
+        "note": "Only working_models support full tool calling functionality"
+    }
+
 
 @app.get("/api/history")
 async def get_workflow_history():
     """Get workflow history."""
     history_data = []
-    for wf in workflow_history[-10:]:  # Last 10
+    for wf in workflow_history:
         wf_data = wf.model_dump()
         # Convert UUID to string for JSON serialization
         if 'id' in wf_data:
@@ -1668,7 +1736,7 @@ async def generate_workflow(workflow_request: WorkflowRequest, request: Request)
             
         # Generate workflow (could be new workflow or chat-only response)
         # Use managed conversation storage for better conversation tracking
-        conversation_storage = get_conversation_storage()
+        conversation_storage = get_unified_conversation_storage()
         conversation_id = conversation_storage.get_active_web_conversation()
         
         # Update conversation usage
@@ -2132,7 +2200,7 @@ async def send_execution_feedback_to_planner(execution_summary: WorkflowExecutio
         
         # CRITICAL: Use the EXACT SAME conversation ID as the main planner for continuity
         # This ensures the feedback planner sees its own workflow generation in conversation history
-        conversation_storage = get_conversation_storage()
+        conversation_storage = get_unified_conversation_storage()
         feedback_conversation_id = conversation_storage.get_active_web_conversation()
         print(f"🗣️ Using SAME conversation_id as main planner for feedback: {feedback_conversation_id}")
         print("🔗 This ensures feedback planner sees its own workflow generation context")
@@ -3125,7 +3193,7 @@ async def search_test_analytics(query: str, top_k: int = 10):
 @app.get("/api/conversations")
 async def list_conversations():
     """List all conversations with metadata."""
-    storage = get_conversation_storage()
+    storage = get_unified_conversation_storage()
     conversations = storage.list_conversations()
     
     return {
@@ -3146,68 +3214,16 @@ async def list_conversations():
         ]
     }
 
-@app.post("/api/conversations/new")
-async def create_new_conversation():
-    """Create a new conversation session."""
-    storage = get_conversation_storage()
-    
-    # Archive the current active conversation first
-    current_conversations = [
-        conv for conv in storage.conversations.values()
-        if conv.session_type == "web_interface" and conv.status == "active"
-    ]
-    
-    for conv in current_conversations:
-        storage.archive_conversation(conv.conversation_id)
-        print(f"📦 Auto-archived previous conversation: {conv.conversation_id} ({conv.version})")
-    
-    # Force create a new conversation 
-    conversation_id = storage.create_conversation(
-        session_type="web_interface",
-        notes="Created via web interface - forced new session"
-    )
-    
-    print(f"✨ Force created new conversation: {conversation_id}")
-    
-    return {
-        "conversation_id": conversation_id,
-        "status": "created"
-    }
-
 @app.post("/api/conversations/{conversation_id}/archive")
 async def archive_conversation(conversation_id: str):
     """Archive a conversation."""
-    storage = get_conversation_storage()
+    storage = get_unified_conversation_storage()
     storage.archive_conversation(conversation_id)
     
     return {
         "conversation_id": conversation_id,
         "status": "archived"
     }
-
-@app.get("/api/conversations/active")
-async def get_active_conversation():
-    """Get the current active conversation."""
-    storage = get_conversation_storage()
-    conversation_id = storage.get_active_web_conversation()
-    conversation = storage.get_conversation(conversation_id)
-    
-    if conversation:
-        return {
-            "conversation_id": conversation.conversation_id,
-            "version": conversation.version,
-            "session_type": conversation.session_type,
-            "status": conversation.status,
-            "created_at": conversation.created_at,
-            "last_used_at": conversation.last_used_at,
-            "total_messages": conversation.total_messages,
-            "workflow_count": conversation.workflow_count,
-            "execution_count": conversation.execution_count,
-            "notes": conversation.notes
-        }
-    else:
-        raise HTTPException(status_code=404, detail="Active conversation not found")
-
 
 # ============================================
 # WORKFLOW-AS-API SERVICE (WaaS) ENDPOINTS
