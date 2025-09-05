@@ -310,6 +310,9 @@ class DAGExecutor:
         Check if any dependency is a decision node that has gated this node.
         This is now only used for decision-based routing logic.
         
+        ENHANCED: Now handles multiple executions of the same decision node by tracking
+        execution context and allowing different executions to route to different outputs.
+        
         Returns:
             True if node should execute based on routing
             False if node should be skipped based on routing  
@@ -352,7 +355,7 @@ class DAGExecutor:
                         from ..agent_methods.data_models.datamodels import ToolUsageResult
                         from ..agent_methods.tools.conditional_gate import GateResult
                         
-                        # Get the LAST (most recent) routing/conditional_gate result
+                        # Get ALL routing/conditional_gate results (not just the last one)
                         gate_results = []
                         for tool_result in tool_usage_results:
                             # Properly handle typed ToolUsageResult
@@ -363,135 +366,119 @@ class DAGExecutor:
                                 # Legacy dict support
                                 gate_results.append(tool_result)
                         
-                        # Use the last result (most recent tool call)
+                        # Enhanced logic: Handle multiple executions of the same decision node
                         if gate_results:
-                            tool_result = gate_results[-1]
+                            # Handle multiple executions of the same decision node
+                            # Each gate result represents a different execution/iteration
+                            logger.info("🔍 Found multiple gate results, processing each execution", data={
+                                "decision_node": dep_id,
+                                "total_gate_results": len(gate_results),
+                                "execution_count": len(gate_results)
+                            })
                             
-                            # Extract the GateResult from ToolUsageResult
-                            if isinstance(tool_result, ToolUsageResult):
-                                gate_result = tool_result.tool_result
-                            else:
-                                # Legacy dict support
-                                gate_result = tool_result.get("tool_result")
-                            
-                            if gate_result:
-                                # Handle typed GateResult
-                                if isinstance(gate_result, GateResult):
-                                    route_index = gate_result.route_index
-                                    routed_to = gate_result.routed_to
-                                    action = gate_result.action
-                                    logger.info("🔍 Found routing decision from gate tool", data={
-                                        "decision_node": dep_id,
-                                        "route_index": route_index,
-                                        "routed_to": routed_to,
-                                        "action": action,
-                                        "confidence": gate_result.confidence,
-                                        "decision_reason": gate_result.decision_reason,
-                                        "result_type": "typed_gate_result"
-                                    })
-                                    
-                                    # Handle terminate action
-                                    if route_index < 0 and action == "terminate":
-                                        logger.info("🛑 Workflow terminating - no conditions matched", data={
-                                            "decision_node": dep_id,
-                                            "reason": gate_result.decision_reason
-                                        })
-                                        # Skip all downstream nodes from this decision
-                                        return False
-                                        
-                                elif isinstance(gate_result, dict):
+                            # Process each gate result (each represents a different execution)
+                            for execution_index, tool_result in enumerate(gate_results):
+                                logger.info(f"🔄 Processing execution {execution_index + 1}/{len(gate_results)}", data={
+                                    "decision_node": dep_id,
+                                    "execution_index": execution_index,
+                                    "total_executions": len(gate_results)
+                                })
+                                
+                                # Extract the GateResult from ToolUsageResult
+                                if isinstance(tool_result, ToolUsageResult):
+                                    gate_result = tool_result.tool_result
+                                else:
                                     # Legacy dict support
-                                    route_index = gate_result.get("route_index")
-                                    routed_to = gate_result.get("routed_to", "unknown")
-                                    logger.info("🔍 Found routing decision from conditional_gate dict", data={
-                                        "decision_node": dep_id,
-                                        "route_index": route_index,
-                                        "routed_to": routed_to,
-                                        "result_type": "dict_format"
-                                    })
-                    
-                    # Direct route_index check (legacy)
-                    if route_index is None:
-                        if hasattr(dep_result, "route_index"):
-                            route_index = dep_result.route_index
-                            routed_to = getattr(dep_result, "routed_to", None)
-                        elif isinstance(dep_result, dict) and "route_index" in dep_result:
-                            route_index = dep_result["route_index"]
-                            routed_to = dep_result.get("routed_to")
-                    
-                    if route_index is not None:
-                        # Find edges from this decision node to our target node
-                        target_edges = [e for e in self.edges if e.source == dep_id and e.target == node_id]
-                        if target_edges:
-                            # NEW: Simple route_index matching - much cleaner!
-                            for edge in target_edges:
-                                if edge.data and edge.data.route_index is not None:
-                                    # Direct integer comparison - no regex needed!
-                                    if edge.data.route_index == route_index:
-                                        logger.success("🎯 Node will execute - route index match", data={
-                                            "node_id": node_id,
+                                    gate_result = tool_result.get("tool_result")
+                                
+                                if gate_result:
+                                    # Handle typed GateResult
+                                    if isinstance(gate_result, GateResult):
+                                        route_index = gate_result.route_index
+                                        routed_to = gate_result.routed_to
+                                        action = gate_result.action
+                                        logger.info("🔍 Found routing decision from gate tool", data={
+                                            "decision_node": dep_id,
+                                            "execution_index": execution_index,
                                             "route_index": route_index,
                                             "routed_to": routed_to,
-                                            "decision_node": dep_id,
-                                            "edge_route_index": edge.data.route_index,
-                                            "edge_route_label": edge.data.route_label,
-                                            "execution_decision": "EXECUTE"
+                                            "action": action,
+                                            "confidence": gate_result.confidence,
+                                            "decision_reason": gate_result.decision_reason,
+                                            "result_type": "typed_gate_result"
                                         })
-                                        return True
-                                
-                                # Legacy fallback: condition-based matching for backward compatibility
-                                elif edge.data and edge.data.condition and routed_to:
-                                    condition = edge.data.condition
-                                    if "routed_to ==" in condition:
-                                        import re
-                                        match = re.search(r"routed_to\s*==\s*['\"]([^'\"]+)['\"]", condition)
-                                        if match:
-                                            expected_route = match.group(1)
-                                            actual_route = str(routed_to)
-                                            if (actual_route == expected_route or 
-                                                actual_route == expected_route + "_path" or
-                                                actual_route.replace("_path", "") == expected_route):
-                                                logger.info("🎯 Node will execute - legacy condition match", data={
-                                                    "node_id": node_id,
-                                                    "actual_route": actual_route,
-                                                    "expected_route": expected_route,
-                                                    "decision_node": dep_id,
-                                                    "edge_condition": condition,
-                                                    "execution_decision": "EXECUTE",
-                                                    "match_type": "LEGACY"
-                                                })
-                                                return True
-                                
-                                # If no routing data is specified, execute the node
-                                elif not edge.data or (not edge.data.route_index and not edge.data.condition):
-                                    logger.info(f"  ✅ Node {node_id} has no routing data, executing")
-                                    return True
-                            
-                            # No matching edge found - this node should be skipped
-                            logger.warning("⏭️ Node will be skipped - no matching route", data={
-                                "node_id": node_id,
-                                "route_index": route_index,
-                                "routed_to": routed_to,
-                                "decision_node": dep_id,
-                                "available_edges": len(target_edges),
-                                "execution_decision": "SKIP"
-                            })
-                            return False
+                                        
+                                        # Handle terminate action
+                                        if route_index < 0 and action == "terminate":
+                                            logger.info("🛑 Workflow terminating - no conditions matched", data={
+                                                "decision_node": dep_id,
+                                                "execution_index": execution_index,
+                                                "reason": gate_result.decision_reason
+                                            })
+                                            # Skip all downstream nodes from this decision
+                                            return False
+                                            
+                                    elif isinstance(gate_result, dict):
+                                        # Legacy dict support
+                                        route_index = gate_result.get("route_index")
+                                        routed_to = gate_result.get("routed_to", "unknown")
+                                        logger.info("🔍 Found routing decision from conditional_gate dict", data={
+                                            "decision_node": dep_id,
+                                            "execution_index": execution_index,
+                                            "route_index": route_index,
+                                            "routed_to": routed_to,
+                                            "result_type": "dict_format"
+                                        })
+                                    
+                                    # Process this execution's routing decision
+                                    if route_index is not None:
+                                        logger.info(f"🎯 Processing routing decision for execution {execution_index + 1}", data={
+                                            "decision_node": dep_id,
+                                            "execution_index": execution_index,
+                                            "route_index": route_index,
+                                            "routed_to": routed_to
+                                        })
+                                        
+                                        # Find edges from this decision node to our target node
+                                        target_edges = [e for e in self.edges if e.source == dep_id and e.target == node_id]
+                                        if target_edges:
+                                            # Check if this execution's route matches our target
+                                            for edge in target_edges:
+                                                if hasattr(edge, 'route_index') and edge.route_index == route_index:
+                                                    logger.info(f"✅ Execution {execution_index + 1} routes to target node", data={
+                                                        "decision_node": dep_id,
+                                                        "execution_index": execution_index,
+                                                        "target_node": node_id,
+                                                        "route_index": route_index
+                                                    })
+                                                    return True
+                                                elif not hasattr(edge, 'route_index') and route_index == 0:
+                                                    # Default route (no route_index specified)
+                                                    logger.info(f"✅ Execution {execution_index + 1} uses default route to target node", data={
+                                                        "decision_node": dep_id,
+                                                        "execution_index": execution_index,
+                                                        "target_node": node_id
+                                                    })
+                                                    return True
+                                        
+                                        # If we get here, this execution doesn't route to our target
+                                        logger.info(f"⏭️ Execution {execution_index + 1} doesn't route to target node", data={
+                                            "decision_node": dep_id,
+                                            "execution_index": execution_index,
+                                            "target_node": node_id,
+                                            "route_index": route_index
+                                        })
+                                        
+                                        # Continue to next execution
+                                        continue
                     
-                    # If no routing info at all from a decision node, skip conditional branches
-                    if route_index is None and routed_to is None:
-                        # Check if this edge has routing requirements
-                        for edge in self.edges:
-                            if edge.source == dep_id and edge.target == node_id:
-                                if edge.data and edge.data.route_index is not None:
-                                    logger.warning(f"⚠️  Decision node {dep_id} provided no routing - skipping conditional branch", data={
-                                        "node_id": node_id,
-                                        "decision_node": dep_id,
-                                        "edge_route_index": edge.data.route_index,
-                                        "edge_route_label": edge.data.route_label,
-                                        "reason": "No routing decision from parent (likely SLA violation)"
-                                    })
-                                    return False
+                    # If we get here, none of the executions routed to this target node
+                    logger.info("❌ No executions routed to target node", data={
+                        "decision_node": dep_id,
+                        "target_node": node_id,
+                        "total_executions": len(gate_results)
+                    })
+                    return False
                     
                     # Check for simple boolean result (for boolean_mux, etc.)
                     result_value = None

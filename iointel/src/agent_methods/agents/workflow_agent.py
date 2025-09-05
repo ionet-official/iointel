@@ -3,6 +3,7 @@ import uuid
 from typing import Dict, Any, Optional
 from iointel.src.agents import Agent
 from iointel.src.memory import AsyncMemory
+from iointel.src.simple_conversation import simple_conversation
 from iointel.src.agent_methods.data_models.workflow_spec import WorkflowSpec, WorkflowSpecLLM
 from datetime import datetime
 from iointel.src.utilities.io_logger import log_prompt, get_component_logger
@@ -58,10 +59,12 @@ class WorkflowPromptBuilder:
             get_valid_data_source_names, 
             create_data_source_knowledge_section
         )
+        from iointel.src.utilities.constants import get_available_models
         
         valid_sources = get_valid_data_source_names()
         sources_list = "', '".join(valid_sources)
         data_source_knowledge = create_data_source_knowledge_section()
+        available_models = get_available_models()
         
         # Render the template with dynamic data
         prompt_instance = unified_prompt_system.render_prompt(
@@ -105,6 +108,20 @@ class WorkflowPromptBuilder:
             "⚠️ Config CANNOT be null or empty {} - it MUST have both fields!",
             "=" * 80,
             "",
+            "🤖 AVAILABLE LLM MODELS:",
+            "When users ask about available models, you can use these:",
+            "",
+            *[f"  • {model}" for model in available_models],
+            "",
+            "💡 Model Selection Guidelines:",
+            "  • gpt-4o: Best for complex reasoning and structured output",
+            "  • meta-llama/Llama-3.3-70B-Instruct: Great for conversation and general tasks", 
+            "  • meta-llama/Llama-3.1-8B-Instruct: Fast and efficient for simple tasks",
+            "  • meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8: Compact and efficient",
+            "  • Qwen/Qwen3-Coder-480B-A35B-Instruct-FP8: Specialized for coding tasks",
+            "",
+            "=" * 80,
+            "",
             self._build_error_feedback(),
             self._build_previous_workflow_context(), 
             self._build_refinement_guidance() if self.previous_workflow else None,
@@ -137,11 +154,12 @@ class WorkflowPromptBuilder:
             return ""
         
         return f"""
-🔄 WORKFLOW REFINEMENT REQUEST:
-The user is asking to refine or improve an existing workflow. 
-Consider the previous workflow structure and user feedback to make targeted improvements.
+🔄 WORKFLOW MODIFICATION REQUEST:
+The user is asking to MODIFY the existing workflow: "{self.previous_workflow.title}"
+This is NOT a new workflow generation - you must modify the existing structure.
 
-Previous workflow: {self.previous_workflow.title}
+🚨 CRITICAL: Use the workflow structure provided in the "PREVIOUS WORKFLOW" section above as your starting point.
+Do NOT create a new workflow from scratch. Only modify what the user specifically requests.
 """
     
     def _build_tools_section(self) -> str:
@@ -227,12 +245,24 @@ prompt_tool template:
         
         # Add refinement-specific guidance
         refinement_guidance = f"""
-📝 PREVIOUS WORKFLOW (for reference):
+🚨🚨🚨 CRITICAL: WORKFLOW MODIFICATION REQUEST 🚨🚨🚨
+The user is asking to MODIFY the existing workflow below. You MUST:
+1. Use the EXACT workflow structure below as your starting point
+2. Only modify what the user specifically requests
+3. Keep all other nodes, edges, and configurations unchanged
+4. Do NOT create a new workflow from scratch
+5. Do NOT change the workflow title unless specifically requested
+
+📝 CURRENT WORKFLOW TO MODIFY:
 {workflow_prompt}
 
-🔄 REFINEMENT MODE: You should preserve the overall structure and only modify what the user specifically requests. 
-When user says "change X to Y", find node X and replace it with Y while keeping all connections intact.
-When user says "remove X" or "Change tool X to required as last step", remove only that specific item (tool, node, etc.) and keep everything else.
+🔄 MODIFICATION INSTRUCTIONS:
+- When user says "change X to Y", find node X and replace it with Y while keeping all connections intact
+- When user says "remove X", remove only that specific item (tool, node, etc.) and keep everything else
+- When user says "add X", add X while preserving the existing structure
+- IGNORE any conflicting information from conversation history - use ONLY the workflow above as your base
+
+⚠️ DO NOT HALLUCINATE: If the user mentions concepts not in the current workflow, ask for clarification rather than creating new nodes.
 """
         
         return refinement_guidance
@@ -354,7 +384,7 @@ class WorkflowPlanner:
         # Initialize the underlying agent with structured output
         self.agent = Agent(
             name="WorkflowPlanner",
-            instructions=get_workflow_planner_instructions(),  # Dynamic prompt with valid data sources
+            instructions=get_workflow_planner_instructions(),  # Base instructions - WorkflowPromptBuilder adds context
             model=model or os.getenv("MODEL_NAME", "gpt-4o"),
             api_key=api_key or os.getenv("OPENAI_API_KEY"),
             base_url=base_url or os.getenv("OPENAI_API_BASE", "https://api.openai.com/v1"),
@@ -438,8 +468,8 @@ class WorkflowPlanner:
                         # Set the context on the agent before running
                         self.agent.set_context(context_info)
                         
-                        # Filter out conversation_id from kwargs to prevent duplicate parameter error
-                        filtered_kwargs = {k: v for k, v in kwargs.items() if k != 'conversation_id'}
+                        # Filter out deprecated and duplicate parameters
+                        filtered_kwargs = {k: v for k, v in kwargs.items() if k not in ['conversation_id', 'result_type']}
                         
                         # Log the full prompt context
                         with self.logger.group("Prompt Context"):
@@ -505,6 +535,7 @@ class WorkflowPlanner:
                         with self.logger.group("LLM Generation"):
                             self.logger.info("Calling LLM with query", data={"query": query})
                             
+                            ## THE MAIN SHEBANG
                             result = await self.agent.run(
                                 query,  # Just pass the user's simple request like "stock agent"
                                 conversation_id=self.conversation_id,
@@ -514,6 +545,16 @@ class WorkflowPlanner:
                             
                             # result is a dict with 'result' key containing WorkflowSpecLLM
                             workflow_result = result['result'] if result else None
+                            
+                            # Store simple conversation turn (user input + agent response)
+                            if workflow_result:
+                                # Extract clean agent response from the workflow result
+                                agent_response = workflow_result.reasoning or f"Generated workflow: {workflow_result.title or 'Untitled'}"
+                                print(f"🔵 Storing simple conversation: {self.conversation_id} | {query[:50]}... | {agent_response[:50]}...")
+                                success = simple_conversation.add(self.conversation_id, query, agent_response)
+                                print(f"🔵 Simple conversation storage: {'✅ Success' if success else '❌ Failed'}")
+                            else:
+                                print(f"🔵 No workflow result to store for conversation: {self.conversation_id}")
                             
                             self.logger.info("LLM responded", data={
                                 "result_type": type(workflow_result).__name__ if workflow_result else "None",

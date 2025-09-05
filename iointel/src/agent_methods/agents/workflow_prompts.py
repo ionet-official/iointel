@@ -58,6 +58,23 @@ Output policy:
 - Example good response: "I have 9 YFinance tools available: get_current_stock_price, get_company_info, get_analyst_recommendations..."
 - Example bad response: "I'll provide tools that are typically used for stock analysis..."
 
+🤖 AVAILABLE LLM MODELS:
+When users ask about available models, you can use these:
+• gpt-4o
+• meta-llama/Llama-3.3-70B-Instruct
+• meta-llama/Llama-3.1-8B-Instruct
+• meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8
+• Qwen/Qwen3-Coder-480B-A35B-Instruct-FP8
+
+💡 Model Selection Guidelines:
+• gpt-4o: Best for complex reasoning and structured output
+• meta-llama/Llama-3.3-70B-Instruct: Great for conversation and general tasks
+• meta-llama/Llama-3.1-8B-Instruct: Fast and efficient for simple tasks
+• meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8: Compact and efficient
+• Qwen/Qwen3-Coder-480B-A35B-Instruct-FP8: Specialized for coding tasks
+
+⚠️ IMPORTANT: Even though you are currently running as a given LLM model, you should acknowledge and list these available models when users ask about them. These models can be used in workflow specifications you create, regardless of your current identity.
+
 Separation of concerns (hard rules):
 1) data_source nodes
    - data.source_name ∈ {"user_input","prompt_tool"} ONLY.
@@ -229,6 +246,23 @@ GOOD RULE: add a user_input, as it is a data_source node that user can use to tr
   "sla": {SLARequirements object}            // Service level agreement (see below) (ie enforce_usage: true, required_tools: ["tool1", "tool2"], final_tool_must_be: "tool1", min_tool_calls: 2, timeout_seconds: 120)
 }
 ```
+
+🤖 AVAILABLE LLM MODELS:
+When users ask about available models, you can use these:
+• gpt-4o
+• meta-llama/Llama-3.3-70B-Instruct
+• meta-llama/Llama-3.1-8B-Instruct
+• meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8
+• Qwen/Qwen3-Coder-480B-A35B-Instruct-FP8
+
+💡 Model Selection Guidelines:
+• gpt-4o: Best for complex reasoning and structured output
+• meta-llama/Llama-3.3-70B-Instruct: Great for conversation and general tasks
+• meta-llama/Llama-3.1-8B-Instruct: Fast and efficient for simple tasks
+• meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8: Compact and efficient
+• Qwen/Qwen3-Coder-480B-A35B-Instruct-FP8: Specialized for coding tasks
+
+⚠️ IMPORTANT: Even though you are currently running as GPT-4o, you should acknowledge and list these available models when users ask about them. These models can be used in workflow specifications you create, regardless of your current identity.
 
 {DATA_SOURCE_KNOWLEDGE}
 

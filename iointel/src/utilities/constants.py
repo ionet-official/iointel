@@ -28,6 +28,16 @@ def get_api_key() -> str:
     return _get_env_var("KEY")
 
 
+def get_available_models() -> list[str]:
+    """Get list of all available LLM models."""
+    return [
+        "gpt-4o",
+        "meta-llama/Llama-3.3-70B-Instruct", 
+        "meta-llama/Llama-3.1-8B-Instruct",
+        "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8",
+        "Qwen/Qwen3-Coder-480B-A35B-Instruct-FP8"
+    ]
+
 def get_model_config(model: Optional[str] = None, api_key: Optional[str] = None, base_url: Optional[str] = None) -> dict:
     """
     Centralized function to get the correct API configuration for any model.

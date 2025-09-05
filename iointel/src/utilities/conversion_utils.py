@@ -646,9 +646,37 @@ class ConversionUtils:
         # Add data source config examples if needed
         if is_data_source:
             sections.extend([
-                "⚠️ MANDATORY CONFIG EXAMPLES - ALWAYS INCLUDE ALL REQUIRED FIELDS:",
-                '  user_input: {"source_name": "user_input", "type": "data_source", "config": {"message": "Enter your input", "default_value": "Default response"}}',
-                '  prompt_tool: {"source_name": "prompt_tool", "type": "data_source", "config": {"message": "Enter contextual info", "default_value": "Default context"}}',
+                "⚠️ **MANDATORY CONFIG EXAMPLES** - ALWAYS INCLUDE ALL REQUIRED FIELDS:",
+                "",
+                "**user_input template:**",
+                '```json',
+                '{',
+                '  "type": "data_source",',
+                '  "label": "Your Label Here",',
+                '  "data": {',
+                '    "source_name": "user_input",',
+                '    "config": {',
+                '      "message": "Enter your input",',
+                '      "default_value": "Default response"',
+                '    }',
+                '  }',
+                '}',
+                '```',
+                "",
+                "**prompt_tool template:**",
+                '```json',
+                '{',
+                '  "type": "data_source",',
+                '  "label": "Your Label Here",',
+                '  "data": {',
+                '    "source_name": "prompt_tool",',
+                '    "config": {',
+                '      "message": "Enter contextual info",',
+                '      "default_value": "Default context"',
+                '    }',
+                '  }',
+                '}',
+                '```',
                 ""
             ])
         
@@ -679,45 +707,41 @@ class ConversionUtils:
             sections.append("")
             
             for tool_name, tool_info in sorted(tools, key=lambda x: x[0]):
-                # Check format type
-                if 'params' in tool_info:
-                    # Concise format
-                    desc = tool_info.get('description', '')
-                    params = tool_info.get('params', [])
-                    param_str = f"({', '.join(params)})" if params else "()"
-                    
-                    if is_data_source:
-                        sections.append(f"  • source_name: `{tool_name}{param_str}` - {desc}")
-                    else:
-                        sections.append(f"  • `{tool_name}{param_str}` - {desc}")
+                # Beautiful, consistent formatting for all tools
+                desc = tool_info.get('description', 'No description available')
+                
+                # Get parameters in a clean format - PRESERVE TYPE INFORMATION
+                parameters = tool_info.get('parameters', {})
+                if parameters:
+                    # Use verbose format parameters with proper types
+                    param_list = []
+                    for param, param_info in parameters.items():
+                        if isinstance(param_info, dict):
+                            param_type = param_info.get('type', 'any')
+                            required = param_info.get('required', False)
+                            req_str = " (required)" if required else " (optional)"
+                            param_list.append(f"{param}: {param_type}{req_str}")
+                        else:
+                            param_list.append(f"{param}: {param_info}")
+                    param_str = f"({', '.join(param_list)})"
                 else:
-                    # Verbose format
-                    sections.append(f"  • `{tool_name}`")
-                    sections.append(f"     Description: {tool_info.get('description', 'No description')}")
-                    
-                    parameters = tool_info.get('parameters', {})
-                    if parameters:
-                        sections.append("     Parameters:")
-                        for param, param_info in parameters.items():
-                            if isinstance(param_info, dict):
-                                param_type = param_info.get('type', 'any')
-                                required = param_info.get('required', False)
-                                desc = param_info.get('description', '')
-                                req_str = " (required)" if required else " (optional)"
-                                sections.append(f"       • {param} ({param_type}){req_str}: {desc}")
-                            else:
-                                sections.append(f"       • {param}: {param_info}")
+                    # No parameters available
+                    param_str = "()"
+                
+                # Create beautiful, consistent tool entry
+                sections.append(f"  • `{tool_name}{param_str}` - {desc}")
             
             sections.append("")
         
-        # Add comprehensive usage notes
+        # Add beautiful usage notes
         sections.extend([
             "---",
             "📝 **USAGE NOTES:**",
-            "• Use EXACT tool names as shown above (case-sensitive)",
-            "• Tools are grouped by functionality - if you need stock data, look in the Stock Market section",  
-            "• If a tool is not listed here, it DOES NOT EXIST - do not hallucinate tool names",
-            "• For complex workflows, combine tools from different categories",
+            "",
+            "• **Use EXACT tool names** as shown above (case-sensitive)",
+            "• **Tools are grouped by functionality** - if you need stock data, look in the Stock Market section",  
+            "• **If a tool is not listed here, it DOES NOT EXIST** - do not hallucinate tool names",
+            "• **For complex workflows, combine tools** from different categories",
             ""
         ])
         

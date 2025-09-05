@@ -42,7 +42,7 @@ from .execution_feedback import (
     feedback_collector, 
     create_execution_feedback_prompt
 )
-from ..utilities.io_logger import workflow_logger, execution_logger, system_logger
+from iointel.src.utilities.io_logger import workflow_logger, execution_logger, system_logger
 from iointel.src.utilities.workflow_helpers import execute_workflow_with_metadata
 from iointel.src.agent_methods.tools.collection_manager import search_collections, create_collection
 from .test_analytics_api import test_analytics_router
@@ -413,7 +413,7 @@ connections: List[WebSocket] = []
 
 # Debug prompt history
 # Import prompt logging from io_logger
-from ..utilities.io_logger import get_prompt_history, clear_prompt_history
+from iointel.src.utilities.io_logger import get_prompt_history, clear_prompt_history
 
 
 def serialize_value_for_json(value):
@@ -1019,6 +1019,196 @@ async def get_execution_status(execution_id: str):
 async def get_prompt_history_api():
     """Get the prompt history for debugging."""
     return {"prompts": get_prompt_history()}
+
+
+@app.get("/api/prompts/conversations/recent")
+async def get_recent_conversations(limit: int = 10):
+    """Get the most recent conversation IDs."""
+    from sqlalchemy import select, desc
+    
+    try:
+        from iointel.src.memory import ConversationHistory
+        async with planner.agent.memory.SessionLocal() as session:
+            result = await session.execute(
+                select(ConversationHistory.conversation_id, ConversationHistory.created_at)
+                .order_by(desc(ConversationHistory.created_at))
+                .limit(limit)
+            )
+            conversations = result.fetchall()
+            
+            return {
+                "recent_conversations": [
+                    {
+                        "conversation_id": conv.conversation_id,
+                        "created_at": conv.created_at.isoformat()
+                    }
+                    for conv in conversations
+                ],
+                "count": len(conversations),
+                "limit": limit
+            }
+    except Exception as e:
+        return {"error": f"Database error: {str(e)}"}
+
+
+@app.get("/api/conversations/recent")
+async def get_simple_recent_conversations(limit: int = 10):
+    """Get recent conversation IDs."""
+    try:
+        from iointel.src.simple_conversation import simple_conversation
+        conversations = simple_conversation.get_recent_conversations(limit)
+        
+        return {
+            "recent_conversations": conversations,
+            "count": len(conversations),
+            "limit": limit
+        }
+    except Exception as e:
+        return {"error": f"Error getting conversations: {str(e)}"}
+
+
+@app.get("/api/conversations/{conversation_id}")
+async def get_simple_conversation(conversation_id: str, limit: int = 10):
+    """Get simple conversation history by ID."""
+    try:
+        from iointel.src.simple_conversation import simple_conversation
+        conversation = simple_conversation.get_conversation(conversation_id, limit)
+        
+        return {
+            "conversation_id": conversation_id,
+            "messages": conversation,
+            "count": len(conversation)
+        }
+    except Exception as e:
+        return {"error": f"Error getting conversation: {str(e)}"}
+
+
+@app.post("/api/conversations/{conversation_id}")
+async def add_simple_conversation_turn(conversation_id: str, request: dict):
+    """Add a conversation turn (user input + agent response)."""
+    try:
+        from iointel.src.simple_conversation import simple_conversation
+        
+        user_input = request.get("user_input", "")
+        agent_response = request.get("agent_response", "")
+        
+        if not user_input or not agent_response:
+            return {"error": "Both user_input and agent_response are required"}
+        
+        success = simple_conversation.add(conversation_id, user_input, agent_response)
+        
+        if success:
+            return {"status": "success", "message": "Conversation turn added"}
+        else:
+            return {"error": "Failed to add conversation turn"}
+    except Exception as e:
+        return {"error": f"Error adding conversation: {str(e)}"}
+
+
+@app.get("/api/prompts/conversation/{conversation_id}")
+async def get_full_conversation(conversation_id: str):
+    """Get full conversation data by ID."""
+    import json
+    from sqlalchemy import select
+    
+    try:
+        from iointel.src.memory import ConversationHistory
+        async with planner.agent.memory.SessionLocal() as session:
+            result = await session.execute(
+                select(ConversationHistory).where(ConversationHistory.conversation_id == conversation_id)
+            )
+            conversation = result.scalar_one_or_none()
+            
+            if not conversation:
+                return {"error": f"Conversation {conversation_id} not found"}
+            
+            messages_data = json.loads(conversation.messages_json)
+            
+            return {
+                "conversation_id": conversation_id,
+                "created_at": conversation.created_at.isoformat(),
+                "message_count": len(messages_data),
+                "full_messages": messages_data
+            }
+    except Exception as e:
+        return {"error": f"Database error: {str(e)}"}
+
+
+@app.get("/api/prompts/stored")
+async def get_stored_prompts():
+    """Get all stored prompts from database and file system."""
+    import json
+    from pathlib import Path
+    from sqlalchemy import select, text
+    
+    # Get conversation prompts from database
+    db_prompts = []
+    try:
+        # Use the global memory instance
+        from iointel.src.memory import ConversationHistory
+        async with planner.agent.memory.SessionLocal() as session:
+            result = await session.execute(select(ConversationHistory))
+            conversations = result.scalars().all()
+            
+            for conv in conversations:
+                try:
+                    messages_data = json.loads(conv.messages_json)
+                    db_prompts.append({
+                        "id": conv.conversation_id,
+                        "type": "conversation",
+                        "created_at": conv.created_at.isoformat(),
+                        "message_count": len(messages_data),
+                        "preview": messages_data[0].get("parts", [{}])[0].get("content", "")[:100] + "..." if messages_data else "No messages"
+                    })
+                except Exception as e:
+                    db_prompts.append({
+                        "id": conv.conversation_id,
+                        "type": "conversation",
+                        "created_at": conv.created_at.isoformat(),
+                        "error": f"Failed to parse: {str(e)}"
+                    })
+    except Exception as e:
+        db_prompts = [{"error": f"Database error: {str(e)}"}]
+    
+    # Get file-based prompts
+    file_prompts = []
+    try:
+        prompt_dir = Path("prompt_repository/instances")
+        if prompt_dir.exists():
+            for prompt_file in list(prompt_dir.glob("*.json"))[:10]:  # Limit to first 10
+                try:
+                    with open(prompt_file) as f:
+                        data = json.load(f)
+                    file_prompts.append({
+                        "id": prompt_file.stem,
+                        "type": "file_instance",
+                        "created_at": data.get("created_at", "unknown"),
+                        "template_id": data.get("template_id", "unknown"),
+                        "preview": (data.get("content", "") or data.get("rendered_prompt", ""))[:100] + "..." if (data.get("content") or data.get("rendered_prompt")) else "No content"
+                    })
+                except Exception as e:
+                    file_prompts.append({
+                        "id": prompt_file.stem,
+                        "type": "file_instance",
+                        "error": f"Failed to parse: {str(e)}"
+                    })
+    except Exception as e:
+        file_prompts = [{"error": f"File system error: {str(e)}"}]
+    
+    # Get in-memory prompts
+    memory_prompts = get_prompt_history()
+    
+    return {
+        "summary": {
+            "database_conversations": len([p for p in db_prompts if "error" not in p]),
+            "file_instances": len(file_prompts),
+            "memory_prompts": len(memory_prompts),
+            "total_file_instances": len(list(Path("prompt_repository/instances").glob("*.json"))) if Path("prompt_repository/instances").exists() else 0
+        },
+        "database_prompts": db_prompts[:5],  # Show first 5
+        "file_prompts": file_prompts,
+        "memory_prompts": memory_prompts
+    }
 
 
 @app.post("/api/prompts/clear")
@@ -1938,7 +2128,7 @@ async def send_execution_feedback_to_planner(execution_summary: WorkflowExecutio
         )
         
         # Initialize WorkflowPlanner for feedback analysis
-        from ..agent_methods.agents.workflow_agent import WorkflowPlanner
+        from iointel.src.agent_methods.agents.workflow_agent import WorkflowPlanner
         
         # CRITICAL: Use the EXACT SAME conversation ID as the main planner for continuity
         # This ensures the feedback planner sees its own workflow generation in conversation history
@@ -2030,7 +2220,7 @@ async def send_execution_feedback_to_planner(execution_summary: WorkflowExecutio
 
 def create_example_workflows():
     """Create multiple example workflows for the dropdown."""
-    from ..test_workflows import create_workflow_examples
+    from iointel.src.test_workflows.workflow_examples import create_workflow_examples
     return create_workflow_examples()
 
 
