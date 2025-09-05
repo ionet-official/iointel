@@ -78,8 +78,11 @@ def _create_workflow_planner(conversation_id: str, debug: bool = False) -> Workf
 
 def _create_dag_executor(feedback_collector: Optional[ExecutionFeedbackCollector] = None) -> DAGExecutor:
     """Create a configured DAGExecutor instance."""
+    import os
+    max_concurrent = int(os.getenv("MAX_CONCURRENT_AGENTS", "3"))
     return DAGExecutor(
-        feedback_collector=feedback_collector
+        feedback_collector=feedback_collector,
+        max_concurrent_agents=max_concurrent
     )
 
 
@@ -103,12 +106,42 @@ def _build_node_results(final_state: WorkflowState, workflow_spec: WorkflowSpec)
     """Build typed node results from final state."""
     node_results = {}
     
-    # Create a lookup for node types from the workflow spec
+    # Create lookups for node types and labels from the workflow spec
     node_type_lookup = {node.id: node.type for node in workflow_spec.nodes}
+    node_label_lookup = {node.id: node.label for node in workflow_spec.nodes}
     
     for node_id, result in final_state.results.items():
-        # Get actual node type from workflow spec
+        # Get actual node type and label from workflow spec
         actual_node_type = node_type_lookup.get(node_id, "agent")
+        node_label = node_label_lookup.get(node_id, node_id)  # Fallback to node_id if no label
+        
+        # If the label is still generic (like "agent_1"), generate a meaningful one
+        if node_label and node_label.startswith(f"{actual_node_type}_"):
+            # Find the actual node in the workflow spec to get more info
+            actual_node = None
+            for node in workflow_spec.nodes:
+                if node.id == node_id:
+                    actual_node = node
+                    break
+            
+            if actual_node:
+                if actual_node_type == "agent" and hasattr(actual_node.data, 'agent_instructions'):
+                    instructions = actual_node.data.agent_instructions
+                    if instructions:
+                        # Extract first few words as label
+                        words = instructions.split()[:3]
+                        node_label = ' '.join(words).title()
+                        if len(node_label) > 30:
+                            node_label = node_label[:27] + "..."
+                    else:
+                        node_label = f"Agent {node_id.split('_')[-1]}"
+                elif actual_node_type == "data_source" and hasattr(actual_node.data, 'source_name'):
+                    source_name = actual_node.data.source_name
+                    node_label = f"{source_name.replace('_', ' ').title()} Input"
+                elif actual_node_type == "decision":
+                    node_label = f"Decision Point {node_id.split('_')[-1]}"
+                else:
+                    node_label = f"{actual_node_type.replace('_', ' ').title()} {node_id.split('_')[-1]}"
         
         # Map to execution model node types
         if actual_node_type == "data_source":
@@ -127,6 +160,7 @@ def _build_node_results(final_state: WorkflowState, workflow_spec: WorkflowSpec)
         
         node_results[node_id] = NodeExecutionResult(
             node_id=node_id,
+            node_label=node_label,
             node_type=node_type,
             status=ExecutionStatus.COMPLETED,
             result=node_result
@@ -370,10 +404,10 @@ async def execute_workflow_with_metadata(
         
         # Complete feedback tracking with error if collector provided
         if feedback_collector:
-            feedback_collector.complete_execution_tracking(
+            feedback_collector.complete_execution(
                 execution_id=execution_id,
                 final_outputs={},
-                execution_summary={"error": str(e), "status": "failed"}
+                error_summary=str(e)
             )
         
         return WorkflowExecutionResult(

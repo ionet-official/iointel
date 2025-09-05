@@ -149,6 +149,7 @@ class DataSourceResult(BaseModel):
 class NodeExecutionResult(BaseModel):
     """Generic result from any node execution."""
     node_id: str
+    node_label: Optional[str] = None
     node_type: Literal["data_source", "agent", "tool", "decision", "workflow_call"]
     status: ExecutionStatus
     result: Union[AgentExecutionResult, DataSourceResult, Dict[str, Any]]

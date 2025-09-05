@@ -23,6 +23,33 @@ def _clean_type_name(type_name: str) -> str:
     return _TYPE_MAPPING.get(type_name, type_name)
 
 
+def _clean_tool_schema(schema: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Clean tool schema by removing fields that are not accepted by the API.
+    
+    This removes the 'strict' field that pydantic-ai adds but the API rejects.
+    """
+    if not isinstance(schema, dict):
+        return schema
+    
+    # Create a deep copy to avoid modifying the original
+    import copy
+    cleaned_schema = copy.deepcopy(schema)
+    
+    # Remove 'strict' field from the schema
+    if 'strict' in cleaned_schema:
+        del cleaned_schema['strict']
+    
+    # Recursively clean nested objects
+    for key, value in cleaned_schema.items():
+        if isinstance(value, dict):
+            cleaned_schema[key] = _clean_tool_schema(value)
+        elif isinstance(value, list):
+            cleaned_schema[key] = [_clean_tool_schema(item) if isinstance(item, dict) else item for item in value]
+    
+    return cleaned_schema
+
+
 def _extract_parameters_from_schema(json_schema: Dict[str, Any]) -> tuple[Dict[str, Any], List[str]]:
     """Extract parameters from pydantic-ai generated schema."""
     properties = json_schema.get("properties", {})
@@ -33,6 +60,11 @@ def _extract_parameters_from_schema(json_schema: Dict[str, Any]) -> tuple[Dict[s
         param_type = param_info.get("type", "any")
         param_desc = param_info.get("description", "No description available")
         default_val = param_info.get("default")
+        
+        # Handle array types with items
+        if param_type == "array" and "items" in param_info:
+            items_type = param_info["items"].get("type", "any")
+            param_type = f"array[{items_type}]"
         
         param_entry = {
             "type": param_type,
@@ -103,13 +135,18 @@ def _format_catalog_entry(tool: Tool, parameters: Dict[str, Any], required_param
                          verbose_format: bool, func_schema=None) -> Dict[str, Any]:
     """Format a catalog entry based on format preference."""
     if verbose_format:
+        # Clean the JSON schema to remove problematic fields like 'strict'
+        cleaned_schema = None
+        if func_schema and func_schema.json_schema:
+            cleaned_schema = _clean_tool_schema(func_schema.json_schema)
+        
         return {
             "name": tool.name,
             "description": func_schema.description if func_schema else tool.description,
             "parameters": parameters,
             "required_parameters": required_params,
             "is_async": func_schema.is_async if func_schema else tool.is_async,
-            "json_schema": func_schema.json_schema if func_schema else None
+            "json_schema": cleaned_schema
         }
     else:
         brief_desc = (func_schema.description if func_schema else tool.description) or "SHOULD NOT HAPPEN"

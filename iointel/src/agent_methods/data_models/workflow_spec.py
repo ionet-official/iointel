@@ -437,15 +437,12 @@ class WorkflowSpecLLM(BaseModel):
     - Route indices start at 0 and increment (0=first branch, 1=second, etc.)
     """
     reasoning: str = Field(
-        default="",
-        description="Explain design decisions briefly (or chat response when nodes/edges are null)."
+        description="Explain design decisions as a chat response, or just chat with user using this field."
     )
-    title: str | None = Field(
-        default=None,
+    title: str = Field(
         description="Short workflow title. Use null for chat-only responses."
     )
-    description: str | None = Field(
-        default=None,
+    description: str = Field(
         description="One-sentence workflow description. Use null for chat-only responses."
     )
     nodes: list[NodeSpecLLM] | None = Field(
@@ -524,11 +521,39 @@ class WorkflowSpec(BaseModel):
             node_id = f"{node_type}_{counter}"
             label_to_id_map[llm_node.label] = node_id
             
+            # Generate meaningful label if LLM provided generic one
+            if llm_node.label and not llm_node.label.startswith(f"{node_type}_"):
+                # LLM provided a meaningful label, use it
+                node_label = llm_node.label
+            else:
+                # Generate meaningful label based on node type and data
+                if node_type == "data_source":
+                    source_name = getattr(llm_node.data, 'source_name', 'Unknown Source')
+                    node_label = f"{source_name.replace('_', ' ').title()} Input"
+                elif node_type == "agent":
+                    # Try to extract meaningful name from agent instructions
+                    instructions = getattr(llm_node.data, 'agent_instructions', '')
+                    if instructions:
+                        # Extract first few words as label
+                        words = instructions.split()[:3]
+                        node_label = ' '.join(words).title()
+                        if len(node_label) > 30:
+                            node_label = node_label[:27] + "..."
+                    else:
+                        node_label = f"Agent {counter}"
+                elif node_type == "decision":
+                    node_label = f"Decision Point {counter}"
+                elif node_type == "workflow_call":
+                    workflow_id = getattr(llm_node.data, 'workflow_id', 'Unknown')
+                    node_label = f"Call {workflow_id}"
+                else:
+                    node_label = f"{node_type.replace('_', ' ').title()} {counter}"
+            
             # Create the appropriate node type with ID
             node_data = {
                 "id": node_id,
                 "type": node_type,
-                "label": llm_node.label,
+                "label": node_label,
                 "data": llm_node.data,
                 "position": None,
                 "runtime": {},

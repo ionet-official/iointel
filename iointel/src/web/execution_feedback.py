@@ -364,13 +364,17 @@ class ExecutionFeedbackCollector:
             # Return minimal summary with error status
             return WorkflowExecutionSummary(
                 execution_id=execution_id,
+                workflow_id="unknown",
+                workflow_title="Unknown Workflow",
                 status=ExecutionStatus.FAILED,
-                total_duration=0,
-                node_count=0,
-                executed_count=0,
-                skipped_count=0,
-                efficiency=0.0,
-                execution_path=[],
+                started_at=execution_data.get("started_at", datetime.now().isoformat()),
+                finished_at=datetime.now().isoformat(),
+                total_duration_seconds=0.0,
+                nodes_executed=[],
+                nodes_skipped=[],
+                user_inputs=execution_data.get("user_inputs", {}),
+                final_outputs={},
+                workflow_spec=None,
                 error_summary=error_summary or "Workflow specification was not found"
             )
         

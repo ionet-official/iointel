@@ -36,7 +36,7 @@ class DAGExecutor:
     Supports conditional execution gating through decision nodes.
     """
     
-    def __init__(self, feedback_collector=None):
+    def __init__(self, feedback_collector=None, max_concurrent_agents: int = 8):
         self.nodes: Dict[str, DAGNode] = {}
         self.execution_order: List[List[str]] = []  # List of batches that can run in parallel
         self.edges: List[EdgeSpec] = []  # Store edges for conditional checking
@@ -45,6 +45,8 @@ class DAGExecutor:
         self.workflow_spec: Optional[WorkflowSpec] = None  # Store the full workflow spec
         self.feedback_collector = feedback_collector  # Optional feedback tracking
         self.execution_id: Optional[str] = None  # Track current execution ID
+        self.max_concurrent_agents = max_concurrent_agents  # Limit concurrent agent executions
+        self._semaphore = asyncio.Semaphore(max_concurrent_agents)  # Control concurrency
     
     def build_execution_graph(
         self, 
@@ -661,11 +663,8 @@ class DAGExecutor:
         
         return state
     
+
     async def _execute_node(self, node_id: str, state: WorkflowState) -> Any:
-        """Execute a single node using typed execution system."""
-        return await self._execute_node_typed(node_id, state)
-    
-    async def _execute_node_typed(self, node_id: str, state: WorkflowState) -> Any:
         """Execute a single node using typed execution system."""
         from .typed_execution import TypedExecutionContext, TypedNodeExecutor
         from ..utilities.io_logger import get_component_logger
@@ -694,12 +693,12 @@ class DAGExecutor:
             raise
     
     async def _execute_batch_parallel(self, batch: List[str], state: WorkflowState) -> Dict[str, Any]:
-        """Execute a batch of nodes in parallel."""
-        # Create tasks for parallel execution
+        """Execute a batch of nodes in parallel with concurrency control."""
+        # Create tasks for parallel execution with semaphore control
         tasks = []
         for node_id in batch:
             task = asyncio.create_task(
-                self._execute_node(node_id, state),
+                self._execute_node_with_semaphore(node_id, state),
                 name=f"execute_{node_id}"
             )
             tasks.append((node_id, task))
@@ -715,6 +714,12 @@ class DAGExecutor:
                 raise
         
         return results
+    
+    async def _execute_node_with_semaphore(self, node_id: str, state: WorkflowState) -> Any:
+        """Execute a single node with semaphore-based concurrency control."""
+        async with self._semaphore:
+            logger.info(f"🚀 Executing node {node_id} (concurrency: {self.max_concurrent_agents - self._semaphore._value}/{self.max_concurrent_agents})")
+            return await self._execute_node(node_id, state)
     
     async def _record_node_completion(self, node_id: str, result: Any, success: bool, error: Optional[str] = None):
         """Record node completion with the feedback collector."""
