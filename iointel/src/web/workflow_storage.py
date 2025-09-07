@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Any
 from datetime import datetime
 import uuid
-from ..agent_methods.data_models.workflow_spec import WorkflowSpec
+from iointel.src.agent_methods.data_models.workflow_spec import WorkflowSpec
 
 
 class WorkflowStorage:

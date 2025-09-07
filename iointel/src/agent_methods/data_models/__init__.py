@@ -4,7 +4,7 @@ Data models package.
 This package contains Pydantic models for agents, workflows, and tools.
 """
 
-from .datamodels import (
+from iointel.src.agent_methods.data_models.datamodels import (
     Tool,
     AgentParams,
     PersonaConfig,
@@ -18,7 +18,7 @@ from .datamodels import (
     ModerationException,
 )
 
-from .workflow_spec import (
+from iointel.src.agent_methods.data_models.workflow_spec import (
     WorkflowSpec,
     WorkflowSpecLLM,
     NodeSpec,

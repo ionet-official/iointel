@@ -1,7 +1,7 @@
 from pydantic import BaseModel
 from agno.tools import Toolkit
 
-from ..utils import register_tool
+from iointel.src.agent_methods.tools.utils import register_tool
 
 
 def _create_bound_wrapper(bound_method, original_method, tool_name):

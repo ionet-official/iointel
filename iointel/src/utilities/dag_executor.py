@@ -14,9 +14,9 @@ from typing import Dict, List, Set, Optional, Any
 from collections import deque
 from dataclasses import dataclass
 
-from ..agent_methods.data_models.workflow_spec import WorkflowSpec, NodeSpec, EdgeSpec
-from .graph_nodes import WorkflowState, TaskNode, make_task_node
-from .io_logger import get_component_logger
+from iointel.src.agent_methods.data_models.workflow_spec import WorkflowSpec, NodeSpec, EdgeSpec
+from iointel.src.utilities.graph_nodes import WorkflowState, TaskNode, make_task_node
+from iointel.src.utilities.io_logger import get_component_logger
 
 logger = get_component_logger("DAG_EXECUTOR", grouped=True)
 

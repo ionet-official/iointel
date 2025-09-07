@@ -2,65 +2,52 @@
 FastAPI server for serving WorkflowSpecs to the web interface.
 """
 
+import asyncio
+import dataclasses
+import json
 import os
-import sys
 import traceback
-from typing import Dict, Any, List, Optional
+import uuid
 from datetime import datetime
+from enum import Enum
+from typing import Dict, Any, List, Optional
+
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect, Request
-from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from starlette.middleware.sessions import SessionMiddleware
 import uvicorn
-from pathlib import Path
-
-# Add project root to path for imports
-project_root = Path(__file__).parent.parent.parent.parent
-sys.path.insert(0, str(project_root))
-
 from iointel.src.agent_methods.agents.workflow_agent import WorkflowPlanner
-from iointel.src.agent_methods.data_models.workflow_spec import WorkflowSpec
-from iointel.src.agent_methods.tools.tool_loader import load_tools_from_env
-from iointel.src.utilities.tool_registry_utils import create_tool_catalog
-from iointel.src.memory import AsyncMemory
-from iointel.src.web.unified_conversation_storage import get_unified_conversation_storage
-from iointel.src.utilities.constants import get_model_config
-# Add missing imports for execution functions
-from iointel.src.chainables import execute_agent_task, execute_data_source_task, execute_tool_task
 from iointel.src.agent_methods.data_models.execution_models import (
-    DataSourceResult, ExecutionStatus, WorkflowExecutionResult
+    AgentExecutionResult, AgentRunResponse, DataSourceResult, ExecutionStatus, WorkflowExecutionResult
 )
-# WorkflowExecutionSummary is defined in execution_feedback module - MOVE THIS IMPORT UP
-from .execution_feedback import WorkflowExecutionSummary
-import uuid
-import asyncio
-import json
-# Import workflow storage
-from .workflow_storage import WorkflowStorage
-from .execution_feedback import (
+from iointel.src.agent_methods.data_models.workflow_spec import WorkflowSpec
+from iointel.src.agent_methods.tools.collection_manager import search_collections, create_collection
+from iointel.src.agent_methods.tools.tool_loader import load_tools_from_env
+from iointel.src.chainables import execute_agent_task, execute_data_source_task, execute_tool_task
+from iointel.src.memory import AsyncMemory
+from iointel.src.utilities.constants import get_model_config
+from iointel.src.utilities.io_logger import workflow_logger, execution_logger, system_logger, get_prompt_history, clear_prompt_history
+from iointel.src.utilities.tool_registry_utils import create_tool_catalog
+from iointel.src.utilities.workflow_helpers import execute_workflow_with_metadata
+from iointel.src.web.execution_feedback import (
+    WorkflowExecutionSummary,
     feedback_collector, 
     create_execution_feedback_prompt
 )
-from iointel.src.utilities.io_logger import workflow_logger, execution_logger, system_logger
-from iointel.src.utilities.workflow_helpers import execute_workflow_with_metadata
-from iointel.src.agent_methods.tools.collection_manager import search_collections, create_collection
-from .test_analytics_api import test_analytics_router
-from .workflow_rag_router import workflow_rag_router
-from .unified_search_service import UnifiedSearchService
-# Import Workflow-as-API service components
-from .workflow_api_service import (
+from iointel.src.web.test_analytics_api import test_analytics_router
+from iointel.src.web.unified_conversation_storage import get_unified_conversation_storage
+from iointel.src.web.unified_search_service import UnifiedSearchService
+from iointel.src.web.workflow_api_service import (
     workflow_api_registry,
     WorkflowRunRequest,
     WorkflowRunResponse,
     WorkflowSpecResponse
 )
+from iointel.src.web.workflow_rag_router import workflow_rag_router
+from iointel.src.web.workflow_storage import WorkflowStorage
 
-
-# Register executors for web interface
-# REMOVED task registration - using typed execution instead
-# @register_custom_task("data_source")
-# @register_custom_task("tool")  # Backward compatibility
 
 def web_executor_wrapper(executor_func):
     """Decorator to handle common web execution patterns."""
@@ -412,21 +399,10 @@ workflow_storage: Optional[WorkflowStorage] = None
 connections: List[WebSocket] = []
 
 # Debug prompt history
-# Import prompt logging from io_logger
-from iointel.src.utilities.io_logger import get_prompt_history, clear_prompt_history
 
 
 def serialize_value_for_json(value):
     """Shared utility to recursively serialize a value for JSON transmission."""
-    # Import Enum to check for enums
-    from enum import Enum
-    import dataclasses
-    
-    # Import here to avoid circular imports
-    from iointel.src.agent_methods.data_models.execution_models import (
-        AgentExecutionResult, AgentRunResponse, DataSourceResult
-    )
-    from iointel.src.web.execution_feedback import WorkflowExecutionSummary
     
     # Handle Enums first to avoid recursion
     if isinstance(value, Enum):
@@ -686,7 +662,6 @@ def serialize_workflow_execution_result(result: WorkflowExecutionResult) -> Dict
                 
                 if value is not None:
                     # Handle WorkflowExecutionSummary specially
-                    from iointel.src.web.execution_feedback import WorkflowExecutionSummary
                     if isinstance(value, WorkflowExecutionSummary):
                         print("🔍 [SERIALIZE] It's a WorkflowExecutionSummary, serializing manually...", flush=True)
                         # Manually serialize without workflow_spec to avoid hang

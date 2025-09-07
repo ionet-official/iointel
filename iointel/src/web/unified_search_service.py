@@ -16,10 +16,10 @@ from pydantic import BaseModel
 from typing import List, Optional, Dict, Any, Literal
 import uvicorn
 
-from ..utilities.semantic_rag import RAGFactory, SemanticRAGCollection
-from ..web.workflow_storage import WorkflowStorage
-from ..utilities.tool_registry_utils import create_tool_catalog
-from ..utilities.workflow_test_repository import WorkflowTestRepository, TestLayer
+from iointel.src.utilities.semantic_rag import RAGFactory, SemanticRAGCollection
+from iointel.src.web.workflow_storage import WorkflowStorage
+from iointel.src.utilities.tool_registry_utils import create_tool_catalog
+from iointel.src.utilities.workflow_test_repository import WorkflowTestRepository, TestLayer
 
 
 class UnifiedSearchRequest(BaseModel):

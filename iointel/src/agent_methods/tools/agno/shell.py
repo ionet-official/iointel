@@ -1,7 +1,7 @@
 from typing import List
 from agno.tools.shell import ShellTools as AgnoShellTools
 
-from .common import make_base, wrap_tool
+from iointel.src.agent_methods.tools.agno.common import make_base, wrap_tool
 
 
 class Shell(make_base(AgnoShellTools)):

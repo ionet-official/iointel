@@ -2,15 +2,15 @@ import os
 from typing import Callable, Optional
 
 
-from .registries import (
+from iointel.src.utilities.registries import (
     CHAINABLE_METHODS,
     TASK_EXECUTOR_REGISTRY,
     CUSTOM_WORKFLOW_REGISTRY,
     TOOLS_REGISTRY,
 )
-from ..workflow import Workflow
-from ..agent_methods.data_models.datamodels import Tool, check_fn_name, compute_fn_name
-from ..utilities.helpers import make_logger
+from iointel.src.workflow import Workflow
+from iointel.src.agent_methods.data_models.datamodels import Tool, check_fn_name, compute_fn_name
+from iointel.src.utilities.helpers import make_logger
 
 
 logger = make_logger(__name__)

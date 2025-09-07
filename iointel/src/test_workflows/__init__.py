@@ -2,7 +2,7 @@
 Test workflows module for centralized workflow examples.
 """
 
-from .workflow_examples import (
+from iointel.src.test_workflows.workflow_examples import (
     create_workflow_examples,
     get_example_metadata,
     get_example_by_id,

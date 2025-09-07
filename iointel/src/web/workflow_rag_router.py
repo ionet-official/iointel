@@ -9,8 +9,8 @@ Provides semantic search endpoints for saved workflows.
 from fastapi import APIRouter, HTTPException, Query
 from typing import Optional
 
-from .workflow_rag_service import WorkflowRAGService, WorkflowSearchRequest, WorkflowSearchResponse
-from ..agent_methods.data_models.workflow_spec import WorkflowSpec
+from iointel.src.web.workflow_rag_service import WorkflowRAGService, WorkflowSearchRequest, WorkflowSearchResponse
+from iointel.src.agent_methods.data_models.workflow_spec import WorkflowSpec
 
 # Create router for workflow RAG endpoints
 workflow_rag_router = APIRouter(prefix="/api/workflow-rag", tags=["workflow-rag"])

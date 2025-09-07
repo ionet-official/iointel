@@ -22,7 +22,7 @@ from datetime import datetime
 import re
 
 # Import existing prompt collections for compatibility
-from ..agent_methods.data_models.prompt_collections import PromptCollectionManager
+from iointel.src.agent_methods.data_models.prompt_collections import PromptCollectionManager
 
 
 class PromptType(str, Enum):

@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 from typing import Any, Dict, Optional, List, Union
 
-from .common import make_base, wrap_tool
+from iointel.src.agent_methods.tools.agno.common import make_base, wrap_tool
 
 
 class Csv(make_base(AgnoCsvTools)):

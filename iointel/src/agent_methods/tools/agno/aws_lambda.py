@@ -1,6 +1,6 @@
 from agno.tools.aws_lambda import AWSLambdaTools as AgnoAWSLambdaTools
 
-from .common import make_base, wrap_tool
+from iointel.src.agent_methods.tools.agno.common import make_base, wrap_tool
 
 
 class AWSLambda(make_base(AgnoAWSLambdaTools)):

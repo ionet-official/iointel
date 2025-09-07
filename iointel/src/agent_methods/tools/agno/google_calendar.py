@@ -2,8 +2,8 @@ from typing import Optional, List
 from functools import wraps
 from agno.tools.googlecalendar import GoogleCalendarTools as AgnoGoogleCalendarTools
 
-from ..utils import register_tool
-from .common import DisableAgnoRegistryMixin
+from iointel.src.agent_methods.tools.utils import register_tool
+from iointel.src.agent_methods.tools.agno.common import DisableAgnoRegistryMixin
 
 
 class GoogleCalendar(DisableAgnoRegistryMixin, AgnoGoogleCalendarTools):

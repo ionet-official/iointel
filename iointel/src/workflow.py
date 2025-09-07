@@ -7,36 +7,36 @@ import yaml
 from pathlib import Path
 from collections import defaultdict
 
-from .agent_methods.agents.agents_factory import (
+from iointel.src.agent_methods.agents.agents_factory import (
     agent_or_swarm,
     create_agent,
     create_swarm,
 )
-from .agent_methods.data_models.datamodels import (
+from iointel.src.agent_methods.data_models.datamodels import (
     Tool,
     WorkflowDefinition,
     TaskDefinition,
     AgentParams,
 )
-from .agents import Agent
+from iointel.src.agents import Agent
 
-from .utilities.runners import run_agents_stream
-from .utilities.registries import TASK_EXECUTOR_REGISTRY
-from .utilities.stages import execute_stage
-from .utilities.helpers import make_logger
-from .utilities.io_logger import get_component_logger
-from .utilities.registries import TOOLS_REGISTRY
-from .utilities.stages import (
+from iointel.src.utilities.runners import run_agents_stream
+from iointel.src.utilities.registries import TASK_EXECUTOR_REGISTRY
+from iointel.src.utilities.stages import execute_stage
+from iointel.src.utilities.helpers import make_logger
+from iointel.src.utilities.io_logger import get_component_logger
+from iointel.src.utilities.registries import TOOLS_REGISTRY
+from iointel.src.utilities.stages import (
     SimpleStage,
     SequentialStage,
     ParallelStage,
     WhileStage,
     FallbackStage,
 )
-from .utilities.rich import pretty_output
+from iointel.src.utilities.rich import pretty_output
 
-from .utilities.graph_nodes import WorkflowState, TaskNode, make_task_node
-from .utilities.dag_executor import DAGExecutor
+from iointel.src.utilities.graph_nodes import WorkflowState, TaskNode, make_task_node
+from iointel.src.utilities.dag_executor import DAGExecutor
 from pydantic_graph import Graph, End, GraphRunContext
 
 from rich.progress import (
@@ -894,7 +894,7 @@ class Workflow:
 
 
 # has to be down here else circular import
-from .chainables import CHAINABLE_METHODS  # noqa: E402
+from iointel.src.chainables import CHAINABLE_METHODS  # noqa: E402
 
 for method_name, func in CHAINABLE_METHODS.items():
     setattr(Workflow, method_name, func)

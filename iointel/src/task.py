@@ -2,10 +2,10 @@ from typing import Optional, Callable, List, Dict, Any
 
 from pydantic import BaseModel
 
-from .agents import Agent
-from .utilities.helpers import LazyCaller
-from .agent_methods.data_models.datamodels import AgentParams, TaskDefinition, Tool
-from .agent_methods.agents.agents_factory import create_agent
+from iointel.src.agents import Agent
+from iointel.src.utilities.helpers import LazyCaller
+from iointel.src.agent_methods.data_models.datamodels import AgentParams, TaskDefinition, Tool
+from iointel.src.agent_methods.agents.agents_factory import create_agent
 
 
 class Task:

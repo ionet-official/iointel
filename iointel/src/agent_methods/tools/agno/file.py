@@ -1,7 +1,7 @@
 from pathlib import Path
 from agno.tools.file import FileTools as AgnoFileTools
 
-from .common import make_base, wrap_tool
+from iointel.src.agent_methods.tools.agno.common import make_base, wrap_tool
 
 
 class File(make_base(AgnoFileTools)):

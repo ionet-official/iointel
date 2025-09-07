@@ -12,7 +12,7 @@ from pydantic._internal._typing_extra import eval_type_backport
 from pydantic.fields import FieldInfo
 from pydantic_core import PydanticUndefined
 
-from .exceptions import InvalidSignature
+from iointel.src.utilities.exceptions import InvalidSignature
 
 
 class ArgModelBase(BaseModel):

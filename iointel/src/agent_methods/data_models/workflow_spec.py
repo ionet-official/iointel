@@ -16,7 +16,7 @@ from typing import Annotated, Any, Literal, Union
 from uuid import UUID, uuid4
 from datetime import datetime
 from pydantic import BaseModel, Field, model_validator
-from .data_source_registry import ValidDataSourceName
+from iointel.src.agent_methods.data_models.data_source_registry import ValidDataSourceName
 
 # -----------------------------
 # Core constants & type aliases

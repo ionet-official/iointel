@@ -12,9 +12,9 @@ from pydantic import BaseModel
 from typing import List, Optional, Dict, Any
 import uvicorn
 
-from ..utilities.semantic_rag import RAGFactory, SemanticRAGCollection
-from ..web.workflow_storage import WorkflowStorage
-from ..agent_methods.data_models.workflow_spec import WorkflowSpec
+from iointel.src.utilities.semantic_rag import RAGFactory, SemanticRAGCollection
+from iointel.src.web.workflow_storage import WorkflowStorage
+from iointel.src.agent_methods.data_models.workflow_spec import WorkflowSpec
 
 
 class WorkflowSearchRequest(BaseModel):

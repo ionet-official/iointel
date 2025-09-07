@@ -4,10 +4,10 @@ This module provides a unified interface for tool registration and resolution
 """
 
 from typing import Union, Callable, List, Dict, Any
-from ..agent_methods.data_models.datamodels import Tool
-from .registries import TOOLS_REGISTRY
-from ..utilities.helpers import make_logger
-from .working_tools_filter import filter_available_tools, get_tool_filter_stats
+from iointel.src.agent_methods.data_models.datamodels import Tool
+from iointel.src.utilities.registries import TOOLS_REGISTRY
+from iointel.src.utilities.helpers import make_logger
+from iointel.src.utilities.working_tools_filter import filter_available_tools, get_tool_filter_stats
 
 logger = make_logger(__name__)
 

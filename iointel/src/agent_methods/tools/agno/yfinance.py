@@ -1,6 +1,6 @@
 from agno.tools.yfinance import YFinanceTools as AgnoYFinanceTools
 
-from .common import make_base, wrap_tool
+from iointel.src.agent_methods.tools.agno.common import make_base, wrap_tool
 
 
 class YFinance(make_base(AgnoYFinanceTools)):

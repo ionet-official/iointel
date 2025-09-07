@@ -1,6 +1,6 @@
 from typing import Any, Optional, Union, Dict
 from agno.tools.mem0 import Mem0Tools as AgnoMem0Tools
-from .common import make_base, wrap_tool
+from iointel.src.agent_methods.tools.agno.common import make_base, wrap_tool
 from agno.agent.agent import Agent
 from pydantic import Field
 

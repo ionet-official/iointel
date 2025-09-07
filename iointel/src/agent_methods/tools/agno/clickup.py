@@ -2,7 +2,7 @@ from typing import Optional
 from agno.tools.clickup_tool import ClickUpTools as AgnoClickUpTools
 from pydantic import Field
 
-from .common import make_base, wrap_tool
+from iointel.src.agent_methods.tools.agno.common import make_base, wrap_tool
 
 
 class ClickUp(make_base(AgnoClickUpTools)):

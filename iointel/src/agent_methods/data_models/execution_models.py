@@ -14,7 +14,7 @@ from pydantic import BaseModel, Field
 from enum import Enum
 
 # Import existing models instead of redefining
-from .datamodels import ToolUsageResult
+from iointel.src.agent_methods.data_models.datamodels import ToolUsageResult
 
 
 class ExecutionStatus(str, Enum):

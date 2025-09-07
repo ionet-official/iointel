@@ -6,7 +6,7 @@ Registry for data source implementations, separate from the tools registry.
 """
 
 from typing import Dict, Callable, List
-from .models import DataSourceRequest, DataSourceResponse
+from iointel.src.agent_methods.data_sources.models import DataSourceRequest, DataSourceResponse
 
 # Global registry for data sources
 _DATA_SOURCE_REGISTRY: Dict[str, Callable[[DataSourceRequest], DataSourceResponse]] = {}

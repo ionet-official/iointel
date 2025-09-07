@@ -1,9 +1,9 @@
 from typing import Sequence, Dict, Any
 
-from .helpers import LazyCaller
-from ..task import Task
-from ..agent_methods.data_models.datamodels import TaskDefinition
-from ..agent_methods.agents.agents_factory import agent_or_swarm
+from iointel.src.utilities.helpers import LazyCaller
+from iointel.src.task import Task
+from iointel.src.agent_methods.data_models.datamodels import TaskDefinition
+from iointel.src.agent_methods.agents.agents_factory import agent_or_swarm
 
 
 def _to_task_definition(

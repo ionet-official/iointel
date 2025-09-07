@@ -15,10 +15,10 @@ Key features:
 
 from typing import List, Optional, Tuple, Any, Callable
 from enum import Enum
-from ..agent_methods.data_models.datamodels import ToolUsageResult
-from ..agent_methods.data_models.workflow_spec import SLARequirements, NodeSpec
-from ..agent_methods.data_models.execution_models import AgentExecutionResult
-from ..utilities.io_logger import system_logger
+from iointel.src.agent_methods.data_models.datamodels import ToolUsageResult
+from iointel.src.agent_methods.data_models.workflow_spec import SLARequirements, NodeSpec
+from iointel.src.agent_methods.data_models.execution_models import AgentExecutionResult
+from iointel.src.utilities.io_logger import system_logger
 
 logger = system_logger
 

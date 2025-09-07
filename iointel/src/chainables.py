@@ -2,14 +2,14 @@ from typing import List, Optional, Dict
 import logging
 
 # from .task import CUSTOM_WORKFLOW_REGISTRY
-from .utilities.runners import run_agents
-from .utilities.decorators import register_custom_task
-from .utilities.registries import CHAINABLE_METHODS, CUSTOM_WORKFLOW_REGISTRY
+from iointel.src.utilities.runners import run_agents
+from iointel.src.utilities.decorators import register_custom_task
+from iointel.src.utilities.registries import CHAINABLE_METHODS, CUSTOM_WORKFLOW_REGISTRY
 # Tool usage enforcement now handled at DAG level via node_execution_wrapper
-from .agents import Agent
-from .agent_methods.agents.agents_factory import create_agent
-from .agent_methods.data_models.datamodels import AgentParams, AgentResultFormat
-from .agent_methods.data_models.execution_models import AgentExecutionResult, AgentRunResponse, ExecutionStatus
+from iointel.src.agents import Agent
+from iointel.src.agent_methods.agents.agents_factory import create_agent
+from iointel.src.agent_methods.data_models.datamodels import AgentParams, AgentResultFormat
+from iointel.src.agent_methods.data_models.execution_models import AgentExecutionResult, AgentRunResponse, ExecutionStatus
 import time
 
 logger = logging.getLogger(__name__)
@@ -457,7 +457,7 @@ async def execute_agent_task(
 
 
 @register_custom_task("data_source")  # Core data_source executor
-async def execute_data_source_task(task_metadata, objective, agents, execution_metadata) -> "DataSourceResult":
+async def execute_data_source_task(task_metadata, objective, agents, execution_metadata):
     """Clean data source executor using standardized Pydantic models."""
     from .agent_methods.data_sources import get_data_source
     from .agent_methods.data_sources.models import DataSourceRequest, DataSourceResponse

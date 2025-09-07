@@ -17,7 +17,7 @@ from enum import Enum
 from pydantic import BaseModel, Field, field_validator
 import logging
 
-from ...utilities.decorators import register_tool
+from iointel.src.utilities.decorators import register_tool
 
 
 # Configure production logging

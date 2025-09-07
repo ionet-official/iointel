@@ -30,10 +30,10 @@ else:
     from typing import TypedDict
 
 
-from ...memory import AsyncMemory
-from ...utilities.func_metadata import func_metadata, FuncMetadata
-from ...utilities.exceptions import ToolError
-from ...utilities.registries import TOOL_SELF_REGISTRY
+from iointel.src.memory import AsyncMemory
+from iointel.src.utilities.func_metadata import func_metadata, FuncMetadata
+from iointel.src.utilities.exceptions import ToolError
+from iointel.src.utilities.registries import TOOL_SELF_REGISTRY
 import inspect
 
 

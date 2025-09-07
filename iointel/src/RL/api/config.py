@@ -68,7 +68,7 @@ class Settings(BaseSettings):
             # OpenAI Models
             "gpt-4o",
             "gpt-4o-mini",
-            "gpt-3.5-turbo",
+            "gpt-5",
         ],
         env="RECOMMENDED_MODELS"
     )

@@ -1,11 +1,11 @@
 from pydantic import BaseModel
-from ...agents import Agent
-from ..data_models.workflow_spec import SLARequirements
-from ..data_models.datamodels import AgentParams, Tool, AgentSwarm
+from iointel.src.agents import Agent
+from iointel.src.agent_methods.data_models.workflow_spec import SLARequirements
+from iointel.src.agent_methods.data_models.datamodels import AgentParams, Tool, AgentSwarm
 from typing import Callable, Sequence
-from .tool_factory import instantiate_stateful_tool, resolve_tools
-from ..data_models.agent_pre_prompt_injection import inject_prompts_enforcement_from_sla
-from ...utilities.io_logger import get_component_logger
+from iointel.src.agent_methods.agents.tool_factory import instantiate_stateful_tool, resolve_tools
+from iointel.src.agent_methods.data_models.agent_pre_prompt_injection import inject_prompts_enforcement_from_sla
+from iointel.src.utilities.io_logger import get_component_logger
 
 logger = get_component_logger("AGENTS-FACTORY")
 

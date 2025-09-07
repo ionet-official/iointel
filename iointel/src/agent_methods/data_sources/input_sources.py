@@ -7,9 +7,9 @@ These are NOT tools - they provide input data to workflows.
 """
 
 from typing import Dict, Any, Optional
-from .models import DataSourceRequest, DataSourceResponse
-from .registry import register_data_source
-from ...utilities.io_logger import get_component_logger
+from iointel.src.agent_methods.data_sources.models import DataSourceRequest, DataSourceResponse
+from iointel.src.agent_methods.data_sources.registry import register_data_source
+from iointel.src.utilities.io_logger import get_component_logger
 
 logger = get_component_logger("DATA_SOURCES")
 

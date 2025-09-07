@@ -10,9 +10,9 @@ import importlib
 from typing import Dict, List, Optional, Type, Any
 from pathlib import Path
 from dotenv import load_dotenv
-from ...utilities.registries import TOOLS_REGISTRY
-from ...utilities.helpers import make_logger
-from ...utilities.constants import _get_env_var
+from iointel.src.utilities.registries import TOOLS_REGISTRY
+from iointel.src.utilities.helpers import make_logger
+from iointel.src.utilities.constants import _get_env_var
 
 logger = make_logger(__name__)
 

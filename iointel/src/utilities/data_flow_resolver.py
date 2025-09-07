@@ -7,7 +7,7 @@ references in task configurations using results from previous task executions.
 
 import re
 from typing import Optional, Any, Dict
-from .io_logger import get_component_logger
+from iointel.src.utilities.io_logger import get_component_logger
 
 logger = get_component_logger("DATA_FLOW", grouped=True)
 

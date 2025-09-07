@@ -2,10 +2,10 @@
 
 from dataclasses import dataclass
 from typing import Optional, List, Dict, Any
-from ..agent_methods.data_models.workflow_spec import NodeSpec, WorkflowSpec, EdgeSpec
-from ..agents import Agent
-from .graph_nodes import WorkflowState
-from ..utilities.io_logger import get_component_logger
+from iointel.src.agent_methods.data_models.workflow_spec import NodeSpec, WorkflowSpec, EdgeSpec
+from iointel.src.agents import Agent
+from iointel.src.utilities.graph_nodes import WorkflowState
+from iointel.src.utilities.io_logger import get_component_logger
 
 logger = get_component_logger("TYPED_EXECUTION")
 

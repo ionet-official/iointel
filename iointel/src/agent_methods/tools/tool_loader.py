@@ -12,7 +12,7 @@ import os
 import logging
 from typing import Dict, List, Any, Optional
 from dotenv import load_dotenv
-from ...utilities.registries import TOOLS_REGISTRY
+from iointel.src.utilities.registries import TOOLS_REGISTRY
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -349,8 +349,8 @@ def load_tools_from_env(env_file: str = "creds.env") -> List[str]:
             logger.info(f"Skipping {tool_name} due to missing requirements")
     
     # Instance Factory: Create instances and register bound methods
-    from ...utilities.registries import TOOLS_REGISTRY
-    from ..data_models.datamodels import Tool
+    from iointel.src.utilities.registries import TOOLS_REGISTRY
+    from iointel.src.agent_methods.data_models.datamodels import Tool
     import inspect
     
     logger.info("🏭 Starting instance factory for bound method tools...")

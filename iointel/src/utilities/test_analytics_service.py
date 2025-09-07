@@ -13,8 +13,8 @@ from datetime import datetime
 from dataclasses import dataclass
 from collections import Counter
 
-from ..agent_methods.data_models.workflow_spec import WorkflowSpec
-from .workflow_test_repository import WorkflowTestRepository, WorkflowTestCase
+from iointel.src.agent_methods.data_models.workflow_spec import WorkflowSpec
+from iointel.src.utilities.workflow_test_repository import WorkflowTestRepository, WorkflowTestCase
 
 
 @dataclass

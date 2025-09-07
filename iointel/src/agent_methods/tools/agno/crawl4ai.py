@@ -1,7 +1,7 @@
 from typing import Optional
 from agno.tools.crawl4ai import Crawl4aiTools as AgnoCrawl4aiTools
 from pydantic import Field
-from .common import make_base, wrap_tool
+from iointel.src.agent_methods.tools.agno.common import make_base, wrap_tool
 
 
 class Crawl4ai(make_base(AgnoCrawl4aiTools)):

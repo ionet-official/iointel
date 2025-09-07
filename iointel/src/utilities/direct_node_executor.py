@@ -1,7 +1,7 @@
 """Direct node execution - bypassing the dict conversion madness."""
 
 from typing import Any, Dict, List, Optional
-from ..agent_methods.data_models.workflow_spec import (
+from iointel.src.agent_methods.data_models.workflow_spec import (
     NodeSpec, 
     EdgeSpec, 
     WorkflowSpec,
@@ -9,14 +9,14 @@ from ..agent_methods.data_models.workflow_spec import (
     DataSourceNode,
     DecisionNode
 )
-from ..agent_methods.data_models.datamodels import AgentParams
-from ..agent_methods.data_sources import get_data_source
-from ..agent_methods.data_sources.models import DataSourceRequest
-from ..agents import Agent
-from ..utilities.runners import run_agents
-from ..agent_methods.agents.agents_factory import create_agent
-from .data_flow_resolver import data_flow_resolver
-from ..ui.models import AgentResultFormat
+from iointel.src.agent_methods.data_models.datamodels import AgentParams
+from iointel.src.agent_methods.data_sources import get_data_source
+from iointel.src.agent_methods.data_sources.models import DataSourceRequest
+from iointel.src.agents import Agent
+from iointel.src.utilities.runners import run_agents
+from iointel.src.agent_methods.agents.agents_factory import create_agent
+from iointel.src.utilities.data_flow_resolver import data_flow_resolver
+from iointel.src.agent_methods.data_models.datamodels import AgentResultFormat
 import logging
 
 logger = logging.getLogger(__name__)
@@ -86,7 +86,7 @@ class DirectNodeExecutor:
                 result_value = state_results[source_result_key]
                 
                 # Extract actual value if it's a DataSourceResult
-                from ..agent_methods.data_models.execution_models import DataSourceResult
+                from iointel.src.agent_methods.data_models.execution_models import DataSourceResult
                 if isinstance(result_value, DataSourceResult):
                     result_value = result_value.result
                 
@@ -165,7 +165,7 @@ class DirectNodeExecutor:
         response = data_source_func(request, execution_metadata={"node_id": node.id})
         
         # Extract result value based on response type
-        from ..agent_methods.data_sources.models import DataSourceResponse
+        from iointel.src.agent_methods.data_sources.models import DataSourceResponse
         
         if isinstance(response, DataSourceResponse):
             # DataSourceResponse has 'message' field for the actual content

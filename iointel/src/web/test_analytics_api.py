@@ -10,10 +10,10 @@ from fastapi import APIRouter, HTTPException, Query
 from typing import List, Optional, Dict, Any
 from pydantic import BaseModel
 
-from ..utilities.test_analytics_service import (
+from iointel.src.utilities.test_analytics_service import (
     TestAnalyticsService
 )
-from ..utilities.helpers import make_logger
+from iointel.src.utilities.helpers import make_logger
 
 logger = make_logger(__name__)
 

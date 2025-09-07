@@ -20,7 +20,7 @@ from iointel.src.RL.example_tools import (
 from iointel.src.agent_methods.tools.firecrawl import Crawler
 from iointel.src.RL.utils import tool_usage_results_to_string
 from iointel.src.RL.prompts import get_agent_instructions
-from .models import (
+from iointel.src.RL.api.models import (
     TaskResult,
     CriticFeedback,
     OracleResult,
@@ -28,7 +28,7 @@ from .models import (
     TaskDifficulty,
     EvaluationResponse,
 )
-from .config import settings
+from iointel.src.RL.api.config import settings
 from dotenv import load_dotenv
 import time
 import logging

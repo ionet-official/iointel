@@ -1,12 +1,12 @@
 import dataclasses
 import json
 
-from .memory import AsyncMemory
-from .agent_methods.data_models.datamodels import PersonaConfig, Tool, ToolUsageResult, AgentResultFormat
-from .utilities.rich import pretty_output
-from .utilities.helpers import supports_tool_choice_required, flatten_union_types
-from .ui.rich_panels import render_agent_result_panel
-from .ui.io_gradio_ui import IOGradioUI
+from iointel.src.memory import AsyncMemory
+from iointel.src.agent_methods.data_models.datamodels import PersonaConfig, Tool, ToolUsageResult, AgentResultFormat
+from iointel.src.utilities.rich import pretty_output
+from iointel.src.utilities.helpers import supports_tool_choice_required, flatten_union_types
+from iointel.src.ui.rich_panels import render_agent_result_panel
+from iointel.src.ui.io_gradio_ui import IOGradioUI
 
 from pydantic import ConfigDict, SecretStr, BaseModel, ValidationError
 from pydantic_ai.messages import PartDeltaEvent, TextPartDelta, ToolCallPart

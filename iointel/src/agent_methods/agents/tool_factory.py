@@ -1,13 +1,13 @@
+import re
 import inspect
 from pydantic import BaseModel
-from ..data_models.datamodels import AgentParams
 from typing import Callable, List
-import re
-from ...utilities.registries import TOOLS_REGISTRY
-from ...utilities.io_logger import get_component_logger
-from ..data_models.datamodels import Tool
-
 import textwrap
+
+from iointel.src.utilities.registries import TOOLS_REGISTRY
+from iointel.src.utilities.io_logger import get_component_logger
+from iointel.src.agent_methods.data_models.datamodels import Tool
+from iointel.src.agent_methods.data_models.datamodels import AgentParams
 
 
 logger = get_component_logger("TOOL_FACTORY")

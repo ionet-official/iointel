@@ -22,7 +22,7 @@ import uuid
 from dataclasses import dataclass, asdict
 from enum import Enum
 
-from ..web.workflow_storage import WorkflowStorage
+from iointel.src.web.workflow_storage import WorkflowStorage
 
 
 class TestLayer(Enum):

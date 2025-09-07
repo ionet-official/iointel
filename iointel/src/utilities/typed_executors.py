@@ -1,13 +1,13 @@
 """Typed executors for different node types."""
 
 from typing import Any, Optional
-from .typed_execution import TypedExecutionContext
-from ..utilities.io_logger import get_component_logger, log_prompt
-from ..agent_methods.data_models.datamodels import AgentResultFormat, AgentParams
-from ..agent_methods.data_models.execution_models import AgentExecutionResult, ExecutionStatus, AgentRunResponse
-from ..agents import Agent
-from ..agent_methods.agents.agents_factory import create_agent
-from ..agent_methods.data_models.agent_pre_prompt_injection import inject_prompts_enforcement_from_sla
+from iointel.src.utilities.typed_execution import TypedExecutionContext
+from iointel.src.utilities.io_logger import get_component_logger, log_prompt
+from iointel.src.agent_methods.data_models.datamodels import AgentResultFormat, AgentParams
+from iointel.src.agent_methods.data_models.execution_models import AgentExecutionResult, ExecutionStatus, AgentRunResponse
+from iointel.src.agents import Agent
+from iointel.src.agent_methods.agents.agents_factory import create_agent
+from iointel.src.agent_methods.data_models.agent_pre_prompt_injection import inject_prompts_enforcement_from_sla
 
 logger = get_component_logger("TYPED_EXECUTORS")
 

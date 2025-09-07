@@ -8,7 +8,7 @@ import re
 from typing import Any, Dict, Union, Optional
 from pydantic import BaseModel, Field
 
-from ...utilities.decorators import register_tool
+from iointel.src.utilities.decorators import register_tool
 
 
 class DecisionResult(BaseModel):

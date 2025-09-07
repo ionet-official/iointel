@@ -14,9 +14,9 @@ Key Features:
 """
 
 from typing import List, Dict, Optional
-from ..agent_methods.data_models.workflow_spec import WorkflowSpec, TestResult
-from ..web.workflow_storage import WorkflowStorage
-from ..utilities.workflow_test_repository import WorkflowTestRepository
+from iointel.src.agent_methods.data_models.workflow_spec import WorkflowSpec, TestResult
+from iointel.src.web.workflow_storage import WorkflowStorage
+from iointel.src.utilities.workflow_test_repository import WorkflowTestRepository
 
 
 class WorkflowAlignmentService:
