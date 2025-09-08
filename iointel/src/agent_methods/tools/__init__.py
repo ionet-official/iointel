@@ -8,16 +8,6 @@ and convenient imports. Tools are organized into logical groups for easy discove
 import importlib
 from typing import Any, Dict
 
-
-def _lazy_import(module_path: str, name: str):
-    """Lazy import helper to avoid loading all tools at startup."""
-    def _import():
-        module = importlib.import_module(module_path)
-        return getattr(module, name)
-    return _import
-
-
-# Core Tools
 from iointel.src.agent_methods.tools.coinmarketcap import (
     listing_coins,
     get_coin_info,
@@ -29,15 +19,17 @@ from iointel.src.agent_methods.tools.duckduckgo import search_the_web
 from iointel.src.agent_methods.tools.firecrawl import Crawler
 from iointel.src.agent_methods.tools.retrieval_engine import RetrievalEngine
 from iointel.src.agent_methods.tools.searxng import SearxngClient
-from iointel.src.agent_methods.tools.wolfram import Wolfram
-from iointel.src.agent_methods.tools.utils import what_time_is_it
-
-# Note: Agno tools are loaded safely via tool_loader.py
-
-# Import the smart tool loader first
 from iointel.src.agent_methods.tools.tool_loader import load_tools_from_env, get_registered_tools, get_tool_by_name
+from iointel.src.agent_methods.tools.utils import what_time_is_it
+from iointel.src.agent_methods.tools.wolfram import Wolfram
 
-# Note: user_input moved to data_sources module
+
+def _lazy_import(module_path: str, name: str):
+    """Lazy import helper to avoid loading all tools at startup."""
+    def _import():
+        module = importlib.import_module(module_path)
+        return getattr(module, name)
+    return _import
 
 # Tool Clusters for convenience
 class ToolClusters:

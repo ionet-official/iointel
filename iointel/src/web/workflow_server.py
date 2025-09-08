@@ -10,6 +10,7 @@ import traceback
 import uuid
 from datetime import datetime
 from enum import Enum
+from pathlib import Path
 from typing import Dict, Any, List, Optional
 
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect, Request
