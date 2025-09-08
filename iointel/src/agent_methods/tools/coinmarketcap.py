@@ -1,6 +1,6 @@
 import datetime
 import os
-from typing import Any, Optional, Dict, Literal, Annotated
+from typing import Any, Optional, Dict, Literal, Annotated, Union
 import httpx
 import urllib.parse
 from pydantic import Field
@@ -8,12 +8,25 @@ from pydantic import Field
 from iointel.src.utilities.decorators import register_tool
 
 COINMARKETCAP_API_BASE = "pro-api.coinmarketcap.com"
-COINMARKETCAP_API_KEY = os.getenv("COINMARKETCAP_API_KEY")
+
+def get_coinmarketcap_api_key() -> str:
+    """Get the CoinMarketCap API key, loading it lazily."""
+    key = os.getenv("COINMARKETCAP_API_KEY")
+    if not key:
+        raise RuntimeError("CoinMarketCap API key is not set - please set COINMARKETCAP_API_KEY environment variable")
+    return key
 
 
 def build_url(endpoint: str, params: Dict[str, Any]) -> str:
     """
     Build the full URL for the CoinMarketCap API request by filtering out None values.
+    
+    Parameters:
+        endpoint: API endpoint path (e.g., "v1/cryptocurrency/listings/latest")
+        params: Dictionary of query parameters to include in the URL
+        
+    Returns:
+        Complete URL with encoded query parameters
     """
     filtered_params = {k: v for k, v in params.items() if v is not None}
     return f"https://{COINMARKETCAP_API_BASE}/{endpoint}?{urllib.parse.urlencode(filtered_params)}"
@@ -24,6 +37,13 @@ def coinmarketcap_request(
 ) -> Optional[Dict[str, Any]]:
     """
     Send a request to the specified CoinMarketCap API endpoint with the given parameters.
+    
+    Parameters:
+        endpoint: API endpoint path (e.g., "v1/cryptocurrency/listings/latest")
+        params: Dictionary of query parameters for the API request
+        
+    Returns:
+        JSON response from the API as a dictionary, or None if request fails
     """
     url = build_url(endpoint, params)
     with httpx.Client() as client:
@@ -31,18 +51,35 @@ def coinmarketcap_request(
 
 
 def make_coinmarketcap_request(client: httpx.Client, url: str) -> dict[str, Any] | None:
-    """Make a request to the CoinMarketCap API with proper error handling."""
-    if not COINMARKETCAP_API_KEY:
-        raise RuntimeError("Coinmarketcap API key is not set")
+    """
+    Make a request to the CoinMarketCap API with proper error handling.
+    
+    Parameters:
+        client: HTTP client to use for the request
+        url: Full URL to make the request to
+        
+    Returns:
+        JSON response as a dictionary, or None if request fails
+        
+    Note:
+        Requires COINMARKETCAP_API_KEY environment variable to be set
+    """
+    try:
+        api_key = get_coinmarketcap_api_key()
+    except RuntimeError as e:
+        print(f"❌ {e}")
+        return None
+        
     headers = {
         "Accepts": "application/json",
-        "X-CMC_PRO_API_KEY": COINMARKETCAP_API_KEY,
+        "X-CMC_PRO_API_KEY": api_key,
     }
     try:
         response = client.get(url, headers=headers, timeout=10.0)
         response.raise_for_status()
         return response.json()
-    except Exception:
+    except Exception as e:
+        print(f"❌ CoinMarketCap API request failed: {e}")
         return None
 
 
@@ -142,14 +179,39 @@ def listing_coins(
 
 
 def _parse_triplet(
-    id: Optional[list[str]] = None,
-    slug: Optional[list[str]] = None,
-    symbol: Optional[list[str]] = None,
+    id: Optional[Union[str, list[str]]] = None,
+    slug: Optional[Union[str, list[str]]] = None,
+    symbol: Optional[Union[str, list[str]]] = None,
 ) -> dict:
+    """
+    Parse cryptocurrency identifiers, converting strings to lists if needed.
+    
+    Parameters:
+        id: Cryptocurrency CoinMarketCap ID(s) - can be a single ID or list
+        slug: Cryptocurrency slug(s) - can be a single slug or list  
+        symbol: Cryptocurrency symbol(s) - can be a single symbol or list
+        
+    Returns:
+        Dictionary with parsed and formatted identifiers
+        
+    Note:
+        Only one type of identifier should be provided. If multiple are given,
+        priority order is: id > slug > symbol
+    """
+    # Convert strings to lists for consistent handling
+    if isinstance(id, str):
+        id = [id]
+    if isinstance(slug, str):
+        slug = [slug]
+    if isinstance(symbol, str):
+        symbol = [symbol]
+        
+    # Priority: id > slug > symbol
     if id:
         slug = symbol = None
     elif slug:
         symbol = None
+        
     return {
         "id": ",".join(id) if id else None,
         "slug": ",".join(slug) if slug else None,
@@ -159,9 +221,9 @@ def _parse_triplet(
 
 @register_tool
 def get_coin_info(
-    id: Optional[list[str]] = None,
-    slug: Optional[list[str]] = None,
-    symbol: Optional[list[str]] = None,
+    id: Optional[Union[str, list[str]]] = None,
+    slug: Optional[Union[str, list[str]]] = None,
+    symbol: Optional[Union[str, list[str]]] = None,
     address: Optional[str] = None,
     skip_invalid: bool = False,
 ) -> Optional[Dict[str, Any]]:
@@ -170,14 +232,20 @@ def get_coin_info(
     social links, and links to technical documentation.
 
     Parameters:
-        id: A list of cryptocurrency CoinMarketCap IDs. Example: ["1" , "2"].
-        slug: Alternatively pass a list of cryptocurrency slugs. Example: ["bitcoin", "ethereum"].
-        symbol: Alternatively pass a list of cryptocurrency symbols. Example: ["BTC", "ETH"].
-        address: A contract address for the cryptocurrency. Example: "0xc40af1e4fecfa05ce6bab79dcd8b373d2e436c4e".
-        skip_invalid: When True, invalid cryptocurrency lookups will be skipped instead of raising an error.
+        id: Cryptocurrency CoinMarketCap ID(s). Can be a single ID ("1") or list (["1", "2"])
+        slug: Cryptocurrency slug(s). Can be a single slug ("bitcoin") or list (["bitcoin", "ethereum"])
+        symbol: Cryptocurrency symbol(s). Can be a single symbol ("BTC") or list (["BTC", "ETH"])
+        address: A contract address for the cryptocurrency. Example: "0xc40af1e4fecfa05ce6bab79dcd8b373d2e436c4e"
+        skip_invalid: When True, invalid cryptocurrency lookups will be skipped instead of raising an error
 
     Returns:
-        A dictionary containing the coin information if the request is successful, or None otherwise.
+        A dictionary containing the coin information if the request is successful, or None otherwise
+        
+    Examples:
+        >>> get_coin_info(symbol="BTC")  # Single symbol
+        >>> get_coin_info(symbol=["BTC", "ETH"])  # Multiple symbols
+        >>> get_coin_info(id="1")  # Single ID
+        >>> get_coin_info(slug=["bitcoin", "ethereum"])  # Multiple slugs
     """
     params = _parse_triplet(id, slug, symbol) | {
         "address": address,
@@ -189,12 +257,12 @@ def get_coin_info(
 
 @register_tool
 def get_coin_quotes(
-    id: Optional[list[str]] = None,
-    slug: Optional[list[str]] = None,
-    symbol: Optional[list[str]] = None,
-    convert: Optional[list[str]] = None,
-    convert_id: Optional[list[str]] = None,
-    aux: Optional[list[str]] = None,
+    id: Optional[Union[str, list[str]]] = None,
+    slug: Optional[Union[str, list[str]]] = None,
+    symbol: Optional[Union[str, list[str]]] = None,
+    convert: Optional[Union[str, list[str]]] = None,
+    convert_id: Optional[Union[str, list[str]]] = None,
+    aux: Optional[Union[str, list[str]]] = None,
     skip_invalid: bool = False,
 ) -> Optional[Dict[str, Any]]:
     """
@@ -202,18 +270,33 @@ def get_coin_quotes(
     Use the "convert" option to return market values in multiple fiat and cryptocurrency conversions in the same call.
 
     Parameters:
-        id: A list of cryptocurrency CoinMarketCap IDs. Example: ["1" , "2"].
-        slug: Alternatively pass a list of cryptocurrency slugs. Example: ["bitcoin", "ethereum"].
-        symbol: Alternatively pass a list of cryptocurrency symbols. Example: ["BTC", "ETH"].
-        convert: Optionally calculate market quotes in up to 120 currencies at once by passing a list of cryptocurrency or fiat currency symbols.
-        convert_id: Optionally calculate market quotes by CoinMarketCap ID instead of symbol.
-        aux: Optionally specify a list of supplemental data fields to return.
-             Valid values include ["num_market_pairs", "cmc_rank", "date_added", "tags", "platform", "max_supply", "circulating_supply", "total_supply", "is_active", "is_fiat"].
-        skip_invalid: Pass true to relax request validation rules.
+        id: Cryptocurrency CoinMarketCap ID(s). Can be a single ID ("1") or list (["1", "2"])
+        slug: Cryptocurrency slug(s). Can be a single slug ("bitcoin") or list (["bitcoin", "ethereum"])
+        symbol: Cryptocurrency symbol(s). Can be a single symbol ("BTC") or list (["BTC", "ETH"])
+        convert: Currency/currencies to convert prices to. Can be single ("USD") or list (["USD", "EUR"])
+        convert_id: CoinMarketCap ID(s) to convert prices to instead of symbols
+        aux: Supplemental data fields to return. Valid values include:
+             ["num_market_pairs", "cmc_rank", "date_added", "tags", "platform", 
+              "max_supply", "circulating_supply", "total_supply", "is_active", "is_fiat"]
+        skip_invalid: Pass true to relax request validation rules
 
     Returns:
-        A dictionary containing the latest market quote data if the request is successful, or None otherwise.
+        A dictionary containing the latest market quote data if successful, or None otherwise
+        
+    Examples:
+        >>> get_coin_quotes(symbol="BTC")  # Get BTC price
+        >>> get_coin_quotes(symbol=["BTC", "ETH"])  # Get multiple prices
+        >>> get_coin_quotes(symbol="BTC", convert="EUR")  # Get BTC in EUR
+        >>> get_coin_quotes(symbol=["BTC", "ETH"], convert=["USD", "EUR"])  # Multiple conversions
     """
+    # Convert single strings to lists for consistent handling
+    if isinstance(convert, str):
+        convert = [convert]
+    if isinstance(convert_id, str):
+        convert_id = [convert_id]
+    if isinstance(aux, str):
+        aux = [aux]
+        
     params = _parse_triplet(id, slug, symbol) | {
         "convert": ",".join(convert) if convert else None,
         "convert_id": ",".join(convert_id) if convert_id else None,
@@ -225,48 +308,83 @@ def get_coin_quotes(
 
 @register_tool
 def get_coin_quotes_historical(
-    id: Optional[list[str]] = None,
-    slug: Optional[list[str]] = None,
-    symbol: Optional[list[str]] = None,
-    convert: Optional[list[str]] = None,
-    convert_id: Optional[list[str]] = None,
-    aux: Optional[list[str]] = None,
+    id: Optional[Union[str, list[str]]] = None,
+    slug: Optional[Union[str, list[str]]] = None,
+    symbol: Optional[Union[str, list[str]]] = None,
+    convert: Optional[Union[str, list[str]]] = None,
+    convert_id: Optional[Union[str, list[str]]] = None,
+    aux: Optional[Union[str, list[str]]] = None,
     skip_invalid: bool = False,
-    time_start: Optional[datetime.datetime] = None,
-    time_end: Optional[datetime.datetime] = None,
+    time_start: Optional[Union[datetime.datetime, str]] = None,
+    time_end: Optional[Union[datetime.datetime, str]] = None,
     count: int = 10,
     interval: str = "5m",
 ) -> Optional[Dict[str, Any]]:
     """
-    Retrieve the latest market quote for one or more cryptocurrencies.
-    Use the "convert" option to return market values in multiple fiat and cryptocurrency conversions in the same call.
+    Retrieve historical market quotes for one or more cryptocurrencies.
+    Use the "convert" option to return market values in multiple fiat and cryptocurrency conversions.
 
     To get historical price at a particular point of time, provide time_end=<point-of-time> and count=1
 
     Parameters:
-        id: A list of cryptocurrency CoinMarketCap IDs. Example: ["1" , "2"].
-        slug: Alternatively pass a list of cryptocurrency slugs. Example: ["bitcoin", "ethereum"].
-        symbol: Alternatively pass a list of cryptocurrency symbols. Example: ["BTC", "ETH"].
-        convert: Optionally calculate market quotes in up to 120 currencies at once by passing a list of cryptocurrency or fiat currency symbols.
-        convert_id: Optionally calculate market quotes by CoinMarketCap ID instead of symbol.
-        aux: Optionally specify a list of supplemental data fields to return.
-             Valid values include ["num_market_pairs", "cmc_rank", "date_added", "tags", "platform", "max_supply", "circulating_supply", "total_supply", "is_active", "is_fiat"].
-        skip_invalid: Pass true to relax request validation rules.
-        time_start: timestamp to start returning quotes for.
-                    Optional, if not passed, we'll return quotes calculated in reverse from "time_end".
-        time_end: timestamp to stop returning quotes for (inclusive).
-                  Optional, if not passed, we'll default to the current time.
-                  If no "time_start" is passed, we return quotes in reverse order starting from this time.
-        count: The number of interval periods to return results for.
-               Optional, required if both "time_start" and "time_end" aren't supplied.
-               The default is 10 items. The current query limit is 10000.
-        interval: Interval of time to return data points for. See details in endpoint description.
+        id: Cryptocurrency CoinMarketCap ID(s). Can be a single ID ("1") or list (["1", "2"])
+        slug: Cryptocurrency slug(s). Can be a single slug ("bitcoin") or list (["bitcoin", "ethereum"])
+        symbol: Cryptocurrency symbol(s). Can be a single symbol ("BTC") or list (["BTC", "ETH"])
+        convert: Currency/currencies to convert prices to. Can be single ("USD") or list (["USD", "EUR"])
+        convert_id: CoinMarketCap ID(s) to convert prices to instead of symbols
+        aux: Supplemental data fields to return. Valid values include:
+             ["num_market_pairs", "cmc_rank", "date_added", "tags", "platform",
+              "max_supply", "circulating_supply", "total_supply", "is_active", "is_fiat"]
+        skip_invalid: Pass true to relax request validation rules
+        time_start: Starting timestamp for quotes (datetime or ISO string).
+                    If not provided, returns quotes in reverse from time_end
+        time_end: Ending timestamp for quotes (datetime or ISO string).
+                  Defaults to current time if not provided
+        count: Number of interval periods to return (default: 10, max: 10000).
+               Required if both time_start and time_end aren't supplied
+        interval: Time interval between data points. Options include:
+                  "5m", "10m", "15m", "30m", "45m", "1h", "2h", "3h", 
+                  "6h", "12h", "24h", "1d", "2d", "3d", "7d", "14d", "15d", 
+                  "30d", "60d", "90d", "365d"
 
     Returns:
-        A dictionary containing the latest market quote data if the request is successful, or None otherwise.
+        A dictionary containing historical market quote data if successful, or None otherwise
+        
+    Examples:
+        >>> # Get last 10 5-minute intervals for BTC
+        >>> get_coin_quotes_historical(symbol="BTC")
+        
+        >>> # Get BTC price at specific time
+        >>> get_coin_quotes_historical(symbol="BTC", time_end="2024-01-01T00:00:00", count=1)
+        
+        >>> # Get daily prices for last 30 days
+        >>> get_coin_quotes_historical(symbol=["BTC", "ETH"], interval="1d", count=30)
     """
-    time_start = time_start.replace(microsecond=0).isoformat() if time_start else None
-    time_end = time_end.replace(microsecond=0).isoformat() if time_end else None
+    # Handle both string and datetime inputs for time parameters
+    if time_start:
+        if isinstance(time_start, str):
+            time_start = time_start
+        else:
+            time_start = time_start.replace(microsecond=0).isoformat()
+    else:
+        time_start = None
+        
+    if time_end:
+        if isinstance(time_end, str):
+            time_end = time_end
+        else:
+            time_end = time_end.replace(microsecond=0).isoformat()
+    else:
+        time_end = None
+        
+    # Convert single strings to lists for consistent handling
+    if isinstance(convert, str):
+        convert = [convert]
+    if isinstance(convert_id, str):
+        convert_id = [convert_id]
+    if isinstance(aux, str):
+        aux = [aux]
+        
     params = _parse_triplet(id, slug, symbol) | {
         "convert": ",".join(convert) if convert else None,
         "convert_id": ",".join(convert_id) if convert_id else None,

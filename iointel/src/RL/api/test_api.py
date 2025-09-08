@@ -1,14 +1,14 @@
 import pytest
 from fastapi.testclient import TestClient
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 import os
 
 # Set test environment variables
 os.environ["IO_API_KEY"] = "test_key"
 os.environ["IO_BASE_URL"] = "http://test.api"
 
-from .main import app
-from .models import TaskResult, TaskDifficulty
+from iointel.src.RL.api.main import app
+from iointel.src.RL.api.models import TaskResult, TaskDifficulty
 
 client = TestClient(app)
 

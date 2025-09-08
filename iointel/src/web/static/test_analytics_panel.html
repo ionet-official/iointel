@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Analytics Panel</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f8fafc;
+            color: #1e293b;
+            line-height: 1.6;
+        }
+
+        .analytics-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 24px;
+            border-radius: 12px;
+            margin-bottom: 24px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .search-section {
+            background: white;
+            padding: 24px;
+            border-radius: 12px;
+            margin-bottom: 24px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .search-box {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+
+        .search-input {
+            flex: 1;
+            padding: 12px 16px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.2s;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .search-button {
+            padding: 12px 24px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .search-button:hover {
+            background: #5a67d8;
+        }
+
+        .filters {
+            display: flex;
+            gap: 16px;
+            align-items: center;
+        }
+
+        .filter-select {
+            padding: 8px 12px;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            background: white;
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 24px;
+            margin-bottom: 24px;
+        }
+
+        .metric-card {
+            background: white;
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .metric-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 16px;
+        }
+
+        .metric-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #374151;
+        }
+
+        .metric-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #667eea;
+        }
+
+        .metric-subtitle {
+            color: #6b7280;
+            font-size: 0.9rem;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #e5e7eb;
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 12px 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #10b981, #34d399);
+            transition: width 0.5s ease;
+        }
+
+        .results-section {
+            background: white;
+            padding: 24px;
+            border-radius: 12px;
+            margin-bottom: 24px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .section-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: #374151;
+        }
+
+        .test-result {
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 12px;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .test-result:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        .test-name {
+            font-weight: 600;
+            color: #1f2937;
+            margin-bottom: 4px;
+        }
+
+        .test-description {
+            color: #6b7280;
+            margin-bottom: 8px;
+        }
+
+        .test-meta {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            font-size: 0.85rem;
+        }
+
+        .test-layer {
+            background: #ddd6fe;
+            color: #5b21b6;
+            padding: 2px 8px;
+            border-radius: 12px;
+        }
+
+        .test-category {
+            background: #dcfce7;
+            color: #166534;
+            padding: 2px 8px;
+            border-radius: 12px;
+        }
+
+        .test-score {
+            background: #fef3c7;
+            color: #92400e;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-weight: 500;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #6b7280;
+        }
+
+        .error {
+            background: #fee2e2;
+            color: #dc2626;
+            padding: 16px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+        }
+
+        .quality-scores {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 16px;
+            margin-top: 20px;
+        }
+
+        .quality-card {
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 16px;
+            background: white;
+        }
+
+        .quality-header {
+            display: flex;
+            justify-content: between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .workflow-title {
+            font-weight: 600;
+            color: #1f2937;
+        }
+
+        .status-badge {
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .status-passing { background: #dcfce7; color: #166534; }
+        .status-failing { background: #fee2e2; color: #dc2626; }
+        .status-mixed { background: #fef3c7; color: #92400e; }
+        .status-untested { background: #f3f4f6; color: #374151; }
+
+        .score-display {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #667eea;
+            margin-bottom: 8px;
+        }
+
+        .score-breakdown {
+            display: flex;
+            gap: 12px;
+            font-size: 0.85rem;
+            color: #6b7280;
+            margin-bottom: 12px;
+        }
+
+        .recommendations {
+            font-size: 0.85rem;
+            color: #374151;
+        }
+
+        .recommendations ul {
+            margin-left: 16px;
+        }
+
+        .distribution-chart {
+            margin-top: 16px;
+        }
+
+        .chart-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid #f3f4f6;
+        }
+
+        .chart-item:last-child {
+            border-bottom: none;
+        }
+
+        .chart-label {
+            font-weight: 500;
+        }
+
+        .chart-value {
+            background: #f3f4f6;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <div class="analytics-container">
+        <div class="header">
+            <h1>🧪 Test Analytics Panel</h1>
+            <p>Comprehensive test coverage analysis and intelligent search</p>
+        </div>
+
+        <div class="search-section">
+            <div class="search-box">
+                <input type="text" class="search-input" id="searchQuery" placeholder="Search tests... (e.g., 'gate pattern', 'routing logic', 'SLA enforcement')">
+                <button class="search-button" onclick="searchTests()">🔍 Search</button>
+            </div>
+            <div class="filters">
+                <label for="layerFilter">Layer:</label>
+                <select class="filter-select" id="layerFilter">
+                    <option value="">All Layers</option>
+                    <option value="logical">Logical</option>
+                    <option value="agentic">Agentic</option>
+                    <option value="orchestration">Orchestration</option>
+                    <option value="feedback">Feedback</option>
+                </select>
+                
+                <label for="categoryFilter">Category:</label>
+                <select class="filter-select" id="categoryFilter">
+                    <option value="">All Categories</option>
+                </select>
+                
+                <button class="search-button" onclick="loadDashboard()" style="background: #10b981;">🔄 Refresh</button>
+            </div>
+        </div>
+
+        <div class="metrics-grid">
+            <div class="metric-card">
+                <div class="metric-header">
+                    <div class="metric-title">Test Coverage</div>
+                </div>
+                <div class="metric-value" id="coveragePercentage">-</div>
+                <div class="metric-subtitle">of workflows tested</div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="coverageProgress" style="width: 0%"></div>
+                </div>
+            </div>
+
+            <div class="metric-card">
+                <div class="metric-header">
+                    <div class="metric-title">Success Rate</div>
+                </div>
+                <div class="metric-value" id="successRate">-</div>
+                <div class="metric-subtitle">tests passing</div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="successProgress" style="width: 0%"></div>
+                </div>
+            </div>
+
+            <div class="metric-card">
+                <div class="metric-header">
+                    <div class="metric-title">Total Tests</div>
+                </div>
+                <div class="metric-value" id="totalTests">-</div>
+                <div class="metric-subtitle">across all layers</div>
+                <div class="distribution-chart" id="layerDistribution"></div>
+            </div>
+
+            <div class="metric-card">
+                <div class="metric-header">
+                    <div class="metric-title">Quality Score</div>
+                </div>
+                <div class="metric-value" id="avgQualityScore">-</div>
+                <div class="metric-subtitle">average workflow quality</div>
+                <div class="distribution-chart" id="categoryDistribution"></div>
+            </div>
+        </div>
+
+        <div class="results-section">
+            <div class="section-title">🔍 Search Results</div>
+            <div id="searchResults">
+                <div class="loading">Enter a search query to find relevant tests</div>
+            </div>
+        </div>
+
+        <div class="results-section">
+            <div class="section-title">📊 Workflow Quality Scores</div>
+            <div id="qualityScores" class="quality-scores">
+                <div class="loading">Loading quality scores...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // API base URL - adjust for your setup
+        const API_BASE = '/api/test-analytics';
+
+        // Load dashboard data on page load
+        document.addEventListener('DOMContentLoaded', loadDashboard);
+
+        async function loadDashboard() {
+            try {
+                // Load summary data
+                const summary = await fetch(`${API_BASE}/dashboard-summary`).then(r => r.json());
+                updateMetrics(summary);
+
+                // Load categories for filter
+                const categories = await fetch(`${API_BASE}/categories`).then(r => r.json());
+                updateCategoryFilter(categories.categories);
+
+                // Load quality scores
+                const qualityScores = await fetch(`${API_BASE}/quality-scores`).then(r => r.json());
+                updateQualityScores(qualityScores);
+
+            } catch (error) {
+                console.error('Error loading dashboard:', error);
+                showError('Failed to load dashboard data. Please check the API connection.');
+            }
+        }
+
+        function updateMetrics(summary) {
+            // Update coverage metrics
+            document.getElementById('coveragePercentage').textContent = 
+                `${Math.round(summary.overview.coverage_percentage)}%`;
+            document.getElementById('coverageProgress').style.width = 
+                `${summary.overview.coverage_percentage}%`;
+
+            // Update success rate
+            document.getElementById('successRate').textContent = 
+                `${Math.round(summary.overview.success_rate)}%`;
+            document.getElementById('successProgress').style.width = 
+                `${summary.overview.success_rate}%`;
+
+            // Update total tests
+            document.getElementById('totalTests').textContent = summary.overview.total_tests;
+
+            // Update quality score
+            document.getElementById('avgQualityScore').textContent = 
+                `${summary.overview.avg_quality_score}`;
+
+            // Update layer distribution
+            updateDistributionChart('layerDistribution', summary.layer_distribution);
+            updateDistributionChart('categoryDistribution', summary.category_distribution);
+        }
+
+        function updateDistributionChart(elementId, data) {
+            const container = document.getElementById(elementId);
+            container.innerHTML = '';
+            
+            for (const [key, value] of Object.entries(data)) {
+                const item = document.createElement('div');
+                item.className = 'chart-item';
+                item.innerHTML = `
+                    <span class="chart-label">${key}</span>
+                    <span class="chart-value">${value}</span>
+                `;
+                container.appendChild(item);
+            }
+        }
+
+        function updateCategoryFilter(categories) {
+            const select = document.getElementById('categoryFilter');
+            select.innerHTML = '<option value="">All Categories</option>';
+            
+            categories.forEach(category => {
+                const option = document.createElement('option');
+                option.value = category;
+                option.textContent = category.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
+                select.appendChild(option);
+            });
+        }
+
+        function updateQualityScores(scores) {
+            const container = document.getElementById('qualityScores');
+            
+            if (scores.length === 0) {
+                container.innerHTML = '<div class="loading">No workflow quality data available</div>';
+                return;
+            }
+
+            container.innerHTML = scores.map(score => `
+                <div class="quality-card">
+                    <div class="quality-header">
+                        <div class="workflow-title">${score.workflow_title}</div>
+                        <div class="status-badge status-${score.status}">${score.status}</div>
+                    </div>
+                    <div class="score-display">${Math.round(score.overall_score)}</div>
+                    <div class="score-breakdown">
+                        <span>Coverage: ${Math.round(score.coverage_score)}</span>
+                        <span>Quality: ${Math.round(score.quality_score)}</span>
+                        <span>Tests: ${score.test_count}</span>
+                    </div>
+                    ${score.recommendations.length > 0 ? `
+                        <div class="recommendations">
+                            <strong>Recommendations:</strong>
+                            <ul>
+                                ${score.recommendations.slice(0, 3).map(rec => `<li>${rec}</li>`).join('')}
+                            </ul>
+                        </div>
+                    ` : ''}
+                </div>
+            `).join('');
+        }
+
+        async function searchTests() {
+            const query = document.getElementById('searchQuery').value.trim();
+            const layer = document.getElementById('layerFilter').value;
+            const category = document.getElementById('categoryFilter').value;
+
+            if (!query) {
+                showError('Please enter a search query');
+                return;
+            }
+
+            const resultsContainer = document.getElementById('searchResults');
+            resultsContainer.innerHTML = '<div class="loading">Searching tests...</div>';
+
+            try {
+                const params = new URLSearchParams({
+                    query: query,
+                    limit: 20
+                });
+
+                if (layer) params.append('layer', layer);
+                if (category) params.append('category', category);
+
+                const results = await fetch(`${API_BASE}/search?${params}`).then(r => r.json());
+                updateSearchResults(results);
+
+            } catch (error) {
+                console.error('Error searching tests:', error);
+                showError('Search failed. Please try again.');
+            }
+        }
+
+        function updateSearchResults(results) {
+            const container = document.getElementById('searchResults');
+            
+            if (results.length === 0) {
+                container.innerHTML = '<div class="loading">No tests found matching your search</div>';
+                return;
+            }
+
+            container.innerHTML = results.map(result => `
+                <div class="test-result">
+                    <div class="test-name">${result.test_name}</div>
+                    <div class="test-description">${result.test_description}</div>
+                    <div class="test-meta">
+                        <span class="test-layer">${result.test_layer}</span>
+                        <span class="test-category">${result.test_category}</span>
+                        <span class="test-score">Score: ${Math.round(result.relevance_score)}</span>
+                        <span style="color: #6b7280;">ID: ${result.test_id.substring(0, 8)}</span>
+                    </div>
+                    ${result.snippet ? `
+                        <div style="margin-top: 8px; padding: 8px; background: #f9fafb; border-radius: 4px; font-size: 0.85rem; color: #374151;">
+                            ${result.snippet}
+                        </div>
+                    ` : ''}
+                </div>
+            `).join('');
+        }
+
+        function showError(message) {
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'error';
+            errorDiv.textContent = message;
+            
+            const container = document.querySelector('.analytics-container');
+            container.insertBefore(errorDiv, container.firstChild);
+            
+            setTimeout(() => errorDiv.remove(), 5000);
+        }
+
+        // Allow search on Enter key
+        document.getElementById('searchQuery').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                searchTests();
+            }
+        });
+    </script>
+</body>
+</html>

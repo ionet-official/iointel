@@ -1,4 +1,3 @@
-import os
 from typing import List, Optional
 from pydantic_settings import BaseSettings
 from pydantic import Field, validator
@@ -9,25 +8,25 @@ class Settings(BaseSettings):
     version: str = "1.0.0"
     
     # API Configuration
-    api_host: str = Field(default="0.0.0.0", env="API_HOST")
-    api_port: int = Field(default=8000, env="API_PORT")
-    api_workers: int = Field(default=1, env="API_WORKERS")
+    api_host: str = Field("0.0.0.0", description="API host")
+    api_port: int = Field(8000, description="API port")
+    api_workers: int = Field(1, description="Number of API workers")
     
     # Model API Configuration
-    io_api_key: Optional[str] = Field(default=None, env="IO_API_KEY")
-    io_base_url: Optional[str] = Field(default=None, env="IO_BASE_URL")
+    io_api_key: Optional[str] = Field(None, description="IO API key")
+    io_base_url: Optional[str] = Field(None, description="IO base URL")
     
     # Evaluation Configuration
-    default_num_tasks: int = Field(default=3, env="DEFAULT_NUM_TASKS")
-    default_timeout: int = Field(default=120, env="DEFAULT_TIMEOUT")
-    max_timeout: int = Field(default=600, env="MAX_TIMEOUT")
-    max_concurrent_evaluations: int = Field(default=5, env="MAX_CONCURRENT_EVALUATIONS")
+    default_num_tasks: int = Field(3, description="Default number of tasks")
+    default_timeout: int = Field(120, description="Default timeout in seconds")
+    max_timeout: int = Field(600, description="Maximum timeout in seconds")
+    max_concurrent_evaluations: int = Field(5, description="Max concurrent evaluations")
     
     # Logging Configuration
-    log_level: str = Field(default="INFO", env="LOG_LEVEL")
+    log_level: str = Field("INFO", description="Logging level")
     log_format: str = Field(
-        default="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-        env="LOG_FORMAT"
+        "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        description="Log format string"
     )
     
     # Security Configuration
@@ -69,7 +68,7 @@ class Settings(BaseSettings):
             # OpenAI Models
             "gpt-4o",
             "gpt-4o-mini",
-            "gpt-3.5-turbo",
+            "gpt-5",
         ],
         env="RECOMMENDED_MODELS"
     )

@@ -1,0 +1,646 @@
+{
+  "total_files": 32,
+  "files_migrated": 30,
+  "files_unchanged": 2,
+  "files_with_errors": 0,
+  "total_nodes_updated": 71,
+  "migration_reports": [
+    {
+      "file": "Parallel Branches with Validation_2d3b08d4.json",
+      "nodes_updated": 1,
+      "changes": [
+        {
+          "node_id": "validation_agent",
+          "node_label": "Validation Agent: Check Merge Result",
+          "old_type": "conversational",
+          "new_type": "agent"
+        }
+      ],
+      "backup_created": "Parallel Branches with Validation_2d3b08d4.json.backup"
+    },
+    {
+      "file": "Arithmetic Riddle Workflow_e28da573.json",
+      "nodes_updated": 3,
+      "changes": [
+        {
+          "node_id": "riddle_agent",
+          "node_label": "Riddle Agent",
+          "old_type": "conversational",
+          "new_type": "agent"
+        },
+        {
+          "node_id": "solver_agent",
+          "node_label": "Solver Agent",
+          "old_type": "conversational",
+          "new_type": "agent"
+        },
+        {
+          "node_id": "oracle_agent",
+          "node_label": "Oracle Agent",
+          "old_type": "conversational",
+          "new_type": "agent"
+        }
+      ],
+      "backup_created": "Arithmetic Riddle Workflow_e28da573.json.backup"
+    },
+    {
+      "file": "Email Inbox Assistant Workflow_6b98e590.json",
+      "nodes_updated": 3,
+      "changes": [
+        {
+          "node_id": "agent_1",
+          "node_label": "Email Reader Agent",
+          "old_type": "analyzer",
+          "new_type": "agent"
+        },
+        {
+          "node_id": "agent_2",
+          "node_label": "Context Tree Agent",
+          "old_type": "conversational",
+          "new_type": "agent"
+        },
+        {
+          "node_id": "agent_3",
+          "node_label": "Summary Agent",
+          "old_type": "analyzer",
+          "new_type": "agent"
+        }
+      ],
+      "backup_created": "Email Inbox Assistant Workflow_6b98e590.json.backup"
+    },
+    {
+      "file": "Simple Conditional Gate Demo_ce30fc30.json",
+      "nodes_updated": 3,
+      "changes": [
+        {
+          "node_id": "buy_agent",
+          "node_label": "Buy Action Agent",
+          "old_type": "conversational",
+          "new_type": "agent"
+        },
+        {
+          "node_id": "sell_agent",
+          "node_label": "Sell Action Agent",
+          "old_type": "conversational",
+          "new_type": "agent"
+        },
+        {
+          "node_id": "hold_agent",
+          "node_label": "Hold Action Agent",
+          "old_type": "conversational",
+          "new_type": "agent"
+        }
+      ],
+      "backup_created": "Simple Conditional Gate Demo_ce30fc30.json.backup"
+    },
+    {
+      "file": "User Input Conditional Gate_10d273fb.json",
+      "nodes_updated": 2,
+      "changes": [
+        {
+          "node_id": "positive_agent",
+          "node_label": "Positive Confirmation Agent",
+          "old_type": "analyzer",
+          "new_type": "agent"
+        },
+        {
+          "node_id": "negative_agent",
+          "node_label": "Negative Confirmation Agent",
+          "old_type": "analyzer",
+          "new_type": "agent"
+        }
+      ],
+      "backup_created": "User Input Conditional Gate_10d273fb.json.backup"
+    },
+    {
+      "file": "Enhanced Crypto Trading Workflow_db814b7a.json",
+      "nodes_updated": 3,
+      "changes": [
+        {
+          "node_id": "agent_1",
+          "node_label": "Calculate and Decide Action",
+          "old_type": "conversational",
+          "new_type": "agent"
+        },
+        {
+          "node_id": "agent_2",
+          "node_label": "Execute Buy Order and Notify",
+          "old_type": "conversational",
+          "new_type": "agent"
+        },
+        {
+          "node_id": "agent_3",
+          "node_label": "Execute Sell Order and Notify",
+          "old_type": "conversational",
+          "new_type": "agent"
+        }
+      ],
+      "backup_created": "Enhanced Crypto Trading Workflow_db814b7a.json.backup"
+    },
+    {
+      "file": "User Input with English-Italian Teaching and Calcu_e3b812c5.json",
+      "nodes_updated": 1,
+      "changes": [
+        {
+          "node_id": "node2",
+          "node_label": "Combined English-Italian and Calculator Agent",
+          "old_type": "conversational",
+          "new_type": "agent"
+        }
+      ],
+      "backup_created": "User Input with English-Italian Teaching and Calcu_e3b812c5.json.backup"
+    },
+    {
+      "file": "Arithmetic Riddle Workflow_123e4567.json",
+      "nodes_updated": 3,
+      "changes": [
+        {
+          "node_id": "riddle_agent",
+          "node_label": "Riddle Generator",
+          "old_type": "conversational",
+          "new_type": "agent"
+        },
+        {
+          "node_id": "solver_agent",
+          "node_label": "Solver Agent",
+          "old_type": "conversational",
+          "new_type": "agent"
+        },
+        {
+          "node_id": "oracle_agent",
+          "node_label": "Oracle Agent",
+          "old_type": "conversational",
+          "new_type": "agent"
+        }
+      ],
+      "backup_created": "Arithmetic Riddle Workflow_123e4567.json.backup"
+    },
+    {
+      "file": "User Input Conditional Gate_d0bdfef8.json",
+      "nodes_updated": 2,
+      "changes": [
+        {
+          "node_id": "positive_agent",
+          "node_label": "Positive Confirmation Agent",
+          "old_type": "analyzer",
+          "new_type": "agent"
+        },
+        {
+          "node_id": "negative_agent",
+          "node_label": "Negative Confirmation Agent",
+          "old_type": "analyzer",
+          "new_type": "agent"
+        }
+      ],
+      "backup_created": "User Input Conditional Gate_d0bdfef8.json.backup"
+    },
+    {
+      "file": "Single User Input Modal and General Agent Workflow_dbb6a7cf.json",
+      "nodes_updated": 1,
+      "changes": [
+        {
+          "node_id": "node2",
+          "node_label": "General Agent with Tools",
+          "old_type": "data_fetcher",
+          "new_type": "agent"
+        }
+      ],
+      "backup_created": "Single User Input Modal and General Agent Workflow_dbb6a7cf.json.backup"
+    },
+    {
+      "file": "Simple Conditional Gate Demo_b29e77f8.json",
+      "nodes_updated": 3,
+      "changes": [
+        {
+          "node_id": "buy_agent",
+          "node_label": "Buy Action Agent",
+          "old_type": "conversational",
+          "new_type": "agent"
+        },
+        {
+          "node_id": "sell_agent",
+          "node_label": "Sell Action Agent",
+          "old_type": "conversational",
+          "new_type": "agent"
+        },
+        {
+          "node_id": "hold_agent",
+          "node_label": "Hold Action Agent",
+          "old_type": "conversational",
+          "new_type": "agent"
+        }
+      ],
+      "backup_created": "Simple Conditional Gate Demo_b29e77f8.json.backup"
+    },
+    {
+      "file": "Riddle Solving Workflow_e5abbaae.json",
+      "nodes_updated": 3,
+      "changes": [
+        {
+          "node_id": "riddle_generator",
+          "node_label": "Riddle Generator",
+          "old_type": "conversational",
+          "new_type": "agent"
+        },
+        {
+          "node_id": "solver_agent",
+          "node_label": "Solver Agent",
+          "old_type": "conversational",
+          "new_type": "agent"
+        },
+        {
+          "node_id": "oracle_agent",
+          "node_label": "Oracle Agent",
+          "old_type": "analyzer",
+          "new_type": "agent"
+        }
+      ],
+      "backup_created": "Riddle Solving Workflow_e5abbaae.json.backup"
+    },
+    {
+      "file": "Bash Command Response Workflow_095d3f17.json",
+      "nodes_updated": 1,
+      "changes": [
+        {
+          "node_id": "agent_1",
+          "node_label": "agent_1",
+          "old_type": "executor",
+          "new_type": "agent"
+        }
+      ],
+      "backup_created": "Bash Command Response Workflow_095d3f17.json.backup"
+    },
+    {
+      "file": "Bitcoin Conditional Gate Trading_5ca0fa5f.json",
+      "nodes_updated": 3,
+      "changes": [
+        {
+          "node_id": "buy_agent",
+          "node_label": "Buy Confirmation Agent",
+          "old_type": "analyzer",
+          "new_type": "agent"
+        },
+        {
+          "node_id": "sell_agent",
+          "node_label": "Sell Confirmation Agent",
+          "old_type": "analyzer",
+          "new_type": "agent"
+        },
+        {
+          "node_id": "hold_agent",
+          "node_label": "Hold Confirmation Agent",
+          "old_type": "analyzer",
+          "new_type": "agent"
+        }
+      ],
+      "backup_created": "Bitcoin Conditional Gate Trading_5ca0fa5f.json.backup"
+    },
+    {
+      "file": "User-Driven Stock Trading with 3% Threshold and Co_827586cb.json",
+      "nodes_updated": 3,
+      "changes": [
+        {
+          "node_id": "agent_2",
+          "node_label": "Buy Agent",
+          "old_type": "conversational",
+          "new_type": "agent"
+        },
+        {
+          "node_id": "agent_3",
+          "node_label": "Sell Agent",
+          "old_type": "conversational",
+          "new_type": "agent"
+        },
+        {
+          "node_id": "agent_4",
+          "node_label": "Email Agent",
+          "old_type": "conversational",
+          "new_type": "agent"
+        }
+      ],
+      "backup_created": "User-Driven Stock Trading with 3% Threshold and Co_827586cb.json.backup"
+    },
+    {
+      "file": "User Input with English-Italian Teaching Agent_e3b812c5.json",
+      "nodes_updated": 1,
+      "changes": [
+        {
+          "node_id": "node2",
+          "node_label": "English-Italian Teaching Agent",
+          "old_type": "conversational",
+          "new_type": "agent"
+        }
+      ],
+      "backup_created": "User Input with English-Italian Teaching Agent_e3b812c5.json.backup"
+    },
+    {
+      "file": "Smart Input Conditional Gate_9501f908.json",
+      "nodes_updated": 2,
+      "changes": [
+        {
+          "node_id": "positive_agent",
+          "node_label": "Positive Confirmation Agent",
+          "old_type": "analyzer",
+          "new_type": "agent"
+        },
+        {
+          "node_id": "negative_agent",
+          "node_label": "Negative Confirmation Agent",
+          "old_type": "analyzer",
+          "new_type": "agent"
+        }
+      ],
+      "backup_created": "Smart Input Conditional Gate_9501f908.json.backup"
+    },
+    {
+      "file": "Crypto Price Check and Trade Workflow_eaabcde0.json",
+      "nodes_updated": 5,
+      "changes": [
+        {
+          "node_id": "calculate_difference",
+          "node_label": "Calculate Percentage Change",
+          "old_type": "conversational",
+          "new_type": "agent"
+        },
+        {
+          "node_id": "buy_action",
+          "node_label": "Execute Buy Order",
+          "old_type": "conversational",
+          "new_type": "agent"
+        },
+        {
+          "node_id": "sell_action",
+          "node_label": "Execute Sell Order",
+          "old_type": "conversational",
+          "new_type": "agent"
+        },
+        {
+          "node_id": "email_action",
+          "node_label": "Send Email Notification to Alex",
+          "old_type": "conversational",
+          "new_type": "agent"
+        },
+        {
+          "node_id": "email_action_roch",
+          "node_label": "Send Email Notification to Roch",
+          "old_type": "conversational",
+          "new_type": "agent"
+        }
+      ],
+      "backup_created": "Crypto Price Check and Trade Workflow_eaabcde0.json.backup"
+    },
+    {
+      "file": "Arxiv Research Paper Search and Analysis_bd34636c.json",
+      "nodes_updated": 1,
+      "changes": [
+        {
+          "node_id": "agent_1",
+          "node_label": "Arxiv Analysis Agent",
+          "old_type": "data_fetcher",
+          "new_type": "agent"
+        }
+      ],
+      "backup_created": "Arxiv Research Paper Search and Analysis_bd34636c.json.backup"
+    },
+    {
+      "file": "Enhanced Market Decision with Correct Routing_b05b19d8.json",
+      "nodes_updated": 3,
+      "changes": [
+        {
+          "node_id": "agent_2",
+          "node_label": "Buy Agent",
+          "old_type": "analyzer",
+          "new_type": "agent"
+        },
+        {
+          "node_id": "agent_3",
+          "node_label": "Sell Agent",
+          "old_type": "analyzer",
+          "new_type": "agent"
+        },
+        {
+          "node_id": "agent_4",
+          "node_label": "Email Agent",
+          "old_type": "conversational",
+          "new_type": "agent"
+        }
+      ],
+      "backup_created": "Enhanced Market Decision with Correct Routing_b05b19d8.json.backup"
+    },
+    {
+      "file": "Smart Input Conditional Gate_0aee1de7.json",
+      "nodes_updated": 2,
+      "changes": [
+        {
+          "node_id": "positive_agent",
+          "node_label": "Positive Confirmation Agent",
+          "old_type": "analyzer",
+          "new_type": "agent"
+        },
+        {
+          "node_id": "negative_agent",
+          "node_label": "Negative Confirmation Agent",
+          "old_type": "analyzer",
+          "new_type": "agent"
+        }
+      ],
+      "backup_created": "Smart Input Conditional Gate_0aee1de7.json.backup"
+    },
+    {
+      "file": "Fixed Conditional Gate Demo_55134fdf.json",
+      "nodes_updated": 3,
+      "changes": [
+        {
+          "node_id": "buy_agent",
+          "node_label": "Buy Action Agent",
+          "old_type": "conversational",
+          "new_type": "agent"
+        },
+        {
+          "node_id": "sell_agent",
+          "node_label": "Sell Action Agent",
+          "old_type": "conversational",
+          "new_type": "agent"
+        },
+        {
+          "node_id": "hold_agent",
+          "node_label": "Hold Action Agent",
+          "old_type": "conversational",
+          "new_type": "agent"
+        }
+      ],
+      "backup_created": "Fixed Conditional Gate Demo_55134fdf.json.backup"
+    },
+    {
+      "file": "Bitcoin Conditional Gate Trading_2a308f54.json",
+      "nodes_updated": 3,
+      "changes": [
+        {
+          "node_id": "buy_agent",
+          "node_label": "Buy Confirmation Agent",
+          "old_type": "analyzer",
+          "new_type": "agent"
+        },
+        {
+          "node_id": "sell_agent",
+          "node_label": "Sell Confirmation Agent",
+          "old_type": "analyzer",
+          "new_type": "agent"
+        },
+        {
+          "node_id": "hold_agent",
+          "node_label": "Hold Confirmation Agent",
+          "old_type": "analyzer",
+          "new_type": "agent"
+        }
+      ],
+      "backup_created": "Bitcoin Conditional Gate Trading_2a308f54.json.backup"
+    },
+    {
+      "file": "Enhanced Automated Stock Trading Pipeline_fcdafb14.json",
+      "nodes_updated": 3,
+      "changes": [
+        {
+          "node_id": "agent_2",
+          "node_label": "Buy Agent",
+          "old_type": "conversational",
+          "new_type": "agent"
+        },
+        {
+          "node_id": "agent_3",
+          "node_label": "Sell Agent",
+          "old_type": "conversational",
+          "new_type": "agent"
+        },
+        {
+          "node_id": "agent_4",
+          "node_label": "Email Notification Agent",
+          "old_type": "conversational",
+          "new_type": "agent"
+        }
+      ],
+      "backup_created": "Enhanced Automated Stock Trading Pipeline_fcdafb14.json.backup"
+    },
+    {
+      "file": "User-Driven Stock Trading with SLA and Conditional_ff08012c.json",
+      "nodes_updated": 4,
+      "changes": [
+        {
+          "node_id": "agent_1",
+          "node_label": "Stock Decision Agent",
+          "old_type": "data_fetcher",
+          "new_type": "agent"
+        },
+        {
+          "node_id": "agent_2",
+          "node_label": "Buy Agent",
+          "old_type": "conversational",
+          "new_type": "agent"
+        },
+        {
+          "node_id": "agent_3",
+          "node_label": "Sell Agent",
+          "old_type": "conversational",
+          "new_type": "agent"
+        },
+        {
+          "node_id": "agent_4",
+          "node_label": "Email Agent",
+          "old_type": "conversational",
+          "new_type": "agent"
+        }
+      ],
+      "backup_created": "User-Driven Stock Trading with SLA and Conditional_ff08012c.json.backup"
+    },
+    {
+      "file": "User-Driven Stock Trading Workflow_3c5d60d5.json",
+      "nodes_updated": 3,
+      "changes": [
+        {
+          "node_id": "agent_2",
+          "node_label": "Buy Agent",
+          "old_type": "conversational",
+          "new_type": "agent"
+        },
+        {
+          "node_id": "agent_3",
+          "node_label": "Sell Agent",
+          "old_type": "conversational",
+          "new_type": "agent"
+        },
+        {
+          "node_id": "agent_4",
+          "node_label": "Email Agent",
+          "old_type": "conversational",
+          "new_type": "agent"
+        }
+      ],
+      "backup_created": "User-Driven Stock Trading Workflow_3c5d60d5.json.backup"
+    },
+    {
+      "file": "Arxiv Research Paper Search and Analysis II_ba5f9da2.json",
+      "nodes_updated": 1,
+      "changes": [
+        {
+          "node_id": "agent_1",
+          "node_label": "Arxiv Analysis Agent",
+          "old_type": "data_fetcher",
+          "new_type": "agent"
+        }
+      ],
+      "backup_created": "Arxiv Research Paper Search and Analysis II_ba5f9da2.json.backup"
+    },
+    {
+      "file": "Zen Insight Agent Workflow_439318b3.json",
+      "nodes_updated": 1,
+      "changes": [
+        {
+          "node_id": "agent_1",
+          "node_label": "zen_insight_agent",
+          "old_type": "conversational",
+          "new_type": "agent"
+        }
+      ],
+      "backup_created": "Zen Insight Agent Workflow_439318b3.json.backup"
+    },
+    {
+      "file": "Agent Conditional Gate Example_5e2d6a7d.json",
+      "nodes_updated": 2,
+      "changes": [
+        {
+          "node_id": "positive_agent",
+          "node_label": "Positive Confirmation Agent",
+          "old_type": "analyzer",
+          "new_type": "agent"
+        },
+        {
+          "node_id": "negative_agent",
+          "node_label": "Negative Confirmation Agent",
+          "old_type": "analyzer",
+          "new_type": "agent"
+        }
+      ],
+      "backup_created": "Agent Conditional Gate Example_5e2d6a7d.json.backup"
+    },
+    {
+      "file": "Test Joke Workflow_accd1561.json",
+      "nodes_updated": 2,
+      "changes": [
+        {
+          "node_id": "joke_agent",
+          "node_label": "Create Joke",
+          "old_type": "conversational",
+          "new_type": "agent"
+        },
+        {
+          "node_id": "audience_agent",
+          "node_label": "Evaluate Joke",
+          "old_type": "analyzer",
+          "new_type": "agent"
+        }
+      ],
+      "backup_created": "Test Joke Workflow_accd1561.json.backup"
+    }
+  ],
+  "errors": []
+}

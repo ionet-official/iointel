@@ -81,8 +81,14 @@ class ContextTree(BaseModel):
 
     @register_tool(name="read_context_tree")
     def read(self, node_id: str, as_content: bool = True) -> Optional[str | ContextNode]:
-        """
-        Return the content of a node. If as_content is True, return the content of the node. Otherwise, return the node itself.
+        """Return the content of a node. If as_content is True, return the content of the node. Otherwise, return the node itself.
+        
+        Args:
+            node_id: The unique identifier of the node to read
+            as_content: If True, return only the content string; if False, return the full node object
+        
+        Returns:
+            The node content as string (if as_content=True) or the ContextNode object (if as_content=False)
         """
         if as_content:
             return self._index[node_id].content
@@ -97,7 +103,17 @@ class ContextTree(BaseModel):
         content: Optional[str],
         deletable: bool = False,
     ) -> ContextNode:
-        """Create a new node under parent_id. If you unsure about the parent_id, use `summary` to get a list of nodes and their ids."""
+        """Create a new node under parent_id. If you unsure about the parent_id, use `summary` to get a list of nodes and their ids.
+        
+        Args:
+            parent_id: The ID of the parent node to create the new node under
+            title: A concise title for the new node (max 3-4 words recommended)
+            content: The initial content for the new node (can be None)
+            deletable: Whether this node can be deleted later (default: False)
+        
+        Returns:
+            The newly created ContextNode
+        """
         node = ContextNode.create(
             title=title, content=content, id_length=self.id_length, deletable=deletable
         )
@@ -107,21 +123,44 @@ class ContextTree(BaseModel):
 
     @register_tool(name="append_context_tree")
     def append(self, node_id: str, content: str) -> ContextNode:
-        """Append content to an existing node. This lets you grow the node's content iteratively."""
+        """Append content to an existing node. This lets you grow the node's content iteratively.
+        
+        Args:
+            node_id: The unique identifier of the node to append content to
+            content: The content to append to the existing node content
+        
+        Returns:
+            The updated ContextNode with appended content
+        """
         node = self._index[node_id]
         node.content = (node.content or "") + "\n" + content
         return node
 
     @register_tool(name="update_context_tree")
     def update(self, node_id: str, content: str) -> ContextNode:
-        """Overwrite the content of an existing node. Useful for updating checklists, and running todo lists. This will replace the entire node with the new content."""
+        """Overwrite the content of an existing node. Useful for updating checklists, and running todo lists. This will replace the entire node with the new content.
+        
+        Args:
+            node_id: The unique identifier of the node to update
+            content: The new content that will completely replace the existing content
+        
+        Returns:
+            The updated ContextNode with new content
+        """
         node = self._index[node_id]
         node.content = content
         return node
 
     @register_tool(name="delete_context_tree")
     def delete(self, node_id: str) -> ContextNode | str:
-        """Delete a node if deletable. Returns the deleted node or a message if not deletable."""
+        """Delete a node if deletable. Returns the deleted node or a message if not deletable.
+        
+        Args:
+            node_id: The unique identifier of the node to delete
+        
+        Returns:
+            The deleted ContextNode if successful, or an error message string if not deletable
+        """
         node = self._index[node_id]
         if not node.deletable:
             return f"Node {node_id} is not deletable"
@@ -132,16 +171,20 @@ class ContextTree(BaseModel):
     def summary(
         self,
         start_node_id: str = "root",
-        max_depth: int = None,
+        max_depth: Optional[int] = None,
         show_content: bool = False,
         return_type: Literal["str", "dict"] = "str",
     ) -> Union[str, dict]:
-        """
-        Return a pretty-printed, indented summary of the tree or subtree starting from start_node_id.
-        - max_depth: limit depth (None for unlimited)
-        - show_content: include content in summary
-        - return_type: 'str' for pretty string, 'dict' for nested dict
-        Each node includes whether it is deletable.
+        """Return a pretty-printed, indented summary of the tree or subtree starting from start_node_id.
+        
+        Args:
+            start_node_id: The node ID to start the summary from (default: "root")
+            max_depth: Maximum depth to traverse (None for unlimited)
+            show_content: Whether to include node content in the summary
+            return_type: Format of return value - 'str' for pretty string, 'dict' for nested dict
+        
+        Returns:
+            A formatted tree summary as string or dict, showing node structure and deletability
         """
         node = self._index.get(start_node_id, self.root)
 
@@ -185,15 +228,29 @@ class ContextTree(BaseModel):
 
     @register_tool(name="load_context_tree")
     def load_tree(self, file_path: str) -> str:
-        """Load a tree from a file."""
-        with open(file_path, "r") as f:
+        """Load a tree from a file.
+        
+        Args:
+            file_path: The path to the JSON file containing the serialized context tree
+        
+        Returns:
+            A confirmation message indicating successful loading
+        """
+        with open(file_path) as f:
             self.root = ContextNode.model_validate(json.load(f))
         self._rebuild_index()
         return f"Loaded tree from {file_path}"
 
     @register_tool(name="save_context_tree")        
     def save_tree(self, file_path: str) -> str:
-        """Save the tree to a file."""
+        """Save the tree to a file.
+        
+        Args:
+            file_path: The path where the context tree should be saved as JSON
+        
+        Returns:
+            A confirmation message indicating successful saving
+        """
         with open(file_path, "w") as f:
             json.dump(self.serialize(), f, indent=2)
         return f"Saved tree to {file_path}"
@@ -229,7 +286,7 @@ use checkboxes for TODO lists.
 """
 
 
-def get_tree_agent(model_name: str, api_key: str, base_url: str, conversation_id: str, id_length: int = 7, memory: AsyncMemory = None) -> Agent:
+def get_tree_agent(model_name: str, api_key: str, base_url: str, conversation_id: str, id_length: int = 7, memory: Optional[AsyncMemory] = None) -> Agent:
     tree = ContextTree(id_length=id_length)
     agent = Agent(
     name="Context Tree Agent",

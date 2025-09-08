@@ -30,10 +30,10 @@ else:
     from typing import TypedDict
 
 
-from ...memory import AsyncMemory
-from ...utilities.func_metadata import func_metadata, FuncMetadata
-from ...utilities.exceptions import ToolError
-from ...utilities.registries import TOOL_SELF_REGISTRY
+from iointel.src.memory import AsyncMemory
+from iointel.src.utilities.func_metadata import func_metadata, FuncMetadata
+from iointel.src.utilities.exceptions import ToolError
+from iointel.src.utilities.registries import TOOL_SELF_REGISTRY
 import inspect
 
 
@@ -52,6 +52,77 @@ class ToolUsageResult(BaseModel):
     tool_name: str
     tool_args: dict
     tool_result: Any = None
+
+
+class AgentResultFormat(BaseModel):
+    """
+    Defines which fields to include in agent execution results.
+    
+    Predefined formats:
+    - chat: Just the result text (for simple chat responses)
+    - chat_w_tools: Result text + tool usage (for tool-aware chat)
+    - workflow: Result + conversation_id + tools (for workflow chaining)
+    - full: All available fields (complete debugging info)
+    """
+    
+    # Available field options
+    include_result: bool = Field(True, description="Include the main result/output text")
+    include_conversation_id: bool = Field(False, description="Include conversation ID")
+    include_tool_usage_results: bool = Field(False, description="Include tool usage details")
+    include_full_result: bool = Field(False, description="Include complete AgentRunResult object")
+    
+    @classmethod
+    def chat(cls) -> "AgentResultFormat":
+        """Simple chat format: just the result text"""
+        return cls(
+            include_result=True,
+            include_conversation_id=False,
+            include_tool_usage_results=False,
+            include_full_result=False
+        )
+    
+    @classmethod
+    def chat_w_tools(cls) -> "AgentResultFormat":
+        """Chat with tools: result + tool usage"""
+        return cls(
+            include_result=True,
+            include_conversation_id=False,
+            include_tool_usage_results=True,
+            include_full_result=False
+        )
+    
+    @classmethod
+    def workflow(cls) -> "AgentResultFormat":
+        """Workflow format: result + conversation_id + tools (for chaining)"""
+        return cls(
+            include_result=True,
+            include_conversation_id=True,
+            include_tool_usage_results=True,
+            include_full_result=False
+        )
+    
+    @classmethod
+    def full(cls) -> "AgentResultFormat":
+        """Full format: all available fields (for debugging)"""
+        return cls(
+            include_result=True,
+            include_conversation_id=True,
+            include_tool_usage_results=True,
+            include_full_result=True
+        )
+    
+    def get_included_fields(self) -> List[str]:
+        """Returns list of field names to include in the result"""
+        fields = []
+        if self.include_result:
+            fields.append('result')
+        if self.include_conversation_id:
+            fields.append('conversation_id')
+        if self.include_tool_usage_results:
+            fields.append('tool_usage_results')
+        if self.include_full_result:
+            fields.append('full_result')
+        return fields
 
 
 ###### persona ########
@@ -245,6 +316,9 @@ TOOL_SELF_INSTANCES: dict[int, BaseModel] = weakref.WeakValueDictionary()
 
 
 class Tool(BaseModel):
+    model_config = ConfigDict(
+        arbitrary_types_allowed=True
+    )
     name: str = Field(description="Name of the tool")
     description: str = Field(description="Description of what the tool does")
     parameters: dict = Field(description="JSON schema for tool parameters")
@@ -256,9 +330,6 @@ class Tool(BaseModel):
     fn_self: Optional[tuple[str, str, int]] = Field(
         None, description="Serialised `self` if `fn` is an instance method"
     )
-
-    class Config:
-        arbitrary_types_allowed = True
 
     @staticmethod
     def _instance_tool_key(tool_self: BaseModel) -> str:
@@ -402,8 +473,12 @@ class Tool(BaseModel):
     async def run(self, arguments: dict) -> Any:
         """Run the tool with arguments."""
         try:
+            # Separate execution_metadata from regular arguments
+            execution_metadata = arguments.pop('execution_metadata', None)
+            additional_args = {'execution_metadata': execution_metadata} if execution_metadata else None
+            
             return await self.fn_metadata.call_fn_with_arg_validation(
-                self.fn, self.is_async, arguments
+                self.fn, self.is_async, arguments, additional_args
             )
         except Exception as e:
             raise ToolError(f"Error executing tool {self.name}: {e}") from e
@@ -413,6 +488,7 @@ class Tool(BaseModel):
 class AgentParams(BaseModel):
     model_config = ConfigDict(
         arbitrary_types_allowed=True,
+        extra="allow"  # Allows extra fields not defined in the model
     )
     name: Optional[str] = None
     instructions: str = Field(..., description="Instructions for the agent")

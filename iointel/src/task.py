@@ -1,11 +1,11 @@
-from typing import Callable, List, Dict, Any
+from typing import Optional, Callable, List, Dict, Any
 
 from pydantic import BaseModel
 
-from .agents import Agent
-from .utilities.helpers import LazyCaller
-from .agent_methods.data_models.datamodels import AgentParams, TaskDefinition, Tool
-from .agent_methods.agents.agents_factory import create_agent
+from iointel.src.agents import Agent
+from iointel.src.utilities.helpers import LazyCaller
+from iointel.src.agent_methods.data_models.datamodels import AgentParams, TaskDefinition, Tool
+from iointel.src.agent_methods.agents.agents_factory import create_agent
 
 
 class Task:
@@ -14,7 +14,7 @@ class Task:
     It can store a set of agents and provide methods to run them with given instructions and context.
     """
 
-    def __init__(self, agents: List[Agent] = None):
+    def __init__(self, agents: Optional[List[Agent]] = None):
         """
         :param agents: Optional list of Agent instances that this runner can orchestrate.
         """
@@ -85,6 +85,9 @@ class Task:
         if context:
             active_agent.set_context(context)
 
+        # Prevent duplicate conversation_id parameter 
+        filtered_kwargs = {k: v for k, v in kwargs.items() if k != 'conversation_id'}
+        
         return LazyCaller(
             lambda: active_agent.run(
                 query=definition.objective,
@@ -92,7 +95,7 @@ class Task:
                 if definition.task_metadata
                 else None,
                 output_type=output_type,
-                **kwargs,
+                **filtered_kwargs,
             )
         )
 

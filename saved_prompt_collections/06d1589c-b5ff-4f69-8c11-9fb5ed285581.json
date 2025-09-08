@@ -1,0 +1,24 @@
+{
+  "id": "06d1589c-b5ff-4f69-8c11-9fb5ed285581",
+  "name": "UI Test Collection",
+  "description": "Test collection for UI integration",
+  "records": [
+    "What is the capital of France?",
+    "How do I learn Python programming?",
+    "What are the benefits of meditation?",
+    "How do I improve my productivity?",
+    "What is machine learning?"
+  ],
+  "tags": [
+    "test",
+    "questions"
+  ],
+  "created_at": "2025-07-19 09:45:47.567217",
+  "updated_at": "2025-07-19 09:45:47.567617",
+  "usage_count": 2,
+  "last_used": "2025-07-19 09:45:47.567615",
+  "compatible_tools": [
+    "prompt_tool",
+    "user_input"
+  ]
+}

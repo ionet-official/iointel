@@ -1,9 +1,9 @@
 import asyncio
-from .runners import run_agents
+from iointel.src.utilities.runners import run_agents
 from typing import Any, get_type_hints
 
 
-from ..agent_methods.data_models.datamodels import (
+from iointel.src.agent_methods.data_models.datamodels import (
     BaseStage,
     SimpleStage,
     SequentialStage,

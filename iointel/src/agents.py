@@ -1,26 +1,73 @@
 import dataclasses
 import json
-import uuid
 
-from .memory import AsyncMemory
-from .agent_methods.data_models.datamodels import PersonaConfig, Tool, ToolUsageResult
-from .utilities.rich import pretty_output
-from .utilities.constants import get_api_url, get_base_model, get_api_key
-from .utilities.registries import TOOLS_REGISTRY
-from .utilities.helpers import supports_tool_choice_required, flatten_union_types
-from .ui.rich_panels import render_agent_result_panel
-from .ui.io_gradio_ui import IOGradioUI
+from iointel.src.memory import AsyncMemory
+from iointel.src.agent_methods.data_models.datamodels import PersonaConfig, Tool, ToolUsageResult, AgentResultFormat
+from iointel.src.utilities.rich import pretty_output
+from iointel.src.utilities.helpers import supports_tool_choice_required, flatten_union_types
+from iointel.src.ui.rich_panels import render_agent_result_panel
+from iointel.src.ui.io_gradio_ui import IOGradioUI
 
-from pydantic_ai.models.openai import OpenAIModel
+from pydantic import ConfigDict, SecretStr, BaseModel, ValidationError
+from pydantic_ai.messages import PartDeltaEvent, TextPartDelta, ToolCallPart
+from typing import Callable, Dict, Any, Optional, Union, Literal, List
+
+from pydantic_ai.models.openai import OpenAIModel, ModelRequestParameters
 from pydantic_ai.providers.openai import OpenAIProvider
 from pydantic_ai import Agent as PydanticAgent, Tool as PydanticTool
 from pydantic_ai.agent import AgentRunResult
 from pydantic_ai.messages import ModelMessage
 from pydantic_ai.settings import ModelSettings
 
-from pydantic import ConfigDict, SecretStr, BaseModel, ValidationError
-from pydantic_ai.messages import PartDeltaEvent, TextPartDelta, ToolCallPart
-from typing import Callable, Dict, Any, Optional, Union, Literal
+
+class CleanedToolSchemaModel(OpenAIModel):
+    """Custom model that cleans tool schemas to remove problematic fields like 'strict'."""
+    
+    def _clean_tool_schema(self, schema):
+        """Clean tool schema by removing fields that are not accepted by the API."""
+        if not isinstance(schema, dict):
+            return schema
+        
+        # Create a deep copy to avoid modifying the original
+        import copy
+        cleaned_schema = copy.deepcopy(schema)
+        
+        # Remove 'strict' field from the schema
+        if 'strict' in cleaned_schema:
+            del cleaned_schema['strict']
+        
+        # Recursively clean nested objects
+        for key, value in cleaned_schema.items():
+            if isinstance(value, dict):
+                cleaned_schema[key] = self._clean_tool_schema(value)
+            elif isinstance(value, list):
+                cleaned_schema[key] = [self._clean_tool_schema(item) if isinstance(item, dict) else item for item in value]
+        
+        return cleaned_schema
+    
+    async def request(self, messages, model_settings=None, model_request_parameters=None):
+        """Override request to clean tool schemas and set tool_choice for GPT-OSS models."""
+        # Debug: Print the model name being used
+        print(f"🔍 CleanedToolSchemaModel.request() called with model_name: '{self.model_name}'")
+        
+        # Clean tool schemas in the request
+        if model_request_parameters and hasattr(model_request_parameters, 'tools'):
+            tools = model_request_parameters.tools
+            if isinstance(tools, list):
+                for tool in tools:
+                    if isinstance(tool, dict) and 'function' in tool:
+                        if 'parameters' in tool['function']:
+                            tool['function']['parameters'] = self._clean_tool_schema(tool['function']['parameters'])
+        
+        # Set tool_choice="auto" for GPT-OSS models (required by vLLM documentation)
+        if isinstance(self.model_name, str) and "gpt-oss" in self.model_name.lower():
+            print(f"🔧 Setting tool_choice='auto' for GPT-OSS model: {self.model_name}")
+            if model_request_parameters is None:
+                model_request_parameters = ModelRequestParameters()
+            model_request_parameters.tool_choice = "auto"
+        
+        # Call the parent request method
+        return await super().request(messages, model_settings, model_request_parameters)
 
 
 class PatchedValidatorTool(PydanticTool):
@@ -132,27 +179,86 @@ class Agent(BaseModel):
         :param memory: A Memory instance to use for the agent. Memory module can store and retrieve data, and share context between agents.
 
         """
+        # HACK: Force load environment for Llama models BEFORE getting config
+        if isinstance(model, str) and "llama" in model.lower():
+            import os
+            from dotenv import load_dotenv
+            load_dotenv("creds.env", override=True)
+            print(f"🔧 HACK: Force loading creds.env for Llama model: {model}")
+            print(f"   IO_API_KEY present: {'IO_API_KEY' in os.environ}")
+            print(f"   IO_API_BASE present: {'IO_API_BASE' in os.environ}")
+            
+            # Clear ALL caches so they re-read the env vars
+            from .utilities.constants import get_api_url, get_api_key
+            get_api_url.cache_clear()
+            get_api_key.cache_clear()
+        
+        # Use centralized model configuration
+        from .utilities.constants import get_model_config
+        
+        config = get_model_config(
+            model=model if isinstance(model, str) else None,
+            api_key=api_key if isinstance(api_key, str) else None,
+            base_url=base_url
+        )
+        
+        # HACK: Extra debug for Llama models
+        if isinstance(model, str) and "llama" in model.lower():
+            print(f"   Resolved API key: {config['api_key'][:20]}..." if config['api_key'] else "NONE")
+            print(f"   Resolved base URL: {config['base_url']}")
+        
         resolved_api_key = (
             api_key
             if isinstance(api_key, SecretStr)
-            else SecretStr(api_key or get_api_key())
+            else SecretStr(config["api_key"])
         )
-        resolved_base_url = base_url or get_api_url()
+        resolved_base_url = config["base_url"]
 
         if isinstance(model, OpenAIModel):
             resolved_model = model
         else:
-            kwargs = dict(
-                model_kwargs,
-                provider=OpenAIProvider(
-                    base_url=resolved_base_url,
-                    api_key=resolved_api_key.get_secret_value(),
-                ),
-            )
-            resolved_model = OpenAIModel(
-                model_name=model if isinstance(model, str) else get_base_model(),
-                **kwargs,
-            )
+            model_name_to_use = model if isinstance(model, str) else "gpt-4o"
+            
+            # Check if this is a GPT-OSS model - enable tool calling with auto tool choice
+            if isinstance(model, str) and "gpt-oss" in model.lower():
+                print("🔧 Creating CleanedToolSchemaModel for GPT-OSS:")
+                print(f"   model_name: {model_name_to_use}")
+                print(f"   base_url: {resolved_base_url}")
+                print(f"   api_key length: {len(resolved_api_key.get_secret_value())}")
+                print("   ✅ GPT-OSS models: chat + tool calling enabled with auto tool choice")
+                
+                kwargs = dict(
+                    model_kwargs,
+                    provider=OpenAIProvider(
+                        base_url=resolved_base_url,
+                        api_key=resolved_api_key.get_secret_value(),
+                    ),
+                )
+                resolved_model = CleanedToolSchemaModel(
+                    model_name=model_name_to_use,
+                    **kwargs,
+                )
+            else:
+                # HACK: More debug for Llama models
+                if isinstance(model, str) and "llama" in model.lower():
+                    print("🔧 Creating CleanedToolSchemaModel:")
+                    print(f"   model_name: {model}")
+                    print(f"   base_url: {resolved_base_url}")
+                    print(f"   api_key length: {len(resolved_api_key.get_secret_value())}")
+                    
+                kwargs = dict(
+                    model_kwargs,
+                    provider=OpenAIProvider(
+                        base_url=resolved_base_url,
+                        api_key=resolved_api_key.get_secret_value(),
+                    ),
+                )
+                # Use CleanedToolSchemaModel to automatically clean tool schemas
+                print(f"🔍 Creating CleanedToolSchemaModel with model_name: '{model_name_to_use}'")
+                resolved_model = CleanedToolSchemaModel(
+                    model_name=model_name_to_use,
+                    **kwargs,
+                )
 
         resolved_tools = [
             self._get_registered_tool(tool, allow_unregistered_tools)
@@ -169,6 +275,11 @@ class Agent(BaseModel):
         if model_settings is None:
             model_settings = {}
         model_settings["supports_tool_choice_required"] = model_supports_tool_choice
+        
+        # For models that don't support tool choice, disable tools entirely
+        if not model_supports_tool_choice:
+            print(f"⚠️  Model '{model}' doesn't support tool choice - disabling tools")
+            resolved_tools = []  # Disable tools for models that don't support tool choice
 
         super().__init__(
             name=name,
@@ -210,40 +321,9 @@ class Agent(BaseModel):
     def _get_registered_tool(
         cls, tool: str | Tool | Callable, allow_unregistered_tools: bool
     ) -> Tool:
-        if isinstance(tool, str):
-            if not (registered_tool := TOOLS_REGISTRY.get(tool)):
-                raise ValueError(
-                    f"Tool '{tool}' not found in registry, did you forget to @register_tool?"
-                )
-        elif isinstance(tool, Tool):
-            registered_tool = tool
-        elif callable(tool):
-            registered_tool = Tool.from_function(tool)
-        else:
-            raise ValueError(
-                f"Tool '{tool}' is neither a registered name nor a callable."
-            )
-        found_tool = next(
-            (
-                tool
-                for tool in TOOLS_REGISTRY.values()
-                if tool.body == registered_tool.body
-            ),
-            None,
-        )
-        if not found_tool:
-            if allow_unregistered_tools:
-                found_tool = registered_tool
-            else:
-                raise ValueError(
-                    f"Tool '{registered_tool.name}' not found in registry, did you forget to @register_tool?"
-                )
-        # we need to take tool name and description from the registry,
-        # as the user might have passed in an underlying function
-        # instead of the registered tool object
-        return registered_tool.model_copy(
-            update={"name": found_tool.name, "description": found_tool.description}
-        )
+        """Get a registered tool using the centralized tool registry utils."""
+        from .utilities.tool_registry_utils import resolve_tool
+        return resolve_tool(tool, allow_unregistered_tools)
 
     def _make_init_prompt(self) -> str:
         # Combine user instructions with persona content
@@ -276,6 +356,16 @@ class Agent(BaseModel):
         Handles multiple tool calls/returns per message.
         Returns a list of ToolUsageResult.
         """
+        # Debug logging to understand message structure
+        if hasattr(self, 'debug') and self.debug:
+            print(f"🔍 DEBUG: Extracting tool usage from {len(messages)} messages")
+            for i, msg in enumerate(messages):
+                print(f"  Message {i}: {type(msg)} - has parts: {hasattr(msg, 'parts')}")
+                if hasattr(msg, "parts") and msg.parts:
+                    for j, part in enumerate(msg.parts):
+                        part_kind = getattr(part, "part_kind", None)
+                        print(f"    Part {j}: {type(part)} - part_kind: {part_kind}")
+        
         # Collect all tool-calls and tool-returns by tool_call_id
         tool_calls = {}
         tool_returns = {}
@@ -294,6 +384,9 @@ class Agent(BaseModel):
                         tool_returns[tool_call_id] = part
 
         tool_usage_results: list[ToolUsageResult] = []
+        
+        # Basic logging to understand what we found
+        print(f"🔍 Found {len(tool_calls)} tool calls and {len(tool_returns)} tool returns")
 
         # Pair tool-calls with their returns
         for tool_call_id, call_part in tool_calls.items():
@@ -323,7 +416,15 @@ class Agent(BaseModel):
         query: str,
         conversation_id: Union[str, int],
         pretty: bool = True,
+        result_format: Optional[Union[AgentResultFormat, List[str]]] = None,
     ):
+        """
+        Post-process agent result with configurable output fields.
+        
+        Args:
+            result_format: Either an AgentResultFormat instance or legacy list of field names.
+                If None, uses full format (backward compatibility)
+        """
         messages: list[ModelMessage] = (
             result.all_messages() if hasattr(result, "all_messages") else []
         )
@@ -338,12 +439,30 @@ class Agent(BaseModel):
                 show_tool_calls=self.show_tool_calls,
                 tool_pil_layout=self.tool_pil_layout,
             )
-        return dict(
-            result=result.output,
-            conversation_id=conversation_id,
-            full_result=result,
-            tool_usage_results=tool_usage_results,
-        )
+        
+        # Handle different result_format types
+        if result_format is None:
+            # Default to full format for backward compatibility
+            include_fields = ['result', 'conversation_id', 'full_result', 'tool_usage_results']
+        elif isinstance(result_format, AgentResultFormat):
+            include_fields = result_format.get_included_fields()
+        elif isinstance(result_format, list):
+            # Legacy support for list of field names
+            include_fields = result_format
+        else:
+            raise ValueError(f"Invalid result_format type: {type(result_format)}")
+        
+        result_dict = {}
+        if 'result' in include_fields:
+            result_dict['result'] = result.output
+        if 'conversation_id' in include_fields:
+            result_dict['conversation_id'] = conversation_id
+        if 'full_result' in include_fields:
+            result_dict['full_result'] = result
+        if 'tool_usage_results' in include_fields:
+            result_dict['tool_usage_results'] = tool_usage_results
+            
+        return result_dict
     
     def _resolve_conversation_id(self, conversation_id: Optional[str]) -> str | None:
         res = conversation_id or self.conversation_id or None
@@ -368,6 +487,15 @@ class Agent(BaseModel):
         return None
 
     def _adjust_output_type(self, kwargs: dict[str, Any]) -> None:
+        """Adjusts the output type for models that don't support tool_choice_required.
+        
+        For models without tool_choice_required support, ensures str is included in the output
+        type union to handle cases where the model returns a string response instead of using
+        tools. This maintains backwards compatibility while allowing structured outputs.
+        
+        Args:
+            kwargs: Dictionary of keyword arguments that may contain an output_type
+        """
         if not self.model_settings.get("supports_tool_choice_required"):
             output_type = kwargs.get("output_type")
             if output_type is not None and output_type is not str:
@@ -375,13 +503,14 @@ class Agent(BaseModel):
                 if str not in flat_types:
                     flat_types = [str] + flat_types
                 kwargs["output_type"] = Union[tuple(flat_types)]
-
+                
     async def run(
         self,
         query: str,
         conversation_id: Optional[str] = None,
-        pretty: bool = None,
+        pretty: Optional[bool] = None,
         message_history_limit=100,
+        result_format: Optional[Union[AgentResultFormat, List[str]]] = None,
         **kwargs,
     ) -> dict[str, Any]:
         """
@@ -390,6 +519,7 @@ class Agent(BaseModel):
         :param conversation_id: The conversation ID to use for the agent.
         :param pretty: Whether to pretty print the result as a rich panel, useful for cli or notebook.
         :param message_history_limit: The number of messages to load from the memory.
+        :param result_format: AgentResultFormat instance or list of field names to include in result
         :param kwargs: Additional keyword arguments to pass to the agent.
         :return: The result of the agent run.
         """
@@ -418,7 +548,7 @@ class Agent(BaseModel):
                 print("Error storing run history:", e)
 
         return self._postprocess_agent_result(
-            result, query, conversation_id, pretty=pretty
+            result, query, conversation_id, pretty=pretty, result_format=result_format
         )
 
     async def _stream_tokens(
@@ -462,7 +592,8 @@ class Agent(BaseModel):
         conversation_id: Optional[str] = None,
         return_markdown=False,
         message_history_limit=100,
-        pretty: bool = None,
+        pretty: Optional[bool] = None,
+        result_format: Optional[Union[AgentResultFormat, List[str]]] = None,
         **kwargs,
     ) -> dict[str, Any]:
         """
@@ -472,6 +603,7 @@ class Agent(BaseModel):
         :param return_markdown: Whether to return the result as markdown.
         :param message_history_limit: The number of messages to load from the memory.
         :param pretty: Whether to pretty print the result as a rich panel, useful for cli or notebook.
+        :param result_format: AgentResultFormat instance or list of field names to include in result
         :param kwargs: Additional keyword arguments to pass to the agent.
         :return: The result of the agent run.
         """
@@ -500,7 +632,7 @@ class Agent(BaseModel):
                 print("Error storing run history:", e)
 
         result_dict = self._postprocess_agent_result(
-            agent_result, query, conversation_id, pretty=pretty
+            agent_result, query, conversation_id, pretty=pretty, result_format=result_format
         )
         if return_markdown:
             result_dict["result"] = markdown_content
@@ -530,7 +662,7 @@ class Agent(BaseModel):
         return []
 
     async def launch_chat_ui(
-        self, interface_title: str = None, share: bool = False, conversation_id: str = None
+        self, interface_title: Optional[str] = None, share: bool = False, conversation_id: Optional[str] = None
     ) -> None:
         """
         Launches a Gradio UI for interacting with the agent as a chat interface.

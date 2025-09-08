@@ -1,0 +1,20 @@
+{
+  "id": "1af42c38-d3bb-4eae-9f38-f8354bcf295d",
+  "name": "stocks",
+  "description": "Collection for prompt_tool",
+  "records": [
+    "I bought AAPL 10 years ago, what should i do today?"
+  ],
+  "tags": [
+    "prompt_tool",
+    "web_interface"
+  ],
+  "created_at": "2025-07-23 15:41:29.928878",
+  "updated_at": "2025-07-23 15:41:29.928895",
+  "usage_count": 0,
+  "last_used": null,
+  "compatible_tools": [
+    "prompt_tool",
+    "user_input"
+  ]
+}

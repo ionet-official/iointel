@@ -7,7 +7,7 @@ from fastapi import Request, HTTPException, status
 from fastapi.security import APIKeyHeader
 from starlette.middleware.base import BaseHTTPMiddleware
 
-from .config import settings
+from iointel.src.RL.api.config import settings
 
 
 class RateLimitMiddleware(BaseHTTPMiddleware):

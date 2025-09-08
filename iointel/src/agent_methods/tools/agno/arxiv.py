@@ -2,7 +2,7 @@ from pathlib import Path
 from typing import Optional
 from agno.tools.arxiv import ArxivTools as AgnoArxivTools
 
-from .common import make_base, wrap_tool
+from iointel.src.agent_methods.tools.agno.common import make_base, wrap_tool
 
 
 class Arxiv(make_base(AgnoArxivTools)):

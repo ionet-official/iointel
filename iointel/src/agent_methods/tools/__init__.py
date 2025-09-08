@@ -6,7 +6,22 @@ and convenient imports. Tools are organized into logical groups for easy discove
 """
 
 import importlib
-from typing import Any, Dict, List
+from typing import Any, Dict
+
+from iointel.src.agent_methods.tools.coinmarketcap import (
+    listing_coins,
+    get_coin_info,
+    get_coin_quotes,
+    get_coin_quotes_historical,
+)
+from iointel.src.agent_methods.tools.context_tree import tree
+from iointel.src.agent_methods.tools.duckduckgo import search_the_web
+from iointel.src.agent_methods.tools.firecrawl import Crawler
+from iointel.src.agent_methods.tools.retrieval_engine import RetrievalEngine
+from iointel.src.agent_methods.tools.searxng import SearxngClient
+from iointel.src.agent_methods.tools.tool_loader import load_tools_from_env, get_registered_tools, get_tool_by_name
+from iointel.src.agent_methods.tools.utils import what_time_is_it
+from iointel.src.agent_methods.tools.wolfram import Wolfram
 
 
 def _lazy_import(module_path: str, name: str):
@@ -15,27 +30,6 @@ def _lazy_import(module_path: str, name: str):
         module = importlib.import_module(module_path)
         return getattr(module, name)
     return _import
-
-
-# Core Tools
-from .coinmarketcap import (
-    listing_coins,
-    get_coin_info,
-    get_coin_quotes,
-    get_coin_quotes_historical,
-)
-from .context_tree import tree
-from .duckduckgo import search_the_web
-from .firecrawl import Crawler
-from .retrieval_engine import RetrievalEngine
-from .searxng import SearxngClient
-from .wolfram import Wolfram
-from .utils import what_time_is_it
-
-# Note: Agno tools are loaded safely via tool_loader.py
-
-# Import the smart tool loader first
-from .tool_loader import load_tools_from_env, get_registered_tools, get_tool_by_name
 
 # Tool Clusters for convenience
 class ToolClusters:

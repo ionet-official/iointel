@@ -3,7 +3,7 @@ from agno.tools.cartesia import CartesiaTools as AgnoCartesiaTools
 from agno.team.team import Team
 from iointel.src.agents import Agent
 from pydantic import Field
-from .common import make_base, wrap_tool
+from iointel.src.agent_methods.tools.agno.common import make_base, wrap_tool
 
 
 class Cartesia(make_base(AgnoCartesiaTools)):

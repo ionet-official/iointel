@@ -1,15 +1,16 @@
+import os
 from typing import Callable, Optional
 
 
-from .registries import (
+from iointel.src.utilities.registries import (
     CHAINABLE_METHODS,
     TASK_EXECUTOR_REGISTRY,
     CUSTOM_WORKFLOW_REGISTRY,
     TOOLS_REGISTRY,
 )
-from ..workflow import Workflow
-from ..agent_methods.data_models.datamodels import Tool, check_fn_name, compute_fn_name
-from ..utilities.helpers import make_logger
+from iointel.src.workflow import Workflow
+from iointel.src.agent_methods.data_models.datamodels import Tool, check_fn_name, compute_fn_name
+from iointel.src.utilities.helpers import make_logger
 
 
 logger = make_logger(__name__)
@@ -92,6 +93,7 @@ def register_tool(_fn=None, name: Optional[str] = None):
                 f"Tool name {tool_name} is too deeply nested: qualified name {executor_fn.__qualname__}"
             )
 
+
         if tool_name in TOOLS_REGISTRY:
             existing_tool = TOOLS_REGISTRY[tool_name]
             if executor_fn.__code__.co_code != existing_tool.fn.__code__.co_code:
@@ -102,6 +104,11 @@ def register_tool(_fn=None, name: Optional[str] = None):
             return executor_fn
 
         TOOLS_REGISTRY[tool_name] = Tool.from_function(executor_fn, name=tool_name)
+        
+        # Only print registration message if verbose mode is enabled
+        if os.getenv("IOINTEL_VERBOSE_TOOL_REGISTRATION", "false").lower() in ("true", "1", "yes"):
+            print(f"✅ Registered tool '{tool_name}' successfully")
+        
         logger.debug(f"Registered tool '{tool_name}' safely.")
         return executor_fn
 

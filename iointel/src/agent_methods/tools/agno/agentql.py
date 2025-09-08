@@ -1,6 +1,6 @@
 from agno.tools.agentql import AgentQLTools as AgnoAgentQLTools
 
-from .common import make_base, wrap_tool
+from iointel.src.agent_methods.tools.agno.common import make_base, wrap_tool
 
 
 class AgentQL(make_base(AgnoAgentQLTools)):

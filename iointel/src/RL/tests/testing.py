@@ -44,6 +44,7 @@ SOME_MODELS = [
     "netease-youdao/Confucius-o1-14B",
     "CohereForAI/aya-expanse-32b",
     "Qwen/Qwen2.5-Coder-32B-Instruct",
+    "Qwen/Qwen3-Coder-480B-A35B-Instruct-FP8",
     "NovaSky-AI/Sky-T1-32B-Preview",
     "THUDM/glm-4-9b-chat",
     "mistralai/Ministral-8B-Instruct-2410",
@@ -63,8 +64,10 @@ MODELS_TO_TEST = [
     # IO/OS Models
     # "deepseek-ai/DeepSeek-R1-0528",
     # "Qwen/Qwen3-235B-A22B-FP8",
-    "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8",
+    # "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8",
     #"meta-llama/Llama-3.3-70B-Instruct",
+    #"Qwen/Qwen3-Coder-480B-A35B-Instruct-FP8",
+    "Qwen/Qwen3-235B-A22B-Thinking-2507",
     
     # OpenAI Models
     # "gpt-4o",
@@ -78,7 +81,7 @@ MODELS_THAT_REQUIRE_MODEL_SETTINGS = [
 ]
 
 # OpenAI model prefixes
-OPENAI_MODELS = ["gpt-4", "gpt-3.5", "o1-preview", "o1-mini", "chatgpt"]
+OPENAI_MODELS = ["gpt-4", "gpt-3.5", "o1-preview", "o1-mini", "chatgpt", "gpt-4o", "gpt-4o-mini", "o1"]
 
 REPORT_CSV = "iointel/src/RL/tests/reports/rl_model_report.csv"
 

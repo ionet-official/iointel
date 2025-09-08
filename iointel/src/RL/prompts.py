@@ -4,6 +4,7 @@ Unified prompts for the RL module.
 This module contains all prompt templates and instructions used across
 the RL system for consistency and easy maintenance.
 """
+from typing import Optional
 
 # ============================================================================
 # ORACLE AGENT PROMPTS
@@ -40,7 +41,7 @@ You must return your evaluation in the following format:
 
 
 def create_oracle_prompt(task_description: str, required_tools: list, agent_response: str, 
-                        agent_actions_string: str, ground_truth: str, context: str = None) -> str:
+                        agent_actions_string: str, ground_truth: str, context: Optional[str] = None) -> str:
     """Create a formatted prompt for the Oracle agent evaluation."""
     return f"""
 Task Description: {task_description}
@@ -94,7 +95,7 @@ Output ONLY valid JSON that can be parsed as the CriticFeedback Pydantic model.
 
 
 def create_critic_prompt(task: str, agent_actions_string: str, final_response: str, 
-                        feedback: str = None, goal_seek: str = None) -> str:
+                        feedback: Optional[str] = None, goal_seek: Optional[str] = None) -> str:
     """Create a formatted prompt for the Critic agent evaluation."""
     prompt = f"""
 Task:
@@ -136,7 +137,7 @@ Output only valid JSON that can be parsed into the Task Pydantic model.
 """
 
 
-def create_task_generation_prompt(tool_descriptions: list, num_tasks: int, context: str = None, 
+def create_task_generation_prompt(tool_descriptions: list, num_tasks: int, context: Optional[str] = None, 
                                  goal_seek: bool = False) -> str:
     """Create a formatted prompt for task generation."""
     prompt = f"""Tools available:\n{chr(10).join(tool_descriptions)}\n\nContext: {context or "None"}\n\nPlease generate {num_tasks} diverse Task objects as JSON.

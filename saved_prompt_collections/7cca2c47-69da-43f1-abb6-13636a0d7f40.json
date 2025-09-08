@@ -1,0 +1,20 @@
+{
+  "id": "7cca2c47-69da-43f1-abb6-13636a0d7f40",
+  "name": "Analysis Prompts",
+  "description": "Collection for prompts",
+  "records": [
+    "Please analyze the following code for potential improvements"
+  ],
+  "tags": [
+    "prompt_tool",
+    "auto_generated"
+  ],
+  "created_at": "2025-07-16 23:50:35.456991",
+  "updated_at": "2025-07-16 23:50:35.456993",
+  "usage_count": 0,
+  "last_used": null,
+  "compatible_tools": [
+    "prompt_tool",
+    "user_input"
+  ]
+}

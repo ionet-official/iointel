@@ -1,7 +1,7 @@
 from pathlib import Path
 from agno.tools.airflow import AirflowTools as AgnoAirflowTools
 
-from .common import make_base, wrap_tool
+from iointel.src.agent_methods.tools.agno.common import make_base, wrap_tool
 
 
 class Airflow(make_base(AgnoAirflowTools)):

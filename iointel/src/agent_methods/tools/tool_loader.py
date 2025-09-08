@@ -10,10 +10,9 @@ This module provides intelligent tool loading that:
 
 import os
 import logging
-from typing import Dict, List, Any, Optional, Callable, Union
+from typing import Dict, List, Any, Optional
 from dotenv import load_dotenv
-from ...utilities.registries import TOOLS_REGISTRY, TOOL_SELF_REGISTRY
-from ...utilities.decorators import register_tool
+from iointel.src.utilities.registries import TOOLS_REGISTRY
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -34,6 +33,8 @@ TOOL_ENV_REQUIREMENTS = {
     "aws_lambda": ["AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY"],
     "calculator": [],  # No API key needed
     "cartesia": ["CARTESIA_API_KEY"],
+    "conditional_gate": [],  # No API key needed
+    "user_input": [],  # No API key needed
     "clickup": ["CLICKUP_API_KEY"],
     "confluence": ["CONFLUENCE_API_KEY", "CONFLUENCE_BASE_URL"],
     "crawl4ai": [],  # No API key needed for basic usage
@@ -57,6 +58,8 @@ TOOL_INITIALIZERS = {
     "wolfram": lambda: _init_wolfram(),
     "agentql": lambda: _init_agentql(),
     "calculator": lambda: _init_calculator(),
+    "conditional_gate": lambda: _init_conditional_gate(),
+    "user_input": lambda: _init_user_input(),
     "yfinance": lambda: _init_yfinance(),
     "file": lambda: _init_file_toolkit(),
     "shell": lambda: _init_shell_tool(),
@@ -84,48 +87,70 @@ def check_env_requirements(tool_name: str, requirements: List[str]) -> bool:
 
 def _init_coinmarketcap():
     """Initialize CoinMarketCap tools."""
-    from . import coinmarketcap
-    # The functions are already registered via @register_tool
+    try:
+        from .coinmarketcap import CoinMarketCap
+        
+        CoinMarketCap()
+        # CoinMarketCap should register its own tools
+        return []  # Return empty, tools are auto-registered
+    except ImportError as e:
+        logger.warning(f"CoinMarketCap tools not available: {e}")
+        return []
 
 
 def _init_context_tree():
     """Initialize Context Tree agent."""
-    from .context_tree import tree
-    # The tree instance already has @register_tool methods
+    try:
+        from ..tools.context_tree import ContextTree
+        
+        ContextTree()
+        # ContextTree should register its own tools
+        return []  # Return empty, tools are auto-registered
+    except ImportError as e:
+        logger.warning(f"Context Tree not available: {e}")
+        return []
 
 
 def _init_duckduckgo():
     """Initialize DuckDuckGo search."""
-    from . import duckduckgo
-    # Functions are registered via @register_tool
+    try:
+        from .duckduckgo import DuckDuckGoSearchAPIWrapper  
+        
+        DuckDuckGoSearchAPIWrapper()
+        # DuckDuckGo should register its own tools
+        return []  # Return empty, tools are auto-registered
+    except ImportError as e:
+        logger.warning(f"DuckDuckGo search not available: {e}")
+        return []
 
 
 def _init_firecrawl():
     """Initialize Firecrawl crawler."""
-    from .firecrawl import Crawler
-    api_key = os.getenv("FIRECRAWL_API_KEY")
-    
-    # Create instance - auto-registers its @register_tool methods
-    crawler = Crawler(api_key=api_key)
+    try:
+        from .firecrawl import Crawler
+        api_key = os.getenv("FIRECRAWL_API_KEY")
+        
+        Crawler(api_key=api_key)
+        # FirecrawlClient should register its own tools
+        return []  # Return empty, tools are auto-registered
+    except ImportError as e:
+        logger.warning(f"Firecrawl not available: {e}")
+        return []
 
 
 def _init_retrieval_engine():
     """Initialize Retrieval Engine."""
-    from .retrieval_engine import RetrievalEngine
-    base_url = os.getenv("RETRIEVAL_ENGINE_URL")
-    api_key = os.getenv("RETRIEVAL_ENGINE_API_KEY")
-    
-    # RetrievalEngine has tools already registered via @register_tool on its methods
-    # We just need to instantiate it to make those tools available
-    engine = RetrievalEngine(base_url=base_url, api_key=api_key)
-    
-    # The tools are registered with names like "retrieval-engine-create-document", etc.
-    return [
-        "retrieval-engine-create-document",
-        "retrieval-engine-delete-document", 
-        "retrieval-engine-list_documents",
-        "retrieval-engine-rag-search"
-    ]
+    try:
+        from .retrieval_engine import RetrievalEngine
+        url = os.getenv("RETRIEVAL_ENGINE_URL")
+        api_key = os.getenv("RETRIEVAL_ENGINE_API_KEY")
+        
+        RetrievalEngine(url=url, api_key=api_key)
+        # RetrievalEngine should register its own tools
+        return []  # Return empty, tools are auto-registered
+    except ImportError as e:
+        logger.warning(f"Retrieval Engine not available: {e}")
+        return []
 
 
 def _init_searxng():
@@ -135,7 +160,7 @@ def _init_searxng():
         base_url = os.getenv("SEARXNG_URL", "http://localhost:8888")
         
         # Create instance and use its registered tools
-        client = SearxngClient(base_url=base_url)
+        SearxngClient(base_url=base_url)
         
         # Return the actual registered tool names
         return ["searxng.search", "searxng.get_urls"]
@@ -154,7 +179,7 @@ def _init_wolfram():
     """Initialize Wolfram Alpha."""
     from .wolfram import Wolfram
     api_key = os.getenv("WOLFRAM_API_KEY")
-    wolfram = Wolfram(api_key=api_key)
+    Wolfram(api_key=api_key)
     # Auto-registers its @register_tool methods
 
 
@@ -164,7 +189,7 @@ def _init_agentql():
         from .agno.agentql import AgentQL
         api_key = os.getenv("AGENTQL_API_KEY")
         
-        agentql = AgentQL(api_key=api_key)
+        AgentQL(api_key=api_key)
         # AgentQL should register its own tools
         return []  # Return empty, tools are auto-registered
     except ImportError as e:
@@ -175,9 +200,11 @@ def _init_agentql():
 def _init_calculator():
     """Initialize Calculator."""
     try:
-        from .agno.calculator import Calculator
+        # Import the calculator module which registers tools via @register_tool
+        from . import agno
+        from .agno import calculator
         
-        calc = Calculator()
+        # Tools are auto-registered when module is imported
         # Return the actual registered tool names
         return ["calculator_add", "calculator_subtract", "calculator_multiply", "calculator_divide", 
                 "calculator_exponentiate", "calculator_square_root", "calculator_factorial", 
@@ -187,12 +214,32 @@ def _init_calculator():
         return []
 
 
+def _init_conditional_gate():
+    """Initialize Conditional Gate tools."""
+    try:
+        # Import the module to register the tools
+        from . import conditional_gate
+        # Tools are auto-registered via @register_tool decorators
+        return ["conditional_gate", "threshold_gate"]
+    except ImportError as e:
+        logger.warning(f"Conditional Gate not available: {e}")
+        return []
+
+
+def _init_user_input():
+    """Initialize User Input tools - DEPRECATED: moved to data_sources.""" 
+    # user_input and prompt_tool are now data sources, not tools
+    # They are registered in the data_sources module
+    logger.info("user_input and prompt_tool moved to data_sources module")
+    return []
+
+
 def _init_yfinance():
     """Initialize YFinance tools."""
     try:
         from .agno.yfinance import YFinance
         
-        yf = YFinance()
+        YFinance()
         # YFinance should register its own tools
         return []  # Return empty, tools are auto-registered
     except ImportError as e:
@@ -205,7 +252,7 @@ def _init_file_toolkit():
     try:
         from .agno.file import File
         
-        toolkit = File()
+        File()
         # File should register its own tools
         return []  # Return empty, tools are auto-registered
     except ImportError as e:
@@ -218,7 +265,7 @@ def _init_shell_tool():
     try:
         from .agno.shell import Shell
         
-        shell = Shell()
+        Shell()
         # Shell should register its own tools
         return []  # Return empty, tools are auto-registered
     except ImportError as e:
@@ -230,8 +277,14 @@ def _init_csv_toolkit():
     """Initialize CSV toolkit."""
     try:
         from .agno.csv import Csv
+        import os
+        import glob
         
-        toolkit = Csv()
+        # Find all CSV files in current working directory
+        csv_files = glob.glob(os.path.join(os.getcwd(), "*.csv"))
+        
+        # Initialize CSV tool with actual CSV files found
+        csv_tool = Csv(csvs=csv_files if csv_files else [])
         # Csv should register its own tools
         return []  # Return empty, tools are auto-registered
     except ImportError as e:
@@ -244,7 +297,7 @@ def _init_arxiv_toolkit():
     try:
         from .agno.arxiv import Arxiv
         
-        toolkit = Arxiv()
+        Arxiv()
         # Arxiv should register its own tools
         return []  # Return empty, tools are auto-registered
     except ImportError as e:
@@ -257,7 +310,7 @@ def _init_crawl4ai_toolkit():
     try:
         from .agno.crawl4ai import Crawl4ai
         
-        toolkit = Crawl4ai()
+        Crawl4ai()
         # Crawl4ai should register its own tools
         return []  # Return empty, tools are auto-registered
     except ImportError as e:
@@ -295,23 +348,141 @@ def load_tools_from_env(env_file: str = "creds.env") -> List[str]:
         else:
             logger.info(f"Skipping {tool_name} due to missing requirements")
     
-    # Get function-based tools from registry (no self parameter)
-    from ...utilities.registries import TOOLS_REGISTRY
+    # Instance Factory: Create instances and register bound methods
+    from iointel.src.utilities.registries import TOOLS_REGISTRY
+    from iointel.src.agent_methods.data_models.datamodels import Tool
     import inspect
     
-    available_tools = []
+    logger.info("🏭 Starting instance factory for bound method tools...")
     
-    # Add function-based tools that work correctly
+    # Create instances for classes that need them
+    tool_instances = {}
+    
+    # Context Tree instance
+    try:
+        from ..tools.context_tree import ContextTree
+        context_tree_instance = ContextTree()
+        tool_instances['context_tree'] = context_tree_instance
+        logger.info("✅ Created ContextTree instance")
+    except Exception as e:
+        logger.warning(f"Failed to create ContextTree instance: {e}")
+    
+    # Firecrawl instance
+    try:
+        from ..tools.firecrawl import Crawler
+        firecrawl_api_key = os.getenv("FIRECRAWL_API_KEY")
+        if firecrawl_api_key:
+            crawler_instance = Crawler(api_key=firecrawl_api_key)
+            tool_instances['crawler'] = crawler_instance
+            logger.info("✅ Created Crawler instance")
+    except Exception as e:
+        logger.warning(f"Failed to create Crawler instance: {e}")
+    
+    # Wolfram instance
+    try:
+        from ..tools.wolfram import Wolfram
+        wolfram_api_key = os.getenv("WOLFRAM_API_KEY")
+        if wolfram_api_key:
+            wolfram_instance = Wolfram(api_key=wolfram_api_key)
+            tool_instances['wolfram'] = wolfram_instance
+            logger.info("✅ Created Wolfram instance")
+    except Exception as e:
+        logger.warning(f"Failed to create Wolfram instance: {e}")
+    
+    # SearxNG instance
+    try:
+        from ..tools.searxng import SearxngClient
+        searxng_url = os.getenv("SEARXNG_URL", "http://localhost:8888")
+        searxng_instance = SearxngClient(base_url=searxng_url)
+        tool_instances['searxng'] = searxng_instance
+        logger.info("✅ Created SearxngClient instance")
+    except Exception as e:
+        logger.warning(f"Failed to create SearxngClient instance: {e}")
+    
+    # Replace unbound method registrations with bound method registrations
+    unbound_tools_to_replace = []
+    
     for tool_name, tool in TOOLS_REGISTRY.items():
         try:
             if hasattr(tool, 'fn') and tool.fn:
                 sig = inspect.signature(tool.fn)
                 params = list(sig.parameters.keys())
-                # Only include tools without 'self' parameter (function-based tools)
-                if not (params and params[0] == 'self'):
-                    available_tools.append(tool_name)
+                
+                # Check if this is an unbound method (has 'self' parameter)
+                if params and params[0] == 'self':
+                    unbound_tools_to_replace.append((tool_name, tool))
+                    logger.debug(f"🔍 Found unbound method tool: {tool_name}")
         except Exception as e:
-            # If we can't inspect it, include it anyway
+            logger.debug(f"Error inspecting tool {tool_name}: {e}")
+    
+    logger.info(f"🔧 Found {len(unbound_tools_to_replace)} unbound method tools to fix")
+    
+    # Map unbound tools to their bound instances
+    tool_class_mapping = {
+        # ContextTree methods
+        'read_context_tree': ('context_tree', 'read'),
+        'create_context_tree': ('context_tree', 'create'),
+        'append_context_tree': ('context_tree', 'append'),
+        'update_context_tree': ('context_tree', 'update'),
+        'delete_context_tree': ('context_tree', 'delete'),
+        'summary_context_tree': ('context_tree', 'summary'),
+        'load_context_tree': ('context_tree', 'load_tree'),
+        'save_context_tree': ('context_tree', 'save_tree'),
+        
+        # Crawler methods (Firecrawl)
+        'Crawler-scrape_url': ('crawler', 'scrape_url'),
+        'Crawler-async_scrape_url': ('crawler', 'async_scrape_url'),
+        'Crawler-crawl_url': ('crawler', 'crawl_url'),
+        
+        # Wolfram methods
+        'Wolfram-query': ('wolfram', 'query'),
+        
+        # SearxNG methods
+        'searxng.search': ('searxng', 'search'),
+        'searxng.get_urls': ('searxng', 'get_urls'),
+    }
+    
+    # Replace unbound registrations with bound ones
+    replaced_count = 0
+    for tool_name, unbound_tool in unbound_tools_to_replace:
+        if tool_name in tool_class_mapping:
+            instance_key, method_name = tool_class_mapping[tool_name]
+            
+            if instance_key in tool_instances:
+                instance = tool_instances[instance_key]
+                
+                # Get the bound method
+                if hasattr(instance, method_name):
+                    bound_method = getattr(instance, method_name)
+                    
+                    # Create new Tool from bound method
+                    try:
+                        bound_tool = Tool.from_function(bound_method, name=tool_name)
+                        
+                        # Replace in registry
+                        TOOLS_REGISTRY[tool_name] = bound_tool
+                        logger.info(f"✅ Replaced {tool_name} with bound method from {instance_key}.{method_name}")
+                        replaced_count += 1
+                        
+                    except Exception as e:
+                        logger.error(f"Failed to create bound tool for {tool_name}: {e}")
+                else:
+                    logger.warning(f"Method {method_name} not found on {instance_key} instance")
+            else:
+                logger.debug(f"Instance {instance_key} not available for {tool_name}")
+        else:
+            logger.debug(f"No mapping found for unbound tool: {tool_name}")
+    
+    logger.info(f"🎉 Instance factory complete: replaced {replaced_count} unbound tools with bound methods")
+    
+    # Now get all available tools (should include both function-based and bound method tools)
+    available_tools = []
+    
+    for tool_name, tool in TOOLS_REGISTRY.items():
+        try:
+            if hasattr(tool, 'fn') and tool.fn:
+                available_tools.append(tool_name)
+        except Exception:
             available_tools.append(tool_name)
     
     logger.info(f"Total available tools: {len(available_tools)}")

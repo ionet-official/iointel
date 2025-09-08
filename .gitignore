@@ -1,6 +1,7 @@
 
 agent_council/.DS_Store
 *.env
+creds.env
 .DS_Store
 .venv
 moa/*
@@ -19,3 +20,36 @@ venv
 
 # RL test reports
 iointel/src/RL/tests/reports/*
+
+# Credentials and secrets
+*.key
+*.pem
+
+# Databases and conversations
+*.db
+conversations/
+backup_conversations*/
+
+# Generated data and outputs
+saved_workflows/
+smart_test_repository/
+workflow_test_repository/
+output/
+*.log
+
+# Temporary files
+temp_backup/
+*.tmp
+*.temp
+
+# Large data files
+*.json.backup
+machine_learning_papers.json
+population_results.json
+
+# Codex directory (local knowledge wiki)
+codex/
+
+# Scripts directory - only ignore debug and utilities subdirs
+scripts/debug/
+scripts/utilities/

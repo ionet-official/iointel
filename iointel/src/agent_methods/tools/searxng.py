@@ -75,7 +75,7 @@ class SearxngClient(BaseModel):
         super().__init__(base_url=base_url, timeout=timeout)
         self._client = httpx.Client(base_url=base_url, timeout=timeout)
 
-    @register_tool("searxng.search")
+    @register_tool("searxng_search")
     def search(self, query: str, pages: int = 1) -> SearchResponse:
         """
         Asynchronously perform a search query using the SearxNG API.
@@ -116,7 +116,7 @@ class SearxngClient(BaseModel):
             infoboxes=combined_infoboxes,
         )
 
-    @register_tool("searxng.get_urls")
+    @register_tool("searxng_get_urls")
     def get_urls(self, query: str, pages: int = 1) -> List[str]:
         """
         Synchronously perform a search query using the SearxNG API.
@@ -139,7 +139,12 @@ class SearxngClient(BaseModel):
         """
         Close the underlying HTTP client.
         """
-        self.client.close()
+        if hasattr(self, '_client') and self._client:
+            self._client.close()
 
     def __del__(self):
-        self.close()
+        try:
+            self.close()
+        except Exception:
+            # Silently ignore errors during cleanup
+            pass

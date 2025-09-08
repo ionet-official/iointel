@@ -6,4 +6,4 @@ Tools are loaded directly by tool_loader.py to avoid import failures.
 """
 
 # Empty init - tools are loaded directly by tool_loader.py
-__all__ = []
+__all__: list[str] = []

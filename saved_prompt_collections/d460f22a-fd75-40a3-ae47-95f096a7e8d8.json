@@ -1,0 +1,37 @@
+{
+  "id": "d460f22a-fd75-40a3-ae47-95f096a7e8d8",
+  "name": "stock_symbols",
+  "description": "Collection for Enter the stock symbol you are interested in trading:",
+  "records": [
+    "What should we be buying today?",
+    "What should we be buying today? AAPL",
+    "I want to buy AAPL, is it a good idea?",
+    "I want to buy AAPL, is it a good idea? use the conditional gate",
+    "what should we sell, we bought in a year ago",
+    "I bought AAPL, TSLA and NVIDA last year, what should we sell today?",
+    "I bought appl at 78 dollars",
+    "I bought AAPL at 100 bucks, what should i do?",
+    "AAPL, buy or sell?",
+    "TSLA, buy sell or hold?",
+    "What is bullish? Which tickers to consider in Mining and Gas? ",
+    "AAPL",
+    "I got AAPL and TSLA about 3 months ago, what should i do today?",
+    "I bought AAPL last year at whatever that price was, what should i do today?",
+    "I bought in to AAPL a year ago, what is best thing to do today? ",
+    "I bought in to AAPL a year ago, what is best thing to do today? remember to use tools!",
+    "I bought APPl a year ago, what should i do today?",
+    "I bought AAPL a year ago, what should i do today ?"
+  ],
+  "tags": [
+    "user_input",
+    "auto_generated"
+  ],
+  "created_at": "2025-07-19 11:14:02.000955",
+  "updated_at": "2025-07-22 16:04:08.343343",
+  "usage_count": 0,
+  "last_used": null,
+  "compatible_tools": [
+    "prompt_tool",
+    "user_input"
+  ]
+}

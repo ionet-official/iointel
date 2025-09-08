@@ -1,14 +1,8 @@
 import os
-import asyncio
 import json
-import time
-from typing import List, Dict, Any, Optional
+import asyncio
 from datetime import datetime
-import logging
-from dotenv import load_dotenv
-
-# Load environment variables from creds.env
-load_dotenv("creds.env")
+from typing import List, Dict, Any, Optional
 
 from iointel.src.RL.task_manager import TaskManager
 from iointel.src.RL.critic import CriticAgent
@@ -23,11 +17,10 @@ from iointel.src.RL.example_tools import (
     get_weather,
     square_root,
 )
-
 from iointel.src.agent_methods.tools.firecrawl import Crawler
 from iointel.src.RL.utils import tool_usage_results_to_string
 from iointel.src.RL.prompts import get_agent_instructions
-from .models import (
+from iointel.src.RL.api.models import (
     TaskResult,
     CriticFeedback,
     OracleResult,
@@ -35,7 +28,13 @@ from .models import (
     TaskDifficulty,
     EvaluationResponse,
 )
-from .config import settings
+from iointel.src.RL.api.config import settings
+from dotenv import load_dotenv
+import time
+import logging
+
+# Load environment variables from creds.env
+load_dotenv("creds.env")
 
 logger = logging.getLogger(__name__)
 
@@ -245,8 +244,6 @@ class EvaluationService:
         base_url: Optional[str] = None
     ) -> EvaluationResponse:
         all_results = []
-        start_time = time.time()
-        
         for model in models:
             try:
                 model_results = await self.evaluate_single_model(
