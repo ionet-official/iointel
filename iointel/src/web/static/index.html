@@ -7749,8 +7749,16 @@ ${result.snippet ? `**Matching Content**: ${result.snippet}` : ''}`;
                 
                 const conversation = await response.json();
                 console.log('📡 Loaded conversation:', conversation);
-                currentConversation = conversation;
-                updateConversationDisplay(conversation);
+                
+                if (conversation === null) {
+                    // No active conversation
+                    console.log('📡 No active conversation found');
+                    currentConversation = null;
+                    updateConversationDisplay(null);
+                } else {
+                    currentConversation = conversation;
+                    updateConversationDisplay(conversation);
+                }
             } catch (error) {
                 console.error('❌ Error loading current conversation:', error);
                 const infoElement = document.getElementById('conversationInfo');

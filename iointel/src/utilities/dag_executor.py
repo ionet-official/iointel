@@ -351,6 +351,9 @@ class DAGExecutor:
                             # Direct tool_usage_results in dict
                             tool_usage_results = dep_result["tool_usage_results"]
                     
+                    # Initialize gate_results to avoid UnboundLocalError
+                    gate_results = []
+                    
                     # Look for route_index in tool_usage_results
                     if tool_usage_results:
                         # Import the types we need
@@ -358,7 +361,6 @@ class DAGExecutor:
                         from ..agent_methods.tools.conditional_gate import GateResult
                         
                         # Get ALL routing/conditional_gate results (not just the last one)
-                        gate_results = []
                         for tool_result in tool_usage_results:
                             # Properly handle typed ToolUsageResult
                             if isinstance(tool_result, ToolUsageResult):
@@ -674,13 +676,24 @@ class DAGExecutor:
         
         logger.info(f"🎯 Typed execution of node {node_id}")
         
+        # Debug: Check what task contains
+        task = dag_node.task_node_class.task
+        logger.info(f"🔍 task type: {type(task)}, content: {task}")
+        if isinstance(task, dict):
+            logger.info(f"🔍 task keys: {list(task.keys())}")
+            objective = task.get("objective")
+            logger.info(f"🔍 objective type: {type(objective)}, content: {objective}")
+        else:
+            logger.error(f"❌ task is not a dict: {type(task)}")
+            objective = None
+        
         # Create typed execution context with full workflow awareness
         context = TypedExecutionContext(
             workflow_spec=self.workflow_spec,
             current_node_id=node_id,
             state=state,
             conversation_id=self.conversation_id,
-            objective=dag_node.task_node_class.task.get("objective")  # Legacy support
+            objective=objective  # Use the extracted objective
         )
         
         # Execute using typed executor

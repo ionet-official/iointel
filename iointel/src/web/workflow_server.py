@@ -31,7 +31,7 @@ from iointel.src.memory import AsyncMemory
 from iointel.src.utilities.constants import get_model_config
 from iointel.src.utilities.io_logger import workflow_logger, execution_logger, system_logger, get_prompt_history, clear_prompt_history
 from iointel.src.utilities.tool_registry_utils import create_tool_catalog
-from iointel.src.utilities.workflow_helpers import execute_workflow_with_metadata
+from iointel.src.utilities.workflow_helpers import execute_workflow as execute_workflow_core
 from iointel.src.web.execution_feedback import (
     WorkflowExecutionSummary,
     feedback_collector, 
@@ -1046,25 +1046,34 @@ async def get_simple_recent_conversations(limit: int = 10):
 @app.get("/api/conversations/active")
 async def get_active_conversation():
     """Get the current active conversation."""
-    storage = get_unified_conversation_storage()
-    conversation_id = storage.get_active_web_conversation()
-    conversation = storage.get_conversation(conversation_id)
-    
-    if conversation:
-        return {
-            "conversation_id": conversation.conversation_id,
-            "version": conversation.version,
-            "session_type": conversation.session_type,
-            "status": conversation.status,
-            "created_at": conversation.created_at,
-            "last_used_at": conversation.last_used_at,
-            "total_messages": conversation.total_messages,
-            "workflow_count": conversation.workflow_count,
-            "execution_count": conversation.execution_count,
-            "notes": conversation.notes
-        }
-    else:
-        raise HTTPException(status_code=404, detail="Active conversation not found")
+    try:
+        storage = get_unified_conversation_storage()
+        conversation_id = storage.get_active_web_conversation()
+        print(f"🔍 Got conversation_id: {conversation_id}")
+        
+        conversation = storage.get_conversation(conversation_id)
+        print(f"🔍 Retrieved conversation: {conversation}")
+        
+        if conversation:
+            return {
+                "conversation_id": conversation.conversation_id,
+                "version": conversation.version,
+                "session_type": conversation.session_type,
+                "status": conversation.status,
+                "created_at": conversation.created_at,
+                "last_used_at": conversation.last_used_at,
+                "total_messages": conversation.total_messages,
+                "workflow_count": conversation.workflow_count,
+                "execution_count": conversation.execution_count,
+                "notes": conversation.notes
+            }
+        else:
+            print(f"❌ Conversation {conversation_id} not found in database")
+            # Return null instead of raising 404 to indicate no active conversation
+            return None
+    except Exception as e:
+        print(f"❌ Error in get_active_conversation: {e}")
+        return None
 
 
 @app.get("/api/conversations/{conversation_id}")
@@ -1886,7 +1895,7 @@ async def clear_workflow():
 
 
 @app.post("/api/execute", response_model=ExecutionResponse)
-async def execute_workflow(execution_request: ExecutionRequest, request: Request):
+async def execute_workflow_endpoint(execution_request: ExecutionRequest, request: Request):
     """Execute the current workflow or provided workflow data."""
     global current_workflow
     
@@ -2000,17 +2009,18 @@ async def execute_workflow_background(
             print(f"🔄 Using single-serve mode with execution conversation_id: {conversation_id}")
         
         # Use the standardized workflow execution helper
-        print(f"🔍 User inputs will be handled by execute_workflow_with_metadata: {user_inputs}")
+        print(f"🔍 User inputs will be handled by execute_workflow: {user_inputs}")
         
         # Execute using the standard helper that returns WorkflowExecutionResult
-        result: WorkflowExecutionResult = await execute_workflow_with_metadata(
-            workflow_spec=workflow_spec,
-            execution_id=execution_id,
+        result: WorkflowExecutionResult = await execute_workflow_core(
+            workflow_spec,
             user_inputs=user_inputs,
-            form_id=form_id,
+            objective=workflow_spec.description,
             conversation_id=conversation_id,
-            feedback_collector=feedback_collector,
+            execution_id=execution_id,
+            form_id=form_id,
             client_mode=True,
+            feedback_collector=feedback_collector,
             debug=True
         )
         

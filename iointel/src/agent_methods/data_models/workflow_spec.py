@@ -416,7 +416,7 @@ class WorkflowSpecLLM(BaseModel):
     WorkflowSpecLLM - The workflow specification you must generate.
     
     NODE TYPES (strict separation of concerns):
-    1. data_source: Collects user input ONLY. NEVER calls tools. Config MUST have message + default_value.
+    1. data_source: Collects user input ONLY. NEVER calls tools. Config MUST have message + default_value. Use only as inputs to Agents. 
     2. agent: Executes tasks with tools. Can have SLA for enforcement.
     3. decision: Routes workflow using 'routing_gate'. MUST have routing_gate in tools + SLA enforcement.
     
