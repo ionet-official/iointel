@@ -25,7 +25,7 @@ from pydantic_ai.settings import ModelSettings
 
 from pydantic import ConfigDict, SecretStr, BaseModel, ValidationError
 from pydantic_ai.messages import PartDeltaEvent, TextPartDelta, ToolCallPart
-from typing import Callable, Dict, Any, Optional, Union, Literal
+from typing import Callable, Dict, Any, Optional, Union, Literal, AsyncGenerator
 
 
 class PatchedValidatorTool(PydanticTool):
@@ -455,8 +455,9 @@ class Agent(BaseModel):
         return_markdown=False,
         message_history_limit=100,
         pretty: bool = None,
+        stream_tokens=False,
         **kwargs,
-    ) -> AgentResult:
+    ):
         """
         Run the agent with streaming output.
         :param query: The query to run the agent on.
@@ -464,39 +465,99 @@ class Agent(BaseModel):
         :param return_markdown: Whether to return the result as markdown.
         :param message_history_limit: The number of messages to load from the memory.
         :param pretty: Whether to pretty print the result as a rich panel, useful for cli or notebook.
+        :param stream_tokens: If True, yields tokens as they arrive (true streaming). If False, returns AgentResult after completion.
         :param kwargs: Additional keyword arguments to pass to the agent.
-        :return: The result of the agent run.
+        :return: AsyncGenerator yielding tokens and final AgentResult if stream_tokens=True, else AgentResult.
         """
 
+        if stream_tokens:
+            # True streaming implementation using runner's native streaming
+            return self._stream_with_runner(
+                query=query,
+                conversation_id=conversation_id,
+                return_markdown=return_markdown,
+                message_history_limit=message_history_limit,
+                pretty=pretty,
+                **kwargs,
+            )
+        else:
+            # Original blocking implementation for backward compatibility
+            markdown_content = ""
+            agent_result = None
+           
+            async for partial in self._stream_tokens(
+                query,
+                conversation_id=conversation_id,
+                message_history_limit=message_history_limit,
+                **kwargs,
+            ):
+                if isinstance(partial, dict) and partial.get("__final__"):
+                    markdown_content = partial["content"]
+                    agent_result = partial["agent_result"]
+                    break
+                else:
+                    markdown_content = partial  # or accumulate if you want
+
+            conversation_id = self._resolve_conversation_id(conversation_id)
+            if self.memory:
+                try:
+                    await self.memory.store_run_history(conversation_id, agent_result)
+                except Exception as e:
+                    print("Error storing run history:", e)
+
+            result = self._postprocess_agent_result(
+                agent_result, query, conversation_id, pretty=pretty
+            )
+            if return_markdown:
+                result.result = markdown_content
+            return result
+
+    async def _stream_with_runner(
+        self,
+        query: str,
+        conversation_id: Optional[str] = None,
+        return_markdown=False,
+        message_history_limit=100,
+        pretty: bool = None,
+        **kwargs,
+    ):
+        """
+        True streaming implementation using runner's native streaming.
+        Maintains all functionality: conversation ID, memory, usage tracking.
+        """
+        # Setup (same as original)
+        message_history = await self._load_message_history(conversation_id, message_history_limit)
+        if message_history:
+            kwargs["message_history"] = message_history
+        
+        resolved_conversation_id = self._resolve_conversation_id(conversation_id)
         markdown_content = ""
-        agent_result = None
-
-        async for partial in self._stream_tokens(
-            query,
-            conversation_id=conversation_id,
-            message_history_limit=message_history_limit,
-            **kwargs,
-        ):
-            if isinstance(partial, dict) and partial.get("__final__"):
-                markdown_content = partial["content"]
-                agent_result = partial["agent_result"]
-                break
-            else:
-                markdown_content = partial  # or accumulate if you want
-
-        conversation_id = self._resolve_conversation_id(conversation_id)
-        if self.memory:
-            try:
-                await self.memory.store_run_history(conversation_id, agent_result)
-            except Exception as e:
-                print("Error storing run history:", e)
-
-        result = self._postprocess_agent_result(
-            agent_result, query, conversation_id, pretty=pretty
-        )
-        if return_markdown:
-            result.result = markdown_content
-        return result
+        
+        # True streaming using runner's native streaming
+        async with self._runner.run_stream(query, **kwargs) as stream_result:
+            async for text_delta in stream_result.stream_text():
+                markdown_content += text_delta
+                yield text_delta  # TRUE STREAMING!
+            
+            # Get final result
+            agent_result = await stream_result.get_result()
+            
+            # Memory storage (same as original)
+            if self.memory:
+                try:
+                    await self.memory.store_run_history(resolved_conversation_id, agent_result)
+                except Exception as e:
+                    print("Error storing run history:", e)
+            
+            # Postprocessing (same as original)
+            result = self._postprocess_agent_result(
+                agent_result, query, resolved_conversation_id, pretty=pretty
+            )
+            if return_markdown:
+                result.result = markdown_content
+            
+            # Yield final AgentResult
+            yield result
 
     def set_context(self, context: Any) -> None:
         """
