@@ -470,7 +470,7 @@ class Agent(BaseModel):
 
         markdown_content = ""
         agent_result = None
-       
+
         async for partial in self._stream_tokens(
             query,
             conversation_id=conversation_id,
@@ -506,11 +506,11 @@ class Agent(BaseModel):
         message_history_limit=100,
         pretty: bool = None,
         **kwargs,
-    ):
+    ) -> AsyncGenerator[Union[str, AgentResult], None]:
         """
         True streaming version of run_stream that yields tokens as they arrive.
         Maintains all functionality: conversation ID, memory, usage tracking.
-        
+
         :param query: The query to run the agent on.
         :param conversation_id: The optional conversation ID to use for the agent.
         :param return_markdown: Whether to return the result as markdown.
@@ -522,7 +522,7 @@ class Agent(BaseModel):
         resolved_conversation_id = self._resolve_conversation_id(conversation_id)
         agent_result = None
         markdown_content = ""
-        
+
         async for partial in self._stream_tokens(
             query,
             conversation_id=conversation_id,
@@ -535,11 +535,13 @@ class Agent(BaseModel):
                 break
             else:
                 yield partial  # TRUE STREAMING!
-        
+
         # Handle memory and postprocessing at the end
         if self.memory:
             try:
-                await self.memory.store_run_history(resolved_conversation_id, agent_result)
+                await self.memory.store_run_history(
+                    resolved_conversation_id, agent_result
+                )
             except Exception as e:
                 print("Error storing run history:", e)
 
