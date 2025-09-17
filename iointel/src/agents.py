@@ -70,14 +70,6 @@ class StreamableAgentResult:
         self._blocking_result = final_result
         return final_result
 
-    # Delegate attribute access to the blocking result for backward compatibility
-    def __getattr__(self, name):
-        if self._blocking_result is None:
-            raise RuntimeError(
-                "Must await the result first or iterate through the stream"
-            )
-        return getattr(self._blocking_result, name)
-
 
 class PatchedValidatorTool(PydanticTool):
     _PATCH_ERR_TYPES = ("list_type",)

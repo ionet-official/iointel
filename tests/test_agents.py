@@ -77,12 +77,13 @@ async def test_run_stream_blocking_mode():
     )
 
     async def mock_stream_tokens(*args, **kwargs):
-        yield "Hello"
-        yield ", "
-        yield "World!"
+        # Real _stream_tokens yields accumulated content, not individual deltas
+        yield "Hello"  # First chunk
+        yield "Hello, "  # Accumulated so far
+        yield "Hello, World!"  # Final accumulated content
         yield {
             "__final__": True,
-            "content": "Hello, World!",
+            "content": "Hello, World!",  # This matches the last yielded content
             "agent_result": mock_agent_result.full_result,
         }
 
@@ -113,12 +114,13 @@ async def test_run_stream_streaming_mode():
     )
 
     async def mock_stream_tokens(*args, **kwargs):
-        yield "Hello"
-        yield ", "
-        yield "World!"
+        # Real _stream_tokens yields accumulated content, not individual deltas
+        yield "Hello"  # First chunk
+        yield "Hello, "  # Accumulated so far
+        yield "Hello, World!"  # Final accumulated content
         yield {
             "__final__": True,
-            "content": "Hello, World!",
+            "content": "Hello, World!",  # This matches the last yielded content
             "agent_result": mock_agent_result.full_result,
         }
 
@@ -139,7 +141,8 @@ async def test_run_stream_streaming_mode():
                 else:
                     final_result = chunk
 
-            assert tokens == ["Hello", ", ", "World!"]
+            # Now expecting accumulated content, not individual deltas
+            assert tokens == ["Hello", "Hello, ", "Hello, World!"]
             assert isinstance(final_result, AgentResult)
             assert final_result.result == "Hello, World!"
 
