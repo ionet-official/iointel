@@ -1,7 +1,9 @@
 import pytest
 from pydantic import SecretStr
+from unittest.mock import patch
 
-from iointel.src.agents import Agent
+from iointel.src.agents import Agent, StreamableAgentResult
+from iointel.src.agent_methods.data_models.datamodels import AgentResult
 from pydantic_ai.models.openai import OpenAIModel
 
 
@@ -57,3 +59,120 @@ def test_agent_run():
     # with pytest.raises(Exception):
     #    # This might raise an error due to fake API key or no actual LLM.
     #    a.run("Hello world")
+
+
+@pytest.mark.asyncio
+async def test_run_stream_blocking_mode():
+    """
+    Test 1: run_stream works in blocking mode (backward compatibility)
+    """
+    agent = Agent(name="StreamAgent", instructions="Test streaming.")
+
+    # Mock the _stream_tokens method to return predictable data
+    mock_agent_result = AgentResult(
+        result="Hello, World!",
+        conversation_id="test-123",
+        full_result=None,
+        tool_usage_results=[],
+    )
+
+    async def mock_stream_tokens(*args, **kwargs):
+        yield "Hello"
+        yield ", "
+        yield "World!"
+        yield {
+            "__final__": True,
+            "content": "Hello, World!",
+            "agent_result": mock_agent_result.full_result,
+        }
+
+    with patch.object(agent, "_stream_tokens", mock_stream_tokens):
+        with patch.object(
+            agent, "_postprocess_agent_result", return_value=mock_agent_result
+        ):
+            # Test blocking mode - should work like before
+            result = await agent.run_stream("Test query")
+
+            assert isinstance(result, AgentResult)
+            assert result.result == "Hello, World!"
+            assert result.conversation_id == "test-123"
+
+
+@pytest.mark.asyncio
+async def test_run_stream_streaming_mode():
+    """
+    Test 2: run_stream works in streaming mode (new functionality)
+    """
+    agent = Agent(name="StreamAgent", instructions="Test streaming.")
+
+    mock_agent_result = AgentResult(
+        result="Hello, World!",
+        conversation_id="test-123",
+        full_result=None,
+        tool_usage_results=[],
+    )
+
+    async def mock_stream_tokens(*args, **kwargs):
+        yield "Hello"
+        yield ", "
+        yield "World!"
+        yield {
+            "__final__": True,
+            "content": "Hello, World!",
+            "agent_result": mock_agent_result.full_result,
+        }
+
+    with patch.object(agent, "_stream_tokens", mock_stream_tokens):
+        with patch.object(
+            agent, "_postprocess_agent_result", return_value=mock_agent_result
+        ):
+            # Test streaming mode - should yield tokens then final result
+            stream_result = agent.run_stream("Test query")
+            assert isinstance(stream_result, StreamableAgentResult)
+
+            tokens = []
+            final_result = None
+
+            async for chunk in stream_result:
+                if isinstance(chunk, str):
+                    tokens.append(chunk)
+                else:
+                    final_result = chunk
+
+            assert tokens == ["Hello", ", ", "World!"]
+            assert isinstance(final_result, AgentResult)
+            assert final_result.result == "Hello, World!"
+
+
+@pytest.mark.asyncio
+async def test_streamable_agent_result_single_consumption():
+    """
+    Test 3: StreamableAgentResult can only be consumed once
+    """
+
+    async def mock_generator():
+        yield "token1"
+        yield "token2"
+        yield AgentResult(
+            result="final",
+            conversation_id="test",
+            full_result=None,
+            tool_usage_results=[],
+        )
+
+    streamable = StreamableAgentResult(mock_generator())
+
+    # First consumption should work
+    tokens = []
+    async for chunk in streamable:
+        tokens.append(chunk)
+
+    assert len(tokens) == 3
+    assert tokens[0] == "token1"
+    assert tokens[1] == "token2"
+    assert isinstance(tokens[2], AgentResult)
+
+    # Second consumption should raise error
+    with pytest.raises(RuntimeError, match="Stream can only be consumed once"):
+        async for chunk in streamable:
+            pass
