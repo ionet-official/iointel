@@ -117,6 +117,7 @@ class Agent(BaseModel):
         tool_pil_layout: Literal["vertical", "horizontal"] = "horizontal",
         debug: bool = False,
         allow_unregistered_tools: bool = False,
+        tool_validation_kwargs=None,
         **model_kwargs,
     ) -> None:
         """
@@ -197,8 +198,12 @@ class Agent(BaseModel):
             name=name,
             tools=[
                 PatchedValidatorTool(
-                    fn.get_wrapped_fn(), name=fn.name, description=fn.description
+                    fn.get_wrapped_fn(),
+                    name=fn.name,
+                    description=fn.description,
+                    **(tool_validation_kwargs or {}),
                 )
+                # this allows to pass takes_ctx parameter
                 for fn in resolved_tools
             ],
             model=resolved_model,
