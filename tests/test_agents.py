@@ -92,8 +92,11 @@ async def test_run_stream_blocking_mode():
             agent, "_postprocess_agent_result", return_value=mock_agent_result
         ):
             # Test blocking mode - should work like before
-            result = await agent.run_stream("Test query")
+            streamable_result = agent.run_stream("Test query")
+            assert isinstance(streamable_result, StreamableAgentResult)
 
+            # When awaited, should return AgentResult (backward compatibility)
+            result = await streamable_result
             assert isinstance(result, AgentResult)
             assert result.result == "Hello, World!"
             assert result.conversation_id == "test-123"
