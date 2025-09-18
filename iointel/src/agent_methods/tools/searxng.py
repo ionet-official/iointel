@@ -139,7 +139,7 @@ class SearxngClient(BaseModel):
         """
         Close the underlying HTTP client.
         """
-        self.client.close()
+        self._client.close()
 
     def __del__(self):
         self.close()
