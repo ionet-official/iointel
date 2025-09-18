@@ -77,13 +77,13 @@ async def test_run_stream_blocking_mode():
     )
 
     async def mock_stream_tokens(*args, **kwargs):
-        # Real _stream_tokens yields accumulated content, not individual deltas
-        yield "Hello"  # First chunk
-        yield "Hello, "  # Accumulated so far
-        yield "Hello, World!"  # Final accumulated content
+        # New _stream_tokens yields individual deltas
+        yield "Hello"  # Individual delta
+        yield ", "  # Individual delta
+        yield "World!"  # Individual delta
         yield {
             "__final__": True,
-            "content": "Hello, World!",  # This matches the last yielded content
+            "content": "Hello, World!",  # Full accumulated content
             "agent_result": mock_agent_result.full_result,
         }
 
@@ -114,13 +114,13 @@ async def test_run_stream_streaming_mode():
     )
 
     async def mock_stream_tokens(*args, **kwargs):
-        # Real _stream_tokens yields accumulated content, not individual deltas
-        yield "Hello"  # First chunk
-        yield "Hello, "  # Accumulated so far
-        yield "Hello, World!"  # Final accumulated content
+        # New _stream_tokens yields individual deltas
+        yield "Hello"  # Individual delta
+        yield ", "  # Individual delta
+        yield "World!"  # Individual delta
         yield {
             "__final__": True,
-            "content": "Hello, World!",  # This matches the last yielded content
+            "content": "Hello, World!",  # Full accumulated content
             "agent_result": mock_agent_result.full_result,
         }
 
@@ -141,8 +141,8 @@ async def test_run_stream_streaming_mode():
                 else:
                     final_result = chunk
 
-            # Now expecting accumulated content, not individual deltas
-            assert tokens == ["Hello", "Hello, ", "Hello, World!"]
+            # Now expecting individual deltas
+            assert tokens == ["Hello", ", ", "World!"]
             assert isinstance(final_result, AgentResult)
             assert final_result.result == "Hello, World!"
 

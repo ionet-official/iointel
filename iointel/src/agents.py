@@ -482,12 +482,13 @@ class Agent(BaseModel):
                             if isinstance(event, PartDeltaEvent) and isinstance(
                                 event.delta, TextPartDelta
                             ):
-                                content += event.delta.content_delta or ""
-                                yield content
+                                delta = event.delta.content_delta or ""
+                                content += delta
+                                yield delta  # Yield individual delta, not accumulated content
             # After streaming, yield a special marker with the final result
             yield {
                 "__final__": True,
-                "content": content,
+                "content": content,  # Still provide full content in final dict
                 "agent_result": agent_run.result,
             }
 
