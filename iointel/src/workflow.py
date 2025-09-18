@@ -1,4 +1,4 @@
-from typing import Callable, List, Optional, Any
+from typing import Callable, List, Optional, Any, Sequence
 import uuid
 import inspect
 import warnings
@@ -19,6 +19,7 @@ from .agent_methods.data_models.datamodels import (
     AgentParams,
 )
 from .agents import Agent
+from pydantic_ai.messages import UserContent
 
 from .utilities.runners import run_agents_stream
 from .utilities.registries import TASK_EXECUTOR_REGISTRY
@@ -69,7 +70,7 @@ class Workflow:
 
     def __init__(
         self,
-        objective: str = "",
+        objective: str | Sequence[UserContent] = "",
         text: str | None = None,
         client_mode: bool = True,
         agents: Optional[List[Any]] = None,
@@ -97,7 +98,7 @@ class Workflow:
 
     def __call__(
         self,
-        objective: str,
+        objective: str | Sequence[UserContent],
         client_mode: bool = True,
         agents: Optional[List[Any]] = None,
     ):

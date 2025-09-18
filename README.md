@@ -309,6 +309,57 @@ async def main():
 
 asyncio.run(main())
 ```
+
+### Multimodal Support
+
+iointel supports multimodal inputs through various content types:
+
+```python
+from iointel import Agent, ImageUrl, BinaryContent, DocumentUrl, AudioUrl, VideoUrl
+
+agent = Agent(
+    name="VisionAgent",
+    instructions="You are a helpful vision assistant.",
+    model="openai/gpt-oss-120b",
+    api_key="io-...",
+)
+
+# Images
+result = await agent.run([
+    "What's in this image?",
+    ImageUrl(url="https://example.com/image.png")
+])
+
+# Local images with binary content
+with open("local_image.png", "rb") as f:
+    image_data = f.read()
+
+result = await agent.run([
+    "Describe this image",
+    BinaryContent(data=image_data, media_type="image/png")
+])
+
+# Documents
+result = await agent.run([
+    "Summarize this document",
+    DocumentUrl(url="https://example.com/document.pdf")
+])
+
+# Audio/Video (model dependent)
+result = await agent.run([
+    "Transcribe this audio",
+    AudioUrl(url="https://example.com/audio.mp3")
+])
+```
+
+**Supported Media Types:**
+The specific media types supported depend on your LLM model provider:
+
+- **Images**: PNG, JPEG, GIF, WebP
+- **Documents**: PDF, TXT
+- **Audio/Video**: MP3, MP4, WAV (varies by provider)
+
+Check your model provider's documentation for specific format support and limitations.
 ![Screenshot 2025-06-02 at 5 46 15 PM](https://github.com/user-attachments/assets/b563a937-bb06-4856-9ff2-d3f1ddda5a1a)
 
 ![Screenshot 2025-06-02 at 5 46 55 PM](https://github.com/user-attachments/assets/c52ca18b-375a-4406-9a5f-02bac598a6cf)
@@ -327,8 +378,8 @@ def get_weather(city: str) -> dict:
 agent = Agent(
     name="GradioSolar",
     instructions="You are a helpful assistant.",
-    model="gpt-4o",
-    api_key="sk-...",
+    model="openai/gpt-oss-120b",
+    api_key="io-...",
     tools=[get_weather],
     show_tool_calls=True,
 )

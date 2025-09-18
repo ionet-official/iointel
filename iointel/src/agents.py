@@ -24,8 +24,13 @@ from pydantic_ai.messages import ModelMessage
 from pydantic_ai.settings import ModelSettings
 
 from pydantic import ConfigDict, SecretStr, BaseModel, ValidationError
-from pydantic_ai.messages import PartDeltaEvent, TextPartDelta, ToolCallPart
-from typing import Callable, Dict, Any, Optional, Union, Literal
+from pydantic_ai.messages import (
+    PartDeltaEvent,
+    TextPartDelta,
+    ToolCallPart,
+    UserContent,
+)
+from typing import Callable, Dict, Any, Optional, Union, Literal, Sequence
 
 
 class StreamableAgentResult:
@@ -423,7 +428,7 @@ class Agent(BaseModel):
 
     async def run(
         self,
-        query: str,
+        query: str | Sequence[UserContent],
         conversation_id: Optional[str] = None,
         pretty: bool = None,
         message_history_limit=100,
@@ -431,7 +436,7 @@ class Agent(BaseModel):
     ) -> AgentResult:
         """
         Run the agent asynchronously.
-        :param query: The query to run the agent on.
+        :param query: The query to run the agent on. Can be a string or sequence of multimodal content.
         :param conversation_id: The conversation ID to use for the agent.
         :param pretty: Whether to pretty print the result as a rich panel, useful for cli or notebook.
         :param message_history_limit: The number of messages to load from the memory.
@@ -463,7 +468,7 @@ class Agent(BaseModel):
 
     async def _stream_tokens(
         self,
-        query: str,
+        query: str | Sequence[UserContent],
         conversation_id: Optional[str] = None,
         message_history_limit=100,
         **kwargs,
@@ -499,7 +504,7 @@ class Agent(BaseModel):
 
     async def run_stream(
         self,
-        query: str,
+        query: str | Sequence[UserContent],
         conversation_id: Optional[str] = None,
         return_markdown=False,
         message_history_limit=100,
