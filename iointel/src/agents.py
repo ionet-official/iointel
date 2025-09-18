@@ -117,7 +117,8 @@ class Agent(BaseModel):
         tool_pil_layout: Literal["vertical", "horizontal"] = "horizontal",
         debug: bool = False,
         allow_unregistered_tools: bool = False,
-        **kwargs,
+        tool_validation_kwargs=None,
+        **model_kwargs,
     ) -> None:
         """
         :param name: The name of the agent.
@@ -137,13 +138,6 @@ class Agent(BaseModel):
         :param memory: A Memory instance to use for the agent. Memory module can store and retrieve data, and share context between agents.
 
         """
-        # Separate model_kwargs and tool_validation_kwargs from combined kwargs
-        model_kwargs = {}
-        tool_validation_kwargs = {}
-
-        tool_validation_kwargs = kwargs.pop("tool_validation_kwargs", {})
-        model_kwargs = kwargs.get("model_kwargs", {})
-
         resolved_api_key = (
             api_key
             if isinstance(api_key, SecretStr)
@@ -207,7 +201,7 @@ class Agent(BaseModel):
                     fn.get_wrapped_fn(),
                     name=fn.name,
                     description=fn.description,
-                    **tool_validation_kwargs,
+                    **(tool_validation_kwargs or {}),
                 )
                 # this allows to pass takes_ctx parameter
                 for fn in resolved_tools
