@@ -132,7 +132,7 @@ async def test_run_stream_streaming_mode():
             agent, "_postprocess_agent_result", return_value=mock_agent_result
         ):
             # Test streaming mode - should yield tokens then final result
-            stream_result = await agent.run_stream("Test query")
+            stream_result = agent.run_stream("Test query")
             assert isinstance(stream_result, StreamableAgentResult)
 
             tokens = []

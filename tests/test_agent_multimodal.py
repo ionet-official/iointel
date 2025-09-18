@@ -132,9 +132,8 @@ async def test_stream_with_multimodal():
     # Call run_stream and verify it completes without error
     result = await agent.run_stream(multimodal_content)
 
-    # Verify the result contains expected output - access through await
-    final_result = await result
-    assert final_result.result == "Streamed response"
+    # Verify the result contains expected output
+    assert result.result == "Streamed response"
 
 
 async def test_agent_with_malformed_multimodal():
