@@ -502,7 +502,7 @@ class Agent(BaseModel):
                 "agent_result": agent_run.result,
             }
 
-    async def run_stream(
+    def run_stream(
         self,
         query: str | Sequence[UserContent],
         conversation_id: Optional[str] = None,
