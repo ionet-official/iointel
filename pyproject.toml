@@ -15,13 +15,9 @@ dependencies = [
     "sqlalchemy-utils>=0.41.2",
     "sqlalchemy>=2.0.36",
     "rich>=13.9.4",
-    # For some reason both firecrawl-py and firecrawl are necessary
-    "firecrawl-py>=2.2.0",
-    "firecrawl>=2.2.0",
+    "firecrawl>=4.0.0",
     "backoff==2.2.1",
     "agno[tools]==1.5.5",
-    "gradio>=5.32.1",
-    "matplotlib>=3.10.3",
     "aiosqlite>=0.21.0",
 ]
 keywords = ["Agents", "LLM", "framework", "AI", "tools"]
@@ -46,11 +42,15 @@ norecursedirs = [
 
 
 [project.optional-dependencies]
+ui = [
+    "gradio>=5.32.1",
+    "matplotlib>=3.10.3",
+    ]
 dev = [
     "yfinance==0.2.61",
     "pre-commit>=4.1.0",
     "pytest>=8.3.4",
-    "pytest-asyncio>=0.21.2",
+    "pytest-asyncio>=1.1.0",
     "pytest-dotenv>=0.5.2",
     "pytest-rerunfailures>=10,<14",
     "pytest-retry>=1.7.0",
@@ -89,6 +89,12 @@ substitutions = [
     {pattern = '(\n##+\s+.*?)\s*(<a .*\n)', replacement='\1\2'},
     # replace Github-styled callout (not supported on pypi) with just bold
     {pattern = '\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]', replacement = '**\1**:'},
+]
+
+[tool.uv]
+# audioop was deprecated in python 3.13 - this only gets called if the user has python 3.13+
+override-dependencies = [
+    "audioop-lts; python_version >= '3.13'",
 ]
 
 # [tool.uv.sources]

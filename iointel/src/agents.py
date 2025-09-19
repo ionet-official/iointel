@@ -14,7 +14,6 @@ from .utilities.constants import get_api_url, get_base_model, get_api_key
 from .utilities.registries import TOOLS_REGISTRY
 from .utilities.helpers import supports_tool_choice_required, flatten_union_types
 from .ui.rich_panels import render_agent_result_panel
-from .ui.io_gradio_ui import IOGradioUI
 
 from pydantic_ai.models.openai import OpenAIModel
 from pydantic_ai.providers.openai import OpenAIProvider
@@ -24,8 +23,56 @@ from pydantic_ai.messages import ModelMessage
 from pydantic_ai.settings import ModelSettings
 
 from pydantic import ConfigDict, SecretStr, BaseModel, ValidationError
-from pydantic_ai.messages import PartDeltaEvent, TextPartDelta, ToolCallPart
-from typing import Callable, Dict, Any, Optional, Union, Literal
+from pydantic_ai.messages import (
+    PartDeltaEvent,
+    TextPartDelta,
+    ToolCallPart,
+    UserContent,
+)
+from typing import Callable, Dict, Any, Optional, Union, Literal, Sequence
+
+
+class StreamableAgentResult:
+    """
+    A wrapper that can act as both AgentResult (for backward compatibility)
+    and AsyncGenerator (for streaming capability).
+    """
+
+    def __init__(self, stream_generator, blocking_result=None):
+        self._stream_generator = stream_generator
+        self._blocking_result = blocking_result
+        self._consumed = False
+
+    async def __aiter__(self):
+        """Enable 'async for' iteration for streaming"""
+        if self._consumed:
+            raise RuntimeError("Stream can only be consumed once")
+        self._consumed = True
+
+        async for item in self._stream_generator:
+            yield item
+
+    def __await__(self):
+        """Enable 'await' for getting the final result (backward compatibility)"""
+        return self._get_blocking_result().__await__()
+
+    async def _get_blocking_result(self):
+        """Consume the stream and return the final AgentResult"""
+        if self._blocking_result is not None:
+            return self._blocking_result
+
+        if self._consumed:
+            raise RuntimeError("Stream already consumed, cannot get blocking result")
+
+        self._consumed = True
+        final_result = None
+
+        async for item in self._stream_generator:
+            if not isinstance(item, str):  # Final AgentResult
+                final_result = item
+
+        self._blocking_result = final_result
+        return final_result
 
 
 class PatchedValidatorTool(PydanticTool):
@@ -117,6 +164,7 @@ class Agent(BaseModel):
         tool_pil_layout: Literal["vertical", "horizontal"] = "horizontal",
         debug: bool = False,
         allow_unregistered_tools: bool = False,
+        tool_validation_kwargs=None,
         **model_kwargs,
     ) -> None:
         """
@@ -197,8 +245,12 @@ class Agent(BaseModel):
             name=name,
             tools=[
                 PatchedValidatorTool(
-                    fn.get_wrapped_fn(), name=fn.name, description=fn.description
+                    fn.get_wrapped_fn(),
+                    name=fn.name,
+                    description=fn.description,
+                    **(tool_validation_kwargs or {}),
                 )
+                # this allows to pass takes_ctx parameter
                 for fn in resolved_tools
             ],
             model=resolved_model,
@@ -375,7 +427,7 @@ class Agent(BaseModel):
 
     async def run(
         self,
-        query: str,
+        query: str | Sequence[UserContent],
         conversation_id: Optional[str] = None,
         pretty: bool = None,
         message_history_limit=100,
@@ -383,7 +435,7 @@ class Agent(BaseModel):
     ) -> AgentResult:
         """
         Run the agent asynchronously.
-        :param query: The query to run the agent on.
+        :param query: The query to run the agent on. Can be a string or sequence of multimodal content.
         :param conversation_id: The conversation ID to use for the agent.
         :param pretty: Whether to pretty print the result as a rich panel, useful for cli or notebook.
         :param message_history_limit: The number of messages to load from the memory.
@@ -415,7 +467,7 @@ class Agent(BaseModel):
 
     async def _stream_tokens(
         self,
-        query: str,
+        query: str | Sequence[UserContent],
         conversation_id: Optional[str] = None,
         message_history_limit=100,
         **kwargs,
@@ -439,64 +491,76 @@ class Agent(BaseModel):
                             if isinstance(event, PartDeltaEvent) and isinstance(
                                 event.delta, TextPartDelta
                             ):
-                                content += event.delta.content_delta or ""
-                                yield content
+                                delta = event.delta.content_delta or ""
+                                content += delta
+                                yield delta  # Yield individual delta, not accumulated content
             # After streaming, yield a special marker with the final result
             yield {
                 "__final__": True,
-                "content": content,
+                "content": content,  # Still provide full content in final dict
                 "agent_result": agent_run.result,
             }
 
-    async def run_stream(
+    def run_stream(
         self,
-        query: str,
+        query: str | Sequence[UserContent],
         conversation_id: Optional[str] = None,
         return_markdown=False,
         message_history_limit=100,
         pretty: bool = None,
         **kwargs,
-    ) -> AgentResult:
+    ) -> StreamableAgentResult:
         """
-        Run the agent with streaming output.
+        Run the agent with streaming output that supports both streaming and blocking usage.
+
+        Usage:
+        # Streaming: async for chunk in agent.run_stream("query"):
+        # Blocking: result = await agent.run_stream("query")
+
         :param query: The query to run the agent on.
         :param conversation_id: The optional conversation ID to use for the agent.
         :param return_markdown: Whether to return the result as markdown.
         :param message_history_limit: The number of messages to load from the memory.
         :param pretty: Whether to pretty print the result as a rich panel, useful for cli or notebook.
         :param kwargs: Additional keyword arguments to pass to the agent.
-        :return: The result of the agent run.
+        :return: StreamableAgentResult that can be awaited or iterated.
         """
 
-        markdown_content = ""
-        agent_result = None
+        async def stream_generator():
+            resolved_conversation_id = self._resolve_conversation_id(conversation_id)
+            agent_result = None
+            markdown_content = ""
 
-        async for partial in self._stream_tokens(
-            query,
-            conversation_id=conversation_id,
-            message_history_limit=message_history_limit,
-            **kwargs,
-        ):
-            if isinstance(partial, dict) and partial.get("__final__"):
-                markdown_content = partial["content"]
-                agent_result = partial["agent_result"]
-                break
-            else:
-                markdown_content = partial  # or accumulate if you want
+            async for partial in self._stream_tokens(
+                query,
+                conversation_id=conversation_id,
+                message_history_limit=message_history_limit,
+                **kwargs,
+            ):
+                if isinstance(partial, dict) and partial.get("__final__"):
+                    markdown_content = partial["content"]
+                    agent_result = partial["agent_result"]
+                    break
+                else:
+                    yield partial  # Stream tokens as they arrive
 
-        conversation_id = self._resolve_conversation_id(conversation_id)
-        if self.memory:
-            try:
-                await self.memory.store_run_history(conversation_id, agent_result)
-            except Exception as e:
-                print("Error storing run history:", e)
+            # Handle memory and postprocessing at the end
+            if self.memory:
+                try:
+                    await self.memory.store_run_history(
+                        resolved_conversation_id, agent_result
+                    )
+                except Exception as e:
+                    print("Error storing run history:", e)
 
-        result = self._postprocess_agent_result(
-            agent_result, query, conversation_id, pretty=pretty
-        )
-        if return_markdown:
-            result.result = markdown_content
-        return result
+            result = self._postprocess_agent_result(
+                agent_result, query, resolved_conversation_id, pretty=pretty
+            )
+            if return_markdown:
+                result.result = markdown_content
+            yield result  # Final AgentResult
+
+        return StreamableAgentResult(stream_generator())
 
     def set_context(self, context: Any) -> None:
         """
@@ -527,6 +591,13 @@ class Agent(BaseModel):
         """
         Launches a Gradio UI for interacting with the agent as a chat interface.
         """
+        try:
+            from .ui.io_gradio_ui import IOGradioUI
+        except ImportError as e:
+            raise ImportError(
+                "UI dependencies are not installed. Install with: pip install 'iointel[ui]'"
+            ) from e
+
         ui = IOGradioUI(agent=self, interface_title=interface_title)
         return await ui.launch(share=share)
 

@@ -196,18 +196,19 @@ class IOGradioUI:
         history.append(assistant_msg)
 
         agent_result = None
-        last_content = ""
+        accumulated_content = ""  # Track accumulated content for display
         async for partial in self.agent._stream_tokens(
             combined_message, conversation_id=conversation_id
         ):
             if isinstance(partial, dict) and partial.get("__final__"):
-                last_content = partial["content"]
+                accumulated_content = partial["content"]
                 agent_result = partial["agent_result"]
                 break
             else:
-                last_content = partial
+                # Accumulate individual deltas for progressive display
+                accumulated_content += partial
                 assistant_msg["content"] = (
-                    f'<div class="agent-bubble">{last_content}</div>'
+                    f'<div class="agent-bubble">{accumulated_content}</div>'
                 )
                 yield (
                     history,

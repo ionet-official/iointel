@@ -62,10 +62,16 @@ Users can define tasks (like `sentiment`, `translate_text`, etc.) in a **local**
   pip install --upgrade iointel
   ```
 
-2. **Set Required Environment Variable**:
+2. **For UI features (Gradio interface)**, install with UI dependencies:
+
+  ```bash
+  pip install --upgrade "iointel[ui]"
+  ```
+
+3. **Set Required Environment Variable**:
     - `OPENAI_API_KEY` or `IO_API_KEY` for the default OpenAI-based `ChatOpenAI`.
 
-3. **Optional Environment Variables**:
+4. **Optional Environment Variables**:
     - `AGENT_LOGGING_LEVEL` (optional) to configure logging verbosity: `DEBUG`, `INFO`, etc.
     - `OPENAI_API_BASE_URL` or `IO_API_BASE_URL` to point to OpenAI-compatible API implementation, like `https://api.intelligence.io.solutions/api/v1`
     - `OPENAI_API_MODEL` or `IO_API_MODEL` to pick specific LLM model as "agent brain", like `meta-llama/Llama-3.3-70B-Instruct`
@@ -309,6 +315,57 @@ async def main():
 
 asyncio.run(main())
 ```
+
+### Multimodal Support
+
+iointel supports multimodal inputs through various content types:
+
+```python
+from iointel import Agent, ImageUrl, BinaryContent, DocumentUrl, AudioUrl, VideoUrl
+
+agent = Agent(
+    name="VisionAgent",
+    instructions="You are a helpful vision assistant.",
+    model="openai/gpt-oss-120b",
+    api_key="io-...",
+)
+
+# Images
+result = await agent.run([
+    "What's in this image?",
+    ImageUrl(url="https://example.com/image.png")
+])
+
+# Local images with binary content
+with open("local_image.png", "rb") as f:
+    image_data = f.read()
+
+result = await agent.run([
+    "Describe this image",
+    BinaryContent(data=image_data, media_type="image/png")
+])
+
+# Documents
+result = await agent.run([
+    "Summarize this document",
+    DocumentUrl(url="https://example.com/document.pdf")
+])
+
+# Audio/Video (model dependent)
+result = await agent.run([
+    "Transcribe this audio",
+    AudioUrl(url="https://example.com/audio.mp3")
+])
+```
+
+**Supported Media Types:**
+The specific media types supported depend on your LLM model provider:
+
+- **Images**: PNG, JPEG, GIF, WebP
+- **Documents**: PDF, TXT
+- **Audio/Video**: MP3, MP4, WAV (varies by provider)
+
+Check your model provider's documentation for specific format support and limitations.
 ![Screenshot 2025-06-02 at 5 46 15 PM](https://github.com/user-attachments/assets/b563a937-bb06-4856-9ff2-d3f1ddda5a1a)
 
 ![Screenshot 2025-06-02 at 5 46 55 PM](https://github.com/user-attachments/assets/c52ca18b-375a-4406-9a5f-02bac598a6cf)
@@ -316,6 +373,8 @@ asyncio.run(main())
 ---
 
 ## Quickstart: Gradio UI
+
+> **Note**: To use the Gradio UI, install with UI dependencies: `pip install "iointel[ui]"`
 
 ```python
 from iointel import Agent, register_tool
@@ -327,19 +386,19 @@ def get_weather(city: str) -> dict:
 agent = Agent(
     name="GradioSolar",
     instructions="You are a helpful assistant.",
-    model="gpt-4o",
-    api_key="sk-...",
+    model="openai/gpt-oss-120b",
+    api_key="io-...",
     tools=[get_weather],
     show_tool_calls=True,
 )
 
 # Launch the beautiful Gradio Chat UI (works in Jupyter too!)
-agent.launch_gradio_ui(interface_title="Iointel Gradio Solar")
+await agent.launch_chat_ui(interface_title="Iointel Gradio Solar")
 
 # Or, for more control across different agents:
 # from iointel.src.ui.io_gradio_ui import IOGradioUI
 # ui = IOGradioUI(agent, interface_title="Iointel GradioSolar")
-# ui.launch(share=True)
+# await ui.launch(share=True)
 ```
 
 ![Screenshot 2025-06-02 at 5 44 49 PM](https://github.com/user-attachments/assets/1b6f834c-1ff3-4475-b581-c1b5233a099e)

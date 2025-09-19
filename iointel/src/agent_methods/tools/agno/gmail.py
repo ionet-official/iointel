@@ -1,6 +1,5 @@
-from typing import List, Optional
+from typing import List, Optional, Any
 from agno.tools.gmail import GmailTools as AgnoGmailTools
-from google.oauth2.credentials import Credentials
 from .common import make_base, wrap_tool
 from pydantic import Field
 
@@ -17,7 +16,7 @@ class Gmail(make_base(AgnoGmailTools)):
     send_email_enabled: bool = Field(default=True, frozen=True)
     send_email_reply_enabled: bool = Field(default=True, frozen=True)
     search_emails_enabled: bool = Field(default=True, frozen=True)
-    creds_: Optional[Credentials] = Field(default=None, frozen=True)
+    creds_: Optional[Any] = Field(default=None, frozen=True)
     credentials_path_: Optional[str] = Field(default=None, frozen=True)
     token_path_: Optional[str] = Field(default=None, frozen=True)
     scopes_: Optional[List[str]] = Field(default=None, frozen=True)

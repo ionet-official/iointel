@@ -1,6 +1,5 @@
 from typing import Any, List, Optional
 from agno.tools.googlesheets import GoogleSheetsTools as AgnoGoogleSheetsTools
-from google.oauth2.credentials import Credentials
 from .common import make_base, wrap_tool
 from pydantic import Field
 
@@ -9,7 +8,7 @@ class GoogleSheets(make_base(AgnoGoogleSheetsTools)):
     scopes: Optional[List[str]] = Field(default=None, frozen=True)
     spreadsheet_id: Optional[str] = Field(default=None, frozen=True)
     spreadsheet_range: Optional[str] = Field(default=None, frozen=True)
-    creds: Optional[Credentials] = Field(default=None, frozen=True)
+    creds: Optional[Any] = Field(default=None, frozen=True)
     creds_path: Optional[str] = Field(default=None, frozen=True)
     token_path: Optional[str] = Field(default=None, frozen=True)
     read: bool = Field(default=True, frozen=True)
@@ -18,7 +17,7 @@ class GoogleSheets(make_base(AgnoGoogleSheetsTools)):
     duplicate: bool = Field(default=False, frozen=True)
 
     def _get_tool(self):
-        return self._tool.Inner(
+        return self.Inner(
             scopes=self.scopes,
             spreadsheet_id=self.spreadsheet_id,
             spreadsheet_range=self.spreadsheet_range,

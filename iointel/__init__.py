@@ -5,6 +5,8 @@ from .src.utilities.runners import run_agents, run_agents_stream
 from .src.agent_methods.data_models.datamodels import PersonaConfig
 from .src.utilities.decorators import register_custom_task, register_tool
 from .src.utilities.rich import pretty_output
+from pydantic_ai import ImageUrl, BinaryContent, DocumentUrl, AudioUrl, VideoUrl
+from pydantic_ai.messages import UserContent
 
 from .src.code_parsers.pycode_parser import (
     PythonModule,
@@ -42,6 +44,13 @@ __all__ = [
     "query_wolfram",
     ###configuration###
     "pretty_output",
+    ###multimodal###
+    "ImageUrl",
+    "BinaryContent",
+    "DocumentUrl",
+    "AudioUrl",
+    "VideoUrl",
+    "UserContent",
 ]
 
 
