@@ -212,15 +212,11 @@ class Agent(BaseModel):
             for tool in (tools or ())
         ]
 
-        if isinstance(model, str):
-            model_supports_tool_choice = supports_tool_choice_required(model)
-        else:
-            model_supports_tool_choice = supports_tool_choice_required(
-                getattr(model, "model_name", "")
-            )
+        model_supports_tool_choice = supports_tool_choice_required(
+            resolved_model.model_name
+        )
 
-        if model_settings is None:
-            model_settings = {}
+        model_settings = dict(model_settings or {})
         model_settings["supports_tool_choice_required"] = model_supports_tool_choice
 
         super().__init__(
@@ -240,6 +236,10 @@ class Agent(BaseModel):
             debug=debug,
             conversation_id=conversation_id,
         )
+        # wtf pydantic, Y U LOSE values...
+        # TODO: figure out why this dirty hack is needed :(
+        self.model_settings = model_settings
+
         self._allow_unregistered_tools = allow_unregistered_tools
         self._runner = PydanticAgent(
             name=name,
