@@ -74,7 +74,7 @@ Users can define tasks (like `sentiment`, `translate_text`, etc.) in a **local**
 4. **Optional Environment Variables**:
     - `AGENT_LOGGING_LEVEL` (optional) to configure logging verbosity: `DEBUG`, `INFO`, etc.
     - `OPENAI_API_BASE_URL` or `IO_API_BASE_URL` to point to OpenAI-compatible API implementation, like `https://api.intelligence.io.solutions/api/v1`
-    - `OPENAI_API_MODEL` or `IO_API_MODEL` to pick specific LLM model as "agent brain", like `meta-llama/Llama-3.3-70B-Instruct`
+    - `OPENAI_API_MODEL` or `IO_API_MODEL` to pick specific LLM model as "agent brain", like `openai/gpt-oss-120b`
 
 ---
 

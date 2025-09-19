@@ -39,14 +39,9 @@ async def create_agent(
         if instantiate_tool is None
         else instantiate_tool,
     )
-    output_type = params.output_type
-    if isinstance(output_type, str):
-        output_type = globals().get(output_type) or __builtins__.get(
-            output_type, output_type
-        )
     result = (
         instantiate_agent_default if instantiate_agent is None else instantiate_agent
-    )(params.model_copy(update={"tools": tools, "output_type": output_type}))
+    )(params.model_copy(update={"tools": tools}))
     return (await result) if inspect.isawaitable(result) else result
 
 

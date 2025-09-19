@@ -9,6 +9,7 @@ from pydantic import (
     SecretStr,
     field_serializer,
     field_validator,
+    AfterValidator,
 )
 
 from typing import (
@@ -46,6 +47,22 @@ def patched_get_json_schema(cls, core_schema, handler):
 
 # Monkey-patch the __get_pydantic_json_schema__ on OpenAIModel.
 OpenAIModel.__get_pydantic_json_schema__ = classmethod(patched_get_json_schema)
+
+
+def output_type_str_to_type(value: Any) -> Any:
+    if isinstance(value, str):
+        from iointel.src.agent_methods.agents.agents_factory import create_agent
+
+        if (
+            new_value := create_agent.__globals__.get(
+                value, __builtins__.get(value, None)
+            )
+        ) is not None:
+            return new_value
+    return value
+
+
+OutputType = Annotated[Optional[Any], AfterValidator(output_type_str_to_type)]
 
 
 class ToolUsageResult(BaseModel):
@@ -449,7 +466,7 @@ class AgentParams(BaseModel):
     memory: Optional[AsyncMemory] = None
 
     model_settings: Optional[Dict[str, Any]] = Field(default_factory=dict)
-    output_type: Optional[Any] = str
+    output_type: OutputType = str
 
     @field_serializer("output_type", when_used="json")
     def dump_output_type(self, v):
@@ -525,7 +542,7 @@ class BaseStage(BaseModel):
 class SimpleStage(BaseStage):
     stage_type: Literal["simple"] = "simple"
     objective: str
-    output_type: Any = None
+    output_type: OutputType = None
     agents: List[Union[AgentParams, AgentSwarm]] = Field(default_factory=list)
     context: Optional[Dict[str, Any]] = Field(default_factory=dict)
 

@@ -37,7 +37,7 @@ jobs:
     env:
       IO_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       IO_API_BASE_URL: ${{ secrets.OPENAI_API_BASE_URL }}
-      IO_API_MODEL: meta-llama/Llama-3.3-70B-Instruct
+      IO_API_MODEL: openai/gpt-oss-120b
       WOLFRAM_API_KEY: ${{ secrets.WOLFRAM_API_KEY }}
       SOLSCAN_API_KEY: ${{ secrets.SOLSCAN_API_KEY }}
       COINMARKETCAP_API_KEY: ${{ secrets.COINMARKETCAP_API_KEY }}
