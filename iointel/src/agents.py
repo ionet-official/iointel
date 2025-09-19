@@ -8,6 +8,7 @@ from .agent_methods.data_models.datamodels import (
     Tool,
     ToolUsageResult,
     AgentResult,
+    OutputType,
 )
 from .utilities.rich import pretty_output
 from .utilities.constants import get_api_url, get_base_model, get_api_key
@@ -130,7 +131,7 @@ class Agent(BaseModel):
     )
     api_key: SecretStr
     base_url: Optional[str] = None
-    output_type: Optional[Any] = str
+    output_type: OutputType = str
     _runner: PydanticAgent
     conversation_id: Optional[str] = None
     show_tool_calls: bool = True
@@ -156,7 +157,7 @@ class Agent(BaseModel):
         ] = None,  # dict(extra_body=None), #can add json model schema here
         api_key: Optional[SecretStr | str] = None,
         base_url: Optional[str] = None,
-        output_type: Optional[Any] = str,
+        output_type: OutputType = str,
         conversation_id: Optional[str] = None,
         retries: int = 3,
         output_retries: int | None = None,
@@ -620,7 +621,7 @@ class LiberalToolAgent(Agent):
         model_settings: Optional[Dict[str, Any]] = None,
         api_key: Optional[SecretStr | str] = None,
         base_url: Optional[str] = None,
-        output_type: Optional[Any] = str,
+        output_type: OutputType = str,
         retries: int = 3,
         output_retries: int | None = None,
         show_tool_calls: bool = True,
