@@ -119,3 +119,19 @@ async def test_calculator_with_agent_complex():
     assert "true" in str(result_prime).lower() or "yes" in str(result_prime).lower(), (
         f"Expected result to confirm 17 is prime, got {result_prime}"
     )
+
+
+async def test_addition_tool_as_str_with_agent():
+    agent = Agent(
+        name="CalculatorAgent",
+        instructions="""
+        You are a calculator AI agent.
+        Perform mathematical operations and provide answers in a clean string format (not json) and not a dictionary.
+        When asked to perform addition, always use the provided tool.
+        """,
+        tools=["calculator_add"],
+    )
+
+    result = await agent.run("calculate 2 + 3")
+    assert "5" in result.result
+    assert result.tool_usage_results[0].tool_name == "calculator_add"
