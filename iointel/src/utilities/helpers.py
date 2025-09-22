@@ -2,7 +2,7 @@ from typing import Any, Callable, Sequence
 import inspect
 
 from pydantic import BaseModel, ConfigDict, model_serializer
-from pydantic_ai._output import get_union_args
+from pydantic_ai._utils import get_union_args
 
 import logging
 import os

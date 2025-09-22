@@ -4,11 +4,11 @@ dynamic = ["version", "readme"]
 description = "A framework to create agents, tasks, and workflows."
 requires-python = ">= 3.10"
 dependencies = [
-    "pydantic==2.10.6",
+    "pydantic==2.11.9",
     "python-dotenv>=1.0.1",
     "httpx",
     "python-multipart>=0.0.20",
-    "pydantic-ai==0.2.20",
+    "pydantic-ai==1.0.9",
     "pyyaml>=6.0.2",
     "duckduckgo-search==8.0.2",
     "pgvector>=0.4.0",
@@ -96,7 +96,3 @@ substitutions = [
 override-dependencies = [
     "audioop-lts; python_version >= '3.13'",
 ]
-
-# [tool.uv.sources]
-# pydantic-ai = { git = "https://github.com/webcoderz/pydantic-ai", rev = "webcoderz-model-settings" }
-# marvin = { git = "https://github.com/webcoderz/marvin" }

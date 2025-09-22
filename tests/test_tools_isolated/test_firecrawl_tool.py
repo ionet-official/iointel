@@ -1,6 +1,7 @@
 import os
 import pytest
 from iointel.src.agent_methods.tools.firecrawl import Crawler
+from firecrawl.v2.utils.error_handler import RequestTimeoutError
 
 
 @pytest.mark.skipif(
@@ -9,4 +10,7 @@ from iointel.src.agent_methods.tools.firecrawl import Crawler
 )
 async def test_firecrawl():
     crawler = Crawler()
-    assert crawler.scrape_url(url="https://firecrawl.dev/")
+    try:
+        assert crawler.scrape_url(url="https://firecrawl.dev/")
+    except RequestTimeoutError as err:
+        raise pytest.xfail(reason=f"Firecrawl timed out: {err}")
