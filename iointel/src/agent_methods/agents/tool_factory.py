@@ -209,5 +209,5 @@ async def resolve_tools(
                 f"Tool '{tool_name}' not found in TOOLS_REGISTRY, and rehydration is disabled for security."
             )
             continue
-        resolve_tools.append(tool)
+        resolved_tools.append(tool)
     return resolved_tools
