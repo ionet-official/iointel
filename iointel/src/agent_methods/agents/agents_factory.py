@@ -34,7 +34,7 @@ async def create_agent(
     """
     # Dump the rest of the agent data (excluding tools) then reinsert our resolved tools.
     tools = await resolve_tools(
-        params,
+        params.tools,
         tool_instantiator=instantiate_stateful_tool
         if instantiate_tool is None
         else instantiate_tool,
