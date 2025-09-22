@@ -10,10 +10,12 @@ from .agent_methods.data_models.datamodels import (
     AgentResult,
     OutputType,
 )
-from .agent_methods.agents.tool_factory import resolve_single_tool, instantiate_stateful_tool
+from .agent_methods.agents.tool_factory import (
+    resolve_single_tool,
+    instantiate_stateful_tool,
+)
 from .utilities.rich import pretty_output
 from .utilities.constants import get_api_url, get_base_model, get_api_key
-from .utilities.registries import TOOLS_REGISTRY
 from .utilities.helpers import supports_tool_choice_required, flatten_union_types
 from .ui.rich_panels import render_agent_result_panel
 
@@ -268,7 +270,9 @@ class Agent(BaseModel):
     def _get_registered_tool(
         cls, tool: str | Tool | Callable, allow_unregistered_tools: bool
     ) -> Tool:
-        tool_name, tool_obj = resolve_single_tool(tool, instantiate_stateful_tool, allow_unregistered_tools)
+        tool_name, tool_obj = resolve_single_tool(
+            tool, instantiate_stateful_tool, allow_unregistered_tools
+        )
         if tool_obj is None:
             raise ValueError(
                 f"Tool '{tool_name}' not found in registry, did you forget to @register_tool?"
