@@ -10,6 +10,7 @@ from pydantic import (
     field_serializer,
     field_validator,
     AfterValidator,
+    model_validator,
 )
 
 from typing import (
@@ -319,6 +320,12 @@ class Tool(BaseModel):
         ):
             raise ValueError(f"Unsupported tool type: {type(value)}")
         return value
+
+    @model_validator(mode="after")
+    def update_fn_self_for_methods(self):
+        if inspect.ismethod(self.fn) and self.fn_self is None:
+            self._update_fn_self(self.fn.__self__)
+        return self
 
     @field_serializer("fn_self")
     def serialize_fn_self(self, _: Any):
