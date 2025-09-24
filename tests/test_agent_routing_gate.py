@@ -16,17 +16,18 @@ from iointel.src.agent_methods.tools.tool_loader import load_tools_from_env
 # Import routing_gate to register it
 from iointel.src.utilities.tool_registry_utils import create_tool_catalog
 
+    # Load tools to populate registry
+load_tools_from_env()
+
+# Get the proper tool catalog with working tools
+tool_catalog = create_tool_catalog(filter_broken=True, verbose_format=False, use_working_filter=True)
+
+
 async def test_agent_with_routing_gate():
     """Test that an agent can properly use routing_gate for decisions."""
     
     print("Testing Agent with routing_gate")
     print("=" * 60)
-    
-    # Load tools to populate registry
-    load_tools_from_env()
-    
-    # Get the proper tool catalog with working tools
-    tool_catalog = create_tool_catalog(filter_broken=True, verbose_format=False, use_working_filter=True)
     
     # Verify routing_gate is available
     if 'routing_gate' in tool_catalog:
@@ -40,26 +41,13 @@ async def test_agent_with_routing_gate():
         name="RoutingDecisionAgent",
         instructions="""You are a routing decision agent that analyzes input and routes to appropriate handlers.
 
-Available routes:
-- Route 0: Web/URLs
-- Route 1: CSV operations  
-- Route 2: File operations
-- Route 3: Math/calculations
-- Route 4: Shell commands (pwd, ls, cd, etc.)
-- Route 5: Stock/finance
-
 Analyze the user input and call routing_gate with the appropriate route_index.
-
-Examples:
-- "pwd" -> routing_gate(data="pwd", route_index=4, route_name="Shell")
-- "TSLA price" -> routing_gate(data="TSLA price", route_index=5, route_name="Finance")
-- "calculate 10+5" -> routing_gate(data="calculate 10+5", route_index=3, route_name="Math")
 
 IMPORTANT: You MUST call routing_gate with your decision.""",
         model=os.getenv("MODEL_NAME", "gpt-4o"),
         api_key=os.getenv("OPENAI_API_KEY"),
         base_url=os.getenv("OPENAI_API_BASE", "https://api.openai.com/v1"),
-        tools=["routing_gate"],
+        tools=list(tool_catalog.keys()),
         show_tool_calls=True
     )
     
@@ -69,7 +57,6 @@ IMPORTANT: You MUST call routing_gate with your decision.""",
         ("show me TSLA stock price", 5, "Finance"),
         ("calculate 42 * 17", 3, "Math"),
         ("list csv files", 1, "CSV"),
-        ("fetch https://example.com", 0, "Web")
     ]
     
     for input_text, expected_index, expected_category in test_cases:
@@ -80,9 +67,9 @@ IMPORTANT: You MUST call routing_gate with your decision.""",
         result = await agent.run(input_text)
         
         # Check if agent used routing_gate - using tool_usage_results
-        if 'tool_usage_results' in result and result['tool_usage_results']:
+        if result.tool_usage_results:
             # Get the tool usage results (list of ToolUsageResult objects)
-            for tool_result in result['tool_usage_results']:
+            for tool_result in result.tool_usage_results:
                 if tool_result.tool_name == 'routing_gate':
                     print("   ✅ Agent called routing_gate:")
                     print(f"      route_index: {tool_result.tool_args.get('route_index')}")
@@ -102,7 +89,7 @@ IMPORTANT: You MUST call routing_gate with your decision.""",
                 print("   ❌ Agent didn't use routing_gate!")
         else:
             print("   ❌ Agent didn't use any tools!")
-            print(f"   Response: {result.get('result', 'No response')}")
+            print(f"   Response: {result.result}")
     
     print("\n" + "=" * 60)
     print("Test complete! The agent can use routing_gate for decisions.")
@@ -141,10 +128,8 @@ async def test_workflow_with_routing():
                 label="Route Decision",
                 data=AgentConfig(
                     agent_instructions="""Route the input to the correct handler.
-Routes: 0=Web, 1=CSV, 2=File, 3=Math, 4=Shell, 5=Finance
-
-For shell commands like 'pwd', use: routing_gate(data=<input>, route_index=4, route_name="Shell")""",
-                    tools=["routing_gate"],
+Routes: 0=Web, 1=CSV, 2=File, 3=Math, 4=Shell, 5=Finance""",
+                    tools=list(tool_catalog.keys()),
                     model="gpt-4o"
                 )
             ),

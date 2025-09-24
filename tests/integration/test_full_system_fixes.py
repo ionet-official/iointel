@@ -12,7 +12,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 from iointel.src.utilities.workflow_helpers import execute_workflow
 from iointel.src.agent_methods.data_models.workflow_spec import WorkflowSpec, NodeSpec, EdgeSpec, NodeData, EdgeData
-from iointel.src.utilities.io_logger import get_prompt_history, clear_prompt_history
+from iointel.src.utilities.io_logger import get_trace_history, clear_trace_history
 from uuid import uuid4
 
 
@@ -20,7 +20,7 @@ async def test_execution_with_feedback():
     """Test that execution logs and prompts are properly tracked."""
     
     print("\n🧹 Clearing prompt history...")
-    clear_prompt_history()
+    clear_trace_history()
     
     print("\n🔨 Creating test workflow...")
     # Create a simple test workflow
@@ -96,7 +96,7 @@ async def test_execution_with_feedback():
     
     # Check prompts
     print("\n🤖 Checking prompt history...")
-    prompts = get_prompt_history()
+    prompts = get_trace_history()
     print(f"   Total prompts logged: {len(prompts)}")
     
     if prompts:
