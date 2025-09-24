@@ -10,8 +10,6 @@ from iointel.src.agent_methods.data_models.datamodels import (
     AgentResult,
 )
 from iointel.src.utilities.rich import pretty_output
-from iointel.src.utilities.constants import get_api_url, get_base_model, get_api_key
-from iointel.src.utilities.registries import TOOLS_REGISTRY
 from iointel.src.utilities.helpers import supports_tool_choice_required, flatten_union_types
 from iointel.src.ui.rich_panels import render_agent_result_panel
 from iointel.src.ui.io_gradio_ui import IOGradioUI
@@ -343,7 +341,7 @@ class Agent(BaseModel):
 
         if self.context:
             combined_instructions += f"""\n\n 
-            this is added context, perhaps a previous run, or anything else of value,
+            this is added context, perhaps a previous run, tools, or anything else of value,
             so you can understand what is going on: {self.context}"""
         return combined_instructions
 

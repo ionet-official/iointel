@@ -16,7 +16,6 @@ from iointel.src.agents import Agent
 from iointel.src.utilities.runners import run_agents
 from iointel.src.agent_methods.agents.agents_factory import create_agent
 from iointel.src.utilities.data_flow_resolver import data_flow_resolver
-from iointel.src.agent_methods.data_models.datamodels import AgentResultFormat
 import logging
 
 logger = logging.getLogger(__name__)
@@ -64,7 +63,7 @@ class DirectNodeExecutor:
     ) -> Any:
         """Execute an agent node directly."""
         # Get or create agent
-        agent = self._get_or_create_agent(node)
+        agent = await self._get_or_create_agent(node)
         
         # Resolve variables in agent instructions
         agent_instructions = node.data.agent_instructions or "SHOULD NEVER HAPPEN"
@@ -103,10 +102,7 @@ class DirectNodeExecutor:
         if not objective:
             objective = agent_instructions or "Process the provided context"
         
-        # Determine result format
-        result_format = AgentResultFormat.full()
-        if node.type == "decision":
-            result_format = AgentResultFormat.workflow()
+        # Note: AgentResultFormat complexity removed - agents now return full AgentResult by default
         
         logger.info(f"🤖 Executing agent with objective: {objective[:100]}...")
         logger.info(f"📊 Context keys: {list(context.keys())}")
@@ -118,7 +114,6 @@ class DirectNodeExecutor:
             context=context,
             conversation_id=self.conversation_id,
             output_type=str,
-            result_format=result_format
         ).execute()
         
         return response
@@ -196,7 +191,7 @@ class DirectNodeExecutor:
         # For now, raise NotImplementedError
         raise NotImplementedError("Tool node execution not yet implemented in direct executor")
     
-    def _get_or_create_agent(self, node: NodeSpec) -> Optional[Agent]:
+    async def _get_or_create_agent(self, node: NodeSpec) -> Optional[Agent]:
         """Get or create an agent for the node."""
         # Check cache
         if node.id in self._agent_cache:
@@ -215,7 +210,7 @@ class DirectNodeExecutor:
                 tools=node.data.tools or [],
                 api_key=None,  # Use defaults
             )
-            agent = create_agent(agent_params)
+            agent = await create_agent(agent_params)
             self._agent_cache[node.id] = agent
             return agent
         

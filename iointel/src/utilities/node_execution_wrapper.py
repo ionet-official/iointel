@@ -45,16 +45,22 @@ class SLAValidator:
         Extract SLA requirements from WorkflowSpec NodeSpec - SINGLE SOURCE OF TRUTH.
         
         REFACTORED APPROACH:
-        1. Use NodeSpec.sla field as authoritative source (from WorkflowPlanner)
-        2. NO GUESSING - if WorkflowPlanner didn't set SLA, no enforcement
+        1. Check node_spec.sla first (for DecisionNode)
+        2. Check node_spec.data.sla (for DecisionConfig)
+        3. NO GUESSING - if WorkflowPlanner didn't set SLA, no enforcement
         
         Args:
             node_spec: NodeSpec object with .sla field
         """
-        # AUTHORITATIVE SOURCE: NodeSpec.sla field from WorkflowPlanner
-        if node_spec.sla is not None:
-            logger.debug(f"Using SLA from WorkflowSpec: {node_spec.sla}")
+        # Check node-level SLA first (DecisionNode.sla)
+        if hasattr(node_spec, 'sla') and node_spec.sla is not None:
+            logger.debug(f"Using SLA from NodeSpec.sla: {node_spec.sla}")
             return node_spec.sla
+        
+        # Check data-level SLA (DecisionConfig.sla)
+        if hasattr(node_spec, 'data') and hasattr(node_spec.data, 'sla') and node_spec.data.sla is not None:
+            logger.debug(f"Using SLA from NodeSpec.data.sla: {node_spec.data.sla}")
+            return node_spec.data.sla
         
         # NO ENFORCEMENT - WorkflowPlanner is responsible for setting SLA
         logger.debug("No SLA found in NodeSpec - no enforcement")

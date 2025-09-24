@@ -8,7 +8,7 @@ from iointel.src.utilities.registries import CHAINABLE_METHODS, CUSTOM_WORKFLOW_
 # Tool usage enforcement now handled at DAG level via node_execution_wrapper
 from iointel.src.agents import Agent
 from iointel.src.agent_methods.agents.agents_factory import create_agent
-from iointel.src.agent_methods.data_models.datamodels import AgentParams, AgentResultFormat
+from iointel.src.agent_methods.data_models.datamodels import AgentParams
 from iointel.src.agent_methods.data_models.execution_models import AgentExecutionResult, AgentRunResponse, ExecutionStatus
 import time
 
@@ -315,21 +315,7 @@ async def execute_agent_task(
     
     # print(f"🔧 execute_agent_task: agent_result_format = {agent_result_format_str}")
     
-    # Convert string format to AgentResultFormat instance
-    if agent_result_format_str == "chat":
-        result_format = AgentResultFormat.chat()
-    elif agent_result_format_str == "chat_w_tools":
-        result_format = AgentResultFormat.chat_w_tools()
-    elif agent_result_format_str == "workflow":
-        result_format = AgentResultFormat.workflow()
-    elif agent_result_format_str == "minimal":
-        # Legacy support - map to workflow format
-        result_format = AgentResultFormat.workflow()
-    else:
-        # Default to full format
-        result_format = AgentResultFormat.full()
-    
-    # print(f"🔧 execute_agent_task: using format with fields = {result_format.get_included_fields()}")
+    # Note: AgentResultFormat complexity removed - agents now return full AgentResult by default
     
     # Convert AgentParams to Agent instances if needed
     if not agents:
@@ -345,7 +331,10 @@ async def execute_agent_task(
         # Convert AgentParams to Agent instances using the factory
         # This properly handles model, tools, instructions, and all other fields
         print(f"🔧 execute_agent_task: Converting {len(agents)} AgentParams to Agent instances")
-        agents_to_use = [create_agent(ap) for ap in agents]
+        agents_to_use = []
+        for ap in agents:
+            agent = await create_agent(ap)
+            agents_to_use.append(agent)
         # Log what was created
         for i, agent in enumerate(agents_to_use):
             print(f"========== Agent {i}: model={getattr(agent.model, 'model_name', 'unknown')}, tools={len(agent.tools)}, name={agent.name}")
@@ -425,7 +414,6 @@ async def execute_agent_task(
             context=context,
             conversation_id=conversation_id,
             output_type=str,
-            result_format=result_format,
         ).execute()
     
     # Execute the agent normally - SLA enforcement now handled at DAG level

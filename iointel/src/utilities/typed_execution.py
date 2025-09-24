@@ -11,7 +11,7 @@ logger = get_component_logger("TYPED_EXECUTION")
 
 
 @dataclass
-class TypedExecutionContext:
+class ExecutionContext:
     """Execution context with full workflow awareness."""
     workflow_spec: WorkflowSpec      # The FUNDAMENTAL object - complete workflow
     current_node_id: str            # Which node we're executing
@@ -82,8 +82,10 @@ class TypedExecutionContext:
         Get all input data for this node based on incoming edges.
         Maps source outputs to this node's expected inputs.
         
-        Special handling for decision nodes: pass through the original input
-        that was given to the decision node, not just the routing result.
+        Special handling for decision nodes: prefer the decision node's
+        own output (agent_response.result) so downstream agents receive
+        the analysis, not the original user input. Fall back to the
+        original input only if no result is available.
         """
         input_data = {}
         
@@ -92,26 +94,35 @@ class TypedExecutionContext:
             if source_result:
                 # Check if source is a decision/routing node
                 source_node = next((n for n in self.workflow_spec.nodes if n.id == edge.source), None)
-                is_decision_node = source_node and source_node.type in ["decision", "agent"]
+                is_decision_node = source_node and source_node.type in ["decision"]
                 
                 # Extract value based on result type
                 value = None
                 
-                # Special handling for decision nodes - get the original input
+                # Special handling for decision nodes
                 if is_decision_node:
-                    # For decision nodes, we want to pass through the original input
-                    # that the decision node received, not its routing result
-                    
-                    # First, check if we can get the original input from the decision node's context
-                    # Look for what the decision node itself received as input
-                    decision_input = None
-                    
-                    # Find edges going INTO the decision node
-                    decision_incoming = [e for e in self.workflow_spec.edges if e.target == edge.source]
-                    for dec_edge in decision_incoming:
-                        dec_source_result = self.state.results.get(dec_edge.source)
-                        if dec_source_result:
-                            # Extract the value from the node that fed the decision
+                    # 1) Prefer the agent's own result (analysis/decision text)
+                    if hasattr(source_result, 'agent_response') and source_result.agent_response:
+                        agent_resp = source_result.agent_response
+                        if hasattr(agent_resp, 'result') and agent_resp.result is not None:
+                            value = agent_resp.result
+                        elif hasattr(agent_resp, 'context') and agent_resp.context:
+                            value = agent_resp.context
+                    elif isinstance(source_result, dict) and 'agent_response' in source_result:
+                        agent_resp = source_result['agent_response']
+                        if isinstance(agent_resp, dict) and 'result' in agent_resp and agent_resp['result'] is not None:
+                            value = agent_resp['result']
+                        elif isinstance(agent_resp, dict) and 'context' in agent_resp:
+                            value = agent_resp['context']
+
+                    # 2) Fallback to original input into the decision node
+                    if value is None:
+                        decision_input = None
+                        decision_incoming = [e for e in self.workflow_spec.edges if e.target == edge.source]
+                        for dec_edge in decision_incoming:
+                            dec_source_result = self.state.results.get(dec_edge.source)
+                            if dec_source_result is None:
+                                continue
                             if isinstance(dec_source_result, dict) and 'result' in dec_source_result:
                                 decision_input = dec_source_result['result']
                             elif hasattr(dec_source_result, 'result'):
@@ -119,36 +130,7 @@ class TypedExecutionContext:
                             else:
                                 decision_input = dec_source_result
                             break
-                    
-                    # Use the original input if we found it
-                    if decision_input is not None:
-                        value = decision_input
-                        logger.info(f"Passing through original input from decision node {edge.source}: {str(value)[:300]}...")
-                    else:
-                        # Fallback to extracting from the decision result itself
-                        # Try to find the original context in the agent response
-                        if hasattr(source_result, 'agent_response') and source_result.agent_response:
-                            agent_resp = source_result.agent_response
-                            # Check if there's context stored in the response
-                            if hasattr(agent_resp, 'context') and agent_resp.context:
-                                # Use the context as the value
-                                value = agent_resp.context
-                            elif hasattr(agent_resp, 'result'):
-                                value = agent_resp.result
-                        elif isinstance(source_result, dict):
-                            # Try to extract from dict format
-                            if 'agent_response' in source_result:
-                                agent_resp = source_result['agent_response']
-                                if isinstance(agent_resp, dict) and 'context' in agent_resp:
-                                    value = agent_resp['context']
-                                elif isinstance(agent_resp, dict) and 'result' in agent_resp:
-                                    value = agent_resp['result']
-                            elif 'result' in source_result:
-                                value = source_result['result']
-                        
-                        if value is None:
-                            # Last resort - use the whole result
-                            value = source_result
+                        value = decision_input if decision_input is not None else source_result
                 
                 else:
                     # Standard node - extract result normally
@@ -219,11 +201,11 @@ class TypedExecutionContext:
         return data_flow_resolver.resolve_config(self.config, self.available_results)
 
 
-class TypedNodeExecutor:
+class NodeExecutor:
     """Base class for typed node execution."""
     
     @staticmethod
-    async def execute(context: TypedExecutionContext) -> Any:
+    async def execute(context: ExecutionContext) -> Any:
         """Execute a node based on its type."""
         logger.info(f"Executing node {context.node_id} (type: {context.node_type})")
         
@@ -243,23 +225,23 @@ class TypedNodeExecutor:
             raise ValueError(f"Unknown node type: {context.node_type}")
 
 
-# Bridge function to convert from old dict-based system to typed
-def create_typed_context_from_task(
-    task: dict,
-    node: NodeSpec,
-    state: WorkflowState,
-    agents: Optional[List[Agent]] = None,
-    conversation_id: Optional[str] = None
-) -> TypedExecutionContext:
-    """
-    Create a typed execution context from the old dict-based task.
+# # Bridge function to convert from old dict-based system to typed
+# def create_typed_context_from_task(
+#     task: dict,
+#     node: NodeSpec,
+#     state: WorkflowState,
+#     agents: Optional[List[Agent]] = None,
+#     conversation_id: Optional[str] = None
+# ) -> ExecutionContext:
+#     """
+#     Create a typed execution context from the old dict-based task.
     
-    This is a bridge function for gradual migration.
-    """
-    return TypedExecutionContext(
-        node=node,
-        state=state,
-        objective=task.get("objective"),
-        agents=agents or task.get("agents", []),
-        conversation_id=conversation_id or task.get("conversation_id")
-    )
+#     This is a bridge function for gradual migration.
+#     """
+#     return ExecutionContext(
+#         node=node,
+#         state=state,
+#         objective=task.get("objective"),
+#         agents=agents or task.get("agents", []),
+#         conversation_id=conversation_id or task.get("conversation_id")
+#     )

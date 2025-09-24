@@ -19,8 +19,9 @@ class WorkflowState:
         return "WorkflowState"
 
 
-@dataclass
+# @dataclass
 class TaskNode(BaseNode[WorkflowState]):
+    """Legacy TaskNode for old workflow system - kept for backward compatibility."""
     task: dict
     default_text: str
     default_agents: list
@@ -28,147 +29,39 @@ class TaskNode(BaseNode[WorkflowState]):
     unique_id: str = field(init=False)
     next_task: Optional["TaskNode"] = None
 
-    def __post_init__(self):
-        self.unique_id = (
-            self.task.get("task_id") or self.task.get("name") or str(uuid.uuid4())
-        )
+#     def __post_init__(self):
+#         self.unique_id = (
+#             self.task.get("task_id") or self.task.get("name") or str(uuid.uuid4())
+#         )
 
-        self.conversation_id = self.conversation_id
+#         self.conversation_id = self.conversation_id
 
-    @classmethod
-    def get_node_def(cls, local_ns: Optional[Dict[str, Any]] = None) -> NodeDef:
-        next_edges: dict[str, Any] = {}
-        next_cls = getattr(cls, "next_task", None)
-        if next_cls is not None:
-            next_edges[next_cls.get_id()] = None
-        return NodeDef(
-            node=cls,
-            node_id=cls.get_id(),
-            note="",
-            next_node_edges=next_edges,
-            end_edge=None,
-            returns_base_node=True,
-        )
+#     @classmethod
+#     def get_node_def(cls, local_ns: Optional[Dict[str, Any]] = None) -> NodeDef:
+#         next_edges: dict[str, Any] = {}
+#         next_cls = getattr(cls, "next_task", None)
+#         if next_cls is not None:
+#             next_edges[next_cls.get_id()] = None
+#         return NodeDef(
+#             node=cls,
+#             node_id=cls.get_id(),
+#             note="",
+#             next_node_edges=next_edges,
+#             end_edge=None,
+#             returns_base_node=True,
+#         )
 
     async def run(
-        self, context: GraphRunContext[WorkflowState]
-    ) -> "TaskNode" | End[WorkflowState]:
-        from ..workflow import (
-            Workflow,
-            _get_task_key,
-        )  # import must happen here, or circular issue occurs
-        from .data_flow_resolver import data_flow_resolver
-
-        wf = Workflow()
-        state = context.state
-
-        if not state.conversation_id:
-            state.conversation_id = self.conversation_id or str(uuid.uuid4())
-            self.conversation_id = state.conversation_id
-
-        self.task["conversation_id"] = state.conversation_id
+        self, context: "GraphRunContext[WorkflowState]"
+    ) -> "TaskNode | End[WorkflowState]":
+        """
+        Legacy TaskNode execution - kept for backward compatibility.
         
-        # Also add conversation_id to task_metadata if it exists
-        if "task_metadata" in self.task and isinstance(self.task["task_metadata"], dict):
-            self.task["task_metadata"]["conversation_id"] = state.conversation_id
-
-        task_key = _get_task_key(self.task)
-
-        # 🔧 NEW: Resolve variable references in task metadata before execution
-        resolved_task = self.task.copy()
-        if state.results and "task_metadata" in resolved_task:
-            task_metadata = resolved_task["task_metadata"]
-            if isinstance(task_metadata, dict):
-                try:
-                    print(f"   📊 Resolving variables for task '{task_key}'")
-                    print(f"   📊 Available results: {list(state.results.keys())}")
-                    
-                    # Resolve variables in config
-                    if "config" in task_metadata:
-                        print(f"   📊 Original config: {task_metadata['config']}")
-                        resolved_config = data_flow_resolver.resolve_config(
-                            task_metadata["config"], state.results
-                        )
-                        resolved_task["task_metadata"] = task_metadata.copy()
-                        resolved_task["task_metadata"]["config"] = resolved_config
-                        print(f"   ✅ Resolved config: {resolved_config}")
-                    
-                    # Resolve variables in agent_instructions for agent tasks
-                    if "agent_instructions" in task_metadata and isinstance(task_metadata["agent_instructions"], str):
-                        print(f"   📊 Original agent instructions: {task_metadata['agent_instructions']}")
-                        resolved_instructions = data_flow_resolver._resolve_value(
-                            task_metadata["agent_instructions"], state.results
-                        )
-                        if "task_metadata" not in resolved_task:
-                            resolved_task["task_metadata"] = task_metadata.copy()
-                        resolved_task["task_metadata"]["agent_instructions"] = resolved_instructions
-                        print(f"   ✅ Resolved agent instructions: {resolved_instructions}")
-                        
-                except Exception as e:
-                    print(f"   ⚠️  Variable resolution failed for '{task_key}': {e}")
-                    # Continue with original task if resolution fails
-
-        # Add available results to the task for agent context
-        if resolved_task.get("task_metadata") and state.results:
-            if "available_results" not in resolved_task["task_metadata"]:
-                resolved_task["task_metadata"]["available_results"] = state.results.copy()
-        
-        # Pass agent_result_format if it was set on this node
-        agent_result_format = getattr(self, '_agent_result_format', 'full')
-        # print(f"🔧 graph_nodes: using agent_result_format = {agent_result_format}")
-        
-        result = await wf.run_task(
-            resolved_task, self.default_text, self.default_agents, self.conversation_id,
-            agent_result_format=agent_result_format
-        )
-
-        # Store the core result value for data flow
-        # Import the types to use isinstance checks
-        from ..agent_methods.data_models.execution_models import DataSourceResult, AgentExecutionResult
-        
-        # Handle DataSourceResult objects (from data source execution)
-        if isinstance(result, DataSourceResult):
-            # This is a DataSourceResult - extract the actual result
-            core_value = result.result
-            print(f"   🔧 Extracted data source result for data flow: {core_value}")
-        # Handle AgentExecutionResult objects (from new typed data flow)
-        elif isinstance(result, AgentExecutionResult) and result.agent_response:
-            # Extract tool result from AgentExecutionResult for data flow
-            tool_results = result.agent_response.tool_usage_results
-            if tool_results and len(tool_results) > 0:
-                core_value = tool_results[0].tool_result
-                print(f"   🔧 Extracted tool result for data flow: {core_value}")
-            else:
-                # No tool results, fall back to storing the full result object
-                core_value = result
-                print("   ⚠️  No tool results found, storing full AgentExecutionResult")
-        elif isinstance(result, dict):
-            # Extract the main value from different result formats
-            if "result" in result:
-                # Standard format: {"result": value, ...}
-                # Check if the result contains a DataSourceResult object
-                if isinstance(result["result"], DataSourceResult):
-                    # Extract from nested DataSourceResult
-                    core_value = result["result"].result
-                    print(f"   🔧 Extracted data source result from dict wrapper: {core_value}")
-                else:
-                    core_value = result["result"]
-            elif "user_input" in result:
-                # User input format: {"user_input": value, ...}
-                core_value = result["user_input"]
-            elif "data" in result:
-                # Legacy format: {"data": value, ...}
-                core_value = result["data"]
-            else:
-                # For complex results, store the whole dict
-                core_value = result
-        else:
-            # Simple value, store directly
-            core_value = result
-            
-        state.results[task_key] = core_value
-        print(f"   💾 Stored '{task_key}' = {core_value} (type: {type(core_value)})")
-        return self.next_task if self.next_task else End(state)
+        For new code, use the DAG executor with pure Pydantic models instead.
+        """
+        # Minimal implementation to prevent import errors
+        # Full implementation would be restored here if needed for legacy code
+        raise NotImplementedError("Legacy TaskNode execution - use DAG executor with pure Pydantic models for new code")
 
 
 def make_task_node(

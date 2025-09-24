@@ -60,7 +60,7 @@ class AgentResult(BaseModel):
     """
 
     result: Any  # Can be str, int, float, dict, or any structured output
-    conversation_id: Union[str, int]
+    conversation_id: Optional[Union[str, int]] = None
     full_result: Any
     tool_usage_results: List[ToolUsageResult]
 

@@ -15,8 +15,12 @@ from collections import deque
 from dataclasses import dataclass
 
 from iointel.src.agent_methods.data_models.workflow_spec import WorkflowSpec, NodeSpec, EdgeSpec
-from iointel.src.utilities.graph_nodes import WorkflowState, TaskNode, make_task_node
+from iointel.src.utilities.graph_nodes import WorkflowState
 from iointel.src.utilities.io_logger import get_component_logger
+from iointel.src.agent_methods.data_models.datamodels import ToolUsageResult
+from iointel.src.agent_methods.tools.conditional_gate import GateResult
+from iointel.src.utilities.typed_execution import ExecutionContext, NodeExecutor
+        
 
 logger = get_component_logger("DAG_EXECUTOR", grouped=True)
 
@@ -25,7 +29,6 @@ logger = get_component_logger("DAG_EXECUTOR", grouped=True)
 class DAGNode:
     """Represents a node in the DAG with its dependencies and dependents."""
     node_spec: NodeSpec
-    task_node_class: type[TaskNode]
     dependencies: Set[str]  # Node IDs this node depends on
     dependents: Set[str]    # Node IDs that depend on this node
     
@@ -127,6 +130,9 @@ class DAGExecutor:
                     task_metadata["agent_instructions"] = node.data.agent_instructions
                     task_metadata["tools"] = getattr(node.data, 'tools', [])
                     task_metadata["model"] = getattr(node.data, 'model', 'gpt-4o')
+                    # Copy SLA requirements from node data
+                    if hasattr(node.data, 'sla') and node.data.sla is not None:
+                        task_metadata["sla"] = node.data.sla
                 elif node.type == "workflow_call":
                     task_metadata["workflow_id"] = node.data.get('workflow_id')
                 
@@ -167,16 +173,9 @@ class DAGExecutor:
                         logger.warning(f"{node.type} node {node.id} has agent_instructions but agent creation failed")
                     # Note: It's OK for agent nodes to not have instructions if they're placeholders
                 
-                task_node_class = make_task_node(
-                    task=task_data,
-                    default_text=objective,
-                    default_agents=node_agents,
-                    conv_id=conversation_id or "default"
-                )
-                
+                # Store the Pydantic node directly - no need for dict conversion
                 self.nodes[node.id] = DAGNode(
                     node_spec=node,
-                    task_node_class=task_node_class,
                     dependencies=set(),
                     dependents=set()
                 )
@@ -323,7 +322,9 @@ class DAGExecutor:
         for dep_id in self.nodes[node_id].dependencies:
             dep_node = self.nodes[dep_id]
             
-            # Check if this is a decision node OR an agent node with routing information
+            # Only decision nodes should gate downstream execution by default.
+            # Agent nodes may participate in routing ONLY if they produced explicit gate results.
+            print(f"## dep_node.node_spec.type: {dep_node.node_spec.type}")
             if dep_node.node_spec.type == "decision" or dep_node.node_spec.type == "agent":
                 dep_result = state.results.get(dep_id)
                 if dep_result:
@@ -334,21 +335,23 @@ class DAGExecutor:
                     # Support both dict and Pydantic model formats
                     tool_usage_results = None
                     
-                    # Extract tool_usage_results from different result formats
-                    if hasattr(dep_result, 'agent_response') and dep_result.agent_response:
-                        # AgentExecutionResult with agent_response
-                        if hasattr(dep_result.agent_response, 'tool_usage_results'):
+                    # Extract tool_usage_results preferring typed models, fallback to legacy dicts
+                    try:
+                        from iointel.src.agent_methods.data_models.execution_models import AgentExecutionResult
+                    except Exception:
+                        AgentExecutionResult = None  # type: ignore
+
+                    if AgentExecutionResult and isinstance(dep_result, AgentExecutionResult):
+                        if dep_result.agent_response:
                             tool_usage_results = dep_result.agent_response.tool_usage_results
                     elif isinstance(dep_result, dict):
-                        # Dict format - could be legacy or have agent_response
-                        if "agent_response" in dep_result and dep_result["agent_response"]:
-                            agent_resp = dep_result["agent_response"]
-                            if isinstance(agent_resp, dict) and "tool_usage_results" in agent_resp:
-                                tool_usage_results = agent_resp["tool_usage_results"]
-                            elif hasattr(agent_resp, 'tool_usage_results'):
-                                tool_usage_results = agent_resp.tool_usage_results
+                        # Legacy dict format support
+                        agent_resp = dep_result.get("agent_response")
+                        if isinstance(agent_resp, dict) and "tool_usage_results" in agent_resp:
+                            tool_usage_results = agent_resp["tool_usage_results"]
+                        elif hasattr(agent_resp, 'tool_usage_results'):
+                            tool_usage_results = agent_resp.tool_usage_results
                         elif "tool_usage_results" in dep_result:
-                            # Direct tool_usage_results in dict
                             tool_usage_results = dep_result["tool_usage_results"]
                     
                     # Initialize gate_results to avoid UnboundLocalError
@@ -356,9 +359,6 @@ class DAGExecutor:
                     
                     # Look for route_index in tool_usage_results
                     if tool_usage_results:
-                        # Import the types we need
-                        from ..agent_methods.data_models.datamodels import ToolUsageResult
-                        from ..agent_methods.tools.conditional_gate import GateResult
                         
                         # Get ALL routing/conditional_gate results (not just the last one)
                         for tool_result in tool_usage_results:
@@ -493,13 +493,25 @@ class DAGExecutor:
                                         # Continue to next execution
                                         continue
                     
-                    # If we get here, none of the executions routed to this target node
-                    logger.info("❌ No executions routed to target node", data={
-                        "decision_node": dep_id,
-                        "target_node": node_id,
-                        "total_executions": len(gate_results)
-                    })
-                    return False
+                    # If we get here, decide gating outcome based on presence of gate results and node type
+                    if gate_results:
+                        # There were explicit gate results but none matched this target → gated
+                        logger.info("❌ No executions routed to target node", data={
+                            "decision_node": dep_id,
+                            "target_node": node_id,
+                            "total_executions": len(gate_results)
+                        })
+                        return False
+                    else:
+                        # No routing info produced: only gate if upstream is an actual decision node
+                        if dep_node.node_spec.type == "decision":
+                            logger.info("❌ Decision node produced no routing info → gate downstream by default", data={
+                                "decision_node": dep_id,
+                                "target_node": node_id
+                            })
+                            return False
+                        # Upstream is a regular agent without routing → do not gate
+                        continue
                     
                     # Check for simple boolean result (for boolean_mux, etc.)
                     result_value = None
@@ -668,27 +680,26 @@ class DAGExecutor:
 
     async def _execute_node(self, node_id: str, state: WorkflowState) -> Any:
         """Execute a single node using typed execution system."""
-        from .typed_execution import TypedExecutionContext, TypedNodeExecutor
-        from ..utilities.io_logger import get_component_logger
-        
+
         logger = get_component_logger("DAG_EXECUTOR")
         dag_node = self.nodes[node_id]
         
         logger.info(f"🎯 Typed execution of node {node_id}")
         
-        # Debug: Check what task contains
-        task = dag_node.task_node_class.task
-        logger.info(f"🔍 task type: {type(task)}, content: {task}")
-        if isinstance(task, dict):
-            logger.info(f"🔍 task keys: {list(task.keys())}")
-            objective = task.get("objective")
+        # Use Pydantic model directly - no more dict conversion
+        node_spec = dag_node.node_spec
+        logger.info(f"🔍 node_spec type: {type(node_spec)}, content: {node_spec}")
+        
+        # Extract objective from node_spec
+        if hasattr(node_spec, 'label'):
+            objective = f"Execute {node_spec.label}"
             logger.info(f"🔍 objective type: {type(objective)}, content: {objective}")
         else:
-            logger.error(f"❌ task is not a dict: {type(task)}")
+            logger.error(f"❌ node_spec has no label: {node_spec}")
             objective = None
         
         # Create typed execution context with full workflow awareness
-        context = TypedExecutionContext(
+        context = ExecutionContext(
             workflow_spec=self.workflow_spec,
             current_node_id=node_id,
             state=state,
@@ -698,7 +709,7 @@ class DAGExecutor:
         
         # Execute using typed executor
         try:
-            result = await TypedNodeExecutor.execute(context)
+            result = await NodeExecutor.execute(context)
             logger.info(f"✅ Typed execution completed for {node_id}")
             return result
         except Exception as e:
