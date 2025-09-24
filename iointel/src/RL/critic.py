@@ -55,7 +55,7 @@ class CriticAgent:
         )
         if self.verbose:
             print(f"Critic prompt: {prompt}")
-        return (await self.agent.run(prompt))["result"]
+        return (await self.agent.run(prompt)).result
 
 
 if __name__ == "__main__":

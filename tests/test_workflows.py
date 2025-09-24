@@ -296,12 +296,12 @@ def _ensure_agents_equal(
 
 
 @pytest.mark.parametrize("store_creds", [True, False])
-def test_yaml_roundtrip(custom_hi_task, poet, store_creds: bool):
+async def test_yaml_roundtrip(custom_hi_task, poet, store_creds: bool):
     wf_base: Workflow = Workflow(
         "Goku has a power level of over 9000", client_mode=False
     ).hi(agents=[poet])
     yml = wf_base.to_yaml("test_workflow", store_creds=store_creds)
-    wf_unpacked = Workflow.from_yaml(yml)
+    wf_unpacked = await Workflow.from_yaml(yml)
     assert "Goku" in yml
 
     _ensure_agents_equal(wf_base.agents, wf_unpacked.agents, store_creds)

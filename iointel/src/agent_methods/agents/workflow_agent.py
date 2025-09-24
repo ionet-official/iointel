@@ -573,8 +573,8 @@ class WorkflowPlanner:
                                 **filtered_kwargs
                             )
                             
-                            # result is a dict with 'result' key containing WorkflowSpecLLM
-                            workflow_result = result['result'] if result else None
+                            # result is an AgentResult object with 'result' attribute containing WorkflowSpecLLM
+                            workflow_result = result.result if result else None
                             
                             # Store simple conversation turn (user input + agent response)
                             if workflow_result:
@@ -600,7 +600,7 @@ class WorkflowPlanner:
                             metadata={
                                 "attempt": attempt,
                                 "conversation_id": self.conversation_id,
-                                "result_type": type(result['result']).__name__ if result else "None",
+                                "result_type": type(result.result).__name__ if result else "None",
                                 "response_length": len(str(result)) if result else 0,
                                 "query": query,
                                 "context_length": len(context_info)
@@ -608,8 +608,8 @@ class WorkflowPlanner:
                             attempt=attempt
                         )
                 
-                        # Extract the structured output - result is a dict from agent.run()
-                        workflow_spec_llm = result['result']
+                        # Extract the structured output - result is an AgentResult object from agent.run()
+                        workflow_spec_llm = result.result
                         if not isinstance(workflow_spec_llm, WorkflowSpecLLM):
                             raise ValueError(f"Expected WorkflowSpecLLM, got {type(workflow_spec_llm)}")
                 
@@ -789,7 +789,7 @@ Reference the topology and SLA requirements above when making changes.
             message_history_limit=7,  # Limit to last 7 messages to prevent context overflow
             **kwargs
         )
-        refined_spec_llm = result['result']
+        refined_spec_llm = result.result
         
         # Check if this is a chat-only response (nodes/edges are null)
         if isinstance(refined_spec_llm, WorkflowSpecLLM):
