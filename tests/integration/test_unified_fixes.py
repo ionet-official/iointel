@@ -199,10 +199,10 @@ async def test_unified_fixes():
     )
     
     # Check if our typed executor would enhance the decision node
-    from iointel.src.utilities.typed_execution import TypedExecutionContext
+    from iointel.src.utilities.typed_execution import ExecutionContext
     from iointel.src.utilities.graph_nodes import WorkflowState
     
-    context = TypedExecutionContext(
+    context = ExecutionContext(
         workflow_spec=test_workflow,
         current_node_id="decision_1",
         state=WorkflowState()

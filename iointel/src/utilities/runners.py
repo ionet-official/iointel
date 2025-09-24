@@ -1,9 +1,10 @@
-from typing import Sequence, Dict, Any
+from typing import Sequence
 
-from iointel.src.utilities.helpers import LazyCaller
+from .helpers import LazyCaller
 from iointel.src.task import Task
 from iointel.src.agent_methods.data_models.datamodels import TaskDefinition
 from iointel.src.agent_methods.agents.agents_factory import agent_or_swarm
+from iointel.src.agent_methods.data_models.datamodels import AgentResult
 
 
 def _to_task_definition(
@@ -48,14 +49,12 @@ async def _run_stream(objective: str, output_type=None, **all_kwargs):
 async def _run(objective: str, output_type=None, **all_kwargs):
     definition = _to_task_definition(objective, **all_kwargs)
     agents = definition.agents or []
-    # Extract task-specific kwargs (like result_format) and pass them to Task.run
-    task_kwargs = {k: v for k, v in all_kwargs.items() if k not in ['agents', 'conversation_id', 'name', 'task_id', 'context']}
-    return await Task(agents=agents).run(definition=definition, output_type=output_type, **task_kwargs)
+    return await Task(agents=agents).run(definition=definition, output_type=output_type)
 
 
-async def _unpack(func, *args, **kwargs) -> Dict[str, Any]:
+async def _unpack(func, *args, **kwargs) -> AgentResult:
     result = await (await func(*args, **kwargs)).execute()
-    # Return full result structure to preserve tool_usage_results
+    # Return the full AgentResult object, not just the result field
     return result
 
 

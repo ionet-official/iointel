@@ -1,10 +1,10 @@
 """Typed executors for different node types."""
 
 from typing import Any, Optional
-from iointel.src.utilities.typed_execution import TypedExecutionContext
-from iointel.src.utilities.io_logger import get_component_logger, log_prompt
-from iointel.src.agent_methods.data_models.datamodels import AgentResultFormat, AgentParams
-from iointel.src.agent_methods.data_models.execution_models import AgentExecutionResult, ExecutionStatus, AgentRunResponse
+from iointel.src.utilities.typed_execution import ExecutionContext
+from iointel.src.utilities.io_logger import get_component_logger, log_trace
+from iointel.src.agent_methods.data_models.datamodels import AgentParams
+from iointel.src.agent_methods.data_models.execution_models import AgentExecutionResult, ExecutionStatus
 from iointel.src.agents import Agent
 from iointel.src.agent_methods.agents.agents_factory import create_agent
 from iointel.src.agent_methods.data_models.agent_pre_prompt_injection import inject_prompts_enforcement_from_sla
@@ -12,7 +12,7 @@ from iointel.src.agent_methods.data_models.agent_pre_prompt_injection import inj
 logger = get_component_logger("TYPED_EXECUTORS")
 
 
-async def execute_agent_typed(context: TypedExecutionContext) -> Any:
+async def execute_agent_typed(context: ExecutionContext) -> Any:
     """
     Execute an agent node with typed context.
     
@@ -103,10 +103,7 @@ async def execute_agent_typed(context: TypedExecutionContext) -> Any:
             objective = "Execute the task as instructed"
             logger.info(f"No objective specified for {context.current_node_id}, using default")
     
-    # Determine result format
-    result_format = AgentResultFormat.full()
-    if context.node_type == "decision":
-        result_format = AgentResultFormat.workflow()
+    # Note: AgentResultFormat complexity removed - agents now return full AgentResult by default
     
     logger.info(f"Executing agent {agents[0].name if agents else 'unknown'}")
     logger.debug(f"Objective: {objective[:100] if objective else 'None'}...")
@@ -118,7 +115,7 @@ async def execute_agent_typed(context: TypedExecutionContext) -> Any:
     start_time = time.time()
     
     # Log the prompt before execution
-    prompt_id = log_prompt(
+    prompt_id = log_trace(
         prompt_type="agent_instruction",
         prompt=objective,
         metadata={
@@ -141,19 +138,37 @@ async def execute_agent_typed(context: TypedExecutionContext) -> Any:
                 context=agent_context,
                 conversation_id=context.conversation_id,
                 output_type=str,
-                result_format=result_format
             ).execute()
             
-            # Convert dict response to typed AgentRunResponse
-            if isinstance(response, dict):
-                typed_response = AgentRunResponse.from_dict(response)
+            # Use AgentResult directly - no unnecessary conversions!
+            from iointel.src.agent_methods.data_models.datamodels import AgentResult
+            
+            if isinstance(response, AgentResult):
+                # Already the right type - use it directly
+                typed_response = response
+            elif isinstance(response, dict):
+                # Convert dict to AgentResult
+                typed_response = AgentResult(
+                    result=response.get('result', 'execute agent typed failed, should not happen'),
+                    conversation_id=response.get('conversation_id') or context.conversation_id,
+                    full_result=response.get('full_result'),
+                    tool_usage_results=response.get('tool_usage_results', [])
+                )
+            elif isinstance(response, str):
+                # If response is a string, create a simple AgentResult
+                typed_response = AgentResult(
+                    result=response,
+                    tool_usage_results=[],
+                    conversation_id=context.conversation_id,
+                    full_result=None
+                )
             else:
                 # Already typed response
                 typed_response = response
             
             # Log the response after execution
-            if typed_response and typed_response.result:
-                log_prompt(
+            if typed_response and hasattr(typed_response, 'result') and typed_response.result:
+                log_trace(
                     prompt_type="agent_response",
                     prompt=objective,
                     response=str(typed_response.result)[:2000],  # Limit response length
@@ -197,7 +212,7 @@ async def execute_agent_typed(context: TypedExecutionContext) -> Any:
         return await execute_fn()
 
 
-async def execute_data_source_typed(context: TypedExecutionContext) -> Any:
+async def execute_data_source_typed(context: ExecutionContext) -> Any:
     """
     Execute a data source node with typed context.
     """
@@ -262,7 +277,7 @@ async def execute_data_source_typed(context: TypedExecutionContext) -> Any:
         return response
 
 
-async def execute_decision_typed(context: TypedExecutionContext) -> Any:
+async def execute_decision_typed(context: ExecutionContext) -> Any:
     """
     Execute a decision node with typed context.
     
@@ -278,7 +293,7 @@ async def execute_decision_typed(context: TypedExecutionContext) -> Any:
         context.node.type = original_type
 
 
-async def execute_tool_typed(context: TypedExecutionContext) -> Any:
+async def execute_tool_typed(context: ExecutionContext) -> Any:
     """
     Execute a tool node with typed context.
     """
@@ -288,17 +303,15 @@ async def execute_tool_typed(context: TypedExecutionContext) -> Any:
     raise NotImplementedError("Tool node execution not yet implemented in typed executor")
 
 
-async def _create_agent_from_context(context: TypedExecutionContext) -> Optional[Agent]:
+async def _create_agent_from_context(context: ExecutionContext) -> Optional[Agent]:
     """
     Create an agent from the node context.
     
     This replaces the logic in _hydrate_agents_from_node.
     """
-    if not context.agent_instructions:
-        return None
-    
+
     try:
-        from ..utilities.constants import get_model_config
+        from iointel.src.utilities.constants import get_model_config
         
         # Get model configuration
         config = get_model_config(
@@ -310,7 +323,7 @@ async def _create_agent_from_context(context: TypedExecutionContext) -> Optional
         # IMPORTANT: Agent instructions are static header instructions, NOT templated
         agent_params = AgentParams(
             name=f"agent_{context.node_id}",
-            instructions=context.agent_instructions,  # Static instructions, no variable resolution
+            instructions=context.agent_instructions,  # Ensure non-empty
             model=config["model"],
             tools=context.node_data.tools or [],
             api_key=config.get("api_key")
@@ -326,33 +339,28 @@ async def _create_agent_from_context(context: TypedExecutionContext) -> Optional
         
         # If this is a decision node or has SLA requirements, enhance instructions
         if context.node_type == "decision" or (sla_requirements and sla_requirements.tool_usage_required):
-            # For decision nodes, add route mapping information
-            instructions_to_enhance = context.agent_instructions
+            # Prepare route mappings for decision nodes
+            route_mappings = None
             if context.node_type == "decision":
-                # Get outgoing edges to understand route mappings
-                outgoing_edges = context.outgoing_edges
-                if outgoing_edges:
-                    route_info = ["\n### ROUTING CONFIGURATION ###"]
-                    route_info.append("When calling conditional_gate, use these exact route configurations:")
-                    for edge in outgoing_edges:
-                        if edge.data.route_index is not None:
-                            target_node = next((n for n in context.workflow_spec.nodes if n.id == edge.target), None)
-                            target_label = target_node.label if target_node else edge.target
-                            route_info.append(f"  - route_index: {edge.data.route_index} → '{edge.data.route_label or target_label}' (goes to {target_label})")
-                    route_info.append("IMPORTANT: Call conditional_gate ONLY ONCE with the appropriate route_index based on your analysis.")
-                    route_info.append("### END ROUTING CONFIGURATION ###\n")
-                    instructions_to_enhance = context.agent_instructions + "\n" + "\n".join(route_info)
-            
-            # Use inject_pre_prompts_from_sla which handles None sla_requirements gracefully
+                mappings = []
+                for edge in context.outgoing_edges or []:
+                    if getattr(edge.data, 'route_index', None) is not None:
+                        target_node = next((n for n in context.workflow_spec.nodes if n.id == edge.target), None)
+                        target_label = target_node.label if target_node else edge.target
+                        mappings.append((edge.data.route_index, edge.data.route_label or target_label))
+                route_mappings = mappings if mappings else None
+
+            # Use inject_pre_prompts_from_sla with optional route mappings
             enhanced_instructions = inject_prompts_enforcement_from_sla(
-                original_instructions=instructions_to_enhance,
-                sla_requirements=sla_requirements
+                original_instructions=context.agent_instructions,
+                sla_requirements=sla_requirements,
+                route_mappings=route_mappings,
             )
             agent_params.instructions = enhanced_instructions
             logger.info(f"Enhanced agent instructions for {context.node_type} node {context.node_id} with SLA enforcement")
         
         # Create agent with enhanced instructions
-        agent = create_agent(agent_params)
+        agent = await create_agent(agent_params)
         logger.info(f"Created agent for node {context.node_id} (type: {context.node_type})")
         
         return agent

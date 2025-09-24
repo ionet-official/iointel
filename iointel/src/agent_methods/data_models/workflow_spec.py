@@ -416,7 +416,7 @@ class WorkflowSpecLLM(BaseModel):
     WorkflowSpecLLM - The workflow specification you must generate.
     
     NODE TYPES (strict separation of concerns):
-    1. data_source: Collects user input ONLY. NEVER calls tools. Config MUST have message + default_value.
+    1. data_source: Collects user input ONLY. NEVER calls tools. Config MUST have message + default_value. Use only as inputs to Agents. 
     2. agent: Executes tasks with tools. Can have SLA for enforcement.
     3. decision: Routes workflow using 'routing_gate'. MUST have routing_gate in tools + SLA enforcement.
     
@@ -640,7 +640,9 @@ class WorkflowSpec(BaseModel):
     def to_yaml(self) -> str:
         """Export workflow as YAML."""
         import yaml
-        from iointel.src.ui.formatting import to_jsonable
+        # Use centralized serializer to ensure all nested Pydantic models
+        # (including tools lists) are preserved correctly.
+        from iointel.src.utilities.conversion_utils import ConversionUtils
         
         data = {
             'id': str(self.id),
@@ -648,15 +650,15 @@ class WorkflowSpec(BaseModel):
             'title': self.title,
             'description': self.description,
             'reasoning': self.reasoning,
-            'nodes': [to_jsonable(node) for node in self.nodes],
-            'edges': [to_jsonable(edge) for edge in self.edges],
+            'nodes': [ConversionUtils.to_jsonable(node) for node in self.nodes],
+            'edges': [ConversionUtils.to_jsonable(edge) for edge in self.edges],
             'metadata': self.metadata
         }
         return yaml.dump(data, default_flow_style=False)
     
     def to_workflow_definition(self) -> dict:
         """Convert to executable workflow definition format."""
-        from iointel.src.ui.formatting import to_jsonable
+        from iointel.src.utilities.conversion_utils import ConversionUtils
         
         return {
             'id': str(self.id),
@@ -664,8 +666,8 @@ class WorkflowSpec(BaseModel):
             'title': self.title,
             'description': self.description,
             'reasoning': self.reasoning,
-            'nodes': [to_jsonable(node) for node in self.nodes],
-            'edges': [to_jsonable(edge) for edge in self.edges],
+            'nodes': [ConversionUtils.to_jsonable(node) for node in self.nodes],
+            'edges': [ConversionUtils.to_jsonable(edge) for edge in self.edges],
             'metadata': self.metadata
         }
     

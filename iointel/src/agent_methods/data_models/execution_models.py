@@ -14,7 +14,7 @@ from pydantic import BaseModel, Field
 from enum import Enum
 
 # Import existing models instead of redefining
-from iointel.src.agent_methods.data_models.datamodels import ToolUsageResult
+from iointel.src.agent_methods.data_models.datamodels import ToolUsageResult, AgentResult
 
 
 class ExecutionStatus(str, Enum):
@@ -109,7 +109,7 @@ class AgentRunResponse(BaseModel):
 class AgentExecutionResult(BaseModel):
     """Result from execute_agent_task()."""
     status: ExecutionStatus
-    agent_response: Optional[AgentRunResponse] = None
+    agent_response: Optional["AgentResult"] = None  # Use AgentResult directly!
     error: Optional[str] = None  
     execution_time: Optional[float] = None
     node_id: Optional[str] = None
@@ -119,7 +119,7 @@ class AgentExecutionResult(BaseModel):
         """Convert to legacy dict format for backward compatibility."""
         if self.agent_response:
             # Return the agent response dict with status metadata
-            result = self.agent_response.to_dict()
+            result = self.agent_response.model_dump()
             result.update({
                 "status": self.status.value,
                 "error": self.error,

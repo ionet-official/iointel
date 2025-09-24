@@ -21,17 +21,20 @@ from starlette.middleware.sessions import SessionMiddleware
 import uvicorn
 from iointel.src.agent_methods.agents.workflow_agent import WorkflowPlanner
 from iointel.src.agent_methods.data_models.execution_models import (
-    AgentExecutionResult, AgentRunResponse, DataSourceResult, ExecutionStatus, WorkflowExecutionResult
+    AgentExecutionResult, DataSourceResult, ExecutionStatus, WorkflowExecutionResult
 )
+from iointel.src.agent_methods.data_models.datamodels import AgentResult, ToolUsageResult
+from iointel.src.web.execution_feedback import ExecutionResultCurator
+
 from iointel.src.agent_methods.data_models.workflow_spec import WorkflowSpec
 from iointel.src.agent_methods.tools.collection_manager import search_collections, create_collection
 from iointel.src.agent_methods.tools.tool_loader import load_tools_from_env
 from iointel.src.chainables import execute_agent_task, execute_data_source_task, execute_tool_task
 from iointel.src.memory import AsyncMemory
-from iointel.src.utilities.constants import get_model_config
-from iointel.src.utilities.io_logger import workflow_logger, execution_logger, system_logger, get_prompt_history, clear_prompt_history
+from iointel.src.utilities.constants import get_available_models, get_model_config
+from iointel.src.utilities.io_logger import workflow_logger, execution_logger, system_logger, get_trace_history, clear_trace_history
 from iointel.src.utilities.tool_registry_utils import create_tool_catalog
-from iointel.src.utilities.workflow_helpers import execute_workflow_with_metadata
+from iointel.src.utilities.workflow_helpers import execute_workflow as execute_workflow_core
 from iointel.src.web.execution_feedback import (
     WorkflowExecutionSummary,
     feedback_collector, 
@@ -48,6 +51,7 @@ from iointel.src.web.workflow_api_service import (
 )
 from iointel.src.web.workflow_rag_router import workflow_rag_router
 from iointel.src.web.workflow_storage import WorkflowStorage
+from iointel.src.agent_methods.data_models.workflow_spec import WorkflowSpecLLM
 
 
 def web_executor_wrapper(executor_func):
@@ -435,12 +439,27 @@ def serialize_value_for_json(value):
     
     # Handle AgentExecutionResult specifically (from typed execution)
     elif isinstance(value, AgentExecutionResult):
-        # Extract the inner agent response for frontend compatibility
-        if value.agent_response and isinstance(value.agent_response, AgentRunResponse):
+        # Extract the inner agent response (AgentResult) for frontend compatibility
+        if value.agent_response:
+            agent_resp = value.agent_response
+            # Support both Pydantic AgentResult and dict-like fallbacks
+            if isinstance(agent_resp, AgentResult) or hasattr(agent_resp, 'model_dump'):
+                result_value = getattr(agent_resp, 'result', None)
+                tool_usage = getattr(agent_resp, 'tool_usage_results', []) or []
+                conversation_id = getattr(agent_resp, 'conversation_id', None)
+            elif isinstance(agent_resp, dict):
+                result_value = agent_resp.get('result')
+                tool_usage = agent_resp.get('tool_usage_results', [])
+                conversation_id = agent_resp.get('conversation_id')
+            else:
+                result_value = getattr(agent_resp, 'result', None)
+                tool_usage = getattr(agent_resp, 'tool_usage_results', []) if hasattr(agent_resp, 'tool_usage_results') else []
+                conversation_id = getattr(agent_resp, 'conversation_id', None)
+
             return {
-                "result": value.agent_response.result,
-                "tool_usage_results": [serialize_value_for_json(tur) for tur in value.agent_response.tool_usage_results],
-                "conversation_id": value.agent_response.conversation_id,
+                "result": serialize_value_for_json(result_value),
+                "tool_usage_results": [serialize_value_for_json(tur) for tur in tool_usage],
+                "conversation_id": conversation_id,
                 "status": value.status.value,
                 "execution_time": value.execution_time,
                 "node_id": value.node_id,
@@ -465,7 +484,15 @@ def serialize_value_for_json(value):
             "type": "DataSourceResult"
         }
     
-    # Handle other BaseModel objects (Pydantic models like ToolUsageResult, GateResult)
+    # Handle ToolUsageResult specifically and add legacy field aliases used by the frontend
+    elif isinstance(value, ToolUsageResult):
+        d = value.model_dump()
+        # Legacy aliases for UI components expecting 'input' / 'result'
+        d.setdefault('input', d.get('tool_args'))
+        d.setdefault('result', d.get('tool_result'))
+        return {k: serialize_value_for_json(v) for k, v in d.items()}
+
+    # Handle other BaseModel objects (Pydantic models like GateResult)
     elif hasattr(value, 'model_dump'):
         try:
             # Use Pydantic's model_dump for clean serialization
@@ -882,14 +909,11 @@ async def startup_event():
         system_logger.warning(f"UnifiedSearchService initialization failed: {e}")
         # Don't raise - fallback to simple search
     
-    # REMOVED: Task executor registration - no longer needed with typed execution
-    # DAGExecutor with use_typed_execution=True handles all node types through typed_executors.py
-    # This eliminates the need for chainables imports and duplicate execution paths
     system_logger.success(
-        "Using typed execution system - no custom task executors needed",
+        "Using DAGExecutor",
         data={
-            "execution_mode": "typed_execution",
-            "handled_by": "DAGExecutor + typed_executors.py"
+            "execution_mode": "DAGExecutor",
+            "handled_by": "DAGExecutor"
         }
     )
     
@@ -991,40 +1015,12 @@ async def get_execution_status(execution_id: str):
         raise HTTPException(status_code=404, detail="Execution not found")
 
 
-@app.get("/api/prompts")
-async def get_prompt_history_api():
-    """Get the prompt history for debugging."""
-    return {"prompts": get_prompt_history()}
 
-
-@app.get("/api/prompts/conversations/recent")
-async def get_recent_conversations(limit: int = 10):
-    """Get the most recent conversation IDs."""
-    from sqlalchemy import select, desc
-    
-    try:
-        from iointel.src.memory import ConversationHistory
-        async with planner.agent.memory.SessionLocal() as session:
-            result = await session.execute(
-                select(ConversationHistory.conversation_id, ConversationHistory.created_at)
-                .order_by(desc(ConversationHistory.created_at))
-                .limit(limit)
-            )
-            conversations = result.fetchall()
-            
-            return {
-                "recent_conversations": [
-                    {
-                        "conversation_id": conv.conversation_id,
-                        "created_at": conv.created_at.isoformat()
-                    }
-                    for conv in conversations
-                ],
-                "count": len(conversations),
-                "limit": limit
-            }
-    except Exception as e:
-        return {"error": f"Database error: {str(e)}"}
+# === Aliases: Traces API (do not confuse with live agent prompts) ===
+@app.get("/api/traces")
+async def get_traces_history_api():
+    """Alias for prompt history; represents logged traces, not live prompts."""
+    return {"traces": get_trace_history()}
 
 
 @app.get("/api/conversations/recent")
@@ -1046,25 +1042,34 @@ async def get_simple_recent_conversations(limit: int = 10):
 @app.get("/api/conversations/active")
 async def get_active_conversation():
     """Get the current active conversation."""
-    storage = get_unified_conversation_storage()
-    conversation_id = storage.get_active_web_conversation()
-    conversation = storage.get_conversation(conversation_id)
-    
-    if conversation:
-        return {
-            "conversation_id": conversation.conversation_id,
-            "version": conversation.version,
-            "session_type": conversation.session_type,
-            "status": conversation.status,
-            "created_at": conversation.created_at,
-            "last_used_at": conversation.last_used_at,
-            "total_messages": conversation.total_messages,
-            "workflow_count": conversation.workflow_count,
-            "execution_count": conversation.execution_count,
-            "notes": conversation.notes
-        }
-    else:
-        raise HTTPException(status_code=404, detail="Active conversation not found")
+    try:
+        storage = get_unified_conversation_storage()
+        conversation_id = storage.get_active_web_conversation()
+        print(f"🔍 Got conversation_id: {conversation_id}")
+        
+        conversation = storage.get_conversation(conversation_id)
+        print(f"🔍 Retrieved conversation: {conversation}")
+        
+        if conversation:
+            return {
+                "conversation_id": conversation.conversation_id,
+                "version": conversation.version,
+                "session_type": conversation.session_type,
+                "status": conversation.status,
+                "created_at": conversation.created_at,
+                "last_used_at": conversation.last_used_at,
+                "total_messages": conversation.total_messages,
+                "workflow_count": conversation.workflow_count,
+                "execution_count": conversation.execution_count,
+                "notes": conversation.notes
+            }
+        else:
+            print(f"❌ Conversation {conversation_id} not found in database")
+            # Return null instead of raising 404 to indicate no active conversation
+            return None
+    except Exception as e:
+        print(f"❌ Error in get_active_conversation: {e}")
+        return None
 
 
 @app.get("/api/conversations/{conversation_id}")
@@ -1133,7 +1138,7 @@ async def add_simple_conversation_turn(conversation_id: str, request: dict):
         return {"error": f"Error adding conversation: {str(e)}"}
 
 
-@app.get("/api/prompts/conversation/{conversation_id}")
+@app.get("/api/conversations/{conversation_id}")
 async def get_full_conversation(conversation_id: str):
     """Get full conversation data by ID."""
     import json
@@ -1162,94 +1167,18 @@ async def get_full_conversation(conversation_id: str):
         return {"error": f"Database error: {str(e)}"}
 
 
-@app.get("/api/prompts/stored")
-async def get_stored_prompts():
-    """Get all stored prompts from database and file system."""
-    import json
-    from pathlib import Path
-    from sqlalchemy import select
-    
-    # Get conversation prompts from database
-    db_prompts = []
-    try:
-        # Use the global memory instance
-        from iointel.src.memory import ConversationHistory
-        async with planner.agent.memory.SessionLocal() as session:
-            result = await session.execute(select(ConversationHistory))
-            conversations = result.scalars().all()
-            
-            for conv in conversations:
-                try:
-                    messages_data = json.loads(conv.messages_json)
-                    db_prompts.append({
-                        "id": conv.conversation_id,
-                        "type": "conversation",
-                        "created_at": conv.created_at.isoformat(),
-                        "message_count": len(messages_data),
-                        "preview": messages_data[0].get("parts", [{}])[0].get("content", "")[:100] + "..." if messages_data else "No messages"
-                    })
-                except Exception as e:
-                    db_prompts.append({
-                        "id": conv.conversation_id,
-                        "type": "conversation",
-                        "created_at": conv.created_at.isoformat(),
-                        "error": f"Failed to parse: {str(e)}"
-                    })
-    except Exception as e:
-        db_prompts = [{"error": f"Database error: {str(e)}"}]
-    
-    # Get file-based prompts
-    file_prompts = []
-    try:
-        prompt_dir = Path("prompt_repository/instances")
-        if prompt_dir.exists():
-            for prompt_file in list(prompt_dir.glob("*.json"))[:10]:  # Limit to first 10
-                try:
-                    with open(prompt_file) as f:
-                        data = json.load(f)
-                    file_prompts.append({
-                        "id": prompt_file.stem,
-                        "type": "file_instance",
-                        "created_at": data.get("created_at", "unknown"),
-                        "template_id": data.get("template_id", "unknown"),
-                        "preview": (data.get("content", "") or data.get("rendered_prompt", ""))[:100] + "..." if (data.get("content") or data.get("rendered_prompt")) else "No content"
-                    })
-                except Exception as e:
-                    file_prompts.append({
-                        "id": prompt_file.stem,
-                        "type": "file_instance",
-                        "error": f"Failed to parse: {str(e)}"
-                    })
-    except Exception as e:
-        file_prompts = [{"error": f"File system error: {str(e)}"}]
-    
-    # Get in-memory prompts
-    memory_prompts = get_prompt_history()
-    
-    return {
-        "summary": {
-            "database_conversations": len([p for p in db_prompts if "error" not in p]),
-            "file_instances": len(file_prompts),
-            "memory_prompts": len(memory_prompts),
-            "total_file_instances": len(list(Path("prompt_repository/instances").glob("*.json"))) if Path("prompt_repository/instances").exists() else 0
-        },
-        "database_prompts": db_prompts[:5],  # Show first 5
-        "file_prompts": file_prompts,
-        "memory_prompts": memory_prompts
-    }
 
-
-@app.post("/api/prompts/clear")
-async def clear_prompt_history_api():
+@app.post("/api/traces/clear")
+async def clear_traces_history_api():
     """Clear the prompt history."""
-    count = clear_prompt_history()
+    count = clear_trace_history()
     return {"success": True, "message": f"Cleared {count} prompts"}
 
 
-@app.get("/api/prompts/latest")
-async def get_latest_prompt():
+@app.get("/api/traces/latest")
+async def get_latest_trace():
     """Get the latest prompt sent to the LLM with detailed formatting."""
-    prompts = get_prompt_history()
+    prompts = get_trace_history()
     
     if not prompts:
         return {"success": False, "message": "No prompts in history"}
@@ -1305,10 +1234,10 @@ async def get_latest_prompt():
     }
 
 
-@app.get("/api/prompts/debug/{prompt_type}")
-async def get_prompts_by_type(prompt_type: str):
+@app.get("/api/traces/debug/{prompt_type}")
+async def get_trace_by_type(prompt_type: str):
     """Get all prompts of a specific type for debugging."""
-    prompts = get_prompt_history()
+    prompts = get_trace_history()
     
     # Filter by type
     filtered = [p for p in prompts if prompt_type in p.get("prompt_type", "")]
@@ -1332,15 +1261,15 @@ async def get_prompts_by_type(prompt_type: str):
     }
 
 
-@app.get("/prompts/debug", response_class=HTMLResponse)
+@app.get("/api/traces/debug", response_class=HTMLResponse)
 async def prompts_debug_viewer():
     """Serve an HTML page for viewing prompts in a readable format."""
-    prompts = get_prompt_history()
+    traces = get_trace_history()
     
     # Get the latest prompt details
     latest_prompt_html = ""
-    if prompts:
-        latest = prompts[-1]
+    if traces:
+        latest = traces[-1]
         prompt_text = latest.get("prompt", "")
         
         # Format the prompt text with proper HTML escaping and highlighting
@@ -1470,7 +1399,7 @@ async def prompts_debug_viewer():
             
             <div class="stats">
                 <div class="stat-card">
-                    <div class="stat-value">{len(prompts)}</div>
+                    <div class="stat-value">{len(traces)}</div>
                     <div class="stat-label">Total Prompts</div>
                 </div>
                 <div class="stat-card">
@@ -1496,7 +1425,7 @@ async def prompts_debug_viewer():
         
         <script>
             async function fetchLatestPrompt() {{
-                const response = await fetch('/api/prompts/latest');
+                const response = await fetch('/api/traces/latest');
                 const data = await response.json();
                 
                 if (data.success) {{
@@ -1531,7 +1460,7 @@ async def prompts_debug_viewer():
             }}
             
             async function clearPrompts() {{
-                const response = await fetch('/api/prompts/clear', {{ method: 'POST' }});
+                const response = await fetch('/api/traces/clear', {{ method: 'POST' }});
                 const data = await response.json();
                 if (data.success) {{
                     alert(data.message);
@@ -1540,13 +1469,13 @@ async def prompts_debug_viewer():
             }}
             
             async function downloadPrompts() {{
-                const response = await fetch('/api/prompts');
+                const response = await fetch('/api/traces');
                 const data = await response.json();
                 const blob = new Blob([JSON.stringify(data, null, 2)], {{ type: 'application/json' }});
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = 'prompts_' + new Date().toISOString() + '.json';
+                a.download = 'traces_' + new Date().toISOString() + '.json';
                 a.click();
             }}
             
@@ -1594,7 +1523,6 @@ async def get_execution_feedback(execution_id: str):
         raise HTTPException(status_code=404, detail="Execution feedback not available")
     
     # Import here to avoid circular imports
-    from .execution_feedback import ExecutionResultCurator
     
     return {
         "execution_id": execution_id,
@@ -1640,13 +1568,12 @@ async def get_tools():
 async def get_models():
     """Get available models that support tool calling."""
     from iointel.src.utilities.constants import (
-        get_available_models_with_tool_calling,
         get_chat_only_models,
         get_blocked_models
     )
     
     return {
-        "working_models": get_available_models_with_tool_calling(),
+        "working_models": get_available_models(),
         "chat_only_models": get_chat_only_models(),
         "blocked_models": get_blocked_models(),
         "note": "Only working_models support full tool calling functionality"
@@ -1667,6 +1594,7 @@ async def get_workflow_history():
     return {"history": history_data}
 
 
+## MAIN GENERATE WORKFLOW ENDPOINT
 @app.post("/api/generate", response_model=WorkflowResponse)
 async def generate_workflow(workflow_request: WorkflowRequest, request: Request) -> WorkflowResponse:
     """Generate or refine a workflow."""
@@ -1696,7 +1624,6 @@ async def generate_workflow(workflow_request: WorkflowRequest, request: Request)
         
         # Set current workflow context so planner can reference it
         if current_workflow:
-            from iointel.src.agent_methods.data_models.workflow_spec import WorkflowSpec
             if isinstance(current_workflow, WorkflowSpec):
                 workflow_logger.info(
                     "Building upon existing workflow",
@@ -1720,7 +1647,7 @@ async def generate_workflow(workflow_request: WorkflowRequest, request: Request)
         
         # Workflow planner now logs the full prompt internally
         
-        result = await planner.generate_workflow(
+        workflow_spec = await planner.generate_workflow(
             query=workflow_request.query,
             tool_catalog=tool_catalog,
             context={
@@ -1733,26 +1660,21 @@ async def generate_workflow(workflow_request: WorkflowRequest, request: Request)
         )
         
         # Check if this is a chat-only response or normal workflow
-        from iointel.src.agent_methods.data_models.workflow_spec import WorkflowSpecLLM
-        if isinstance(result, WorkflowSpecLLM):
-            if result.nodes is None or result.edges is None:
+        if isinstance(workflow_spec, WorkflowSpecLLM):
+            if workflow_spec.nodes is None or workflow_spec.edges is None:
                 workflow_logger.info(
                     "Chat-only response detected",
-                    data={"reasoning_preview": result.reasoning[:100] + "..." if len(result.reasoning) > 100 else result.reasoning}
+                    data={"reasoning_preview": workflow_spec.reasoning[:400] + "..." if len(workflow_spec.reasoning) > 400 else workflow_spec.reasoning}
                 )
                 
                 # Return chat response without updating current workflow
                 return WorkflowResponse(
                     success=True,
                     workflow=None,  # No workflow update
-                    agent_response=result.reasoning  # Use reasoning field for chat
+                    agent_response=workflow_spec.reasoning  # Use reasoning field for chat
                 )
-        
-        # Handle normal workflow generation (WorkflowSpec)
-        workflow_spec = result
-        
+
         # Only update current_workflow if we have a valid WorkflowSpec (not a chat-only response)
-        from iointel.src.agent_methods.data_models.workflow_spec import WorkflowSpec
         if isinstance(workflow_spec, WorkflowSpec):
             if current_workflow:
                 # Store current workflow in history before generating new one
@@ -1800,33 +1722,6 @@ async def generate_workflow(workflow_request: WorkflowRequest, request: Request)
                 }
             )
 
-            # Build a pretty-printed workflow spec for the agent/planner, including SLA
-            dag_pretty = f"\n---\nWORKFLOW DAG (full spec, including SLA):\nTitle: {current_workflow.title}\nDescription: {current_workflow.description}\nID: {current_workflow.id}\nRev: {current_workflow.rev}\nNodes ({len(current_workflow.nodes)}):\n"
-            for i, node in enumerate(current_workflow.nodes):
-                dag_pretty += f"  {i+1}. {node.id} ({node.type}): {node.label}\n"
-                # Handle different node types properly
-                if node.type == "data_source":
-                    dag_pretty += f"     Source: {node.data.source_name}\n"
-                    dag_pretty += f"     Config: {node.data.config}\n"
-                elif node.type in ["agent", "decision"]:
-                    dag_pretty += f"     Instructions: {node.data.agent_instructions[:100]}...\n" if node.data.agent_instructions else ""
-                    dag_pretty += f"     Tools: {node.data.tools}\n"
-                    dag_pretty += f"     Model: {node.data.model}\n"
-                elif node.type == "workflow_call":
-                    dag_pretty += f"     Workflow ID: {node.data.workflow_id}\n"
-                    dag_pretty += f"     Config: {node.data.config}\n"
-                if hasattr(node, 'sla') and node.sla is not None:
-                    dag_pretty += f"     SLA: {node.sla.model_dump_json(indent=2) if hasattr(node.sla, 'model_dump_json') else node.sla}\n"
-            dag_pretty += f"Edges ({len(current_workflow.edges)}):\n"
-            for i, edge in enumerate(current_workflow.edges):
-                dag_pretty += f"  {i+1}. {edge.source} -> {edge.target}\n"
-                if edge.data.route_index is not None:
-                    dag_pretty += f"     Route Index: {edge.data.route_index}\n"
-                    if edge.data.route_label:
-                        dag_pretty += f"     Route Label: {edge.data.route_label}\n"
-                if edge.sourceHandle or edge.targetHandle:
-                    dag_pretty += f"     Handles: {edge.sourceHandle} -> {edge.targetHandle}\n"
-            dag_pretty += "---\n"
 
             # Broadcast update to connected clients
             workflow_logger.info(f"Broadcasting workflow update to {len(connections)} connections")
@@ -1841,18 +1736,18 @@ async def generate_workflow(workflow_request: WorkflowRequest, request: Request)
             return WorkflowResponse(
                 success=True,
                 workflow=workflow_data,
-                agent_response=result.reasoning  # Only return the planner's reasoning, not the raw DAG
+                agent_response=workflow_spec.reasoning  # Only return the planner's reasoning, not the raw DAG
             )
             
         else:
             # Check if this was a WorkflowSpecLLM that we already handled above
-            if isinstance(result, WorkflowSpecLLM) and (result.nodes is None or result.edges is None):
+            if isinstance(workflow_spec, WorkflowSpecLLM) and (workflow_spec.nodes is None or workflow_spec.edges is None):
                 # This case should have been handled above, but just in case
                 workflow_logger.warning("Chat-only response reached else block")
                 return WorkflowResponse(
                     success=True,
                     workflow=None,
-                    agent_response=result.reasoning
+                    agent_response=workflow_spec.reasoning
                 )
             else:
                 # This shouldn't happen with current implementation, but handle gracefully
@@ -1886,7 +1781,7 @@ async def clear_workflow():
 
 
 @app.post("/api/execute", response_model=ExecutionResponse)
-async def execute_workflow(execution_request: ExecutionRequest, request: Request):
+async def execute_workflow_endpoint(execution_request: ExecutionRequest, request: Request):
     """Execute the current workflow or provided workflow data."""
     global current_workflow
     
@@ -2000,17 +1895,18 @@ async def execute_workflow_background(
             print(f"🔄 Using single-serve mode with execution conversation_id: {conversation_id}")
         
         # Use the standardized workflow execution helper
-        print(f"🔍 User inputs will be handled by execute_workflow_with_metadata: {user_inputs}")
+        print(f"🔍 User inputs will be handled by execute_workflow: {user_inputs}")
         
         # Execute using the standard helper that returns WorkflowExecutionResult
-        result: WorkflowExecutionResult = await execute_workflow_with_metadata(
-            workflow_spec=workflow_spec,
-            execution_id=execution_id,
+        result: WorkflowExecutionResult = await execute_workflow_core(
+            workflow_spec,
             user_inputs=user_inputs,
-            form_id=form_id,
+            objective=workflow_spec.description,
             conversation_id=conversation_id,
-            feedback_collector=feedback_collector,
+            execution_id=execution_id,
+            form_id=form_id,
             client_mode=True,
+            feedback_collector=feedback_collector,
             debug=True
         )
         

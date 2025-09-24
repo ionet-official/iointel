@@ -342,16 +342,16 @@ structured_logger = IOLogger("STRUCTURED", structured=True)
 
 # ===== PROMPT LOGGING SYSTEM =====
 # Global prompt history for debugging and analysis
-prompt_history: list[Dict[str, Any]] = []
+trace_history: list[Dict[str, Any]] = []
 
-def log_prompt(
+def log_trace(
     prompt_type: str, 
     prompt: str, 
     response: Optional[str] = None, 
     metadata: Optional[Dict[str, Any]] = None
 ) -> str:
     """
-    Log a prompt for debugging purposes.
+    Log a trace for debugging purposes.
     
     Args:
         prompt_type: Type of prompt (workflow_generation, agent_instruction, etc.)
@@ -373,7 +373,7 @@ def log_prompt(
         "id": str(uuid.uuid4())
     }
     
-    prompt_history.append(prompt_entry)
+    trace_history.append(prompt_entry)
     
     # Log to console with cyberpunk styling
     agent_logger.info(f"🤖 Logged {prompt_type} prompt", data={
@@ -385,21 +385,21 @@ def log_prompt(
     
     return prompt_entry["id"]
 
-def get_prompt_history() -> list[Dict[str, Any]]:
+def get_trace_history() -> list[Dict[str, Any]]:
     """Get all logged prompts."""
-    return prompt_history.copy()
+    return trace_history.copy()
 
-def clear_prompt_history() -> int:
-    """Clear all logged prompts and return count of cleared prompts."""
-    global prompt_history
-    count = len(prompt_history)
-    prompt_history.clear()
+def clear_trace_history() -> int:
+    """Clear all logged traces and return count of cleared traces."""
+    global trace_history
+    count = len(trace_history)
+    trace_history.clear()
     agent_logger.info(f"🧹 Cleared {count} prompts from history")
     return count
 
-def get_prompt_by_id(prompt_id: str) -> Optional[Dict[str, Any]]:
+def get_trace_by_id(prompt_id: str) -> Optional[Dict[str, Any]]:
     """Get a specific prompt by its ID."""
-    for prompt in prompt_history:
+    for prompt in trace_history:
         if prompt["id"] == prompt_id:
             return prompt.copy()
     return None

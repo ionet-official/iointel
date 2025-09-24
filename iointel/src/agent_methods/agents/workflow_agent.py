@@ -6,7 +6,7 @@ from iointel.src.memory import AsyncMemory
 from iointel.src.web.unified_conversation_storage import get_unified_conversation_storage
 from iointel.src.agent_methods.data_models.workflow_spec import WorkflowSpec, WorkflowSpecLLM
 from datetime import datetime
-from iointel.src.utilities.io_logger import log_prompt, get_component_logger
+from iointel.src.utilities.io_logger import log_trace, get_component_logger
 from iointel.src.utilities.unified_prompt_system import unified_prompt_system, PromptType
 from iointel.src.utilities.conversion_utils import (
     validation_errors_to_llm_prompt,
@@ -356,7 +356,7 @@ def log_full_prompt_and_response(prompt: str, response: Optional[str] = None, me
         metadata["attempt"] = attempt
     
     # Log the full prompt
-    log_prompt(
+    log_trace(
         prompt_type="workflow_planner_full",
         prompt=prompt,
         metadata=metadata
@@ -364,7 +364,7 @@ def log_full_prompt_and_response(prompt: str, response: Optional[str] = None, me
     
     # Log the response if provided
     if response is not None:
-        log_prompt(
+        log_trace(
             prompt_type="workflow_planner_response", 
             prompt=prompt,  # Reference to original prompt
             response=str(response),
@@ -460,7 +460,7 @@ class WorkflowPlanner:
         # Create the prompt builder
         prompt_builder = WorkflowPromptBuilder(
             query=query,
-            tool_catalog=tool_catalog or {},
+            tool_catalog=tool_catalog,
             schema=workflow_schema,
             context=context
         ).set_previous_workflow(self.last_workflow)
@@ -528,27 +528,24 @@ class WorkflowPlanner:
                                     "feedback_types": list(set(feedback_summary))
                                 })
                         
-                        # Centralized logging
-                        log_full_prompt_and_response(
-                            prompt=f"Query: {query}\n\n==Context==\n{context_info}",  # Log full prompt for debugging
-                            metadata={
-                                "attempt": attempt,
-                                "max_retries": max_retries,
-                                "conversation_id": self.conversation_id,
-                                "tool_catalog_size": len(tool_catalog or {}),
-                                "has_validation_feedback": bool(validation_errors),
-                                "query_length": len(query),
-                                "context_info_length": len(context_info),
-                                "instructions_length": len(get_workflow_planner_instructions())
-                            },
-                            attempt=attempt
-                        )
-                        
-                        # Log the full prompt to UI for transaction visibility
-                        from ...utilities.io_logger import log_prompt
-                        
+                        # # Centralized logging
+                        # log_full_prompt_and_response(
+                        #     prompt=f"Query: {query}\n\n==Context==\n{context_info}",  # Log full prompt for debugging
+                        #     metadata={
+                        #         "attempt": attempt,
+                        #         "max_retries": max_retries,
+                        #         "conversation_id": self.conversation_id,
+                        #         "tool_catalog_size": len(tool_catalog or {}),
+                        #         "has_validation_feedback": bool(validation_errors),
+                        #         "query_length": len(query),
+                        #         "context_info_length": len(context_info),
+                        #         "instructions_length": len(get_workflow_planner_instructions())
+                        #     },
+                        #     attempt=attempt
+                        # )
+                    
                         full_prompt = f"CONTEXT:\n{context_info}\n\nUSER QUERY:\n{query}"
-                        log_prompt(
+                        log_trace(
                             prompt_type=f"workflow_generation_attempt_{attempt}",
                             prompt=full_prompt,
                             metadata={
@@ -573,8 +570,8 @@ class WorkflowPlanner:
                                 **filtered_kwargs
                             )
                             
-                            # result is a dict with 'result' key containing WorkflowSpecLLM
-                            workflow_result = result['result'] if result else None
+                            # result is an AgentResult object with 'result' attribute containing WorkflowSpecLLM
+                            workflow_result = result.result if result else None
                             
                             # Store simple conversation turn (user input + agent response)
                             if workflow_result:
@@ -600,7 +597,7 @@ class WorkflowPlanner:
                             metadata={
                                 "attempt": attempt,
                                 "conversation_id": self.conversation_id,
-                                "result_type": type(result['result']).__name__ if result else "None",
+                                "result_type": type(result.result).__name__ if result else "None",
                                 "response_length": len(str(result)) if result else 0,
                                 "query": query,
                                 "context_length": len(context_info)
@@ -608,8 +605,8 @@ class WorkflowPlanner:
                             attempt=attempt
                         )
                 
-                        # Extract the structured output - result is a dict from agent.run()
-                        workflow_spec_llm = result['result']
+                        # Extract the structured output - result is an AgentResult object from agent.run()
+                        workflow_spec_llm = result.result
                         if not isinstance(workflow_spec_llm, WorkflowSpecLLM):
                             raise ValueError(f"Expected WorkflowSpecLLM, got {type(workflow_spec_llm)}")
                 
@@ -626,7 +623,7 @@ class WorkflowPlanner:
                             if workflow_spec_llm.nodes:
                                 data_source_nodes = [n for n in workflow_spec_llm.nodes if n.type == "data_source"]
                                 if data_source_nodes:
-                                    from ..data_models.workflow_spec import DataSourceData
+                                    from iointel.src.agent_methods.data_models.workflow_spec import DataSourceData
                                     self.logger.info("Data source nodes generated:", data={
                                         "count": len(data_source_nodes),
                                         "nodes": [{
@@ -653,7 +650,7 @@ class WorkflowPlanner:
                         # 🚨 CRITICAL VALIDATION: Check for tool hallucination and structural issues
                         with self.logger.group("Workflow Validation"):
                             # Build unified validation catalog (tools + data sources)
-                            from ...utilities.tool_registry_utils import create_validation_catalog
+                            from iointel.src.utilities.tool_registry_utils import create_validation_catalog
                             
                             # Use the unified validation catalog function
                             validation_catalog = create_validation_catalog(
@@ -715,7 +712,7 @@ class WorkflowPlanner:
                                     validation_feedback = "VALIDATION ISSUES:\n" + "\n".join(f"{i}. {issue}" for i, issue in enumerate(structural_issues, 1))
                                     validation_feedback += f"\n\nGENERATED WORKFLOW:\n{workflow_spec.to_llm_prompt()}"
                                     
-                                    log_prompt(
+                                    log_trace(
                                         prompt_type=f"validation_failure_attempt_{attempt}",
                                         prompt=validation_feedback,
                                         metadata={
@@ -789,7 +786,7 @@ Reference the topology and SLA requirements above when making changes.
             message_history_limit=7,  # Limit to last 7 messages to prevent context overflow
             **kwargs
         )
-        refined_spec_llm = result['result']
+        refined_spec_llm = result.result
         
         # Check if this is a chat-only response (nodes/edges are null)
         if isinstance(refined_spec_llm, WorkflowSpecLLM):
